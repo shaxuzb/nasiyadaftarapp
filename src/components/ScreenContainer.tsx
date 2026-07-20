@@ -1,12 +1,11 @@
 import React, { ReactNode } from 'react';
 import {
-  ScrollView,
   View,
   StyleSheet,
-  RefreshControlProps,
   ScrollViewProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useTheme } from '../hooks/useTheme';
 import { spacing } from '../theme';
 
@@ -35,13 +34,16 @@ export function ScreenContainer({
       edges={['left', 'right']}
     >
       {scrollable ? (
-        <ScrollView
+        <KeyboardAwareScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          bottomOffset={24}
+          extraKeyboardSpace={16}
           {...rest}
         >
           {inner}
-        </ScrollView>
+        </KeyboardAwareScrollView>
       ) : (
         inner
       )}

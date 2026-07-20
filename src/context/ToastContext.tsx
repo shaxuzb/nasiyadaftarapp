@@ -1,6 +1,7 @@
-import React, { createContext, ReactNode, useCallback, useContext, useMemo, useRef, useState } from 'react';
+import React, { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../hooks/useTheme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { radius, spacing, typography } from '../theme';
 
 type ToastType = 'success' | 'error' | 'info';
@@ -19,6 +20,7 @@ const ToastContext = createContext<ToastContextValue | undefined>(undefined);
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const [toast, setToast] = useState<ToastState>({
     visible: false,
     message: '',
@@ -69,6 +71,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     timerRef.current = setTimeout(hideToast, 2200);
   }, [hideToast, opacity, translateY]);
 
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
   const toastBg = useMemo(() => {
     if (toast.type === 'success') return theme.successColor;
     if (toast.type === 'error') return theme.dangerColor;
@@ -76,22 +86,36 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [theme, toast.type]);
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+      <ToastContext.Provider value={{ showToast }}>
       {children}
       {toast.visible ? (
-        <View pointerEvents="none" style={styles.container}>
-          <Animated.View
+        <View
+          pointerEvents="box-none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            { zIndex: 99999, elevation: 99999 },
+          ]}
+        >
+          <View
+            pointerEvents="none"
             style={[
-              styles.toast,
-              {
-                backgroundColor: toastBg,
-                opacity,
-                transform: [{ translateY }],
-              },
+              styles.container,
+              { bottom: Math.max(insets.bottom, spacing.md) + spacing.md },
             ]}
           >
-            <Text style={[typography.label, styles.text]}>{toast.message}</Text>
-          </Animated.View>
+            <Animated.View
+              style={[
+                styles.toast,
+                {
+                  backgroundColor: toastBg,
+                  opacity,
+                  transform: [{ translateY }],
+                },
+              ]}
+            >
+              <Text style={[typography.label, styles.text]}>{toast.message}</Text>
+            </Animated.View>
+          </View>
         </View>
       ) : null}
     </ToastContext.Provider>
@@ -109,9 +133,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: spacing.lg,
     alignItems: 'center',
-    zIndex: 50,
+    zIndex: 99999,
+    elevation: 99999,
   },
   toast: {
     minWidth: 180,

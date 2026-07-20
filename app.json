@@ -2,36 +2,32 @@
   "expo": {
     "name": "NasiyaDaftari",
     "slug": "NasiyaDaftari",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#030917"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.rbsx.nasiyadaftariapp",
+      "bundleIdentifier": "com.rbsx.nasiyadaftarapp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSMicrophoneUsageDescription": "Mikrofondan foydalanishga ruxsat bering.",
-        "NSSpeechRecognitionUsageDescription": "Ovozli matn kiritishga ruxsat bering.",
         "NSContactsUsageDescription": "Mijozni kontaktlardan tez qo'shish uchun kontaktlarga ruxsat bering."
       }
     },
     "android": {
+      "versionCode": 3,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#030917"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.rbsx.nasiyadaftariapp",
+      "package": "com.rbsx.nasiyadaftarapp",
       "permissions": [
-        "android.permission.RECORD_AUDIO",
         "android.permission.READ_CONTACTS"
       ]
     },
@@ -39,15 +35,19 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
+      "expo-contacts",
       [
-        "expo-speech-recognition",
+        "expo-build-properties",
         {
-          "microphonePermission": "Mikrofondan foydalanishga ruxsat bering.",
-          "speechRecognitionPermission": "Ovozli matn kiritishga ruxsat bering."
+          "android": {
+            "enableMinifyInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "enableBundleCompression": true
+          }
         }
       ],
-      "@react-native-community/datetimepicker",
-      "expo-contacts"
+      "expo-font",
+      "expo-web-browser"
     ],
     "extra": {
       "eas": {

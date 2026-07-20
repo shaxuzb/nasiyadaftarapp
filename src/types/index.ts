@@ -1,22 +1,5 @@
-export type TransactionType = 'debt' | 'payment';
-
-export interface Customer {
-  id: number;
-  firstName: string;
-  lastName: string;
-  phone: string;
-  note?: string;
-  createdAt?: string;
-}
-
-export interface Transaction {
-  id: number;
-  customerId: number;
-  type: TransactionType;
-  amount: number;
-  date: string;
-  note?: string;
-}
+export type { Transaction, TransactionType } from '../modules/transactions/types';
+export type { Customer } from '../modules/clients/types';
 
 export interface AppTheme {
   background: string;
@@ -42,23 +25,34 @@ export interface AppTheme {
   tabBarBorder: string;
 }
 
-export interface DashboardStats {
-  totalDebt: number;
-  totalPaid: number;
-  remainingBalance: number;
-  activeDebtorsCount: number;
-  totalCustomers: number;
-}
-
 export type RootStackParamList = {
   MainTabs: undefined;
   CustomerDetail: { customerId: number };
-  AddCustomer: undefined;
-  AddTransaction: { customerId: number; type?: TransactionType };
 };
 
 export type MainTabParamList = {
   Customers: undefined;
   Reports: undefined;
   Settings: undefined;
+};
+
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+  RegisterSmsVerify: {
+    registerPayload: {
+      userName: string;
+      password: string;
+      fullName: string;
+      phoneNumber: string;
+    };
+    phoneMasked: string;
+    expiresInSeconds: number;
+  };
+  PasswordResetRequest: undefined;
+  PasswordResetConfirm: { phone: string };
+};
+
+export type OrganizationStackParamList = {
+  OrganizationSetup: undefined;
 };

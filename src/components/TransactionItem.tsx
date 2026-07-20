@@ -1,98 +1,120 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../hooks/useTheme';
-import { Transaction } from '../types';
-import { formatCurrency, formatDate } from '../utils';
-import { spacing, radius, typography } from '../theme';
+import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+
+import { Transaction } from "../modules/transactions/types";
+import { formatCurrency, formatDate } from "../utils";
 
 interface Props {
   transaction: Transaction;
-  showCustomerName?: string;
+  isLast?: boolean;
 }
 
-export function TransactionItem({ transaction, showCustomerName }: Props) {
-  const theme   = useTheme();
-  const isDebt  = transaction.type === 'debt';
-
-  const color  = isDebt ? theme.debtColor  : theme.paymentColor;
-  const bgColor = isDebt ? theme.debtBg     : theme.paymentBg;
-  const icon    = isDebt ? 'arrow-down-circle' : 'arrow-up-circle';
-  const prefix  = isDebt ? '+' : '−';
-  const label   = isDebt ? 'Nasiya' : 'To\'lov';
+export function TransactionItem({ transaction, isLast = false }: Props) {
+  const isDebt = transaction.type === "debt";
+  const color = isDebt ? "#F4511E" : "#159447";
+  const backgroundColor = isDebt ? "#FFF0E8" : "#E7F8ED";
 
   return (
     <View
       style={[
         styles.row,
-        {
-          backgroundColor: theme.surface,
-          borderBottomColor: theme.border,
-        },
+        isDebt && styles.debtRow,
+        !isLast && styles.rowBorder,
       ]}
     >
-      {/* Icon */}
-      <View style={[styles.iconWrap, { backgroundColor: bgColor }]}>
-        <Ionicons name={icon} size={20} color={color} />
+      <View style={[styles.icon, { backgroundColor }]}>
+        <Ionicons
+          name={isDebt ? "arrow-down" : "arrow-up"}
+          size={19}
+          color={color}
+        />
       </View>
 
-      {/* Content */}
       <View style={styles.content}>
-        <View style={styles.topRow}>
-          <View style={[styles.badge, { backgroundColor: bgColor }]}>
-            <Text style={[typography.labelSmall, { color }]}>{label}</Text>
-          </View>
-          <Text style={[typography.mono, { color }]}>
-            {prefix} {formatCurrency(transaction.amount)}
-          </Text>
-        </View>
-
-        <View style={styles.bottomRow}>
-          <Text style={[typography.caption, { color: theme.textSecondary, flex: 1 }]} numberOfLines={1}>
-            {showCustomerName ? `${showCustomerName} · ` : ''}
-            {transaction.note || '—'}
-          </Text>
-          <Text style={[typography.caption, { color: theme.textMuted }]}>
-            {formatDate(transaction.date)}
-          </Text>
-        </View>
+        <Text style={styles.title} numberOfLines={1}>
+          {isDebt ? "Qarz berildi" : "To'lov qabul qilindi"}
+        </Text>
+        <Text style={styles.note} numberOfLines={1}>
+          {transaction.note || (isDebt ? "Nasiya berildi" : "To'lov olindi")}
+        </Text>
       </View>
+
+      <View style={styles.amountBlock}>
+        <Text
+          selectable
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          minimumFontScale={0.72}
+          style={[styles.amount, { color }]}
+        >
+          {isDebt ? "−" : "+"} {formatCurrency(transaction.amount)}
+        </Text>
+        <Text selectable style={styles.date}>
+          {formatDate(transaction.date)}
+        </Text>
+      </View>
+
+      <Ionicons name="chevron-forward" size={17} color="#8B98AB" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    paddingVertical:  spacing.md,
-    borderBottomWidth: 1,
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: "#FFFFFF",
   },
-  iconWrap: {
-    width:         40,
-    height:        40,
-    borderRadius:  radius.md,
-    alignItems:    'center',
-    justifyContent:'center',
-    marginRight:   spacing.md,
+  debtRow: {
+    backgroundColor: "#FFFBF8",
+  },
+  rowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E9F2",
+  },
+  icon: {
+    width: 36,
+    height: 36,
+    flexShrink: 0,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
   },
   content: {
+    minWidth: 0,
     flex: 1,
+    gap: 2,
   },
-  topRow: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
-    marginBottom:   4,
+  title: {
+    color: "#071426",
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "700",
   },
-  badge: {
-    borderRadius:      radius.full,
-    paddingHorizontal: 8,
-    paddingVertical:   2,
+  note: {
+    color: "#5B6F8F",
+    fontSize: 10,
+    lineHeight: 14,
   },
-  bottomRow: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'center',
+  amountBlock: {
+    maxWidth: 110,
+    alignItems: "flex-end",
+    gap: 2,
+  },
+  amount: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  date: {
+    color: "#5B6F8F",
+    fontSize: 9,
+    lineHeight: 13,
+    fontVariant: ["tabular-nums"],
   },
 });

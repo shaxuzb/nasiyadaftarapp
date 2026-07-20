@@ -37,7 +37,7 @@ export function OnboardingScreen({ onFinish }: Props) {
   const progress = useMemo(() => ((index + 1) / STEPS.length) * 100, [index]);
 
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top','bottom']}>
       <View style={styles.wrap}>
         <Text style={[typography.headingLarge, { color: theme.text }]}>Xush kelibsiz</Text>
         <Text style={[typography.bodyMedium, { color: theme.textSecondary, marginTop: 6 }]}>

@@ -7,65 +7,114 @@ import {
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { useColorScheme } from "react-native";
+import { ActivityIndicator, StyleSheet, useColorScheme, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { lightTheme, darkTheme } from "../theme";
-import { useTheme } from "../hooks/useTheme";
 
-// Screens - Tabs
 import { CustomersScreen } from "../screens/CustomersScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 
-// Screens - Stack
 import { CustomerDetailScreen } from "../screens/CustomerDetailScreen";
-import { AddCustomerScreen } from "../screens/AddCustomerScreen";
-import { AddTransactionScreen } from "../screens/AddTransactionScreen";
+import { LoginScreen } from "../screens/LoginScreen";
+import { RegisterScreen } from "../screens/RegisterScreen";
+import { RegisterSmsVerifyScreen } from "../screens/RegisterSmsVerifyScreen";
+import { OrganizationSetupScreen } from "../screens/OrganizationSetupScreen";
+import { PasswordResetRequestScreen } from "../screens/PasswordResetRequestScreen";
+import { PasswordResetConfirmScreen } from "../screens/PasswordResetConfirmScreen";
 
-import { RootStackParamList, MainTabParamList } from "../types";
+import {
+  AuthStackParamList,
+  RootStackParamList,
+  MainTabParamList,
+  OrganizationStackParamList,
+} from "../types";
+import { useAuth } from "../context/AuthContext";
+import { BottomSheetBackHandler } from "../bottom-sheet";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
+const OrganizationStack = createNativeStackNavigator<OrganizationStackParamList>();
+
+type TabRouteName = keyof MainTabParamList;
+type TabIconName = React.ComponentProps<typeof Ionicons>["name"];
+
+const TAB_ICONS: Record<
+  TabRouteName,
+  { active: TabIconName; inactive: TabIconName }
+> = {
+  Customers: { active: "people", inactive: "people-outline" },
+  Reports: { active: "bar-chart", inactive: "bar-chart-outline" },
+  Settings: { active: "settings", inactive: "settings-outline" },
+};
+
+interface TabIconProps {
+  routeName: TabRouteName;
+  focused: boolean;
+  color: string;
+}
+
+const TabIcon = React.memo(function TabIcon({
+  routeName,
+  focused,
+  color,
+}: TabIconProps) {
+  const icon = TAB_ICONS[routeName];
+
+  return (
+    <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
+      <Ionicons
+        name={focused ? icon.active : icon.inactive}
+        size={focused ? 22 : 21}
+        color={color}
+      />
+    </View>
+  );
+});
 
 function TabNavigator() {
-  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const bottomPadding = Math.max(insets.bottom, 8);
 
   return (
     <Tab.Navigator
       initialRouteName="Customers"
       screenOptions={({ route }) => ({
         headerShown: false,
+        lazy: true,
+        freezeOnBlur: true,
+        popToTopOnBlur: true,
+        tabBarHideOnKeyboard: true,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: theme.primary,
-        tabBarInactiveTintColor: theme.textMuted,
+        tabBarActiveTintColor: "#0B5DEB",
+        tabBarInactiveTintColor: "#71819A",
         tabBarStyle: {
-          backgroundColor: theme.tabBar,
-          borderTopColor: theme.tabBarBorder,
+          height: 64 + bottomPadding,
+          paddingTop: 7,
+          paddingBottom: bottomPadding,
+          paddingHorizontal: 8,
+          backgroundColor: "#FFFFFF",
+          borderTopColor: "#E2E9F2",
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 10,
-          paddingTop: 8,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          borderCurve: "continuous",
+          boxShadow: "0 -8px 24px rgba(24, 48, 80, 0.08)",
         },
+        tabBarItemStyle: styles.tabItem,
         tabBarLabelStyle: {
           fontSize: 11,
-          fontWeight: "600",
+          lineHeight: 15,
+          fontWeight: "700",
+          marginTop: 2,
         },
+        tabBarAllowFontScaling: false,
         tabBarIcon: ({ color, focused }) => {
-          const icons: Record<
-            string,
-            [keyof typeof Ionicons.glyphMap, keyof typeof Ionicons.glyphMap]
-          > = {
-            Customers: ["people", "people-outline"],
-            Reports: ["bar-chart", "bar-chart-outline"],
-            Settings: ["settings", "settings-outline"],
-          };
-          const [filled, outline] = icons[route.name] ?? [
-            "home",
-            "home-outline",
-          ];
           return (
-            <Ionicons
-              name={focused ? filled : outline}
-              size={22}
+            <TabIcon
+              routeName={route.name}
+              focused={focused}
               color={color}
             />
           );
@@ -75,12 +124,12 @@ function TabNavigator() {
       <Tab.Screen
         name="Customers"
         component={CustomersScreen}
-        options={{ title: "Bosh sahifa" }}
+        options={{ title: "Mijozlar" }}
       />
       <Tab.Screen
         name="Reports"
         component={ReportsScreen}
-        options={{ title: "Hisobotlar" }}
+        options={{ title: "Hisobot" }}
       />
       <Tab.Screen
         name="Settings"
@@ -91,8 +140,82 @@ function TabNavigator() {
   );
 }
 
+function MainNavigator() {
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
+    </Stack.Navigator>
+  );
+}
+
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
+      <AuthStack.Screen name="Login">
+        {({ navigation }) => (
+          <LoginScreen
+            onGoToRegister={() => navigation.navigate("Register")}
+            onGoToForgotPassword={() => navigation.navigate("PasswordResetRequest")}
+          />
+        )}
+      </AuthStack.Screen>
+      <AuthStack.Screen name="Register">
+        {({ navigation }) => (
+          <RegisterScreen
+            onGoToLogin={() => navigation.navigate("Login")}
+            onGoToSmsVerify={(params) =>
+              navigation.navigate("RegisterSmsVerify", params)
+            }
+          />
+        )}
+      </AuthStack.Screen>
+      <AuthStack.Screen name="RegisterSmsVerify">
+        {({ route, navigation }) => (
+          <RegisterSmsVerifyScreen
+            registerPayload={route.params.registerPayload}
+            phoneMasked={route.params.phoneMasked}
+            expiresInSeconds={route.params.expiresInSeconds}
+            onGoBackToRegister={() => navigation.goBack()}
+          />
+        )}
+      </AuthStack.Screen>
+      <AuthStack.Screen name="PasswordResetRequest">
+        {({ navigation }) => (
+          <PasswordResetRequestScreen
+            onGoBackToLogin={() => navigation.replace("Login")}
+            onGoToConfirm={(phone) =>
+              navigation.replace("PasswordResetConfirm", { phone })
+            }
+          />
+        )}
+      </AuthStack.Screen>
+      <AuthStack.Screen name="PasswordResetConfirm">
+        {({ route, navigation }) => (
+          <PasswordResetConfirmScreen
+            phone={route.params.phone}
+            onGoBackToLogin={() => navigation.replace("Login")}
+          />
+        )}
+      </AuthStack.Screen>
+    </AuthStack.Navigator>
+  );
+}
+
+function OrganizationNavigator() {
+  return (
+    <OrganizationStack.Navigator screenOptions={{ headerShown: false }}>
+      <OrganizationStack.Screen
+        name="OrganizationSetup"
+        component={OrganizationSetupScreen}
+      />
+    </OrganizationStack.Navigator>
+  );
+}
+
 export function AppNavigator() {
   const scheme = useColorScheme();
+  const { user, isBootstrapping } = useAuth();
 
   const navTheme = {
     ...(scheme === "dark" ? DarkTheme : DefaultTheme),
@@ -106,22 +229,47 @@ export function AppNavigator() {
     },
   };
 
+  if (isBootstrapping) {
+    return (
+      <View style={[styles.loader, { backgroundColor: navTheme.colors.background }]}>
+        <ActivityIndicator size="large" color={navTheme.colors.primary} />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer theme={navTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="MainTabs" component={TabNavigator} />
-        <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
-        <Stack.Screen name="AddCustomer" component={AddCustomerScreen} />
-        <Stack.Screen
-          name="AddTransaction"
-          options={{
-            presentation: "transparentModal",
-            animation: "fade_from_bottom",
-            contentStyle: { backgroundColor: "transparent" },
-          }}
-          component={AddTransactionScreen}
-        />
-      </Stack.Navigator>
+      <BottomSheetBackHandler />
+      {!user ? (
+        <AuthNavigator />
+      ) : user.hasOrganization ? (
+        <MainNavigator />
+      ) : (
+        <OrganizationNavigator />
+      )}
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  tabItem: {
+    minHeight: 54,
+    borderRadius: 16,
+    borderCurve: "continuous",
+  },
+  tabIcon: {
+    width: 42,
+    height: 32,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  tabIconActive: {
+    backgroundColor: "#E7F0FF",
+  },
+  loader: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

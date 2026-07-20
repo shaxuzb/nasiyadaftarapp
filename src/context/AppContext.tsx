@@ -1,108 +1,158 @@
 import React, {
   createContext,
-  useContext,
-  useState,
-  useCallback,
   ReactNode,
-} from 'react';
-import { Customer, Transaction } from '../types';
-import customersData    from '../data/customers.json';
-import transactionsData from '../data/transactions.json';
-import {
-  getBalance,
-  getCustomerTransactions,
-  generateId,
-} from '../utils';
-
-// ─── Types ────────────────────────────────────────────────────────
+  useCallback,
+  useContext,
+  useMemo,
+} from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Customer, Transaction } from "../types";
+import { queryKeys } from "../core/query/queryKeys";
+import { useClientQueries } from "../modules/clients/hooks/useClientQueries";
+import { createCustomerMap } from "../modules/clients/utils/clientCalculations";
+import { useTransactionQueries } from "../modules/transactions/hooks/useTransactionQueries";
+import { useAuth } from "./AuthContext";
+import { seedDemoData as runSeedDemoData } from "../modules/clients/utils/seedDemoData";
 
 interface AppContextValue {
-  customers:    Customer[];
+  customers: Customer[];
   transactions: Transaction[];
+  isLoadingCustomers: boolean;
+  isLoadingData: boolean;
 
-  addCustomer:    (data: Omit<Customer, 'id' | 'createdAt'>) => Customer;
-  addTransaction: (data: Omit<Transaction, 'id'>) => Transaction;
+  refreshCustomers: (search?: string) => Promise<void>;
+  addCustomer: (data: Omit<Customer, "id" | "createdAt">) => Promise<Customer>;
+  deleteCustomer: (customerId: number) => Promise<void>;
 
-  getCustomerById:          (id: number) => Customer | undefined;
-  getCustomerBalance:       (customerId: number) => number;
-  getTransactionsForCustomer: (customerId: number) => Transaction[];
+  loadCustomerDetail: (id: number) => Promise<Customer | undefined>;
+  loadCustomerHistory: (customerId: number) => Promise<Transaction[]>;
+
+  getCustomerById: (id: number) => Customer | undefined;
+
+  seedDemoData: (
+    onProgress?: (msg: string) => void,
+  ) => Promise<{ added: number; skipped: number }>;
 }
-
-// ─── Context ──────────────────────────────────────────────────────
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
-// ─── Provider ─────────────────────────────────────────────────────
-
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [customers, setCustomers] = useState<Customer[]>(
-    customersData as Customer[]
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const scope = user?.organizationId ?? user?.id ?? "anonymous";
+  const enabled = Boolean(user);
+
+  const clientState = useClientQueries(scope, enabled);
+  const {
+    customers: clientCustomers,
+    isLoading: isLoadingCustomers,
+    addCustomer: addClient,
+    deleteCustomer: deleteClient,
+    loadCustomerDetail,
+  } = clientState;
+  const clientIds = useMemo(
+    () => clientCustomers.map((customer) => customer.id),
+    [clientCustomers],
   );
-  const [transactions, setTransactions] = useState<Transaction[]>(
-    transactionsData as Transaction[]
+  const transactionState = useTransactionQueries(scope, clientIds, enabled);
+  const {
+    transactions: transactionItems,
+    isLoading: isLoadingTransactions,
+    loadCustomerHistory,
+  } = transactionState;
+
+  const customers = clientCustomers as Customer[];
+  const transactions = transactionItems as Transaction[];
+  const customerMap = useMemo(() => createCustomerMap(customers), [customers]);
+
+  const invalidateClientRelatedQueries = useCallback(
+    async (clientId?: number) => {
+      const keys = [
+        queryClient.invalidateQueries({ queryKey: queryKeys.clients(scope) }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.transactions(scope),
+        }),
+      ];
+
+      if (typeof clientId === "number") {
+        keys.push(
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.client(scope, clientId),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.transactionHistory(scope, clientId),
+          }),
+        );
+      }
+
+      await Promise.all(keys);
+    },
+    [queryClient, scope],
   );
+
+  const refreshCustomers = useCallback(async () => {
+    await invalidateClientRelatedQueries();
+  }, [invalidateClientRelatedQueries]);
 
   const addCustomer = useCallback(
-    (data: Omit<Customer, 'id' | 'createdAt'>): Customer => {
-      const newCustomer: Customer = {
-        ...data,
-        id:        generateId(customers),
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      setCustomers((prev) => [...prev, newCustomer]);
-      return newCustomer;
-    },
-    [customers]
+    async (data: Omit<Customer, "id" | "createdAt">) =>
+      addClient(data),
+    [addClient],
   );
 
-  const addTransaction = useCallback(
-    (data: Omit<Transaction, 'id'>): Transaction => {
-      const newTx: Transaction = {
-        ...data,
-        id: generateId(transactions),
-      };
-      setTransactions((prev) => [...prev, newTx]);
-      return newTx;
-    },
-    [transactions]
+  const deleteCustomer = useCallback(
+    async (customerId: number) => deleteClient(customerId),
+    [deleteClient],
   );
 
   const getCustomerById = useCallback(
-    (id: number) => customers.find((c) => c.id === id),
-    [customers]
+    (id: number) => customerMap.get(id),
+    [customerMap],
   );
 
-  const getCustomerBalance = useCallback(
-    (customerId: number) => getBalance(customerId, transactions),
-    [transactions]
+  const seedDemoData = useCallback(
+    async (onProgress?: (msg: string) => void) => {
+      const result = await runSeedDemoData(onProgress);
+      await invalidateClientRelatedQueries();
+      return result;
+    },
+    [invalidateClientRelatedQueries],
   );
 
-  const getTransactionsForCustomer = useCallback(
-    (customerId: number) => getCustomerTransactions(customerId, transactions),
-    [transactions]
+  const value = useMemo<AppContextValue>(
+    () => ({
+      customers,
+      transactions,
+      isLoadingCustomers,
+      isLoadingData: isLoadingCustomers || isLoadingTransactions,
+      refreshCustomers,
+      addCustomer,
+      deleteCustomer,
+      loadCustomerDetail,
+      loadCustomerHistory,
+      getCustomerById,
+      seedDemoData,
+    }),
+    [
+      addCustomer,
+      customers,
+      deleteCustomer,
+      getCustomerById,
+      isLoadingCustomers,
+      isLoadingTransactions,
+      loadCustomerDetail,
+      loadCustomerHistory,
+      refreshCustomers,
+      seedDemoData,
+      transactions,
+    ],
   );
 
-  return (
-    <AppContext.Provider
-      value={{
-        customers,
-        transactions,
-        addCustomer,
-        addTransaction,
-        getCustomerById,
-        getCustomerBalance,
-        getTransactionsForCustomer,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────
-
 export function useApp(): AppContextValue {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error('useApp must be used within AppProvider');
-  return ctx;
+  const context = useContext(AppContext);
+  if (!context) throw new Error("useApp must be used within AppProvider");
+  return context;
 }
