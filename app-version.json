@@ -1,0 +1,18 @@
+{
+  "android": {
+    "latestVersion": "1.2.0",
+    "minimumVersion": "1.0.0",
+    "forceUpdate": false,
+    "title": "Yangi versiya mavjud",
+    "message": "Ilovaning yangi versiyasi chiqdi.",
+    "storeUrl": "https://play.google.com/store/apps/details?id=com.rbsx.nasiyadaftarapp"
+  },
+  "ios": {
+    "latestVersion": "1.2.0",
+    "minimumVersion": "1.0.0",
+    "forceUpdate": false,
+    "title": "Yangi versiya mavjud",
+    "message": "Ilovaning yangi versiyasi chiqdi.",
+    "storeUrl": "https://apps.apple.com/app/id1234567890"
+  }
+}
