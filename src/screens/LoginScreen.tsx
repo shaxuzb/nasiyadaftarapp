@@ -1,14 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {
+  ActivityIndicator,
   Text,
   TouchableOpacity,
   View,
   StyleSheet,
   Image,
 } from "react-native";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
 import { AppInput } from "../components/AppInput";
@@ -16,34 +15,23 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { GOOGLE_AUTH_CONFIG } from "../config/env";
 import { APP_NAME } from "../constants";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-
-WebBrowser.maybeCompleteAuthSession();
+import {
+  getGoogleSignInErrorMessage,
+  requestGoogleIdToken,
+} from "../modules/auth/services/googleSignInService";
+import {
+  formatLoginIdentifierInput,
+  isPhoneLoginIdentifier,
+  isValidLoginIdentifier,
+  normalizeLoginIdentifier,
+} from "../modules/auth/utils/loginIdentifier";
+import { getApiErrorMessage } from "../utils/apiError";
 
 interface Props {
   onGoToRegister: () => void;
   onGoToForgotPassword: () => void;
-}
-
-const googleClientConfig = {
-  expoClientId: GOOGLE_AUTH_CONFIG.expoClientId,
-  iosClientId:
-    GOOGLE_AUTH_CONFIG.iosClientId ?? GOOGLE_AUTH_CONFIG.expoClientId,
-  androidClientId:
-    GOOGLE_AUTH_CONFIG.androidClientId ?? GOOGLE_AUTH_CONFIG.expoClientId,
-  webClientId:
-    GOOGLE_AUTH_CONFIG.webClientId ?? GOOGLE_AUTH_CONFIG.expoClientId,
-};
-
-function hasAnyGoogleClientId() {
-  return Boolean(
-    googleClientConfig.expoClientId ||
-    googleClientConfig.iosClientId ||
-    googleClientConfig.androidClientId ||
-    googleClientConfig.webClientId,
-  );
 }
 
 export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
@@ -55,76 +43,61 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-
-  const [request, response, promptAsync] =
-    Google.useIdTokenAuthRequest(googleClientConfig);
+  const isPhoneIdentifier = isPhoneLoginIdentifier(userName);
 
   const canSubmit = useMemo(
-    () => userName.trim().length > 2 && password.trim().length >= 4,
+    () => isValidLoginIdentifier(userName) && password.trim().length >= 4,
     [password, userName],
   );
 
-  useEffect(() => {
-    if (!response || response.type !== "success") {
-      return;
-    }
-
-    const idToken = response.params.id_token;
-    if (!idToken) {
-      showToast("Google idToken olinmadi", "error");
-      setGoogleLoading(false);
-      return;
-    }
-
-    loginWithGoogleIdToken(idToken)
-      .then(() => showToast("Google orqali tizimga kirildi", "success"))
-      .catch(() => showToast("Google login xatolik berdi", "error"))
-      .finally(() => setGoogleLoading(false));
-  }, [loginWithGoogleIdToken, response, showToast]);
+  const handleIdentifierChange = (value: string) => {
+    setUserName((currentValue) =>
+      formatLoginIdentifierInput(value, currentValue),
+    );
+  };
 
   const handleLogin = async () => {
     if (!canSubmit) {
-      showToast("Login va parolni to'g'ri kiriting", "error");
+      showToast(
+        "Username yoki telefon raqami va parolni to'g'ri kiriting",
+        "error",
+      );
       return;
     }
 
     setLoading(true);
     try {
-      await login({ userName: userName.trim(), password });
+      await login({
+        userName: normalizeLoginIdentifier(userName),
+        password,
+      });
       showToast("Muvaffaqiyatli kirildi", "success");
-    } catch (err) {
-      console.log(err);
-
-      showToast("Login yoki parol xato", "error");
+    } catch (error) {
+      showToast(getApiErrorMessage(error, "Login yoki parol xato"), "error");
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    if (!hasAnyGoogleClientId()) {
-      showToast("Google client id env sozlanmagan", "error");
-      return;
-    }
-
     try {
       setGoogleLoading(true);
-      const result = await promptAsync();
-      if (result.type !== "success") {
-        setGoogleLoading(false);
-      }
-    } catch {
+      const idToken = await requestGoogleIdToken();
+      await loginWithGoogleIdToken(idToken);
+      showToast("Google orqali tizimga kirildi", "success");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, getGoogleSignInErrorMessage(error)),
+        "error",
+      );
+    } finally {
       setGoogleLoading(false);
-      showToast("Google oynasini ochishda xatolik", "error");
     }
   };
 
   return (
     <ScreenContainer contentContainerStyle={styles.scrollContent}>
-      <KeyboardAvoidingView
-        style={styles.keyboardWrap}
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={styles.keyboardWrap} behavior="padding">
         <View style={styles.wrapper}>
           <View
             style={[
@@ -159,19 +132,27 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
             </View>
 
             <AppInput
-              label="Username"
+              label="Username yoki telefon raqami"
               value={userName}
-              onChangeText={setUserName}
+              onChangeText={handleIdentifierChange}
               autoCapitalize="none"
               autoCorrect={false}
-              iconName="person-outline"
-              placeholder="username"
+              iconName={isPhoneIdentifier ? "call-outline" : "person-outline"}
+              placeholder="Username yoki telefon raqamini kiriting"
+              keyboardType={isPhoneIdentifier ? "phone-pad" : "default"}
+              textContentType={
+                isPhoneIdentifier ? "telephoneNumber" : "username"
+              }
+              autoComplete={isPhoneIdentifier ? "tel" : "username"}
+              maxLength={isPhoneIdentifier ? 17 : undefined}
+              returnKeyType="next"
             />
             <AppInput
               label="Parol"
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              passwordToggle
               iconName="lock-closed-outline"
               placeholder="******"
             />
@@ -184,7 +165,10 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
               style={{ marginTop: spacing.xs }}
             />
 
-            <TouchableOpacity onPress={onGoToForgotPassword} style={styles.forgotBtn}>
+            <TouchableOpacity
+              onPress={onGoToForgotPassword}
+              style={styles.forgotBtn}
+            >
               <Text style={[typography.label, { color: theme.primary }]}>
                 Parolni unutdingizmi?
               </Text>
@@ -197,15 +181,25 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
                 {
                   borderColor: theme.border,
                   backgroundColor: theme.inputBackground,
-                  opacity: googleLoading || !request ? 0.7 : 1,
+                  opacity: googleLoading ? 0.7 : 1,
                 },
               ]}
               onPress={handleGoogleLogin}
-              disabled={googleLoading || !request}
+              disabled={googleLoading}
+              accessibilityState={{
+                disabled: googleLoading,
+                busy: googleLoading,
+              }}
             >
-              <Ionicons name="logo-google" size={18} color={theme.text} />
+              {googleLoading ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Ionicons name="logo-google" size={18} color={theme.text} />
+              )}
               <Text style={[typography.label, { color: theme.text }]}>
-                Google bilan kirish
+                {googleLoading
+                  ? "Google orqali kirilmoqda..."
+                  : "Google bilan kirish"}
               </Text>
             </TouchableOpacity>
 

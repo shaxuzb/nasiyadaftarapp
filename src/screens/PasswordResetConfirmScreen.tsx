@@ -10,6 +10,7 @@ import { radius, spacing, typography } from "../theme";
 import { confirmPasswordReset } from "../services/authApi";
 import { useToast } from "../context/ToastContext";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { getApiErrorMessage } from "../utils/apiError";
 
 interface Props {
   phone: string;
@@ -44,8 +45,11 @@ export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
       });
       showToast("Parol muvaffaqiyatli yangilandi", "success");
       onGoBackToLogin();
-    } catch {
-      showToast("Kod yoki parol noto'g'ri", "error");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, "Kod yoki parol noto'g'ri"),
+        "error",
+      );
     } finally {
       setLoading(false);
     }

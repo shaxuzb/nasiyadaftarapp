@@ -24,6 +24,9 @@ import { formatCurrency } from "../../utils";
 import { hapticError, hapticSuccess } from "../../utils/haptics";
 import { createClientTransaction } from "../../modules/transactions/services/transactionsService";
 import { queryClient } from "../../core/query/queryClient";
+import { useTheme } from "../../hooks/useTheme";
+import { AppTheme } from "../../types";
+import { getApiErrorMessage } from "../../utils/apiError";
 
 function getLocalDateOnly(): string {
   const now = new Date();
@@ -38,13 +41,15 @@ function formatAmountInput(value: string): string {
   return digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-const KeyboardBottomSheetScrollView = BottomSheetScrollView as unknown as
-  React.ComponentType<ScrollViewProps>;
+const KeyboardBottomSheetScrollView =
+  BottomSheetScrollView as unknown as React.ComponentType<ScrollViewProps>;
 
 export function TransactionSheet({
   props,
   closeSheet,
 }: SheetRenderProps<"transaction">) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const { showToast } = useToast();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -55,8 +60,8 @@ export function TransactionSheet({
   const transactionType = props.type ?? "debt";
   const isDebt = transactionType === "debt";
   const currentBalance = Math.max(props.currentBalance ?? 0, 0);
-  const accentColor = isDebt ? "#0B5DEB" : "#159447";
-  const accentBackground = isDebt ? "#E7F0FF" : "#E7F8ED";
+  const accentColor = isDebt ? theme.primary : theme.paymentColor;
+  const accentBackground = isDebt ? theme.primaryLight : theme.paymentBg;
 
   const parsedAmount = useMemo(
     () => Number(amount.replace(/\s/g, "").replace(",", ".")),
@@ -97,9 +102,12 @@ export function TransactionSheet({
       hapticSuccess();
       showToast(isDebt ? "Qarz yozildi" : "To'lov qo'shildi", "success");
       closeSheet();
-    } catch {
+    } catch (error) {
       hapticError();
-      showToast("Tranzaksiya saqlanmadi", "error");
+      showToast(
+        getApiErrorMessage(error, "Tranzaksiya saqlanmadi"),
+        "error",
+      );
     } finally {
       setSaving(false);
     }
@@ -114,13 +122,15 @@ export function TransactionSheet({
         extraKeyboardSpace={12}
         disableScrollOnKeyboardHide={false}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
+        keyboardShouldPersistTaps="always"
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
         <View style={styles.header}>
-          <View style={[styles.headerIcon, { backgroundColor: accentBackground }]}>
+          <View
+            style={[styles.headerIcon, { backgroundColor: accentBackground }]}
+          >
             <Ionicons
               name={isDebt ? "arrow-down" : "arrow-up"}
               size={22}
@@ -147,11 +157,11 @@ export function TransactionSheet({
               value={amount}
               onChangeText={(value) => setAmount(formatAmountInput(value))}
               keyboardType="number-pad"
-              returnKeyType="next"
+              // returnKeyType="next"
               blurOnSubmit={false}
               maxLength={19}
               placeholder={isDebt ? "Qarz summasi" : "To'lov summasi"}
-              placeholderTextColor="#8A98AC"
+              placeholderTextColor={theme.textMuted}
               selectionColor={accentColor}
               cursorColor={accentColor}
               onFocus={() => setAmountFocused(true)}
@@ -194,7 +204,7 @@ export function TransactionSheet({
               value={note}
               onChangeText={setNote}
               placeholder="Qo'shimcha ma'lumot"
-              placeholderTextColor="#8A98AC"
+              placeholderTextColor={theme.textMuted}
               selectionColor={accentColor}
               cursorColor={accentColor}
               multiline
@@ -237,150 +247,151 @@ export function TransactionSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  keyboardWrap: {
-    flex: 1,
-  },
-  keyboardScroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: 16,
-    paddingTop: 2,
-    paddingBottom: 36,
-    gap: 20,
-    backgroundColor: "#FFFFFF",
-  },
-  header: {
-    alignItems: "center",
-    gap: 3,
-    paddingBottom: 2,
-  },
-  headerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 3,
-  },
-  title: {
-    color: "#071426",
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-  },
-  customerName: {
-    color: "#60728F",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "500",
-  },
-  fieldGroup: {
-    gap: 7,
-  },
-  fieldLabel: {
-    color: "#172A49",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-  },
-  amountField: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 15,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DDE5EF",
-    borderRadius: 15,
-    borderCurve: "continuous",
-  },
-  amountInput: {
-    flex: 1,
-    color: "#071426",
-    fontSize: 16,
-    lineHeight: 22,
-    fontWeight: "600",
-    paddingVertical: 0,
-    fontVariant: ["tabular-nums"],
-  },
-  currencySuffix: {
-    color: "#71819A",
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "600",
-  },
-  balanceCard: {
-    minHeight: 74,
-    flexDirection: "row",
-    alignItems: "stretch",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    backgroundColor: "#F7F9FC",
-    borderWidth: 1,
-    borderColor: "#EDF1F6",
-    borderRadius: 15,
-    borderCurve: "continuous",
-  },
-  balanceItem: {
-    minWidth: 0,
-    flex: 1,
-    justifyContent: "center",
-    gap: 5,
-  },
-  balanceDivider: {
-    width: 1,
-    backgroundColor: "#DDE5EF",
-    marginHorizontal: 14,
-  },
-  balanceLabel: {
-    color: "#71819A",
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "500",
-  },
-  balanceValue: {
-    color: "#172A49",
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  noteField: {
-    minHeight: 88,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DDE5EF",
-    borderRadius: 15,
-    borderCurve: "continuous",
-  },
-  noteInput: {
-    minHeight: 60,
-    color: "#071426",
-    fontSize: 14,
-    lineHeight: 20,
-    padding: 0,
-  },
-  saveButton: {
-    minHeight: 56,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 15,
-    borderCurve: "continuous",
-    boxShadow: "0 8px 18px rgba(11, 93, 235, 0.20)",
-  },
-  saveButtonPressed: {
-    opacity: 0.7,
-  },
-  saveButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "800",
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    keyboardWrap: {
+      flex: 1,
+    },
+    keyboardScroll: {
+      flex: 1,
+    },
+    content: {
+      paddingHorizontal: 16,
+      paddingTop: 2,
+      paddingBottom: 36,
+      gap: 20,
+      backgroundColor: theme.surface,
+    },
+    header: {
+      alignItems: "center",
+      gap: 3,
+      paddingBottom: 2,
+    },
+    headerIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 3,
+    },
+    title: {
+      color: theme.text,
+      fontSize: 19,
+      lineHeight: 25,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+    customerName: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "500",
+    },
+    fieldGroup: {
+      gap: 7,
+    },
+    fieldLabel: {
+      color: theme.text,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+    },
+    amountField: {
+      minHeight: 58,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 15,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 15,
+      borderCurve: "continuous",
+    },
+    amountInput: {
+      flex: 1,
+      color: theme.text,
+      fontSize: 16,
+      lineHeight: 20,
+      fontWeight: "600",
+      paddingVertical: 0,
+      fontVariant: ["tabular-nums"],
+    },
+    currencySuffix: {
+      color: theme.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: "600",
+    },
+    balanceCard: {
+      minHeight: 74,
+      flexDirection: "row",
+      alignItems: "stretch",
+      paddingVertical: 12,
+      paddingHorizontal: 14,
+      backgroundColor: theme.inputBackground,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 15,
+      borderCurve: "continuous",
+    },
+    balanceItem: {
+      minWidth: 0,
+      flex: 1,
+      justifyContent: "center",
+      gap: 5,
+    },
+    balanceDivider: {
+      width: 1,
+      backgroundColor: theme.border,
+      marginHorizontal: 14,
+    },
+    balanceLabel: {
+      color: theme.textMuted,
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "500",
+    },
+    balanceValue: {
+      color: theme.text,
+      fontSize: 14,
+      lineHeight: 19,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    noteField: {
+      minHeight: 88,
+      paddingHorizontal: 15,
+      paddingVertical: 12,
+      backgroundColor: theme.surfaceElevated,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 15,
+      borderCurve: "continuous",
+    },
+    noteInput: {
+      minHeight: 60,
+      color: theme.text,
+      fontSize: 14,
+      lineHeight: 20,
+      padding: 0,
+    },
+    saveButton: {
+      minHeight: 56,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 15,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    saveButtonPressed: {
+      opacity: 0.7,
+    },
+    saveButtonText: {
+      color: "#FFFFFF",
+      fontSize: 15,
+      lineHeight: 20,
+      fontWeight: "800",
+    },
+  });

@@ -2,14 +2,14 @@
   "expo": {
     "name": "NasiyaDaftari",
     "slug": "NasiyaDaftari",
-    "version": "1.0.3",
+    "version": "1.0.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#030917"
+      "backgroundColor": "#092A59"
     },
     "ios": {
       "supportsTablet": false,
@@ -20,22 +20,26 @@
       }
     },
     "android": {
-      "versionCode": 3,
+      "versionCode": 6,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#030917"
+        "backgroundColor": "#092A59"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.rbsx.nasiyadaftarapp",
-      "permissions": [
-        "android.permission.READ_CONTACTS"
-      ]
+      "permissions": ["android.permission.READ_CONTACTS"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-contacts",
+      [
+        "react-native-nitro-google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.631239329456-tmj0hfii9ncuuktm9tirpqrslr6rqmet"
+        }
+      ],
       [
         "expo-build-properties",
         {
@@ -46,8 +50,7 @@
           }
         }
       ],
-      "expo-font",
-      "expo-web-browser"
+      "expo-font"
     ],
     "extra": {
       "eas": {

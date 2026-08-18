@@ -1,11 +1,5 @@
-import React, { useMemo, useRef } from "react";
-import {
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import React, { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
 
@@ -16,9 +10,24 @@ interface Props {
   autoFocus?: boolean;
 }
 
-export function OtpInput({ value, onChange, length = 6, autoFocus }: Props) {
+export interface OtpInputHandle {
+  focus: () => void;
+}
+
+export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
+  { value, onChange, length = 6, autoFocus },
+  forwardedRef,
+) {
   const theme = useTheme();
-  const ref = useRef<TextInput>(null);
+  const inputRef = useRef<TextInput>(null);
+
+  useImperativeHandle(
+    forwardedRef,
+    () => ({
+      focus: () => inputRef.current?.focus(),
+    }),
+    [],
+  );
 
   const normalized = useMemo(
     () => value.replace(/\D/g, "").slice(0, length),
@@ -28,15 +37,23 @@ export function OtpInput({ value, onChange, length = 6, autoFocus }: Props) {
   const cells = Array.from({ length }, (_, i) => normalized[i] ?? "");
 
   return (
-    <Pressable onPress={() => ref.current?.focus()}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="SMS tasdiqlash kodini kiritish"
+      onPress={() => inputRef.current?.focus()}
+    >
       <TextInput
-        ref={ref}
+        ref={inputRef}
         value={normalized}
-        onChangeText={(text) => onChange(text.replace(/\D/g, "").slice(0, length))}
+        onChangeText={(text) =>
+          onChange(text.replace(/\D/g, "").slice(0, length))
+        }
         keyboardType="number-pad"
         autoFocus={autoFocus}
         textContentType="oneTimeCode"
         autoComplete="sms-otp"
+        importantForAutofill="yes"
+        caretHidden
         style={styles.hiddenInput}
       />
       <View style={styles.row}>
@@ -59,7 +76,7 @@ export function OtpInput({ value, onChange, length = 6, autoFocus }: Props) {
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   hiddenInput: {
@@ -82,4 +99,3 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 });
-

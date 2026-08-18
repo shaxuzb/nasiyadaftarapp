@@ -7,9 +7,10 @@ import {
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-import { ActivityIndicator, StyleSheet, useColorScheme, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { lightTheme, darkTheme } from "../theme";
+import { useTheme } from "../hooks/useTheme";
+import { useThemeContext } from "../context/ThemeContext";
 
 import { CustomersScreen } from "../screens/CustomersScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
@@ -35,7 +36,8 @@ import { BottomSheetBackHandler } from "../bottom-sheet";
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const AuthStack = createNativeStackNavigator<AuthStackParamList>();
-const OrganizationStack = createNativeStackNavigator<OrganizationStackParamList>();
+const OrganizationStack =
+  createNativeStackNavigator<OrganizationStackParamList>();
 
 type TabRouteName = keyof MainTabParamList;
 type TabIconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -53,17 +55,21 @@ interface TabIconProps {
   routeName: TabRouteName;
   focused: boolean;
   color: string;
+  activeBackground: string;
 }
 
 const TabIcon = React.memo(function TabIcon({
   routeName,
   focused,
   color,
+  activeBackground,
 }: TabIconProps) {
   const icon = TAB_ICONS[routeName];
 
   return (
-    <View style={[styles.tabIcon, focused && styles.tabIconActive]}>
+    <View
+      style={[styles.tabIcon, focused && { backgroundColor: activeBackground }]}
+    >
       <Ionicons
         name={focused ? icon.active : icon.inactive}
         size={focused ? 22 : 21}
@@ -74,6 +80,7 @@ const TabIcon = React.memo(function TabIcon({
 });
 
 function TabNavigator() {
+  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 8);
 
@@ -87,20 +94,20 @@ function TabNavigator() {
         popToTopOnBlur: true,
         tabBarHideOnKeyboard: true,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: "#0B5DEB",
-        tabBarInactiveTintColor: "#71819A",
+        tabBarActiveTintColor: theme.primary,
+        tabBarInactiveTintColor: theme.textMuted,
         tabBarStyle: {
           height: 64 + bottomPadding,
           paddingTop: 7,
           paddingBottom: bottomPadding,
           paddingHorizontal: 8,
-          backgroundColor: "#FFFFFF",
-          borderTopColor: "#E2E9F2",
+          backgroundColor: theme.tabBar,
+          borderTopColor: theme.tabBarBorder,
           borderTopWidth: 1,
           borderTopLeftRadius: 24,
           borderTopRightRadius: 24,
           borderCurve: "continuous",
-          boxShadow: "0 -8px 24px rgba(24, 48, 80, 0.08)",
+          boxShadow: theme.cardShadow,
         },
         tabBarItemStyle: styles.tabItem,
         tabBarLabelStyle: {
@@ -116,6 +123,7 @@ function TabNavigator() {
               routeName={route.name}
               focused={focused}
               color={color}
+              activeBackground={theme.primaryLight}
             />
           );
         },
@@ -151,12 +159,17 @@ function MainNavigator() {
 
 function AuthNavigator() {
   return (
-    <AuthStack.Navigator screenOptions={{ headerShown: false }} initialRouteName="Login">
+    <AuthStack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName="Login"
+    >
       <AuthStack.Screen name="Login">
         {({ navigation }) => (
           <LoginScreen
             onGoToRegister={() => navigation.navigate("Register")}
-            onGoToForgotPassword={() => navigation.navigate("PasswordResetRequest")}
+            onGoToForgotPassword={() =>
+              navigation.navigate("PasswordResetRequest")
+            }
           />
         )}
       </AuthStack.Screen>
@@ -177,6 +190,9 @@ function AuthNavigator() {
             phoneMasked={route.params.phoneMasked}
             expiresInSeconds={route.params.expiresInSeconds}
             onGoBackToRegister={() => navigation.goBack()}
+            onGoToLogin={() =>
+              navigation.reset({ index: 0, routes: [{ name: "Login" }] })
+            }
           />
         )}
       </AuthStack.Screen>
@@ -214,25 +230,32 @@ function OrganizationNavigator() {
 }
 
 export function AppNavigator() {
-  const scheme = useColorScheme();
+  const theme = useTheme();
+  const { resolvedScheme } = useThemeContext();
   const { user, isBootstrapping } = useAuth();
 
-  const navTheme = {
-    ...(scheme === "dark" ? DarkTheme : DefaultTheme),
-    colors: {
-      ...(scheme === "dark" ? DarkTheme : DefaultTheme).colors,
-      background:
-        scheme === "dark" ? darkTheme.background : lightTheme.background,
-      card: scheme === "dark" ? darkTheme.surface : lightTheme.surface,
-      text: scheme === "dark" ? darkTheme.text : lightTheme.text,
-      border: scheme === "dark" ? darkTheme.border : lightTheme.border,
-    },
-  };
+  const navTheme = React.useMemo(() => {
+    const baseTheme = resolvedScheme === "dark" ? DarkTheme : DefaultTheme;
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary: theme.primary,
+        background: theme.background,
+        card: theme.surface,
+        text: theme.text,
+        border: theme.border,
+        notification: theme.debtColor,
+      },
+    };
+  }, [resolvedScheme, theme]);
 
   if (isBootstrapping) {
     return (
-      <View style={[styles.loader, { backgroundColor: navTheme.colors.background }]}>
-        <ActivityIndicator size="large" color={navTheme.colors.primary} />
+      <View
+        style={[styles.loader, { backgroundColor: navTheme.colors.background }]}
+      >
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -263,9 +286,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-  },
-  tabIconActive: {
-    backgroundColor: "#E7F0FF",
   },
   loader: {
     flex: 1,

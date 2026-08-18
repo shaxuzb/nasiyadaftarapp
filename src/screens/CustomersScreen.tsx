@@ -1,9 +1,4 @@
-import React, {
-  useState,
-  useMemo,
-  useRef,
-  useCallback,
-} from "react";
+import React, { useState, useMemo, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -39,24 +34,25 @@ import { CustomerCardSkeleton } from "../modules/clients/components/CustomerCard
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { AppInput } from "../components/AppInput";
-import {
-  createBalanceMap,
-} from "../modules/clients/utils/clientCalculations";
+import { createBalanceMap } from "../modules/clients/utils/clientCalculations";
 import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
-import { RootStackParamList } from "../types";
+import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
 import {
   formatUzPhoneFromDigits,
   isValidUzPhone,
   toStoredUzPhone,
 } from "../utils/masks";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const KeyboardBottomSheetScrollView = BottomSheetScrollView as unknown as
-  React.ComponentType<ScrollViewProps>;
+const KeyboardBottomSheetScrollView =
+  BottomSheetScrollView as unknown as React.ComponentType<ScrollViewProps>;
 
 function ListSeparator() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return <View style={styles.listSeparator} />;
 }
 
@@ -71,6 +67,7 @@ const SHEET_SPRING = {
 
 export function CustomersScreen() {
   const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
   const {
     customers,
@@ -112,7 +109,9 @@ export function CustomersScreen() {
       return (
         customer.firstName.toLowerCase().includes(q) ||
         customer.lastName.toLowerCase().includes(q) ||
-        `${customer.firstName} ${customer.lastName}`.toLowerCase().includes(q) ||
+        `${customer.firstName} ${customer.lastName}`
+          .toLowerCase()
+          .includes(q) ||
         customer.phone.toLowerCase().includes(q) ||
         String(customer.id).includes(q)
       );
@@ -224,9 +223,12 @@ export function CustomersScreen() {
       hapticSuccess();
       showToast("Mijoz qo'shildi", "success");
       navigation.navigate("CustomerDetail", { customerId: customer.id });
-    } catch {
+    } catch (error) {
       hapticError();
-      showToast("Mijoz qo'shishda xatolik", "error");
+      showToast(
+        getApiErrorMessage(error, "Mijoz qo'shishda xatolik"),
+        "error",
+      );
     } finally {
       setIsCreatingCustomer(false);
     }
@@ -273,7 +275,10 @@ export function CustomersScreen() {
 
   type ListItem = (typeof listData)[0];
 
-  const keyExtractor = useCallback((item: ListItem) => String(item.customer.id), []);
+  const keyExtractor = useCallback(
+    (item: ListItem) => String(item.customer.id),
+    [],
+  );
 
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => (
@@ -291,7 +296,8 @@ export function CustomersScreen() {
           openSheet("transaction", {
             customerId: item.customer.id,
             type: "debt",
-            customerName: `${item.customer.firstName} ${item.customer.lastName}`.trim(),
+            customerName:
+              `${item.customer.firstName} ${item.customer.lastName}`.trim(),
             currentBalance: item.balance,
           });
         }}
@@ -300,7 +306,8 @@ export function CustomersScreen() {
           openSheet("transaction", {
             customerId: item.customer.id,
             type: "payment",
-            customerName: `${item.customer.firstName} ${item.customer.lastName}`.trim(),
+            customerName:
+              `${item.customer.firstName} ${item.customer.lastName}`.trim(),
             currentBalance: item.balance,
           });
         }}
@@ -310,10 +317,7 @@ export function CustomersScreen() {
   );
 
   return (
-    <SafeAreaView
-      style={styles.safe}
-      edges={["top"]}
-    >
+    <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.mainKeyboardWrap}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
@@ -439,7 +443,11 @@ export function CustomersScreen() {
           >
             <View style={styles.sheetHeader}>
               <View style={styles.sheetHeaderIcon}>
-                <Ionicons name="person-add-outline" size={22} color="#0B5DEB" />
+                <Ionicons
+                  name="person-add-outline"
+                  size={22}
+                  color={theme.primary}
+                />
               </View>
               <View style={styles.sheetHeaderText}>
                 <Text style={styles.sheetTitle}>Yangi mijoz</Text>
@@ -454,7 +462,7 @@ export function CustomersScreen() {
                 onPress={closeAddCustomerSheet}
                 style={styles.sheetCloseButton}
               >
-                <Ionicons name="close" size={22} color="#536987" />
+                <Ionicons name="close" size={22} color={theme.textSecondary} />
               </TouchableOpacity>
             </View>
 
@@ -465,15 +473,25 @@ export function CustomersScreen() {
               style={styles.contactPickerButton}
             >
               <View style={styles.contactPickerIcon}>
-                <Ionicons name="people-outline" size={21} color="#0B5DEB" />
+                <Ionicons
+                  name="people-outline"
+                  size={21}
+                  color={theme.primary}
+                />
               </View>
               <View style={styles.contactPickerText}>
-                <Text style={styles.contactPickerTitle}>Kontaktdan tanlash</Text>
+                <Text style={styles.contactPickerTitle}>
+                  Kontaktdan tanlash
+                </Text>
                 <Text style={styles.contactPickerSubtitle}>
                   Ism va telefon avtomatik to'ldiriladi
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={21} color="#8B98AB" />
+              <Ionicons
+                name="chevron-forward"
+                size={21}
+                color={theme.textMuted}
+              />
             </TouchableOpacity>
 
             <View style={styles.sheetFields}>
@@ -484,13 +502,16 @@ export function CustomersScreen() {
                 onChangeText={(value) => {
                   setFirstName(value);
                   if (errors.firstName) {
-                    setErrors((current) => ({ ...current, firstName: undefined }));
+                    setErrors((current) => ({
+                      ...current,
+                      firstName: undefined,
+                    }));
                   }
                 }}
                 placeholder="Masalan: Ali"
                 iconName="person-outline"
                 autoCapitalize="words"
-                returnKeyType="next"
+                // returnKeyType="next"
                 error={errors.firstName}
               />
               <AppInput
@@ -500,7 +521,10 @@ export function CustomersScreen() {
                 onChangeText={(value) => {
                   setLastName(value);
                   if (errors.lastName) {
-                    setErrors((current) => ({ ...current, lastName: undefined }));
+                    setErrors((current) => ({
+                      ...current,
+                      lastName: undefined,
+                    }));
                   }
                 }}
                 placeholder="Masalan: Valiyev"
@@ -548,180 +572,181 @@ export function CustomersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#F7F9FC",
-  },
-  mainKeyboardWrap: { flex: 1 },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    gap: 16,
-  },
-  headerTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: 16,
-  },
-  titleBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  screenTitle: {
-    color: "#071426",
-    fontSize: 26,
-    lineHeight: 29,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-  },
-  screenSubtitle: {
-    color: "#60728F",
-    fontSize: 14,
-    lineHeight: 16,
-    fontWeight: "400",
-  },
-  addBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 27,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#0B5DEB",
-    boxShadow: "0 8px 18px rgba(11, 93, 235, 0.30)",
-  },
-  searchWrap: {},
-  list: {
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 28,
-    flexGrow: 1,
-  },
-  listSeparator: {
-    height: 12,
-  },
-  sheetBackground: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 26,
-    borderCurve: "continuous",
-  },
-  sheetHandle: {
-    width: 42,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: "#C8D1DE",
-  },
-  sheetContent: {
-    paddingHorizontal: 16,
-    paddingTop: 2,
-    paddingBottom: 32,
-    gap: 16,
-    backgroundColor: "#FFFFFF",
-  },
-  sheetKeyboardWrap: {
-    flex: 1,
-  },
-  sheetKeyboardScroll: {
-    flex: 1,
-  },
-  sheetHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-  },
-  sheetHeaderIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E7F0FF",
-  },
-  sheetHeaderText: {
-    flex: 1,
-    minWidth: 0,
-    gap: 1,
-  },
-  sheetTitle: {
-    color: "#071426",
-    fontSize: 19,
-    lineHeight: 25,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-  },
-  sheetSubtitle: {
-    color: "#60728F",
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "500",
-  },
-  sheetCloseButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F3F6FA",
-    borderWidth: 1,
-    borderColor: "#E1E8F1",
-  },
-  contactPickerButton: {
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-    paddingHorizontal: 13,
-    backgroundColor: "#F8FBFF",
-    borderWidth: 1,
-    borderColor: "#C9DDFB",
-    borderRadius: 16,
-    borderCurve: "continuous",
-  },
-  contactPickerIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 13,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E7F0FF",
-  },
-  contactPickerText: {
-    flex: 1,
-    minWidth: 0,
-    gap: 1,
-  },
-  contactPickerTitle: {
-    color: "#0B5DEB",
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: "700",
-  },
-  contactPickerSubtitle: {
-    color: "#60728F",
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "500",
-  },
-  sheetFields: {
-    paddingTop: 2,
-  },
-  sheetActions: {
-    gap: 8,
-  },
-  requiredHint: {
-    color: "#71819A",
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "500",
-  },
-  sheetSaveButton: {
-    height: 56,
-    borderRadius: 15,
-    backgroundColor: "#0B5DEB",
-    boxShadow: "0 8px 18px rgba(11, 93, 235, 0.20)",
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    mainKeyboardWrap: { flex: 1 },
+    header: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 10,
+      gap: 16,
+    },
+    headerTop: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 16,
+    },
+    titleBlock: {
+      flex: 1,
+      gap: 2,
+    },
+    screenTitle: {
+      color: theme.text,
+      fontSize: 26,
+      lineHeight: 29,
+      fontWeight: "800",
+      letterSpacing: -0.8,
+    },
+    screenSubtitle: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      lineHeight: 16,
+      fontWeight: "400",
+    },
+    addBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 27,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primary,
+      boxShadow: theme.cardShadow,
+    },
+    searchWrap: {},
+    list: {
+      paddingHorizontal: 16,
+      paddingTop: 10,
+      paddingBottom: 28,
+      flexGrow: 1,
+    },
+    listSeparator: {
+      height: 12,
+    },
+    sheetBackground: {
+      backgroundColor: theme.surface,
+      borderRadius: 26,
+      borderCurve: "continuous",
+    },
+    sheetHandle: {
+      width: 42,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: theme.textMuted,
+    },
+    sheetContent: {
+      paddingHorizontal: 16,
+      paddingTop: 2,
+      paddingBottom: 32,
+      gap: 16,
+      backgroundColor: theme.surface,
+    },
+    sheetKeyboardWrap: {
+      flex: 1,
+    },
+    sheetKeyboardScroll: {
+      flex: 1,
+    },
+    sheetHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 11,
+    },
+    sheetHeaderIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primaryLight,
+    },
+    sheetHeaderText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 1,
+    },
+    sheetTitle: {
+      color: theme.text,
+      fontSize: 19,
+      lineHeight: 25,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+    sheetSubtitle: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: "500",
+    },
+    sheetCloseButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 13,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.inputBackground,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    contactPickerButton: {
+      minHeight: 66,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 11,
+      paddingHorizontal: 13,
+      backgroundColor: theme.primaryLight,
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderRadius: 16,
+      borderCurve: "continuous",
+    },
+    contactPickerIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 13,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surfaceElevated,
+    },
+    contactPickerText: {
+      flex: 1,
+      minWidth: 0,
+      gap: 1,
+    },
+    contactPickerTitle: {
+      color: theme.primary,
+      fontSize: 14,
+      lineHeight: 19,
+      fontWeight: "700",
+    },
+    contactPickerSubtitle: {
+      color: theme.textSecondary,
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "500",
+    },
+    sheetFields: {
+      paddingTop: 2,
+    },
+    sheetActions: {
+      gap: 8,
+    },
+    requiredHint: {
+      color: theme.textMuted,
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "500",
+    },
+    sheetSaveButton: {
+      height: 56,
+      borderRadius: 15,
+      backgroundColor: theme.primary,
+      boxShadow: theme.cardShadow,
+    },
+  });

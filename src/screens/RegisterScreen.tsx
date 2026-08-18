@@ -1,14 +1,13 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {
+  ActivityIndicator,
   Text,
   TouchableOpacity,
   View,
   StyleSheet,
   Image,
 } from "react-native";
-import * as WebBrowser from "expo-web-browser";
-import * as Google from "expo-auth-session/providers/google";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
 import { AppInput } from "../components/AppInput";
@@ -16,14 +15,15 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { GOOGLE_AUTH_CONFIG } from "../config/env";
 import { APP_NAME } from "../constants";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { sendSmsCode } from "../services/authApi";
-import { AxiosError } from "axios";
 import { isValidUzPhone, toStoredUzPhone, uzPhoneMask } from "../utils/masks";
-
-WebBrowser.maybeCompleteAuthSession();
+import {
+  getGoogleSignInErrorMessage,
+  requestGoogleIdToken,
+} from "../modules/auth/services/googleSignInService";
+import { getApiErrorMessage } from "../utils/apiError";
 
 interface Props {
   onGoToLogin: () => void;
@@ -39,30 +39,6 @@ interface Props {
   }) => void;
 }
 
-const googleClientConfig = {
-  expoClientId: GOOGLE_AUTH_CONFIG.expoClientId,
-  iosClientId:
-    GOOGLE_AUTH_CONFIG.iosClientId ?? GOOGLE_AUTH_CONFIG.expoClientId,
-  androidClientId:
-    GOOGLE_AUTH_CONFIG.androidClientId ?? GOOGLE_AUTH_CONFIG.expoClientId,
-  webClientId:
-    GOOGLE_AUTH_CONFIG.webClientId ?? GOOGLE_AUTH_CONFIG.expoClientId,
-};
-
-function hasAnyGoogleClientId() {
-  return Boolean(
-    googleClientConfig.expoClientId ||
-    googleClientConfig.iosClientId ||
-    googleClientConfig.androidClientId ||
-    googleClientConfig.webClientId,
-  );
-}
-
-function extractApiDetail(error: unknown): string | undefined {
-  const err = error as AxiosError<{ detail?: string; message?: string }>;
-  return err?.response?.data?.detail ?? err?.response?.data?.message;
-}
-
 export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
   const theme = useTheme();
   const { showToast } = useToast();
@@ -74,9 +50,6 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const [request, response, promptAsync] =
-    Google.useIdTokenAuthRequest(googleClientConfig);
-
   const canSubmit = useMemo(() => {
     return (
       fullName.trim().length > 2 &&
@@ -84,24 +57,6 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
       password.trim().length >= 6
     );
   }, [fullName, password, phoneNumber]);
-
-  useEffect(() => {
-    if (!response || response.type !== "success") {
-      return;
-    }
-
-    const idToken = response.params.id_token;
-    if (!idToken) {
-      showToast("Google idToken olinmadi", "error");
-      setGoogleLoading(false);
-      return;
-    }
-
-    loginWithGoogleIdToken(idToken)
-      .then(() => showToast("Google orqali tizimga kirildi", "success"))
-      .catch(() => showToast("Google login xatolik berdi", "error"))
-      .finally(() => setGoogleLoading(false));
-  }, [loginWithGoogleIdToken, response, showToast]);
 
   const handleRegister = async () => {
     if (!canSubmit) {
@@ -130,27 +85,28 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
         expiresInSeconds: smsResult.expiresInSeconds,
       });
     } catch (error) {
-      showToast(extractApiDetail(error) ?? "SMS yuborishda xatolik", "error");
+      showToast(
+        getApiErrorMessage(error, "SMS yuborishda xatolik"),
+        "error",
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    if (!hasAnyGoogleClientId()) {
-      showToast("Google client id env sozlanmagan", "error");
-      return;
-    }
-
     try {
       setGoogleLoading(true);
-      const result = await promptAsync();
-      if (result.type !== "success") {
-        setGoogleLoading(false);
-      }
-    } catch {
+      const idToken = await requestGoogleIdToken();
+      await loginWithGoogleIdToken(idToken);
+      showToast("Google orqali tizimga kirildi", "success");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, getGoogleSignInErrorMessage(error)),
+        "error",
+      );
+    } finally {
       setGoogleLoading(false);
-      showToast("Google oynasini ochishda xatolik", "error");
     }
   };
 
@@ -215,6 +171,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
               value={password}
               onChangeText={setPassword}
               secureTextEntry
+              passwordToggle
               iconName="lock-closed-outline"
               placeholder="******"
             />
@@ -234,16 +191,21 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
                 {
                   borderColor: theme.border,
                   backgroundColor: theme.inputBackground,
-                  opacity: googleLoading || !request ? 0.7 : 1,
+                  opacity: googleLoading ? 0.7 : 1,
                 },
-              ]}
-              onPress={handleGoogleLogin}
-              disabled={googleLoading || !request}
-            >
-              <Ionicons name="logo-google" size={18} color={theme.text} />
-              <Text style={[typography.label, { color: theme.text }]}>
-                Google bilan kirish
-              </Text>
+      ]}
+      onPress={handleGoogleLogin}
+      disabled={googleLoading}
+      accessibilityState={{ disabled: googleLoading, busy: googleLoading }}
+    >
+      {googleLoading ? (
+        <ActivityIndicator size="small" color={theme.primary} />
+      ) : (
+        <Ionicons name="logo-google" size={18} color={theme.text} />
+      )}
+      <Text style={[typography.label, { color: theme.text }]}>
+        {googleLoading ? "Google orqali kirilmoqda..." : "Google bilan kirish"}
+      </Text>
             </TouchableOpacity>
 
             <View style={styles.footerRow}>

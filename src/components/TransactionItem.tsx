@@ -1,8 +1,11 @@
+import React, { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Transaction } from "../modules/transactions/types";
 import { formatCurrency, formatDate } from "../utils";
+import { useTheme } from "../hooks/useTheme";
+import { AppTheme } from "../types";
 
 interface Props {
   transaction: Transaction;
@@ -10,9 +13,11 @@ interface Props {
 }
 
 export function TransactionItem({ transaction, isLast = false }: Props) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const isDebt = transaction.type === "debt";
-  const color = isDebt ? "#F4511E" : "#159447";
-  const backgroundColor = isDebt ? "#FFF0E8" : "#E7F8ED";
+  const color = isDebt ? theme.debtColor : theme.paymentColor;
+  const backgroundColor = isDebt ? theme.debtBg : theme.paymentBg;
 
   return (
     <View
@@ -54,67 +59,68 @@ export function TransactionItem({ transaction, isLast = false }: Props) {
         </Text>
       </View>
 
-      <Ionicons name="chevron-forward" size={17} color="#8B98AB" />
+      <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    minHeight: 72,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    backgroundColor: "#FFFFFF",
-  },
-  debtRow: {
-    backgroundColor: "#FFFBF8",
-  },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E9F2",
-  },
-  icon: {
-    width: 36,
-    height: 36,
-    flexShrink: 0,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  content: {
-    minWidth: 0,
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    color: "#071426",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-  },
-  note: {
-    color: "#5B6F8F",
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  amountBlock: {
-    maxWidth: 110,
-    alignItems: "flex-end",
-    gap: 2,
-  },
-  amount: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  date: {
-    color: "#5B6F8F",
-    fontSize: 9,
-    lineHeight: 13,
-    fontVariant: ["tabular-nums"],
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    row: {
+      minHeight: 72,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      backgroundColor: theme.surface,
+    },
+    debtRow: {
+      backgroundColor: theme.debtBg,
+    },
+    rowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    icon: {
+      width: 36,
+      height: 36,
+      flexShrink: 0,
+      borderRadius: 18,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    content: {
+      minWidth: 0,
+      flex: 1,
+      gap: 2,
+    },
+    title: {
+      color: theme.text,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+    },
+    note: {
+      color: theme.textSecondary,
+      fontSize: 10,
+      lineHeight: 14,
+    },
+    amountBlock: {
+      maxWidth: 110,
+      alignItems: "flex-end",
+      gap: 2,
+    },
+    amount: {
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    date: {
+      color: theme.textSecondary,
+      fontSize: 9,
+      lineHeight: 13,
+      fontVariant: ["tabular-nums"],
+    },
+  });

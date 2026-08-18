@@ -38,7 +38,7 @@ export const typography: Record<string, TextStyle> = {
   bodyMedium: {
     fontSize:   14,
     fontWeight: '400',
-    lineHeight: 21,
+    lineHeight: 18,
   },
   bodySmall: {
     fontSize:   13,

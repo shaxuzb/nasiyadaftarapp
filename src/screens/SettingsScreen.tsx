@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  useColorScheme,
   View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -20,6 +19,10 @@ import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { useToast } from "../context/ToastContext";
 import { getDashboardStats } from "../modules/reports/utils/reportCalculations";
 import { formatCurrency } from "../utils";
+import { useTheme } from "../hooks/useTheme";
+import { ThemeMode, useThemeContext } from "../context/ThemeContext";
+import { AppTheme } from "../types";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -29,6 +32,16 @@ const PREF = {
   daily: "notif_daily_v1",
 } as const;
 
+const THEME_OPTIONS: ReadonlyArray<{
+  mode: ThemeMode;
+  label: string;
+  icon: IconName;
+}> = [
+  { mode: "system", label: "Tizim", icon: "phone-portrait-outline" },
+  { mode: "light", label: "Yorug'", icon: "sunny-outline" },
+  { mode: "dark", label: "Qorong'u", icon: "moon-outline" },
+];
+
 interface SectionTitleProps {
   icon: IconName;
   title: string;
@@ -36,10 +49,12 @@ interface SectionTitleProps {
 }
 
 function SectionTitle({ icon, title, description }: SectionTitleProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionIcon}>
-        <Ionicons name={icon} size={17} color="#0B5DEB" />
+        <Ionicons name={icon} size={17} color={theme.primary} />
       </View>
       <View style={styles.sectionHeaderText}>
         <Text style={styles.sectionTitle}>{title}</Text>
@@ -72,6 +87,8 @@ function ToggleRow({
   onValueChange,
   isLast = false,
 }: ToggleRowProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={[styles.settingRow, !isLast && styles.rowBorder]}>
       <View style={[styles.rowIcon, { backgroundColor: iconBackground }]}>
@@ -85,9 +102,9 @@ function ToggleRow({
         accessibilityLabel={title}
         value={value}
         onValueChange={onValueChange}
-        trackColor={{ false: "#DCE4EE", true: "#0B5DEB" }}
+        trackColor={{ false: theme.border, true: theme.primary }}
         thumbColor="#FFFFFF"
-        ios_backgroundColor="#DCE4EE"
+        ios_backgroundColor={theme.border}
       />
     </View>
   );
@@ -110,6 +127,8 @@ function InfoRow({
   value,
   isLast = false,
 }: InfoRowProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={[styles.infoRow, !isLast && styles.rowBorder]}>
       <View style={[styles.rowIcon, { backgroundColor: iconBackground }]}>
@@ -126,7 +145,9 @@ function InfoRow({
 }
 
 export function SettingsScreen() {
-  const scheme = useColorScheme();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { mode, resolvedScheme, setMode } = useThemeContext();
   const { user, currentOrganization, logout } = useAuth();
   const { customers, transactions, seedDemoData } = useApp();
   const { confirm } = useConfirmDialog();
@@ -207,12 +228,12 @@ export function SettingsScreen() {
       const { added, skipped } = await seedDemoData(setSeedStatus);
       const skippedMessage =
         skipped > 0 ? `, ${skipped} ta o'tkazib yuborildi` : "";
+      showToast(`${added} ta mijoz qo'shildi${skippedMessage}`, "success");
+    } catch (error) {
       showToast(
-        `${added} ta mijoz qo'shildi${skippedMessage}`,
-        "success",
+        getApiErrorMessage(error, "Xatolik. Internetni tekshiring."),
+        "error",
       );
-    } catch {
-      showToast("Xatolik. Internetni tekshiring.", "error");
     } finally {
       setSeedLoading(false);
       setSeedStatus("");
@@ -232,8 +253,11 @@ export function SettingsScreen() {
     try {
       await logout();
       showToast("Tizimdan chiqildi", "success");
-    } catch {
-      showToast("Hisobdan chiqib bo'lmadi", "error");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, "Hisobdan chiqib bo'lmadi"),
+        "error",
+      );
     }
   }
 
@@ -282,7 +306,11 @@ export function SettingsScreen() {
             {user?.phoneNumber ? (
               <View style={styles.contactChip}>
                 <Ionicons name="call-outline" size={13} color="#FFFFFF" />
-                <Text selectable style={styles.contactChipText} numberOfLines={1}>
+                <Text
+                  selectable
+                  style={styles.contactChipText}
+                  numberOfLines={1}
+                >
                   {user.phoneNumber}
                 </Text>
               </View>
@@ -290,7 +318,11 @@ export function SettingsScreen() {
             {user?.userName ? (
               <View style={styles.contactChip}>
                 <Ionicons name="at-outline" size={13} color="#FFFFFF" />
-                <Text selectable style={styles.contactChipText} numberOfLines={1}>
+                <Text
+                  selectable
+                  style={styles.contactChipText}
+                  numberOfLines={1}
+                >
                   {user.userName}
                 </Text>
               </View>
@@ -328,7 +360,7 @@ export function SettingsScreen() {
           </View>
         </View>
 
-        <SectionTitle
+        {/* <SectionTitle
           icon="notifications-outline"
           title="Bildirishnomalar"
           description="Muhim o'zgarishlardan xabardor bo'ling"
@@ -336,8 +368,8 @@ export function SettingsScreen() {
         <View style={styles.card}>
           <ToggleRow
             icon="notifications-outline"
-            iconColor="#0B5DEB"
-            iconBackground="#E7F0FF"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
             title="Umumiy bildirishnomalar"
             description="Yangi qarz va to'lovlar haqida"
             value={notifGeneral}
@@ -351,8 +383,8 @@ export function SettingsScreen() {
           />
           <ToggleRow
             icon="warning-outline"
-            iconColor="#F4511E"
-            iconBackground="#FFF0E8"
+            iconColor={theme.debtColor}
+            iconBackground={theme.debtBg}
             title="Muddati o'tgan qarzlar"
             description="30 kun harakat bo'lmasa eslatish"
             value={notifOverdue}
@@ -366,8 +398,8 @@ export function SettingsScreen() {
           />
           <ToggleRow
             icon="bar-chart-outline"
-            iconColor="#159447"
-            iconBackground="#E7F8ED"
+            iconColor={theme.paymentColor}
+            iconBackground={theme.paymentBg}
             title="Kunlik hisobot"
             description="Har kuni soat 09:00 da qisqa xulosa"
             value={notifDaily}
@@ -376,7 +408,7 @@ export function SettingsScreen() {
             }
             isLast
           />
-        </View>
+        </View> */}
 
         <SectionTitle
           icon="business-outline"
@@ -386,8 +418,8 @@ export function SettingsScreen() {
         <View style={styles.card}>
           <InfoRow
             icon="business-outline"
-            iconColor="#0B5DEB"
-            iconBackground="#E7F0FF"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
             label="Tashkilot nomi"
             value={currentOrganization?.name}
             isLast
@@ -395,6 +427,44 @@ export function SettingsScreen() {
         </View>
 
         <SectionTitle
+          icon="color-palette-outline"
+          title="Ko'rinish"
+          description="Ilova mavzusini tanlang"
+        />
+        <View style={styles.themeSelector}>
+          {THEME_OPTIONS.map((option) => {
+            const active = mode === option.mode;
+            return (
+              <Pressable
+                key={option.mode}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => setMode(option.mode)}
+                style={({ pressed }) => [
+                  styles.themeOption,
+                  active && styles.themeOptionActive,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons
+                  name={option.icon}
+                  size={19}
+                  color={active ? theme.primary : theme.textSecondary}
+                />
+                <Text
+                  style={[
+                    styles.themeOptionText,
+                    active && styles.themeOptionTextActive,
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        {/* <SectionTitle
           icon="phone-portrait-outline"
           title="Ilova haqida"
           description="Tizim ma'lumotlari"
@@ -402,37 +472,37 @@ export function SettingsScreen() {
         <View style={styles.card}>
           <InfoRow
             icon="apps-outline"
-            iconColor="#0B5DEB"
-            iconBackground="#E7F0FF"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
             label="Ilova nomi"
             value={APP_NAME}
           />
           <InfoRow
-            icon={scheme === "dark" ? "moon-outline" : "sunny-outline"}
-            iconColor="#7C3AED"
-            iconBackground="#F1EAFE"
+            icon={resolvedScheme === "dark" ? "moon-outline" : "sunny-outline"}
+            iconColor={theme.secondary}
+            iconBackground={theme.inputBackground}
             label="Tizim mavzusi"
-            value={scheme === "dark" ? "Qorong'u" : "Yorug'"}
+            value={resolvedScheme === "dark" ? "Qorong'u" : "Yorug'"}
           />
           <InfoRow
             icon="code-slash-outline"
-            iconColor="#159447"
-            iconBackground="#E7F8ED"
+            iconColor={theme.paymentColor}
+            iconBackground={theme.paymentBg}
             label="Versiya"
             value="1.0.0"
             isLast
           />
-        </View>
+        </View> */}
 
-        <SectionTitle
+        {/* <SectionTitle
           icon="flask-outline"
           title="Sinov vositalari"
           description="Demo ma'lumotlar bilan ishlash"
-        />
-        <View style={styles.demoCard}>
+        /> */}
+        {/* <View style={styles.demoCard}>
           <View style={styles.demoTop}>
             <View style={[styles.rowIcon, styles.demoIcon]}>
-              <Ionicons name="flask-outline" size={19} color="#0B5DEB" />
+              <Ionicons name="flask-outline" size={19} color={theme.primary} />
             </View>
             <View style={styles.rowContent}>
               <Text style={styles.rowTitle}>Namunali ma'lumotlar</Text>
@@ -457,19 +527,27 @@ export function SettingsScreen() {
             ]}
           >
             {seedLoading ? (
-              <ActivityIndicator size="small" color="#0B5DEB" />
+              <ActivityIndicator size="small" color={theme.primary} />
             ) : (
-              <Ionicons name="download-outline" size={18} color="#0B5DEB" />
+              <Ionicons
+                name="download-outline"
+                size={18}
+                color={theme.primary}
+              />
             )}
             <Text style={styles.demoButtonText}>
               {seedLoading ? "Yuklanmoqda..." : "Demo ma'lumot yuklash"}
             </Text>
           </Pressable>
-        </View>
+        </View> */}
 
         <View style={styles.securityCard}>
           <View style={styles.securityIcon}>
-            <Ionicons name="shield-checkmark-outline" size={20} color="#60728F" />
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={20}
+              color={theme.textSecondary}
+            />
           </View>
           <View style={styles.securityContent}>
             <Text style={styles.securityTitle}>Hisob xavfsizligi</Text>
@@ -491,7 +569,11 @@ export function SettingsScreen() {
             pressed && styles.logoutPressed,
           ]}
         >
-          <Ionicons name="log-out-outline" size={20} color="#DC2626" />
+          <Ionicons
+            name="log-out-outline"
+            size={20}
+            color={theme.dangerColor}
+          />
           <Text style={styles.logoutText}>Hisobdan chiqish</Text>
         </Pressable>
 
@@ -501,360 +583,396 @@ export function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#F7F9FC",
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    gap: 2,
-  },
-  screenTitle: {
-    color: "#071426",
-    fontSize: 32,
-    lineHeight: 39,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-  },
-  screenSubtitle: {
-    color: "#60728F",
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  scroll: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 28,
-    gap: 12,
-  },
-  profileCard: {
-    overflow: "hidden",
-    padding: 16,
-    gap: 12,
-    backgroundColor: "#0B5DEB",
-    borderRadius: 22,
-    borderCurve: "continuous",
-    boxShadow: "0 10px 24px rgba(11, 93, 235, 0.24)",
-  },
-  profileTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 11,
-  },
-  avatar: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderWidth: 1.5,
-    borderColor: "rgba(255,255,255,0.32)",
-  },
-  avatarText: {
-    color: "#FFFFFF",
-    fontSize: 19,
-    lineHeight: 24,
-    fontWeight: "800",
-    letterSpacing: 0.4,
-  },
-  profileIdentity: {
-    minWidth: 0,
-    flex: 1,
-    gap: 2,
-  },
-  profileName: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "800",
-  },
-  organizationName: {
-    color: "rgba(255,255,255,0.76)",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  activeBadge: {
-    minHeight: 27,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 9,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.14)",
-  },
-  activeDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#72E69A",
-  },
-  activeText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "700",
-  },
-  contactRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7,
-  },
-  contactChip: {
-    maxWidth: "100%",
-    minHeight: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 9,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.13)",
-  },
-  contactChipText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "600",
-  },
-  profileDivider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.20)",
-  },
-  statsRow: {
-    minHeight: 43,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  statItem: {
-    flex: 0.8,
-    alignItems: "center",
-    gap: 1,
-  },
-  statItemWide: {
-    minWidth: 0,
-    flex: 1.4,
-    alignItems: "center",
-    gap: 1,
-  },
-  statValue: {
-    width: "100%",
-    color: "#FFFFFF",
-    fontSize: 15,
-    lineHeight: 20,
-    textAlign: "center",
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  statLabel: {
-    color: "rgba(255,255,255,0.68)",
-    fontSize: 9,
-    lineHeight: 13,
-    fontWeight: "600",
-  },
-  statDivider: {
-    width: 1,
-    height: 31,
-    backgroundColor: "rgba(255,255,255,0.20)",
-  },
-  sectionHeader: {
-    minHeight: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    paddingTop: 3,
-  },
-  sectionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E7F0FF",
-  },
-  sectionHeaderText: {
-    minWidth: 0,
-    flex: 1,
-    gap: 1,
-  },
-  sectionTitle: {
-    color: "#10284B",
-    fontSize: 16,
-    lineHeight: 21,
-    fontWeight: "800",
-  },
-  sectionDescription: {
-    color: "#71819A",
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  card: {
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E9F2",
-    borderRadius: 18,
-    borderCurve: "continuous",
-    boxShadow: "0 6px 18px rgba(24, 48, 80, 0.06)",
-  },
-  settingRow: {
-    minHeight: 67,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-  },
-  infoRow: {
-    minHeight: 62,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 13,
-    paddingVertical: 9,
-  },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#E8EDF3",
-  },
-  rowIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  rowContent: {
-    minWidth: 0,
-    flex: 1,
-    gap: 2,
-  },
-  rowTitle: {
-    color: "#102039",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-  },
-  rowDescription: {
-    color: "#71819A",
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  infoLabel: {
-    color: "#71819A",
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  infoValue: {
-    color: "#102039",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-  },
-  demoCard: {
-    padding: 13,
-    gap: 12,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E9F2",
-    borderRadius: 18,
-    borderCurve: "continuous",
-    boxShadow: "0 6px 18px rgba(24, 48, 80, 0.06)",
-  },
-  demoTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  demoIcon: {
-    backgroundColor: "#E7F0FF",
-  },
-  demoButton: {
-    minHeight: 46,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "#A9C8F8",
-    borderRadius: 14,
-    borderCurve: "continuous",
-    backgroundColor: "#F8FBFF",
-  },
-  demoButtonText: {
-    color: "#0B5DEB",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "800",
-  },
-  securityCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    padding: 13,
-    backgroundColor: "#F1F4F8",
-    borderRadius: 15,
-    borderCurve: "continuous",
-  },
-  securityIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 11,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-  },
-  securityContent: {
-    minWidth: 0,
-    flex: 1,
-    gap: 2,
-  },
-  securityTitle: {
-    color: "#405570",
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "700",
-  },
-  securityDescription: {
-    color: "#71819A",
-    fontSize: 10,
-    lineHeight: 15,
-  },
-  logoutButton: {
-    minHeight: 52,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingHorizontal: 16,
-    backgroundColor: "#FFF7F7",
-    borderWidth: 1,
-    borderColor: "#F4B7B7",
-    borderRadius: 15,
-    borderCurve: "continuous",
-  },
-  logoutText: {
-    color: "#DC2626",
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: "800",
-  },
-  pressed: {
-    opacity: 0.72,
-  },
-  logoutPressed: {
-    backgroundColor: "#FDECEC",
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-  footerSpace: {
-    height: 10,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 10,
+      gap: 2,
+    },
+    screenTitle: {
+      color: theme.text,
+      fontSize: 32,
+      lineHeight: 39,
+      fontWeight: "800",
+      letterSpacing: -0.8,
+    },
+    screenSubtitle: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 21,
+    },
+    scroll: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 28,
+      gap: 12,
+    },
+    profileCard: {
+      overflow: "hidden",
+      padding: 16,
+      gap: 12,
+      backgroundColor: theme.primary,
+      borderRadius: 22,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    profileTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 11,
+    },
+    avatar: {
+      width: 54,
+      height: 54,
+      borderRadius: 27,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255,255,255,0.18)",
+      borderWidth: 1.5,
+      borderColor: "rgba(255,255,255,0.32)",
+    },
+    avatarText: {
+      color: "#FFFFFF",
+      fontSize: 19,
+      lineHeight: 24,
+      fontWeight: "800",
+      letterSpacing: 0.4,
+    },
+    profileIdentity: {
+      minWidth: 0,
+      flex: 1,
+      gap: 2,
+    },
+    profileName: {
+      color: "#FFFFFF",
+      fontSize: 18,
+      lineHeight: 23,
+      fontWeight: "800",
+    },
+    organizationName: {
+      color: "rgba(255,255,255,0.76)",
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    activeBadge: {
+      minHeight: 27,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 9,
+      borderRadius: 999,
+      backgroundColor: "rgba(255,255,255,0.14)",
+    },
+    activeDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: theme.paymentColor,
+    },
+    activeText: {
+      color: "#FFFFFF",
+      fontSize: 10,
+      lineHeight: 14,
+      fontWeight: "700",
+    },
+    contactRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 7,
+    },
+    contactChip: {
+      maxWidth: "100%",
+      minHeight: 28,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 9,
+      borderRadius: 999,
+      backgroundColor: "rgba(255,255,255,0.13)",
+    },
+    contactChipText: {
+      color: "#FFFFFF",
+      fontSize: 10,
+      lineHeight: 14,
+      fontWeight: "600",
+    },
+    profileDivider: {
+      height: 1,
+      backgroundColor: "rgba(255,255,255,0.20)",
+    },
+    statsRow: {
+      minHeight: 43,
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    statItem: {
+      flex: 0.8,
+      alignItems: "center",
+      gap: 1,
+    },
+    statItemWide: {
+      minWidth: 0,
+      flex: 1.4,
+      alignItems: "center",
+      gap: 1,
+    },
+    statValue: {
+      width: "100%",
+      color: "#FFFFFF",
+      fontSize: 15,
+      lineHeight: 20,
+      textAlign: "center",
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    statLabel: {
+      color: "rgba(255,255,255,0.68)",
+      fontSize: 9,
+      lineHeight: 13,
+      fontWeight: "600",
+    },
+    statDivider: {
+      width: 1,
+      height: 31,
+      backgroundColor: "rgba(255,255,255,0.20)",
+    },
+    sectionHeader: {
+      minHeight: 42,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      paddingTop: 3,
+    },
+    sectionIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 11,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primaryLight,
+    },
+    sectionHeaderText: {
+      minWidth: 0,
+      flex: 1,
+      gap: 1,
+    },
+    sectionTitle: {
+      color: theme.text,
+      fontSize: 16,
+      lineHeight: 21,
+      fontWeight: "800",
+    },
+    sectionDescription: {
+      color: theme.textMuted,
+      fontSize: 10,
+      lineHeight: 14,
+    },
+    card: {
+      overflow: "hidden",
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 18,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    themeSelector: {
+      flexDirection: "row",
+      gap: 8,
+      padding: 6,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 18,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    themeOption: {
+      minHeight: 52,
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      borderWidth: 1,
+      borderColor: "transparent",
+      borderRadius: 13,
+      borderCurve: "continuous",
+    },
+    themeOptionActive: {
+      backgroundColor: theme.primaryLight,
+      borderColor: theme.primary,
+    },
+    themeOptionText: {
+      color: theme.textSecondary,
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "700",
+    },
+    themeOptionTextActive: {
+      color: theme.primary,
+    },
+    settingRow: {
+      minHeight: 67,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 13,
+      paddingVertical: 10,
+    },
+    infoRow: {
+      minHeight: 62,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 13,
+      paddingVertical: 9,
+    },
+    rowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    rowIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 13,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    rowContent: {
+      minWidth: 0,
+      flex: 1,
+      gap: 2,
+    },
+    rowTitle: {
+      color: theme.text,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+    },
+    rowDescription: {
+      color: theme.textMuted,
+      fontSize: 10,
+      lineHeight: 14,
+    },
+    infoLabel: {
+      color: theme.textMuted,
+      fontSize: 10,
+      lineHeight: 14,
+    },
+    infoValue: {
+      color: theme.text,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+    },
+    demoCard: {
+      padding: 13,
+      gap: 12,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 18,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    demoTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    demoIcon: {
+      backgroundColor: theme.primaryLight,
+    },
+    demoButton: {
+      minHeight: 46,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderRadius: 14,
+      borderCurve: "continuous",
+      backgroundColor: theme.primaryLight,
+    },
+    demoButtonText: {
+      color: theme.primary,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "800",
+    },
+    securityCard: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 10,
+      padding: 13,
+      backgroundColor: theme.inputBackground,
+      borderRadius: 15,
+      borderCurve: "continuous",
+    },
+    securityIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 11,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+    },
+    securityContent: {
+      minWidth: 0,
+      flex: 1,
+      gap: 2,
+    },
+    securityTitle: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: "700",
+    },
+    securityDescription: {
+      color: theme.textMuted,
+      fontSize: 10,
+      lineHeight: 15,
+    },
+    logoutButton: {
+      minHeight: 52,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      paddingHorizontal: 16,
+      backgroundColor: theme.debtBg,
+      borderWidth: 1,
+      borderColor: theme.dangerColor,
+      borderRadius: 15,
+      borderCurve: "continuous",
+    },
+    logoutText: {
+      color: theme.dangerColor,
+      fontSize: 14,
+      lineHeight: 19,
+      fontWeight: "800",
+    },
+    pressed: {
+      opacity: 0.72,
+    },
+    logoutPressed: {
+      opacity: 0.7,
+    },
+    disabled: {
+      opacity: 0.55,
+    },
+    footerSpace: {
+      height: 10,
+    },
+  });

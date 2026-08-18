@@ -16,7 +16,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useApp } from "../context/AppContext";
 import { useReports } from "../modules/reports/hooks/useReports";
 import { formatCurrency, getFullName, getInitials } from "../utils";
-import { RootStackParamList } from "../types";
+import { AppTheme, RootStackParamList } from "../types";
+import { useTheme } from "../hooks/useTheme";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -51,6 +52,8 @@ const MetricCard = React.memo(function MetricCard({
   color,
   backgroundColor,
 }: MetricCardProps) {
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.metricCard}>
       <View style={[styles.metricIcon, { backgroundColor }]}>
@@ -89,13 +92,10 @@ function getBarWidth(value: number, max: number): `${number}%` {
 }
 
 export function ReportsScreen() {
+  const theme = useTheme();
+  const styles = React.useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
-  const {
-    customers,
-    transactions,
-    isLoadingData,
-    refreshCustomers,
-  } = useApp();
+  const { customers, transactions, isLoadingData, refreshCustomers } = useApp();
   const { stats, topDebtors, monthlyMap } = useReports(customers, transactions);
 
   const remainingBalance = Math.max(stats.remainingBalance, 0);
@@ -143,14 +143,14 @@ export function ReportsScreen() {
             onRefresh={() => {
               void refreshCustomers();
             }}
-            colors={["#0B5DEB"]}
-            tintColor="#0B5DEB"
+            colors={[theme.primary]}
+            tintColor={theme.primary}
           />
         }
       >
         {isInitialLoading ? (
           <View style={styles.loadingWrap}>
-            <ActivityIndicator size="large" color="#0B5DEB" />
+            <ActivityIndicator size="large" color={theme.primary} />
             <Text style={styles.loadingText}>Hisobot tayyorlanmoqda...</Text>
           </View>
         ) : (
@@ -202,15 +202,15 @@ export function ReportsScreen() {
                   icon="arrow-down"
                   label="Jami qarz berildi"
                   value={formatCurrency(stats.totalDebt)}
-                  color="#F4511E"
-                  backgroundColor="#FFF0E8"
+                  color={theme.debtColor}
+                  backgroundColor={theme.debtBg}
                 />
                 <MetricCard
                   icon="arrow-up"
                   label="Jami to'lov olindi"
                   value={formatCurrency(stats.totalPaid)}
-                  color="#159447"
-                  backgroundColor="#E7F8ED"
+                  color={theme.paymentColor}
+                  backgroundColor={theme.paymentBg}
                 />
               </View>
               <View style={styles.metricRow}>
@@ -218,15 +218,15 @@ export function ReportsScreen() {
                   icon="people"
                   label="Barcha mijozlar"
                   value={String(stats.totalCustomers)}
-                  color="#0B5DEB"
-                  backgroundColor="#E7F0FF"
+                  color={theme.primary}
+                  backgroundColor={theme.primaryLight}
                 />
                 <MetricCard
                   icon="swap-horizontal"
                   label="Amaliyotlar"
                   value={String(transactions.length)}
-                  color="#7C3AED"
-                  backgroundColor="#F1EAFE"
+                  color={theme.secondary}
+                  backgroundColor={theme.inputBackground}
                 />
               </View>
             </View>
@@ -234,7 +234,11 @@ export function ReportsScreen() {
             <View style={styles.paymentCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.sectionIconGreen}>
-                  <Ionicons name="analytics" size={19} color="#159447" />
+                  <Ionicons
+                    name="analytics"
+                    size={19}
+                    color={theme.paymentColor}
+                  />
                 </View>
                 <View style={styles.cardHeaderText}>
                   <Text style={styles.cardTitle}>To'lov samaradorligi</Text>
@@ -317,7 +321,7 @@ export function ReportsScreen() {
                     <Ionicons
                       name="checkmark-circle"
                       size={27}
-                      color="#159447"
+                      color={theme.paymentColor}
                     />
                   </View>
                   <Text style={styles.emptyTitle}>Faol qarzdor yo'q</Text>
@@ -354,7 +358,11 @@ export function ReportsScreen() {
                       <Text style={styles.debtorName} numberOfLines={1}>
                         {getFullName(entry.customer)}
                       </Text>
-                      <Text selectable style={styles.debtorPhone} numberOfLines={1}>
+                      <Text
+                        selectable
+                        style={styles.debtorPhone}
+                        numberOfLines={1}
+                      >
                         {entry.customer.phone}
                       </Text>
                     </View>
@@ -370,7 +378,11 @@ export function ReportsScreen() {
                       </Text>
                       <Text style={styles.debtorCaption}>qarz</Text>
                     </View>
-                    <Ionicons name="chevron-forward" size={18} color="#9AA8BB" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={18}
+                      color={theme.textMuted}
+                    />
                   </Pressable>
                 ))
               )}
@@ -379,7 +391,9 @@ export function ReportsScreen() {
             <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Oylik pul oqimi</Text>
-                <Text style={styles.sectionSubtitle}>So'nggi 6 oy ko'rsatkichlari</Text>
+                <Text style={styles.sectionSubtitle}>
+                  So'nggi 6 oy ko'rsatkichlari
+                </Text>
               </View>
             </View>
 
@@ -387,7 +401,11 @@ export function ReportsScreen() {
               {monthlyMap.length === 0 ? (
                 <View style={styles.emptyState}>
                   <View style={styles.emptyIconBlue}>
-                    <Ionicons name="bar-chart" size={25} color="#0B5DEB" />
+                    <Ionicons
+                      name="bar-chart"
+                      size={25}
+                      color={theme.primary}
+                    />
                   </View>
                   <Text style={styles.emptyTitle}>Hali ma'lumot yo'q</Text>
                   <Text style={styles.emptyDescription}>
@@ -465,542 +483,543 @@ export function ReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#F7F9FC",
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
-    gap: 2,
-  },
-  screenTitle: {
-    color: "#071426",
-    fontSize: 32,
-    lineHeight: 39,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-  },
-  screenSubtitle: {
-    color: "#60728F",
-    fontSize: 15,
-    lineHeight: 21,
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 28,
-    gap: 14,
-  },
-  loadingWrap: {
-    flex: 1,
-    minHeight: 360,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 12,
-  },
-  loadingText: {
-    color: "#60728F",
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  heroCard: {
-    overflow: "hidden",
-    padding: 18,
-    gap: 4,
-    backgroundColor: "#0B5DEB",
-    borderRadius: 22,
-    borderCurve: "continuous",
-    boxShadow: "0 10px 24px rgba(11, 93, 235, 0.24)",
-  },
-  heroTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 8,
-  },
-  heroIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.16)",
-  },
-  heroStatus: {
-    minHeight: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.14)",
-  },
-  liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#72E69A",
-  },
-  heroStatusText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
-  heroLabel: {
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "500",
-  },
-  heroValue: {
-    color: "#FFFFFF",
-    fontSize: 31,
-    lineHeight: 38,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-    fontVariant: ["tabular-nums"],
-  },
-  heroMessage: {
-    color: "rgba(255,255,255,0.82)",
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  heroDivider: {
-    height: 1,
-    marginTop: 12,
-    marginBottom: 10,
-    backgroundColor: "rgba(255,255,255,0.20)",
-  },
-  heroSummary: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  heroSummaryItem: {
-    flex: 1,
-    gap: 1,
-  },
-  heroSummaryDivider: {
-    width: 1,
-    height: 34,
-    marginHorizontal: 16,
-    backgroundColor: "rgba(255,255,255,0.20)",
-  },
-  heroSummaryValue: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  heroSummaryLabel: {
-    color: "rgba(255,255,255,0.72)",
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  metricGrid: {
-    gap: 10,
-  },
-  metricRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  metricCard: {
-    minWidth: 0,
-    minHeight: 82,
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    paddingHorizontal: 11,
-    paddingVertical: 12,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E9F2",
-    borderRadius: 17,
-    borderCurve: "continuous",
-    boxShadow: "0 5px 16px rgba(24, 48, 80, 0.06)",
-  },
-  metricIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 13,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  metricContent: {
-    minWidth: 0,
-    flex: 1,
-    gap: 2,
-  },
-  metricLabel: {
-    color: "#657692",
-    fontSize: 10,
-    lineHeight: 14,
-    fontWeight: "600",
-  },
-  metricValue: {
-    fontSize: 16,
-    lineHeight: 21,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  paymentCard: {
-    padding: 16,
-    gap: 10,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E9F2",
-    borderRadius: 18,
-    borderCurve: "continuous",
-    boxShadow: "0 6px 18px rgba(24, 48, 80, 0.06)",
-  },
-  cardHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  sectionIconGreen: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E7F8ED",
-  },
-  cardHeaderText: {
-    minWidth: 0,
-    flex: 1,
-    gap: 1,
-  },
-  cardTitle: {
-    color: "#10284B",
-    fontSize: 16,
-    lineHeight: 21,
-    fontWeight: "800",
-  },
-  cardSubtitle: {
-    color: "#71819A",
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  paymentPercent: {
-    color: "#159447",
-    fontSize: 21,
-    lineHeight: 26,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  progressTrack: {
-    height: 9,
-    overflow: "hidden",
-    borderRadius: 5,
-    backgroundColor: "#E9EEF5",
-  },
-  progressFill: {
-    height: "100%",
-    borderRadius: 5,
-    backgroundColor: "#159447",
-  },
-  progressLabels: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  progressLabel: {
-    color: "#8795A9",
-    fontSize: 9,
-    lineHeight: 12,
-  },
-  periodDivider: {
-    height: 1,
-    marginTop: 2,
-    backgroundColor: "#E8EDF3",
-  },
-  periodTitle: {
-    color: "#526783",
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
-  periodRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-  periodItem: {
-    minWidth: 0,
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
-  periodVerticalDivider: {
-    width: 1,
-    marginHorizontal: 12,
-    backgroundColor: "#E4EAF1",
-  },
-  periodDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    flexShrink: 0,
-  },
-  debtDot: {
-    backgroundColor: "#F4511E",
-  },
-  paymentDot: {
-    backgroundColor: "#159447",
-  },
-  periodContent: {
-    minWidth: 0,
-    flex: 1,
-    gap: 1,
-  },
-  periodLabel: {
-    color: "#71819A",
-    fontSize: 9,
-    lineHeight: 12,
-  },
-  periodValue: {
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  debtText: {
-    color: "#F4511E",
-  },
-  paymentText: {
-    color: "#159447",
-  },
-  sectionHeader: {
-    minHeight: 42,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-    paddingTop: 2,
-  },
-  sectionTitle: {
-    color: "#10284B",
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "800",
-    letterSpacing: -0.25,
-  },
-  sectionSubtitle: {
-    color: "#71819A",
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  countBadge: {
-    minWidth: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 8,
-    borderRadius: 15,
-    backgroundColor: "#E7F0FF",
-  },
-  countBadgeText: {
-    color: "#0B5DEB",
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  listCard: {
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E9F2",
-    borderRadius: 18,
-    borderCurve: "continuous",
-    boxShadow: "0 6px 18px rgba(24, 48, 80, 0.06)",
-  },
-  debtorRow: {
-    minHeight: 70,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 9,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  rowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: "#E8EDF3",
-  },
-  rankBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F1F4F8",
-  },
-  rankText: {
-    color: "#657692",
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: "800",
-  },
-  avatar: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFF0E8",
-  },
-  avatarText: {
-    color: "#F4511E",
-    fontSize: 13,
-    lineHeight: 17,
-    fontWeight: "800",
-  },
-  debtorIdentity: {
-    minWidth: 0,
-    flex: 1,
-    gap: 1,
-  },
-  debtorName: {
-    color: "#102039",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "700",
-  },
-  debtorPhone: {
-    color: "#71819A",
-    fontSize: 10,
-    lineHeight: 14,
-    fontVariant: ["tabular-nums"],
-  },
-  debtorAmountWrap: {
-    width: 92,
-    alignItems: "flex-end",
-    gap: 1,
-  },
-  debtorAmount: {
-    width: "100%",
-    color: "#F4511E",
-    fontSize: 12,
-    lineHeight: 16,
-    textAlign: "right",
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  debtorCaption: {
-    color: "#8795A9",
-    fontSize: 9,
-    lineHeight: 12,
-  },
-  monthRow: {
-    gap: 9,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
-  },
-  monthTitle: {
-    color: "#10284B",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "800",
-  },
-  flowRow: {
-    minHeight: 18,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  flowLabelWrap: {
-    width: 51,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  flowDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-  },
-  flowLabel: {
-    color: "#657692",
-    fontSize: 10,
-    lineHeight: 14,
-  },
-  flowTrack: {
-    minWidth: 40,
-    height: 7,
-    flex: 1,
-    overflow: "hidden",
-    borderRadius: 4,
-    backgroundColor: "#EEF2F6",
-  },
-  flowFill: {
-    height: "100%",
-    borderRadius: 4,
-  },
-  debtFill: {
-    backgroundColor: "#F4511E",
-  },
-  paymentFill: {
-    backgroundColor: "#159447",
-  },
-  flowValue: {
-    width: 92,
-    fontSize: 10,
-    lineHeight: 14,
-    textAlign: "right",
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  emptyState: {
-    minHeight: 158,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    padding: 20,
-  },
-  emptyIconGreen: {
-    width: 48,
-    height: 48,
-    marginBottom: 4,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E7F8ED",
-  },
-  emptyIconBlue: {
-    width: 48,
-    height: 48,
-    marginBottom: 4,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E7F0FF",
-  },
-  emptyTitle: {
-    color: "#10284B",
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "800",
-  },
-  emptyDescription: {
-    color: "#71819A",
-    fontSize: 11,
-    lineHeight: 16,
-    textAlign: "center",
-  },
-  pressed: {
-    backgroundColor: "#F7F9FC",
-  },
-  footerSpace: {
-    height: 10,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    header: {
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 10,
+      gap: 2,
+    },
+    screenTitle: {
+      color: theme.text,
+      fontSize: 32,
+      lineHeight: 39,
+      fontWeight: "800",
+      letterSpacing: -0.8,
+    },
+    screenSubtitle: {
+      color: theme.textSecondary,
+      fontSize: 15,
+      lineHeight: 21,
+    },
+    scroll: {
+      flexGrow: 1,
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      paddingBottom: 28,
+      gap: 14,
+    },
+    loadingWrap: {
+      flex: 1,
+      minHeight: 360,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 12,
+    },
+    loadingText: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      lineHeight: 20,
+    },
+    heroCard: {
+      overflow: "hidden",
+      padding: 18,
+      gap: 4,
+      backgroundColor: theme.primary,
+      borderRadius: 22,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    heroTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingBottom: 8,
+    },
+    heroIcon: {
+      width: 42,
+      height: 42,
+      borderRadius: 14,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: "rgba(255,255,255,0.16)",
+    },
+    heroStatus: {
+      minHeight: 28,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      backgroundColor: "rgba(255,255,255,0.14)",
+    },
+    liveDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: theme.paymentColor,
+    },
+    heroStatusText: {
+      color: "#FFFFFF",
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "700",
+    },
+    heroLabel: {
+      color: "rgba(255,255,255,0.78)",
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "500",
+    },
+    heroValue: {
+      color: "#FFFFFF",
+      fontSize: 31,
+      lineHeight: 38,
+      fontWeight: "800",
+      letterSpacing: -0.8,
+      fontVariant: ["tabular-nums"],
+    },
+    heroMessage: {
+      color: "rgba(255,255,255,0.82)",
+      fontSize: 12,
+      lineHeight: 17,
+    },
+    heroDivider: {
+      height: 1,
+      marginTop: 12,
+      marginBottom: 10,
+      backgroundColor: "rgba(255,255,255,0.20)",
+    },
+    heroSummary: {
+      flexDirection: "row",
+      alignItems: "center",
+    },
+    heroSummaryItem: {
+      flex: 1,
+      gap: 1,
+    },
+    heroSummaryDivider: {
+      width: 1,
+      height: 34,
+      marginHorizontal: 16,
+      backgroundColor: "rgba(255,255,255,0.20)",
+    },
+    heroSummaryValue: {
+      color: "#FFFFFF",
+      fontSize: 18,
+      lineHeight: 23,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    heroSummaryLabel: {
+      color: "rgba(255,255,255,0.72)",
+      fontSize: 11,
+      lineHeight: 15,
+    },
+    metricGrid: {
+      gap: 10,
+    },
+    metricRow: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    metricCard: {
+      minWidth: 0,
+      minHeight: 82,
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      paddingHorizontal: 11,
+      paddingVertical: 12,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 17,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    metricIcon: {
+      width: 38,
+      height: 38,
+      borderRadius: 13,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    metricContent: {
+      minWidth: 0,
+      flex: 1,
+      gap: 2,
+    },
+    metricLabel: {
+      color: theme.textSecondary,
+      fontSize: 10,
+      lineHeight: 14,
+      fontWeight: "600",
+    },
+    metricValue: {
+      fontSize: 16,
+      lineHeight: 21,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    paymentCard: {
+      padding: 16,
+      gap: 10,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 18,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    cardHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    sectionIconGreen: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.paymentBg,
+    },
+    cardHeaderText: {
+      minWidth: 0,
+      flex: 1,
+      gap: 1,
+    },
+    cardTitle: {
+      color: theme.text,
+      fontSize: 16,
+      lineHeight: 21,
+      fontWeight: "800",
+    },
+    cardSubtitle: {
+      color: theme.textMuted,
+      fontSize: 10,
+      lineHeight: 14,
+    },
+    paymentPercent: {
+      color: theme.paymentColor,
+      fontSize: 21,
+      lineHeight: 26,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    progressTrack: {
+      height: 9,
+      overflow: "hidden",
+      borderRadius: 5,
+      backgroundColor: theme.inputBackground,
+    },
+    progressFill: {
+      height: "100%",
+      borderRadius: 5,
+      backgroundColor: theme.paymentColor,
+    },
+    progressLabels: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    progressLabel: {
+      color: theme.textMuted,
+      fontSize: 9,
+      lineHeight: 12,
+    },
+    periodDivider: {
+      height: 1,
+      marginTop: 2,
+      backgroundColor: theme.border,
+    },
+    periodTitle: {
+      color: theme.textSecondary,
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "700",
+    },
+    periodRow: {
+      flexDirection: "row",
+      alignItems: "stretch",
+    },
+    periodItem: {
+      minWidth: 0,
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 7,
+    },
+    periodVerticalDivider: {
+      width: 1,
+      marginHorizontal: 12,
+      backgroundColor: theme.border,
+    },
+    periodDot: {
+      width: 8,
+      height: 8,
+      borderRadius: 4,
+      flexShrink: 0,
+    },
+    debtDot: {
+      backgroundColor: theme.debtColor,
+    },
+    paymentDot: {
+      backgroundColor: theme.paymentColor,
+    },
+    periodContent: {
+      minWidth: 0,
+      flex: 1,
+      gap: 1,
+    },
+    periodLabel: {
+      color: theme.textMuted,
+      fontSize: 9,
+      lineHeight: 12,
+    },
+    periodValue: {
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    debtText: {
+      color: theme.debtColor,
+    },
+    paymentText: {
+      color: theme.paymentColor,
+    },
+    sectionHeader: {
+      minHeight: 42,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      paddingTop: 2,
+    },
+    sectionTitle: {
+      color: theme.text,
+      fontSize: 18,
+      lineHeight: 23,
+      fontWeight: "800",
+      letterSpacing: -0.25,
+    },
+    sectionSubtitle: {
+      color: theme.textMuted,
+      fontSize: 11,
+      lineHeight: 15,
+    },
+    countBadge: {
+      minWidth: 30,
+      height: 30,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 8,
+      borderRadius: 15,
+      backgroundColor: theme.primaryLight,
+    },
+    countBadgeText: {
+      color: theme.primary,
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    listCard: {
+      overflow: "hidden",
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 18,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    debtorRow: {
+      minHeight: 70,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    rowBorder: {
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    rankBadge: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.inputBackground,
+    },
+    rankText: {
+      color: theme.textSecondary,
+      fontSize: 10,
+      lineHeight: 13,
+      fontWeight: "800",
+    },
+    avatar: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.debtBg,
+    },
+    avatarText: {
+      color: theme.debtColor,
+      fontSize: 13,
+      lineHeight: 17,
+      fontWeight: "800",
+    },
+    debtorIdentity: {
+      minWidth: 0,
+      flex: 1,
+      gap: 1,
+    },
+    debtorName: {
+      color: theme.text,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+    },
+    debtorPhone: {
+      color: theme.textMuted,
+      fontSize: 10,
+      lineHeight: 14,
+      fontVariant: ["tabular-nums"],
+    },
+    debtorAmountWrap: {
+      width: 92,
+      alignItems: "flex-end",
+      gap: 1,
+    },
+    debtorAmount: {
+      width: "100%",
+      color: theme.debtColor,
+      fontSize: 12,
+      lineHeight: 16,
+      textAlign: "right",
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    debtorCaption: {
+      color: theme.textMuted,
+      fontSize: 9,
+      lineHeight: 12,
+    },
+    monthRow: {
+      gap: 9,
+      paddingHorizontal: 14,
+      paddingVertical: 13,
+    },
+    monthTitle: {
+      color: theme.text,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "800",
+    },
+    flowRow: {
+      minHeight: 18,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    flowLabelWrap: {
+      width: 51,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+    },
+    flowDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+    },
+    flowLabel: {
+      color: theme.textSecondary,
+      fontSize: 10,
+      lineHeight: 14,
+    },
+    flowTrack: {
+      minWidth: 40,
+      height: 7,
+      flex: 1,
+      overflow: "hidden",
+      borderRadius: 4,
+      backgroundColor: theme.inputBackground,
+    },
+    flowFill: {
+      height: "100%",
+      borderRadius: 4,
+    },
+    debtFill: {
+      backgroundColor: theme.debtColor,
+    },
+    paymentFill: {
+      backgroundColor: theme.paymentColor,
+    },
+    flowValue: {
+      width: 92,
+      fontSize: 10,
+      lineHeight: 14,
+      textAlign: "right",
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    emptyState: {
+      minHeight: 158,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+      padding: 20,
+    },
+    emptyIconGreen: {
+      width: 48,
+      height: 48,
+      marginBottom: 4,
+      borderRadius: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.paymentBg,
+    },
+    emptyIconBlue: {
+      width: 48,
+      height: 48,
+      marginBottom: 4,
+      borderRadius: 24,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primaryLight,
+    },
+    emptyTitle: {
+      color: theme.text,
+      fontSize: 15,
+      lineHeight: 20,
+      fontWeight: "800",
+    },
+    emptyDescription: {
+      color: theme.textMuted,
+      fontSize: 11,
+      lineHeight: 16,
+      textAlign: "center",
+    },
+    pressed: {
+      backgroundColor: theme.inputBackground,
+    },
+    footerSpace: {
+      height: 10,
+    },
+  });

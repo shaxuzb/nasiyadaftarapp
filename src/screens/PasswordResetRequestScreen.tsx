@@ -11,6 +11,7 @@ import { useToast } from "../context/ToastContext";
 import { APP_NAME } from "../constants";
 import { toStoredUzPhone, uzPhoneMask, isValidUzPhone } from "../utils/masks";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { getApiErrorMessage } from "../utils/apiError";
 
 interface Props {
   onGoBackToLogin: () => void;
@@ -38,8 +39,11 @@ export function PasswordResetRequestScreen({ onGoBackToLogin, onGoToConfirm }: P
       await requestPasswordReset({ phone: normalizedPhone });
       showToast("SMS kod yuborildi", "success");
       onGoToConfirm(normalizedPhone);
-    } catch {
-      showToast("Foydalanuvchi topilmadi", "error");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, "Foydalanuvchi topilmadi"),
+        "error",
+      );
     } finally {
       setLoading(false);
     }

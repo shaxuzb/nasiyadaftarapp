@@ -1,5 +1,12 @@
-import React, { useMemo, useRef, useState } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Keyboard,
+  ScrollViewProps,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
@@ -14,14 +21,30 @@ import { radius, spacing, typography } from "../theme";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { isValidUzPhone, toStoredUzPhone, uzPhoneMask } from "../utils/masks";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import {
+  KeyboardAwareScrollView,
+  KeyboardToolbar,
+} from "react-native-keyboard-controller";
+import { getApiErrorMessage } from "../utils/apiError";
+
+const KeyboardBottomSheetScrollView =
+  BottomSheetScrollView as unknown as React.ComponentType<ScrollViewProps>;
+
+const SHEET_SPRING = {
+  damping: 80,
+  stiffness: 500,
+  mass: 0.8,
+  overshootClamping: true,
+  restDisplacementThreshold: 0.01,
+  restSpeedThreshold: 2,
+};
 
 export function OrganizationSetupScreen() {
   const theme = useTheme();
   const { user, logout, createOrganizationForCurrentUser } = useAuth();
   const { showToast } = useToast();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["72%"], []);
+  const snapPoints = useMemo(() => ["86%"], []);
 
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("+998 ");
@@ -37,8 +60,21 @@ export function OrganizationSetupScreen() {
   }
 
   function closeSheet() {
+    Keyboard.dismiss();
     bottomSheetRef.current?.dismiss();
   }
+
+  const renderBackdrop = useCallback(
+    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
+      <BottomSheetBackdrop
+        {...props}
+        appearsOnIndex={0}
+        disappearsOnIndex={-1}
+        opacity={0.35}
+      />
+    ),
+    [],
+  );
 
   function validate() {
     const next: { name?: string; phoneNumber?: string } = {};
@@ -72,8 +108,11 @@ export function OrganizationSetupScreen() {
 
       closeSheet();
       showToast("Tashkilot yaratildi", "success");
-    } catch {
-      showToast("Tashkilot yaratishda xatolik", "error");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, "Tashkilot yaratishda xatolik"),
+        "error",
+      );
     } finally {
       setSaving(false);
     }
@@ -128,56 +167,99 @@ export function OrganizationSetupScreen() {
         ref={bottomSheetRef}
         index={0}
         snapPoints={snapPoints}
+        enableDynamicSizing={false}
         enablePanDownToClose
-        keyboardBehavior="extend"
+        enableOverDrag={false}
+        keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
         enableBlurKeyboardOnGesture
-        backdropComponent={(props) => (
-          <BottomSheetBackdrop
-            {...props}
-            appearsOnIndex={0}
-            disappearsOnIndex={-1}
-            opacity={0.35}
-          />
-        )}
+        backdropComponent={renderBackdrop}
+        animationConfigs={SHEET_SPRING}
+        onDismiss={Keyboard.dismiss}
         backgroundStyle={{ backgroundColor: theme.surface }}
         handleIndicatorStyle={{ backgroundColor: theme.textMuted }}
       >
-        <KeyboardAvoidingView style={styles.sheetKeyboardWrap} behavior="padding">
-          <BottomSheetScrollView
+        <View style={styles.sheetKeyboardWrap}>
+          <KeyboardAwareScrollView
+            ScrollViewComponent={KeyboardBottomSheetScrollView}
+            style={styles.sheetKeyboardScroll}
+            bottomOffset={72}
+            extraKeyboardSpace={16}
+            disableScrollOnKeyboardHide={false}
             contentContainerStyle={styles.sheetContent}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
           >
-            <Text style={[typography.headingMedium, { color: theme.text }]}>
-              Yangi tashkilot
-            </Text>
-            <Text
-              style={[
-                typography.bodySmall,
-                {
-                  color: theme.textSecondary,
-                  marginTop: spacing.xs,
-                  marginBottom: spacing.md,
-                },
-              ]}
-            >
-              Quyidagi ma'lumotlarni kiriting
-            </Text>
+            <View style={styles.sheetHeader}>
+              <View
+                style={[
+                  styles.sheetHeaderIcon,
+                  { backgroundColor: theme.primaryLight },
+                ]}
+              >
+                <Ionicons
+                  name="business-outline"
+                  size={22}
+                  color={theme.primary}
+                />
+              </View>
+              <View style={styles.sheetHeaderText}>
+                <Text style={[typography.headingMedium, { color: theme.text }]}>
+                  Yangi tashkilot
+                </Text>
+                <Text
+                  style={[typography.bodySmall, { color: theme.textSecondary }]}
+                >
+                  Tashkilot ma'lumotlarini kiriting
+                </Text>
+              </View>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Tashkilot formasini yopish"
+                activeOpacity={0.72}
+                onPress={closeSheet}
+                style={[
+                  styles.sheetCloseButton,
+                  { backgroundColor: theme.inputBackground },
+                ]}
+              >
+                <Ionicons name="close" size={21} color={theme.textSecondary} />
+              </TouchableOpacity>
+            </View>
 
             <AppInput
+              variant="sheet"
               label="Nomi *"
               value={name}
-              onChangeText={setName}
+              onChangeText={(value) => {
+                setName(value);
+                if (errors.name) {
+                  setErrors((current) => ({ ...current, name: undefined }));
+                }
+              }}
               placeholder="Masalan: Nasiya Savdo"
               iconName="business-outline"
+              autoCapitalize="words"
+              returnKeyType="next"
               error={errors.name}
             />
 
             <AppInput
+              variant="sheet"
               label="Telefon *"
               value={phoneNumber}
-              onChangeText={setPhoneNumber}
+              onChangeText={(value) => {
+                setPhoneNumber(value);
+                if (errors.phoneNumber) {
+                  setErrors((current) => ({
+                    ...current,
+                    phoneNumber: undefined,
+                  }));
+                }
+              }}
               placeholder="+998 XX XXX XX XX"
               iconName="call-outline"
               keyboardType="phone-pad"
@@ -186,14 +268,18 @@ export function OrganizationSetupScreen() {
             />
 
             <AppInput
+              variant="sheet"
               label="Manzil"
               value={address}
               onChangeText={setAddress}
               placeholder="Shahar, ko'cha"
               iconName="location-outline"
+              autoCapitalize="sentences"
+              returnKeyType="next"
             />
 
             <AppInput
+              variant="sheet"
               label="Izoh"
               value={note}
               onChangeText={setNote}
@@ -201,23 +287,43 @@ export function OrganizationSetupScreen() {
               iconName="chatbubble-ellipses-outline"
               multiline
               numberOfLines={3}
-              style={{ minHeight: 72, paddingTop: 10, textAlignVertical: "top" }}
+              returnKeyType="default"
+              style={{
+                minHeight: 72,
+                paddingTop: 10,
+                textAlignVertical: "top",
+              }}
             />
 
-            <PrimaryButton
-              label="Saqlash"
-              onPress={handleCreateOrganization}
-              loading={saving}
-              style={{ marginTop: spacing.sm }}
-            />
-
-            <TouchableOpacity onPress={closeSheet} style={styles.cancelBtn}>
-              <Text style={[typography.label, { color: theme.textMuted }]}>
-                Bekor qilish
+            <View style={styles.sheetActions}>
+              <Text style={[typography.caption, { color: theme.textMuted }]}>
+                * Majburiy maydonlar
               </Text>
-            </TouchableOpacity>
-          </BottomSheetScrollView>
-        </KeyboardAvoidingView>
+              <PrimaryButton
+                label="Tashkilotni saqlash"
+                onPress={handleCreateOrganization}
+                loading={saving}
+                disabled={saving}
+              />
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Bekor qilish"
+                activeOpacity={0.72}
+                onPress={closeSheet}
+                style={styles.cancelBtn}
+              >
+                <Text style={[typography.label, { color: theme.textMuted }]}>
+                  Bekor qilish
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </KeyboardAwareScrollView>
+          <KeyboardToolbar
+            doneText="Tayyor"
+            showArrows
+            onDoneCallback={Keyboard.dismiss}
+          />
+        </View>
       </BottomSheetModal>
     </ScreenContainer>
   );
@@ -251,14 +357,47 @@ const styles = StyleSheet.create({
   },
   sheetContent: {
     paddingHorizontal: spacing.md,
+    paddingTop: spacing.xs,
     paddingBottom: spacing.xl,
+    gap: spacing.xs,
   },
   sheetKeyboardWrap: {
     flex: 1,
   },
-  cancelBtn: {
+  sheetKeyboardScroll: {
+    flex: 1,
+  },
+  sheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  sheetHeaderIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: spacing.md,
+  },
+  sheetHeaderText: {
+    flex: 1,
+    gap: 2,
+  },
+  sheetCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sheetActions: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  cancelBtn: {
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

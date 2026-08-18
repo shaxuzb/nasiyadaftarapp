@@ -1,7 +1,7 @@
 import "react-native-gesture-handler";
 import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
-import { ActivityIndicator, useColorScheme, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
@@ -12,16 +12,27 @@ import { ConfirmDialogProvider } from "./src/context/ConfirmDialogContext";
 import { ToastProvider } from "./src/context/ToastContext";
 import { AppNavigator } from "./src/navigation";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
-import { lightTheme, darkTheme } from "./src/theme";
+import { useTheme } from "./src/hooks/useTheme";
+import { ThemeProvider, useThemeContext } from "./src/context/ThemeContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./src/core/query/queryClient";
 import { BottomSheetProvider } from "./src/bottom-sheet";
+import { AppUpdateGate } from "./src/modules/app-update";
 
 const ONBOARDING_DONE_KEY = "onboarding_done_v1";
 
 export default function App() {
-  const scheme = useColorScheme();
+  return (
+    <ThemeProvider>
+      <ThemedApp />
+    </ThemeProvider>
+  );
+}
+
+function ThemedApp() {
+  const theme = useTheme();
+  const { resolvedScheme } = useThemeContext();
   const [loading, setLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
 
@@ -45,14 +56,10 @@ export default function App() {
           flex: 1,
           alignItems: "center",
           justifyContent: "center",
-          backgroundColor:
-            scheme === "dark" ? darkTheme.background : lightTheme.background,
+          backgroundColor: theme.background,
         }}
       >
-        <ActivityIndicator
-          size="large"
-          color={scheme === "dark" ? darkTheme.primary : lightTheme.primary}
-        />
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
@@ -68,14 +75,19 @@ export default function App() {
                   <AppProvider>
                     <BottomSheetProvider>
                       <ConfirmDialogProvider>
-                        <StatusBar
-                          style={scheme === "dark" ? "light" : "dark"}
-                        />
-                        {showOnboarding ? (
-                          <OnboardingScreen onFinish={handleFinishOnboarding} />
-                        ) : (
-                          <AppNavigator />
-                        )}
+                        <AppUpdateGate>
+                          <StatusBar
+                            style={resolvedScheme === "dark" ? "light" : "dark"}
+                            backgroundColor={theme.background}
+                          />
+                          {showOnboarding ? (
+                            <OnboardingScreen
+                              onFinish={handleFinishOnboarding}
+                            />
+                          ) : (
+                            <AppNavigator />
+                          )}
+                        </AppUpdateGate>
                       </ConfirmDialogProvider>
                     </BottomSheetProvider>
                   </AppProvider>

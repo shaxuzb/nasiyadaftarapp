@@ -10,11 +10,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import {
-  RouteProp,
-  useNavigation,
-  useRoute,
-} from "@react-navigation/native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -23,15 +19,12 @@ import { useToast } from "../context/ToastContext";
 import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { TransactionItem } from "../modules/transactions/components/TransactionItem";
 import { EmptyState } from "../components/EmptyState";
-import {
-  formatCurrency,
-  formatDate,
-  getFullName,
-  getInitials,
-} from "../utils";
+import { formatCurrency, formatDate, getFullName, getInitials } from "../utils";
 import { APP_NAME } from "../constants";
-import { RootStackParamList } from "../types";
+import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
+import { useTheme } from "../hooks/useTheme";
+import { getApiErrorMessage } from "../utils/apiError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, "CustomerDetail">;
@@ -52,6 +45,8 @@ function DetailStat({
   color,
   backgroundColor,
 }: DetailStatProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.statBox}>
       <View style={[styles.statIcon, { backgroundColor }]}>
@@ -72,6 +67,8 @@ function DetailStat({
 }
 
 export function CustomerDetailScreen() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const { showToast } = useToast();
@@ -190,8 +187,11 @@ export function CustomerDetailScreen() {
         return;
       }
       navigation.navigate("MainTabs");
-    } catch {
-      showToast("Mijozni o'chirishda xatolik", "error");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, "Mijozni o'chirishda xatolik"),
+        "error",
+      );
     }
   }
 
@@ -212,9 +212,12 @@ export function CustomerDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="Orqaga qaytish"
           onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.headerButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.headerButton,
+            pressed && styles.pressed,
+          ]}
         >
-          <Ionicons name="arrow-back" size={24} color="#071426" />
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
 
         <View style={styles.headerIdentity}>
@@ -235,7 +238,7 @@ export function CustomerDetailScreen() {
             pressed && styles.pressed,
           ]}
         >
-          <Ionicons name="trash-outline" size={22} color="#DC2626" />
+          <Ionicons name="trash-outline" size={22} color={theme.dangerColor} />
         </Pressable>
       </View>
 
@@ -274,12 +277,12 @@ export function CustomerDetailScreen() {
                 <Ionicons
                   name={settled ? "checkmark-circle" : "alert-circle"}
                   size={16}
-                  color={settled ? "#159447" : "#F4511E"}
+                  color={settled ? theme.paymentColor : theme.debtColor}
                 />
                 <Text
                   style={[
                     styles.statusText,
-                    { color: settled ? "#159447" : "#F4511E" },
+                    { color: settled ? theme.paymentColor : theme.debtColor },
                   ]}
                 >
                   {settled ? "Qarz yo'q" : "Qarzdor"}
@@ -298,24 +301,24 @@ export function CustomerDetailScreen() {
               icon="arrow-down"
               label="Jami qarz"
               value={formatCurrency(totalDebt)}
-              color="#F4511E"
-              backgroundColor="#FFF0E8"
+              color={theme.debtColor}
+              backgroundColor={theme.debtBg}
             />
             <View style={styles.statDivider} />
             <DetailStat
               icon="arrow-up"
               label="Jami to'lov"
               value={formatCurrency(totalPaid)}
-              color="#159447"
-              backgroundColor="#E7F8ED"
+              color={theme.paymentColor}
+              backgroundColor={theme.paymentBg}
             />
             <View style={styles.statDivider} />
             <DetailStat
               icon="wallet-outline"
               label="Balans"
               value={formatCurrency(Math.max(balance, 0))}
-              color="#0B5DEB"
-              backgroundColor="#E7F0FF"
+              color={theme.primary}
+              backgroundColor={theme.primaryLight}
             />
           </View>
         </View>
@@ -337,7 +340,11 @@ export function CustomerDetailScreen() {
               pressed && styles.pressed,
             ]}
           >
-            <Ionicons name="add-circle-outline" size={23} color="#0B5DEB" />
+            <Ionicons
+              name="add-circle-outline"
+              size={23}
+              color={theme.primary}
+            />
             <Text style={[styles.primaryActionText, styles.debtActionText]}>
               Qarz qo'shish
             </Text>
@@ -359,7 +366,11 @@ export function CustomerDetailScreen() {
               pressed && styles.pressed,
             ]}
           >
-            <Ionicons name="wallet-outline" size={23} color="#159447" />
+            <Ionicons
+              name="wallet-outline"
+              size={23}
+              color={theme.paymentColor}
+            />
             <Text style={[styles.primaryActionText, styles.paymentActionText]}>
               To'lov olish
             </Text>
@@ -370,31 +381,48 @@ export function CustomerDetailScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={handleCall}
-            style={({ pressed }) => [styles.contactButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.contactButton,
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="call" size={20} color="#0B5DEB" />
+            <Ionicons name="call" size={20} color={theme.primary} />
             <Text style={styles.contactText}>Qo'ng'iroq</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={handleWhatsApp}
-            style={({ pressed }) => [styles.contactButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.contactButton,
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="logo-whatsapp" size={21} color="#159447" />
+            <Ionicons
+              name="logo-whatsapp"
+              size={21}
+              color={theme.paymentColor}
+            />
             <Text style={styles.contactText}>WhatsApp</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             onPress={handleShare}
-            style={({ pressed }) => [styles.contactButton, pressed && styles.pressed]}
+            style={({ pressed }) => [
+              styles.contactButton,
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="share-social" size={20} color="#0B5DEB" />
+            <Ionicons name="share-social" size={20} color={theme.primary} />
             <Text style={styles.contactText}>Ulashish</Text>
           </Pressable>
         </View>
 
         <View style={styles.sectionTitleRow}>
-          <Ionicons name="receipt-outline" size={20} color="#173766" />
+          <Ionicons
+            name="receipt-outline"
+            size={20}
+            color={theme.textSecondary}
+          />
           <Text style={styles.sectionTitle}>Tranzaksiyalar tarixi</Text>
         </View>
 
@@ -418,7 +446,9 @@ export function CustomerDetailScreen() {
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                <Text
+                  style={[styles.filterText, active && styles.filterTextActive]}
+                >
                   {item.label}
                 </Text>
               </Pressable>
@@ -450,322 +480,323 @@ export function CustomerDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#F7F9FC",
-  },
-  centered: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F7F9FC",
-  },
-  notFoundText: {
-    color: "#071426",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  header: {
-    minHeight: 66,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-  },
-  headerButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 13,
-    borderCurve: "continuous",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DEE6F0",
-    boxShadow: "0 5px 16px rgba(24, 48, 80, 0.08)",
-  },
-  headerIdentity: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: "center",
-    gap: 2,
-  },
-  headerTitle: {
-    color: "#071426",
-    fontSize: 18,
-    lineHeight: 23,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-  },
-  headerSubtitle: {
-    color: "#5D6F8C",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "400",
-    fontVariant: ["tabular-nums"],
-  },
-  scroll: {
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    gap: 12,
-  },
-  profileCard: {
-    padding: 14,
-    gap: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E9F2",
-    borderRadius: 18,
-    borderCurve: "continuous",
-    boxShadow: "0 8px 24px rgba(24, 48, 80, 0.08)",
-  },
-  profileTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  avatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#E4F6EA",
-  },
-  avatarText: {
-    color: "#138A3D",
-    fontSize: 23,
-    lineHeight: 29,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-  },
-  profileIdentity: {
-    flex: 1,
-    minWidth: 0,
-    alignItems: "flex-start",
-    gap: 3,
-  },
-  profileName: {
-    color: "#071426",
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-  },
-  profilePhone: {
-    color: "#5A6E8E",
-    fontSize: 13,
-    lineHeight: 18,
-    fontVariant: ["tabular-nums"],
-  },
-  idBadge: {
-    minHeight: 23,
-    justifyContent: "center",
-    paddingHorizontal: 8,
-    backgroundColor: "#F1F5FA",
-    borderRadius: 8,
-  },
-  idText: {
-    color: "#4F6382",
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "500",
-    fontVariant: ["tabular-nums"],
-  },
-  statusBlock: {
-    maxWidth: 104,
-    alignItems: "flex-end",
-    gap: 5,
-  },
-  statusChip: {
-    minHeight: 28,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-  },
-  settledChip: {
-    backgroundColor: "#F0FBF4",
-    borderColor: "#A9E1BD",
-  },
-  debtChip: {
-    backgroundColor: "#FFF6F1",
-    borderColor: "#FFC9AD",
-  },
-  statusText: {
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "700",
-  },
-  statusCaption: {
-    color: "#617390",
-    fontSize: 10,
-    lineHeight: 14,
-    textAlign: "right",
-  },
-  profileDivider: {
-    height: 1,
-    backgroundColor: "#E1E8F1",
-  },
-  statsRow: {
-    minHeight: 94,
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-  statBox: {
-    minWidth: 0,
-    flex: 1,
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 5,
-    paddingHorizontal: 4,
-  },
-  statIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  statLabel: {
-    color: "#5A6D8A",
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "500",
-  },
-  statAmount: {
-    width: "100%",
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-  },
-  statDivider: {
-    width: 1,
-    backgroundColor: "#DDE5EF",
-    marginHorizontal: 6,
-  },
-  primaryActions: {
-    flexDirection: "row",
-    gap: 10,
-  },
-  primaryAction: {
-    minHeight: 52,
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    paddingHorizontal: 8,
-    borderWidth: 1.25,
-    borderRadius: 14,
-    borderCurve: "continuous",
-  },
-  debtAction: {
-    backgroundColor: "#F8FBFF",
-    borderColor: "#8AB7FF",
-  },
-  paymentAction: {
-    backgroundColor: "#F3FBF6",
-    borderColor: "#A5DEB9",
-  },
-  primaryActionText: {
-    fontSize: 14,
-    lineHeight: 19,
-    fontWeight: "800",
-  },
-  debtActionText: {
-    color: "#0B5DEB",
-  },
-  paymentActionText: {
-    color: "#159447",
-  },
-  contactRow: {
-    flexDirection: "row",
-    gap: 9,
-  },
-  contactButton: {
-    minHeight: 52,
-    minWidth: 0,
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingHorizontal: 8,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DFE7F1",
-    borderRadius: 14,
-    borderCurve: "continuous",
-    boxShadow: "0 5px 16px rgba(24, 48, 80, 0.06)",
-  },
-  contactText: {
-    color: "#465C7D",
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: "600",
-  },
-  sectionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingTop: 2,
-  },
-  sectionTitle: {
-    color: "#10284B",
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: "800",
-    letterSpacing: -0.3,
-  },
-  filterRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  filterChip: {
-    minHeight: 38,
-    minWidth: 70,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "#DDE5EF",
-    borderRadius: 999,
-    backgroundColor: "#F7F9FC",
-  },
-  filterChipActive: {
-    borderColor: "#0B5DEB",
-    backgroundColor: "#FFFFFF",
-  },
-  filterText: {
-    color: "#536987",
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "600",
-  },
-  filterTextActive: {
-    color: "#0B5DEB",
-  },
-  txCard: {
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E9F2",
-    borderRadius: 16,
-    borderCurve: "continuous",
-    boxShadow: "0 7px 22px rgba(24, 48, 80, 0.07)",
-  },
-  footerSpace: {
-    height: 20,
-  },
-  pressed: {
-    opacity: 0.7,
-  },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: theme.background,
+    },
+    centered: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.background,
+    },
+    notFoundText: {
+      color: theme.text,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    header: {
+      minHeight: 66,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 16,
+      paddingVertical: 7,
+    },
+    headerButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 13,
+      borderCurve: "continuous",
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      boxShadow: theme.cardShadow,
+    },
+    headerIdentity: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: "center",
+      gap: 2,
+    },
+    headerTitle: {
+      color: theme.text,
+      fontSize: 18,
+      lineHeight: 23,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+    headerSubtitle: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "400",
+      fontVariant: ["tabular-nums"],
+    },
+    scroll: {
+      paddingHorizontal: 16,
+      paddingTop: 6,
+      gap: 12,
+    },
+    profileCard: {
+      padding: 14,
+      gap: 14,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 18,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    profileTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+    },
+    avatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.paymentBg,
+    },
+    avatarText: {
+      color: theme.paymentColor,
+      fontSize: 23,
+      lineHeight: 29,
+      fontWeight: "800",
+      letterSpacing: -0.5,
+    },
+    profileIdentity: {
+      flex: 1,
+      minWidth: 0,
+      alignItems: "flex-start",
+      gap: 3,
+    },
+    profileName: {
+      color: theme.text,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+    profilePhone: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+      fontVariant: ["tabular-nums"],
+    },
+    idBadge: {
+      minHeight: 23,
+      justifyContent: "center",
+      paddingHorizontal: 8,
+      backgroundColor: theme.inputBackground,
+      borderRadius: 8,
+    },
+    idText: {
+      color: theme.textSecondary,
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "500",
+      fontVariant: ["tabular-nums"],
+    },
+    statusBlock: {
+      maxWidth: 104,
+      alignItems: "flex-end",
+      gap: 5,
+    },
+    statusChip: {
+      minHeight: 28,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 5,
+      paddingHorizontal: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+    },
+    settledChip: {
+      backgroundColor: theme.paymentBg,
+      borderColor: theme.paymentColor,
+    },
+    debtChip: {
+      backgroundColor: theme.debtBg,
+      borderColor: theme.debtColor,
+    },
+    statusText: {
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "700",
+    },
+    statusCaption: {
+      color: theme.textMuted,
+      fontSize: 10,
+      lineHeight: 14,
+      textAlign: "right",
+    },
+    profileDivider: {
+      height: 1,
+      backgroundColor: theme.border,
+    },
+    statsRow: {
+      minHeight: 94,
+      flexDirection: "row",
+      alignItems: "stretch",
+    },
+    statBox: {
+      minWidth: 0,
+      flex: 1,
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: 5,
+      paddingHorizontal: 4,
+    },
+    statIcon: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    statLabel: {
+      color: theme.textSecondary,
+      fontSize: 11,
+      lineHeight: 15,
+      fontWeight: "500",
+    },
+    statAmount: {
+      width: "100%",
+      fontSize: 15,
+      lineHeight: 20,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    statDivider: {
+      width: 1,
+      backgroundColor: theme.border,
+      marginHorizontal: 6,
+    },
+    primaryActions: {
+      flexDirection: "row",
+      gap: 10,
+    },
+    primaryAction: {
+      minHeight: 52,
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      paddingHorizontal: 8,
+      borderWidth: 1.25,
+      borderRadius: 14,
+      borderCurve: "continuous",
+    },
+    debtAction: {
+      backgroundColor: theme.primaryLight,
+      borderColor: theme.primary,
+    },
+    paymentAction: {
+      backgroundColor: theme.paymentBg,
+      borderColor: theme.paymentColor,
+    },
+    primaryActionText: {
+      fontSize: 14,
+      lineHeight: 19,
+      fontWeight: "800",
+    },
+    debtActionText: {
+      color: theme.primary,
+    },
+    paymentActionText: {
+      color: theme.paymentColor,
+    },
+    contactRow: {
+      flexDirection: "row",
+      gap: 9,
+    },
+    contactButton: {
+      minHeight: 52,
+      minWidth: 0,
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: 8,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 14,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    contactText: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: "600",
+    },
+    sectionTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingTop: 2,
+    },
+    sectionTitle: {
+      color: theme.text,
+      fontSize: 17,
+      lineHeight: 22,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+    filterRow: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
+    },
+    filterChip: {
+      minHeight: 38,
+      minWidth: 70,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 999,
+      backgroundColor: theme.background,
+    },
+    filterChipActive: {
+      borderColor: theme.primary,
+      backgroundColor: theme.surface,
+    },
+    filterText: {
+      color: theme.textSecondary,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "600",
+    },
+    filterTextActive: {
+      color: theme.primary,
+    },
+    txCard: {
+      overflow: "hidden",
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 16,
+      borderCurve: "continuous",
+      boxShadow: theme.cardShadow,
+    },
+    footerSpace: {
+      height: 20,
+    },
+    pressed: {
+      opacity: 0.7,
+    },
+  });

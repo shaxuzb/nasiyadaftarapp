@@ -5,6 +5,7 @@ import {
   Text,
   StyleSheet,
   TextInputProps,
+  Pressable,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
@@ -19,6 +20,7 @@ interface Props extends TextInputProps {
   mask?: Mask;
   onChangeRawText?: (raw: string) => void;
   variant?: "default" | "sheet";
+  passwordToggle?: boolean;
 }
 
 export function AppInput({
@@ -30,27 +32,34 @@ export function AppInput({
   onChangeText,
   onChangeRawText,
   variant = "default",
+  passwordToggle = false,
+  secureTextEntry,
   ...rest
 }: Props) {
   const theme = useTheme();
   const [focused, setFocused] = useState(false);
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const isSheet = variant === "sheet";
+  const hasPasswordToggle = passwordToggle && Boolean(secureTextEntry);
+  const shouldHidePassword = hasPasswordToggle
+    ? !passwordVisible
+    : secureTextEntry;
 
   const borderColor = error
     ? theme.dangerColor
     : focused
       ? isSheet
-        ? "#0B5DEB"
+        ? theme.primary
         : theme.primary
       : isSheet
-        ? "#DDE5EF"
+        ? theme.border
         : theme.border;
   const inputStyle = [
     typography.bodyMedium,
     styles.input,
     process.env.EXPO_OS === "ios" ? styles.inputIOS : null,
     isSheet ? styles.sheetInput : null,
-    { color: isSheet ? "#071426" : theme.text },
+    { color: theme.text },
     style,
   ];
 
@@ -62,7 +71,7 @@ export function AppInput({
             typography.label,
             styles.label,
             isSheet ? styles.sheetLabel : null,
-            { color: isSheet ? "#172A49" : theme.textSecondary },
+            { color: theme.textSecondary },
           ]}
         >
           {label}
@@ -74,7 +83,7 @@ export function AppInput({
           styles.inputRow,
           isSheet ? styles.sheetInputRow : null,
           {
-            backgroundColor: isSheet ? "#FFFFFF" : theme.inputBackground,
+            backgroundColor: isSheet ? theme.surface : theme.inputBackground,
             borderColor,
             borderWidth: focused ? 1.5 : 1,
           },
@@ -87,10 +96,10 @@ export function AppInput({
             color={
               focused
                 ? isSheet
-                  ? "#0B5DEB"
+                  ? theme.primary
                   : theme.primary
                 : isSheet
-                  ? "#60728F"
+                  ? theme.textSecondary
                   : theme.textMuted
             }
             style={styles.icon}
@@ -101,22 +110,24 @@ export function AppInput({
           <MaskInput
             style={inputStyle}
             mask={mask}
-            placeholderTextColor={isSheet ? "#8A98AC" : theme.textMuted}
+            placeholderTextColor={theme.textMuted}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             onChangeText={(masked, raw) => {
               onChangeText?.(masked);
               onChangeRawText?.(raw);
             }}
+            secureTextEntry={shouldHidePassword}
             {...rest}
           />
         ) : isSheet ? (
           <BottomSheetTextInput
             style={inputStyle}
-            placeholderTextColor="#8A98AC"
+            placeholderTextColor={theme.textMuted}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             onChangeText={onChangeText}
+            secureTextEntry={shouldHidePassword}
             {...rest}
           />
         ) : (
@@ -126,9 +137,29 @@ export function AppInput({
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
             onChangeText={onChangeText}
+            secureTextEntry={shouldHidePassword}
             {...rest}
           />
         )}
+
+        {hasPasswordToggle ? (
+          <Pressable
+            onPress={() => setPasswordVisible((visible) => !visible)}
+            style={styles.passwordToggle}
+            hitSlop={4}
+            accessibilityRole="button"
+            accessibilityLabel={
+              passwordVisible ? "Parolni yashirish" : "Parolni ko‘rsatish"
+            }
+            accessibilityState={{ expanded: passwordVisible }}
+          >
+            <Ionicons
+              name={passwordVisible ? "eye-off-outline" : "eye-outline"}
+              size={21}
+              color={focused ? theme.primary : theme.textMuted}
+            />
+          </Pressable>
+        ) : null}
       </View>
 
       {error ? (
@@ -166,6 +197,13 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     paddingVertical: spacing.sm,
+  },
+  passwordToggle: {
+    width: 44,
+    height: 44,
+    marginRight: -spacing.sm,
+    alignItems: "center",
+    justifyContent: "center",
   },
   inputIOS: {
     paddingVertical: 0,
