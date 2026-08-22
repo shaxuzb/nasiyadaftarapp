@@ -19,6 +19,7 @@ interface AppContextValue {
   transactions: Transaction[];
   isLoadingCustomers: boolean;
   isLoadingData: boolean;
+  dataError: unknown;
 
   refreshCustomers: (search?: string) => Promise<void>;
   addCustomer: (data: Omit<Customer, "id" | "createdAt">) => Promise<Customer>;
@@ -49,6 +50,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     addCustomer: addClient,
     deleteCustomer: deleteClient,
     loadCustomerDetail,
+    error: clientsError,
   } = clientState;
   const clientIds = useMemo(
     () => clientCustomers.map((customer) => customer.id),
@@ -58,8 +60,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const {
     transactions: transactionItems,
     isLoading: isLoadingTransactions,
+    error: transactionsError,
     loadCustomerHistory,
   } = transactionState;
+  const dataError = clientsError ?? transactionsError ?? null;
 
   const customers = clientCustomers as Customer[];
   const transactions = transactionItems as Transaction[];
@@ -71,6 +75,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         queryClient.invalidateQueries({ queryKey: queryKeys.clients(scope) }),
         queryClient.invalidateQueries({
           queryKey: queryKeys.transactions(scope),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["reports", scope],
         }),
       ];
 
@@ -125,6 +132,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       transactions,
       isLoadingCustomers,
       isLoadingData: isLoadingCustomers || isLoadingTransactions,
+      dataError,
       refreshCustomers,
       addCustomer,
       deleteCustomer,
@@ -136,6 +144,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [
       addCustomer,
       customers,
+      dataError,
       deleteCustomer,
       getCustomerById,
       isLoadingCustomers,

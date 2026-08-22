@@ -7,10 +7,9 @@ import {
   TouchableOpacity,
   Linking,
   RefreshControl,
-  Keyboard,
   ScrollViewProps,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,10 +17,11 @@ import {
   BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetScrollView,
+  type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import {
   KeyboardAwareScrollView,
-  KeyboardToolbar,
+  KeyboardController,
 } from "react-native-keyboard-controller";
 import * as Contacts from "expo-contacts";
 
@@ -37,7 +37,7 @@ import { AppInput } from "../components/AppInput";
 import { createBalanceMap } from "../modules/clients/utils/clientCalculations";
 import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
 import { AppTheme, RootStackParamList } from "../types";
-import { useBottomSheet } from "../bottom-sheet";
+import { useBottomSheet, useBottomSheetBackHandler } from "../bottom-sheet";
 import {
   formatUzPhoneFromDigits,
   isValidUzPhone,
@@ -68,6 +68,7 @@ const SHEET_SPRING = {
 export function CustomersScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const {
     customers,
@@ -75,23 +76,20 @@ export function CustomersScreen() {
     addCustomer,
     refreshCustomers,
     isLoadingCustomers,
+    dataError,
   } = useApp();
   const { showToast } = useToast();
   const { openSheet } = useBottomSheet();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const snapPoints = useMemo(() => ["78%"], []);
+  const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
 
   const [query, setQuery] = useState("");
   const [debtorOnly, setDebtorOnly] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
+  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("+998 ");
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
-  const [errors, setErrors] = useState<{
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-  }>({});
+  const [errors, setErrors] = useState<{ phone?: string }>({});
 
   const balanceMap = useMemo(
     () => createBalanceMap(transactions),
@@ -107,11 +105,7 @@ export function CustomersScreen() {
       if (!q) return true;
 
       return (
-        customer.firstName.toLowerCase().includes(q) ||
-        customer.lastName.toLowerCase().includes(q) ||
-        `${customer.firstName} ${customer.lastName}`
-          .toLowerCase()
-          .includes(q) ||
+        customer.fullName.toLowerCase().includes(q) ||
         customer.phone.toLowerCase().includes(q) ||
         String(customer.id).includes(q)
       );
@@ -146,7 +140,7 @@ export function CustomersScreen() {
   }, [balanceMap, filtered, latestTransactionMap]);
 
   const renderBackdrop = useCallback(
-    (props: any) => (
+    (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
         {...props}
         appearsOnIndex={0}
@@ -157,42 +151,33 @@ export function CustomersScreen() {
     [],
   );
 
-  function splitContactName(fullName: string): {
-    firstName: string;
-    lastName: string;
-  } {
-    const name = fullName.trim().replace(/\s+/g, " ");
-    if (!name) return { firstName: "", lastName: "" };
-
-    const parts = name.split(" ");
-    const first = parts[0] ?? "";
-    const last = parts.slice(1).join(" ");
-    return { firstName: first, lastName: last };
-  }
-
   function openAddCustomerSheet() {
     hapticTap();
+    setIsAddCustomerSheetOpen(true);
     bottomSheetRef.current?.present();
   }
 
   function closeAddCustomerSheet() {
-    Keyboard.dismiss();
+    setIsAddCustomerSheetOpen(false);
+    void KeyboardController.dismiss();
     bottomSheetRef.current?.dismiss();
   }
 
+  useBottomSheetBackHandler(
+    isAddCustomerSheetOpen,
+    closeAddCustomerSheet,
+  );
+
   function resetCustomerForm() {
-    setFirstName("");
-    setLastName("");
+    setFullName("");
     setPhone("+998 ");
     setErrors({});
     setIsCreatingCustomer(false);
   }
 
   function validateForm(): boolean {
-    const e: { firstName?: string; lastName?: string; phone?: string } = {};
+    const e: { phone?: string } = {};
 
-    if (!firstName.trim()) e.firstName = "Ismni kiriting";
-    if (!lastName.trim()) e.lastName = "Familiyani kiriting";
     if (!isValidUzPhone(phone))
       e.phone = "Telefon raqami noto'g'ri (+998 XX XXX XX XX)";
 
@@ -207,13 +192,12 @@ export function CustomersScreen() {
       return;
     }
 
-    Keyboard.dismiss();
+    void KeyboardController.dismiss();
 
     try {
       setIsCreatingCustomer(true);
       const customer = await addCustomer({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
+        fullName: fullName.trim().replace(/\s+/g, " "),
         phone: toStoredUzPhone(phone),
         note: "",
       });
@@ -225,10 +209,7 @@ export function CustomersScreen() {
       navigation.navigate("CustomerDetail", { customerId: customer.id });
     } catch (error) {
       hapticError();
-      showToast(
-        getApiErrorMessage(error, "Mijoz qo'shishda xatolik"),
-        "error",
-      );
+      showToast(getApiErrorMessage(error, "Mijoz qo'shishda xatolik"), "error");
     } finally {
       setIsCreatingCustomer(false);
     }
@@ -256,14 +237,17 @@ export function CustomersScreen() {
       const contact = await Contacts.presentContactPickerAsync();
       if (!contact) return;
 
-      const fullName =
-        contact.name ||
-        [contact.firstName, contact.lastName].filter(Boolean).join(" ");
+      const contactFullName =
+        contact.name?.trim() ||
+        [contact.firstName, contact.lastName].filter(Boolean).join(" ").trim();
       const phoneValue = contact.phoneNumbers?.[0]?.number ?? "";
-      const parsedName = splitContactName(fullName);
 
-      setFirstName(parsedName.firstName);
-      setLastName(parsedName.lastName);
+      if (!contactFullName && !phoneValue) {
+        showToast("Kontakt ma'lumotlari topilmadi", "error");
+        return;
+      }
+
+      setFullName(contactFullName.replace(/\s+/g, " "));
       setPhone(formatUzPhoneFromDigits(phoneValue));
       setErrors({});
       showToast("Kontaktdan ma'lumot to'ldirildi", "success");
@@ -271,6 +255,12 @@ export function CustomersScreen() {
       hapticError();
       showToast("Kontaktlarni ochib bo'lmadi", "error");
     }
+  }
+
+  function handleCustomerSheetDismiss() {
+    setIsAddCustomerSheetOpen(false);
+    void KeyboardController.dismiss();
+    resetCustomerForm();
   }
 
   type ListItem = (typeof listData)[0];
@@ -296,8 +286,7 @@ export function CustomersScreen() {
           openSheet("transaction", {
             customerId: item.customer.id,
             type: "debt",
-            customerName:
-              `${item.customer.firstName} ${item.customer.lastName}`.trim(),
+            customerName: item.customer.fullName,
             currentBalance: item.balance,
           });
         }}
@@ -306,8 +295,7 @@ export function CustomersScreen() {
           openSheet("transaction", {
             customerId: item.customer.id,
             type: "payment",
-            customerName:
-              `${item.customer.firstName} ${item.customer.lastName}`.trim(),
+            customerName: item.customer.fullName,
             currentBalance: item.balance,
           });
         }}
@@ -366,7 +354,29 @@ export function CustomersScreen() {
           removeClippedSubviews
           scrollIndicatorInsets={{ top: 2 }}
           ListEmptyComponent={
-            isLoadingCustomers && listData.length === 0 ? (
+            dataError && listData.length === 0 ? (
+              <EmptyState
+                iconName="cloud-offline-outline"
+                title="Ma'lumotni yuklab bo'lmadi"
+                description={getApiErrorMessage(
+                  dataError,
+                  "Internetni tekshiring va qayta urinib ko'ring",
+                )}
+                action={
+                  <PrimaryButton
+                    label="Qayta urinish"
+                    onPress={() => {
+                      void refreshCustomers().catch((error) =>
+                        showToast(
+                          getApiErrorMessage(error, "Qayta yuklashda xatolik"),
+                          "error",
+                        ),
+                      );
+                    }}
+                  />
+                }
+              />
+            ) : isLoadingCustomers && listData.length === 0 ? (
               <>
                 <CustomerCardSkeleton />
                 <CustomerCardSkeleton />
@@ -404,7 +414,12 @@ export function CustomersScreen() {
             <RefreshControl
               refreshing={isLoadingCustomers}
               onRefresh={() => {
-                void refreshCustomers();
+                void refreshCustomers().catch((error) =>
+                  showToast(
+                    getApiErrorMessage(error, "Yangilashda xatolik"),
+                    "error",
+                  ),
+                );
               }}
               tintColor={theme.primary}
             />
@@ -420,11 +435,13 @@ export function CustomersScreen() {
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustResize"
         enableBlurKeyboardOnGesture
+        topInset={insets.top}
         backdropComponent={renderBackdrop}
         enablePanDownToClose
         enableOverDrag={false}
         animationConfigs={SHEET_SPRING}
-        onDismiss={resetCustomerForm}
+        onChange={(index) => setIsAddCustomerSheetOpen(index >= 0)}
+        onDismiss={handleCustomerSheetDismiss}
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.sheetHandle}
       >
@@ -435,7 +452,10 @@ export function CustomersScreen() {
             bottomOffset={72}
             extraKeyboardSpace={16}
             disableScrollOnKeyboardHide={false}
-            contentContainerStyle={styles.sheetContent}
+            contentContainerStyle={[
+              styles.sheetContent,
+              { paddingBottom: Math.max(insets.bottom, 16) + 16 },
+            ]}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
             showsVerticalScrollIndicator={false}
@@ -484,7 +504,7 @@ export function CustomersScreen() {
                   Kontaktdan tanlash
                 </Text>
                 <Text style={styles.contactPickerSubtitle}>
-                  Ism va telefon avtomatik to'ldiriladi
+                  Mavjud ism va telefon avtomatik to'ldiriladi
                 </Text>
               </View>
               <Ionicons
@@ -497,41 +517,13 @@ export function CustomersScreen() {
             <View style={styles.sheetFields}>
               <AppInput
                 variant="sheet"
-                label="Ism *"
-                value={firstName}
-                onChangeText={(value) => {
-                  setFirstName(value);
-                  if (errors.firstName) {
-                    setErrors((current) => ({
-                      ...current,
-                      firstName: undefined,
-                    }));
-                  }
-                }}
-                placeholder="Masalan: Ali"
-                iconName="person-outline"
-                autoCapitalize="words"
-                // returnKeyType="next"
-                error={errors.firstName}
-              />
-              <AppInput
-                variant="sheet"
-                label="Familiya *"
-                value={lastName}
-                onChangeText={(value) => {
-                  setLastName(value);
-                  if (errors.lastName) {
-                    setErrors((current) => ({
-                      ...current,
-                      lastName: undefined,
-                    }));
-                  }
-                }}
-                placeholder="Masalan: Valiyev"
+                label="To'liq ism"
+                value={fullName}
+                onChangeText={setFullName}
+                placeholder="Masalan: Ali Valiyev"
                 iconName="person-outline"
                 autoCapitalize="words"
                 returnKeyType="next"
-                error={errors.lastName}
               />
               <AppInput
                 variant="sheet"
@@ -552,7 +544,7 @@ export function CustomersScreen() {
             </View>
 
             <View style={styles.sheetActions}>
-              <Text style={styles.requiredHint}>* Majburiy maydonlar</Text>
+              <Text style={styles.requiredHint}>* Telefon raqami majburiy</Text>
               <PrimaryButton
                 label="Mijozni saqlash"
                 onPress={handleCreateCustomer}
@@ -561,11 +553,6 @@ export function CustomersScreen() {
               />
             </View>
           </KeyboardAwareScrollView>
-          <KeyboardToolbar
-            doneText="Tayyor"
-            showArrows
-            onDoneCallback={Keyboard.dismiss}
-          />
         </View>
       </BottomSheetModal>
     </SafeAreaView>

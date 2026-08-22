@@ -24,6 +24,7 @@ import {
   requestGoogleIdToken,
 } from "../modules/auth/services/googleSignInService";
 import { getApiErrorMessage } from "../utils/apiError";
+import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 
 interface Props {
   onGoToLogin: () => void;
@@ -193,19 +194,24 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
                   backgroundColor: theme.inputBackground,
                   opacity: googleLoading ? 0.7 : 1,
                 },
-      ]}
-      onPress={handleGoogleLogin}
-      disabled={googleLoading}
-      accessibilityState={{ disabled: googleLoading, busy: googleLoading }}
-    >
-      {googleLoading ? (
-        <ActivityIndicator size="small" color={theme.primary} />
-      ) : (
-        <Ionicons name="logo-google" size={18} color={theme.text} />
-      )}
-      <Text style={[typography.label, { color: theme.text }]}>
-        {googleLoading ? "Google orqali kirilmoqda..." : "Google bilan kirish"}
-      </Text>
+              ]}
+              onPress={handleGoogleLogin}
+              disabled={googleLoading}
+              accessibilityState={{
+                disabled: googleLoading,
+                busy: googleLoading,
+              }}
+            >
+              {googleLoading ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Ionicons name="logo-google" size={18} color={theme.text} />
+              )}
+              <Text style={[typography.label, { color: theme.text }]}>
+                {googleLoading
+                  ? "Google orqali kirilmoqda..."
+                  : "Google bilan kirish"}
+              </Text>
             </TouchableOpacity>
 
             <View style={styles.footerRow}>
@@ -218,6 +224,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
                 </Text>
               </TouchableOpacity>
             </View>
+            <AdminContactButton style={styles.adminContact} />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -282,5 +289,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
+  },
+  adminContact: {
+    marginTop: spacing.sm,
   },
 });

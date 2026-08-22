@@ -21,8 +21,10 @@ import { LoginScreen } from "../screens/LoginScreen";
 import { RegisterScreen } from "../screens/RegisterScreen";
 import { RegisterSmsVerifyScreen } from "../screens/RegisterSmsVerifyScreen";
 import { OrganizationSetupScreen } from "../screens/OrganizationSetupScreen";
+import { OrganizationSelectScreen } from "../screens/OrganizationSelectScreen";
 import { PasswordResetRequestScreen } from "../screens/PasswordResetRequestScreen";
 import { PasswordResetConfirmScreen } from "../screens/PasswordResetConfirmScreen";
+import { AccountSecurityScreen } from "../screens/AccountSecurityScreen";
 
 import {
   AuthStackParamList,
@@ -48,7 +50,7 @@ const TAB_ICONS: Record<
 > = {
   Customers: { active: "people", inactive: "people-outline" },
   Reports: { active: "bar-chart", inactive: "bar-chart-outline" },
-  Settings: { active: "settings", inactive: "settings-outline" },
+  Settings: { active: "person", inactive: "person-outline" },
 };
 
 interface TabIconProps {
@@ -142,7 +144,7 @@ function TabNavigator() {
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ title: "Sozlamalar" }}
+        options={{ title: "Profil" }}
       />
     </Tab.Navigator>
   );
@@ -153,6 +155,7 @@ function MainNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs" component={TabNavigator} />
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
+      <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
     </Stack.Navigator>
   );
 }
@@ -218,9 +221,16 @@ function AuthNavigator() {
   );
 }
 
-function OrganizationNavigator() {
+function OrganizationNavigator({ hasOrganizations }: { hasOrganizations: boolean }) {
   return (
-    <OrganizationStack.Navigator screenOptions={{ headerShown: false }}>
+    <OrganizationStack.Navigator
+      screenOptions={{ headerShown: false }}
+      initialRouteName={hasOrganizations ? "OrganizationSelect" : "OrganizationSetup"}
+    >
+      <OrganizationStack.Screen
+        name="OrganizationSelect"
+        component={OrganizationSelectScreen}
+      />
       <OrganizationStack.Screen
         name="OrganizationSetup"
         component={OrganizationSetupScreen}
@@ -232,7 +242,13 @@ function OrganizationNavigator() {
 export function AppNavigator() {
   const theme = useTheme();
   const { resolvedScheme } = useThemeContext();
-  const { user, isBootstrapping } = useAuth();
+  const {
+    user,
+    organizations,
+    currentOrganization,
+    isBootstrapping,
+    isOrganizationLoading,
+  } = useAuth();
 
   const navTheme = React.useMemo(() => {
     const baseTheme = resolvedScheme === "dark" ? DarkTheme : DefaultTheme;
@@ -250,7 +266,7 @@ export function AppNavigator() {
     };
   }, [resolvedScheme, theme]);
 
-  if (isBootstrapping) {
+  if (isBootstrapping || isOrganizationLoading) {
     return (
       <View
         style={[styles.loader, { backgroundColor: navTheme.colors.background }]}
@@ -265,10 +281,10 @@ export function AppNavigator() {
       <BottomSheetBackHandler />
       {!user ? (
         <AuthNavigator />
-      ) : user.hasOrganization ? (
+      ) : currentOrganization ? (
         <MainNavigator />
       ) : (
-        <OrganizationNavigator />
+        <OrganizationNavigator hasOrganizations={organizations.length > 0} />
       )}
     </NavigationContainer>
   );

@@ -8,7 +8,7 @@ export const darkTheme: AppTheme = {
   surfaceElevated: "#13243A",
 
   // Primary — lighter navy for dark-mode readability
-  primary: "#6EA8FF",
+  primary: "#4A73C2",
   primaryLight: "#152F52",
 
   // Secondary

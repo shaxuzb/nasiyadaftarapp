@@ -1,6 +1,7 @@
+export const MAX_ORGANIZATIONS_PER_USER = 3;
+
 export interface OrganizationRequest {
   name: string;
-  phoneNumber: string;
   address: string;
   note: string;
 }
@@ -8,7 +9,6 @@ export interface OrganizationRequest {
 export interface OrganizationResponse {
   id: number;
   name: string;
-  phoneNumber: string;
   address?: string | null;
   note?: string | null;
   stateId?: number;
@@ -16,4 +16,14 @@ export interface OrganizationResponse {
   createdDate?: string;
   clientCount?: number;
   userCount?: number;
+}
+
+export interface OrganizationMembership extends OrganizationResponse {
+  role?: string;
+  roleId?: number;
+  isSelected?: boolean;
+}
+
+export interface SelectOrganizationRequest {
+  organizationId: number;
 }

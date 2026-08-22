@@ -1,13 +1,23 @@
-import React, { ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   BottomSheetBackdrop,
   BottomSheetBackdropProps,
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
 import { StyleSheet, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { KeyboardController } from "react-native-keyboard-controller";
 
 import { useTheme } from "../hooks/useTheme";
 import { BottomSheetContext } from "./context";
+import { registerBackHandler } from "./backHandlerRegistry";
 import { sheetRegistry } from "./registry";
 import {
   ActiveSheetEntry,
@@ -32,11 +42,13 @@ function isSamePayload(
 
 export function BottomSheetProvider({ children }: { children: ReactNode }) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const modalRef = useRef<BottomSheetModal>(null);
   const [activeEntry, setActiveEntry] = useState<ActiveSheetEntry | null>(null);
   const [isOpen, setIsOpen] = useState(false);
 
   const closeSheet = useCallback(() => {
+    void KeyboardController.dismiss();
     modalRef.current?.dismiss();
   }, []);
 
@@ -81,9 +93,19 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const handleDismiss = useCallback(() => {
+    void KeyboardController.dismiss();
     setIsOpen(false);
     setActiveEntry(null);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    return registerBackHandler(() => {
+      closeSheet();
+      return true;
+    });
+  }, [closeSheet, isOpen]);
 
   const contextValue = useMemo<BottomSheetContextValue>(
     () => ({ openSheet, closeSheet, isOpen }),
@@ -99,19 +121,22 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
       {activeEntry && activeDefinition && ActiveComponent ? (
         <BottomSheetModal
           ref={modalRef}
+          index={0}
           snapPoints={activeDefinition.snapPoints}
+          enableDynamicSizing={false}
           enablePanDownToClose={activeDefinition.enablePanDownToClose ?? true}
           keyboardBehavior="extend"
           keyboardBlurBehavior="restore"
           android_keyboardInputMode="adjustResize"
           enableBlurKeyboardOnGesture
+          topInset={insets.top}
           onChange={handleChange}
           onDismiss={handleDismiss}
           backdropComponent={renderBackdrop}
           backgroundStyle={{ backgroundColor: theme.surface }}
           handleIndicatorStyle={{ backgroundColor: theme.textMuted }}
         >
-          <View style={styles.container}>
+          <View style={[styles.container, { paddingBottom: insets.bottom }]}>
             <ActiveComponent
               closeSheet={closeSheet}
               props={activeEntry.props as never}

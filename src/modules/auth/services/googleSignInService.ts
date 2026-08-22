@@ -63,6 +63,33 @@ export async function requestGoogleIdToken(): Promise<string> {
   return idToken;
 }
 
+/**
+ * Reads the email claim only to keep the local profile in sync after the
+ * backend has already confirmed the Google account change. It is never used
+ * for authentication or authorization.
+ */
+export function getGoogleEmailFromIdToken(idToken: string): string | null {
+  try {
+    const encodedPayload = idToken.split(".")[1];
+    if (!encodedPayload || typeof globalThis.atob !== "function") {
+      return null;
+    }
+
+    const normalizedPayload = encodedPayload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(encodedPayload.length / 4) * 4, "=");
+    const payload = JSON.parse(globalThis.atob(normalizedPayload)) as {
+      email?: unknown;
+    };
+    return typeof payload.email === "string" && payload.email.trim()
+      ? payload.email.trim()
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getGoogleSignInErrorMessage(error: unknown): string {
   if (isErrorWithCode(error)) {
     switch (error.code) {

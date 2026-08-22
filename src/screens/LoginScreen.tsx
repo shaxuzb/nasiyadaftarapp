@@ -28,6 +28,7 @@ import {
   normalizeLoginIdentifier,
 } from "../modules/auth/utils/loginIdentifier";
 import { getApiErrorMessage } from "../utils/apiError";
+import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 
 interface Props {
   onGoToRegister: () => void;
@@ -132,13 +133,13 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
             </View>
 
             <AppInput
-              label="Username yoki telefon raqami"
+              label="Login yoki telefon raqami"
               value={userName}
               onChangeText={handleIdentifierChange}
               autoCapitalize="none"
               autoCorrect={false}
               iconName={isPhoneIdentifier ? "call-outline" : "person-outline"}
-              placeholder="Username yoki telefon raqamini kiriting"
+              placeholder="Login yoki telefon raqamini kiriting"
               keyboardType={isPhoneIdentifier ? "phone-pad" : "default"}
               textContentType={
                 isPhoneIdentifier ? "telephoneNumber" : "username"
@@ -213,6 +214,7 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
                 </Text>
               </TouchableOpacity>
             </View>
+            <AdminContactButton style={styles.adminContact} />
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -283,5 +285,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
+  },
+  adminContact: {
+    marginTop: spacing.sm,
   },
 });

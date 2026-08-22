@@ -15,6 +15,15 @@ export interface DebtorEntry {
   balance: number;
 }
 
+function getEffectiveBalance(
+  customer: Customer,
+  transactionBalances: Map<number, number>,
+): number {
+  return Number.isFinite(customer.currentBalance)
+    ? customer.currentBalance ?? 0
+    : transactionBalances.get(customer.id) ?? 0;
+}
+
 export function getDashboardStats(
   customers: Customer[],
   transactions: Transaction[],
@@ -29,14 +38,17 @@ export function getDashboardStats(
   }
 
   let activeDebtorsCount = 0;
+  let remainingBalance = 0;
   for (const customer of customers) {
-    if ((balances.get(customer.id) ?? 0) > 0) activeDebtorsCount += 1;
+    const balance = getEffectiveBalance(customer, balances);
+    if (balance > 0) activeDebtorsCount += 1;
+    remainingBalance += Math.max(balance, 0);
   }
 
   return {
     totalDebt,
     totalPaid,
-    remainingBalance: totalDebt - totalPaid,
+    remainingBalance,
     activeDebtorsCount,
     totalCustomers: customers.length,
   };
@@ -51,7 +63,7 @@ export function getTopDebtors(
   return customers
     .map((customer) => ({
       customer,
-      balance: balances.get(customer.id) ?? 0,
+      balance: getEffectiveBalance(customer, balances),
     }))
     .filter((entry) => entry.balance > 0)
     .sort((a, b) => b.balance - a.balance)

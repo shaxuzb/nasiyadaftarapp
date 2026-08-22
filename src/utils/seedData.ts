@@ -8,8 +8,7 @@ interface SeedTx {
 }
 
 interface SeedCustomer {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   phone: string;
   note?: string;
   transactions: SeedTx[];
@@ -29,8 +28,7 @@ function dateFromDaysAgo(daysAgo: number): string {
 
 const SEED_CUSTOMERS: SeedCustomer[] = [
   {
-    firstName: 'Alisher',
-    lastName: 'Karimov',
+    fullName: 'Alisher Karimov',
     phone: '+998901110001',
     note: "Do'kon mijozi",
     transactions: [
@@ -39,8 +37,7 @@ const SEED_CUSTOMERS: SeedCustomer[] = [
     ],
   },
   {
-    firstName: 'Dilnoza',
-    lastName: 'Yusupova',
+    fullName: 'Dilnoza Yusupova',
     phone: '+998901110002',
     transactions: [
       { type: 'debt',    amount: 300_000, daysAgo: 20 },
@@ -48,8 +45,7 @@ const SEED_CUSTOMERS: SeedCustomer[] = [
     ],
   },
   {
-    firstName: 'Bobur',
-    lastName: 'Toshmatov',
+    fullName: 'Bobur Toshmatov',
     phone: '+998901110003',
     note: 'Doimiy mijoz',
     transactions: [
@@ -58,8 +54,7 @@ const SEED_CUSTOMERS: SeedCustomer[] = [
     ],
   },
   {
-    firstName: 'Sarvinoz',
-    lastName: 'Rahimova',
+    fullName: 'Sarvinoz Rahimova',
     phone: '+998901110004',
     transactions: [
       { type: 'debt',    amount: 200_000, daysAgo: 15 },
@@ -67,8 +62,7 @@ const SEED_CUSTOMERS: SeedCustomer[] = [
     ],
   },
   {
-    firstName: 'Jasur',
-    lastName: 'Mirzayev',
+    fullName: 'Jasur Mirzayev',
     phone: '+998901110005',
     note: 'Mahalla yaqinidan',
     transactions: [
@@ -77,16 +71,14 @@ const SEED_CUSTOMERS: SeedCustomer[] = [
     ],
   },
   {
-    firstName: 'Malika',
-    lastName: 'Abdullayeva',
+    fullName: 'Malika Abdullayeva',
     phone: '+998901110006',
     transactions: [
       { type: 'debt', amount: 100_000, daysAgo: 25 },
     ],
   },
   {
-    firstName: 'Ulugbek',
-    lastName: 'Xolmatov',
+    fullName: 'Ulugbek Xolmatov',
     phone: '+998901110007',
     note: 'VIP mijoz',
     transactions: [
@@ -104,14 +96,13 @@ export async function seedDemoData(
   let skipped = 0;
 
   for (const seed of SEED_CUSTOMERS) {
-    onProgress?.(`${seed.firstName} ${seed.lastName} qo'shilmoqda…`);
+    onProgress?.(`${seed.fullName} qo'shilmoqda…`);
 
     let customerId: number;
     try {
       const phone = uniquePhone(seed.phone);
       const customer = await createClient({
-        firstName: seed.firstName,
-        lastName: seed.lastName,
+        fullName: seed.fullName,
         phoneNumber: phone,
         note: seed.note ?? '',
       });

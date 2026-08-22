@@ -1,9 +1,14 @@
+import { OrganizationMembership } from "../../organization/types";
+
 export interface AuthUser {
   id: number;
   userName: string;
-  phoneNumber: string;
+  phoneNumber?: string | null;
+  email?: string | null;
+  phoneVerified?: boolean;
   fullName: string;
   authProvider?: string;
+  organizations?: OrganizationMembership[];
   organizationId?: number | null;
   organizationName?: string | null;
   hasOrganization: boolean;
@@ -49,6 +54,12 @@ export interface AuthResponse {
 export interface AuthRefreshResponse {
   token: string;
   refreshToken: string;
+}
+
+export interface OrganizationSelectResponse {
+  token?: string;
+  refreshToken?: string;
+  user?: Partial<AuthUser>;
 }
 
 export interface AuthSession extends AuthResponse {

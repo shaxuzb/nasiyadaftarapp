@@ -28,6 +28,7 @@ export interface AppTheme {
 export type RootStackParamList = {
   MainTabs: undefined;
   CustomerDetail: { customerId: number };
+  AccountSecurity: undefined;
 };
 
 export type MainTabParamList = {
@@ -55,4 +56,5 @@ export type AuthStackParamList = {
 
 export type OrganizationStackParamList = {
   OrganizationSetup: undefined;
+  OrganizationSelect: undefined;
 };

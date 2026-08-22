@@ -1,24 +1,14 @@
 import { useCallback, useMemo } from "react";
-import {
-  useQueries,
-  useQueryClient,
-  UseQueryResult,
-} from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys, QueryScope } from "../../../core/query/queryKeys";
-import { getClientHistory } from "../services/transactionsService";
+import {
+  getClientHistories,
+  getClientHistory,
+} from "../services/transactionsService";
 import { Transaction } from "../types";
 
-type HistoryQueryResult = Pick<
-  UseQueryResult<Transaction[]>,
-  "data" | "isPending" | "isFetching"
->;
-
-function combineHistoryQueries(results: HistoryQueryResult[]) {
-  return {
-    transactions: results.flatMap((query) => query.data ?? []),
-    isLoading: results.some((query) => query.isPending || query.isFetching),
-  };
-}
+const EMPTY_TRANSACTIONS: Transaction[] = [];
+const HISTORY_STALE_TIME = 30_000;
 
 export function useTransactionQueries(
   scope: QueryScope,
@@ -26,20 +16,36 @@ export function useTransactionQueries(
   enabled: boolean,
 ) {
   const queryClient = useQueryClient();
-  const historyQueryOptions = useMemo(
-    () =>
-      clientIds.map((clientId) => ({
-        queryKey: queryKeys.transactionHistory(scope, clientId),
-        queryFn: () => getClientHistory(clientId),
-        enabled,
-        staleTime: 30_000,
-      })),
-    [clientIds, enabled, scope],
+  const historyQueryKey = useMemo(
+    () => [...queryKeys.transactions(scope), "all", clientIds] as const,
+    [clientIds, scope],
   );
 
-  const historyState = useQueries({
-    queries: historyQueryOptions,
-    combine: combineHistoryQueries,
+  const historyQuery = useQuery({
+    queryKey: historyQueryKey,
+    queryFn: async () => {
+      const transactions = await getClientHistories(clientIds);
+
+      // Seed detail caches so opening a customer does not repeat a request
+      // that was already part of the dashboard load.
+      const transactionsByClient = new Map<number, Transaction[]>();
+      for (const transaction of transactions) {
+        const items = transactionsByClient.get(transaction.customerId) ?? [];
+        items.push(transaction);
+        transactionsByClient.set(transaction.customerId, items);
+      }
+
+      for (const [clientId, items] of transactionsByClient) {
+        queryClient.setQueryData(
+          queryKeys.transactionHistory(scope, clientId),
+          items,
+        );
+      }
+
+      return transactions;
+    },
+    enabled: enabled && clientIds.length > 0,
+    staleTime: HISTORY_STALE_TIME,
   });
 
   const loadCustomerHistory = useCallback(
@@ -47,13 +53,17 @@ export function useTransactionQueries(
       queryClient.fetchQuery({
         queryKey: queryKeys.transactionHistory(scope, clientId),
         queryFn: () => getClientHistory(clientId),
+        staleTime: HISTORY_STALE_TIME,
       }),
     [queryClient, scope],
   );
 
   return {
-    transactions: historyState.transactions,
-    isLoading: historyState.isLoading,
+    transactions: historyQuery.data ?? EMPTY_TRANSACTIONS,
+    isLoading:
+      clientIds.length > 0 &&
+      (historyQuery.isPending || historyQuery.isFetching),
+    error: historyQuery.error,
     loadCustomerHistory,
   };
 }

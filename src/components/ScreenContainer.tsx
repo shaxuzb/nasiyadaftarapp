@@ -1,13 +1,9 @@
-import React, { ReactNode } from 'react';
-import {
-  View,
-  StyleSheet,
-  ScrollViewProps,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
-import { useTheme } from '../hooks/useTheme';
-import { spacing } from '../theme';
+import React, { ReactNode } from "react";
+import { View, StyleSheet, ScrollViewProps } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { useTheme } from "../hooks/useTheme";
+import { spacing } from "../theme";
 
 interface Props extends ScrollViewProps {
   children: ReactNode;
@@ -24,14 +20,12 @@ export function ScreenContainer({
 }: Props) {
   const theme = useTheme();
 
-  const inner = (
-    <View style={[padded && styles.inner, style]}>{children}</View>
-  );
+  const inner = <View style={[padded && styles.inner, style]}>{children}</View>;
 
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: theme.background }]}
-      edges={['left', 'right']}
+      edges={["left", "right", "top"]}
     >
       {scrollable ? (
         <KeyboardAwareScrollView

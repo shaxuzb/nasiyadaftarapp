@@ -19,6 +19,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./src/core/query/queryClient";
 import { BottomSheetProvider } from "./src/bottom-sheet";
 import { AppUpdateGate } from "./src/modules/app-update";
+import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
+import { AccountSecurityProvider } from "./src/modules/account/context/AccountSecurityContext";
 
 const ONBOARDING_DONE_KEY = "onboarding_done_v1";
 
@@ -37,15 +39,42 @@ function ThemedApp() {
   const [showOnboarding, setShowOnboarding] = useState(false);
 
   useEffect(() => {
+    let active = true;
+
     (async () => {
-      const done = await AsyncStorage.getItem(ONBOARDING_DONE_KEY);
-      setShowOnboarding(done !== "1");
-      setLoading(false);
+      try {
+        const done = await AsyncStorage.getItem(ONBOARDING_DONE_KEY);
+        if (active) {
+          setShowOnboarding(done !== "1");
+        }
+      } catch (error) {
+        // Storage failure must never prevent the app from opening.
+        if (__DEV__) {
+          console.warn("Onboarding state could not be loaded", error);
+        }
+        if (active) {
+          setShowOnboarding(false);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
     })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleFinishOnboarding() {
-    await AsyncStorage.setItem(ONBOARDING_DONE_KEY, "1");
+    try {
+      await AsyncStorage.setItem(ONBOARDING_DONE_KEY, "1");
+    } catch (error) {
+      if (__DEV__) {
+        console.warn("Onboarding state could not be saved", error);
+      }
+    }
     setShowOnboarding(false);
   }
 
@@ -65,38 +94,42 @@ function ThemedApp() {
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <SafeAreaProvider>
-          <ToastProvider>
-            <KeyboardProvider>
-              <BottomSheetModalProvider>
-                <AuthProvider>
-                  <AppProvider>
-                    <BottomSheetProvider>
-                      <ConfirmDialogProvider>
-                        <AppUpdateGate>
-                          <StatusBar
-                            style={resolvedScheme === "dark" ? "light" : "dark"}
-                            backgroundColor={theme.background}
-                          />
-                          {showOnboarding ? (
-                            <OnboardingScreen
-                              onFinish={handleFinishOnboarding}
-                            />
-                          ) : (
-                            <AppNavigator />
-                          )}
-                        </AppUpdateGate>
-                      </ConfirmDialogProvider>
-                    </BottomSheetProvider>
-                  </AppProvider>
-                </AuthProvider>
-              </BottomSheetModalProvider>
-            </KeyboardProvider>
-          </ToastProvider>
-        </SafeAreaProvider>
-      </GestureHandlerRootView>
-    </QueryClientProvider>
+    <AppErrorBoundary theme={theme}>
+      <QueryClientProvider client={queryClient}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          <SafeAreaProvider>
+            <ToastProvider>
+              <KeyboardProvider>
+                <BottomSheetModalProvider>
+                  <AuthProvider>
+                    <AccountSecurityProvider>
+                      <AppProvider>
+                        <BottomSheetProvider>
+                          <ConfirmDialogProvider>
+                            <AppUpdateGate>
+                              <StatusBar
+                                style={resolvedScheme === "dark" ? "light" : "dark"}
+                                backgroundColor={theme.background}
+                              />
+                              {showOnboarding ? (
+                                <OnboardingScreen
+                                  onFinish={handleFinishOnboarding}
+                                />
+                              ) : (
+                                <AppNavigator />
+                              )}
+                            </AppUpdateGate>
+                          </ConfirmDialogProvider>
+                        </BottomSheetProvider>
+                      </AppProvider>
+                    </AccountSecurityProvider>
+                  </AuthProvider>
+                </BottomSheetModalProvider>
+              </KeyboardProvider>
+            </ToastProvider>
+          </SafeAreaProvider>
+        </GestureHandlerRootView>
+      </QueryClientProvider>
+    </AppErrorBoundary>
   );
 }

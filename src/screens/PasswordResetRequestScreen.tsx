@@ -50,7 +50,7 @@ export function PasswordResetRequestScreen({ onGoBackToLogin, onGoToConfirm }: P
   };
 
   return (
-    <ScreenContainer contentContainerStyle={styles.scrollContent}>
+    <ScreenContainer contentContainerStyle={styles.scrollContent} >
       <KeyboardAvoidingView
         style={styles.keyboardWrap}
         behavior="padding"

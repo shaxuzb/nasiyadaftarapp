@@ -3,7 +3,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { AppTheme, Customer } from "../types";
-import { formatCurrency, getFullName, getInitials } from "../utils";
+import {
+  formatDisplayedBalance,
+  getFullName,
+  getInitials,
+} from "../utils";
 import { useTheme } from "../hooks/useTheme";
 
 interface Props {
@@ -24,7 +28,7 @@ function CustomerCardInner({
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const settled = balance <= 0;
+  const isDebtor = balance > 0;
   const avatarColor = useMemo(() => {
     const avatarPalette = [
       { background: theme.paymentBg, foreground: theme.paymentColor },
@@ -68,10 +72,10 @@ function CustomerCardInner({
             minimumFontScale={0.78}
             style={[
               styles.balance,
-              { color: settled ? theme.paymentColor : theme.debtColor },
+              { color: isDebtor ? theme.debtColor : theme.paymentColor },
             ]}
           >
-            {formatCurrency(Math.max(balance, 0))}
+            {formatDisplayedBalance(balance)}
           </Text>
         </View>
 
@@ -128,8 +132,7 @@ export const CustomerCard = memo(
     prev.balance === next.balance &&
     prev.lastTxDaysAgo === next.lastTxDaysAgo &&
     prev.customer.id === next.customer.id &&
-    prev.customer.firstName === next.customer.firstName &&
-    prev.customer.lastName === next.customer.lastName &&
+    prev.customer.fullName === next.customer.fullName &&
     prev.customer.phone === next.customer.phone &&
     prev.customer.note === next.customer.note,
 );

@@ -13,11 +13,16 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useApp } from "../context/AppContext";
 import { useReports } from "../modules/reports/hooks/useReports";
-import { formatCurrency, getFullName, getInitials } from "../utils";
+import { ReportsResponse } from "../modules/reports/types";
+import { formatCurrency, formatDisplayedBalance } from "../utils";
 import { AppTheme, RootStackParamList } from "../types";
 import { useTheme } from "../hooks/useTheme";
+import { EmptyState } from "../components/EmptyState";
+import { PrimaryButton } from "../components/PrimaryButton";
+import { useToast } from "../context/ToastContext";
+import { getApiErrorMessage } from "../utils/apiError";
+import { exportClientsReport } from "../modules/reports/services/reportsService";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
@@ -44,6 +49,22 @@ const MONTHS = [
   "Noyabr",
   "Dekabr",
 ] as const;
+
+const EMPTY_REPORT: ReportsResponse = {
+  totalDebt: 0,
+  totalPayment: 0,
+  remainingBalance: 0,
+  totalClients: 0,
+  activeDebtorsCount: 0,
+  debtFreeClientsCount: 0,
+  totalTransactions: 0,
+  paymentEfficiencyPercent: 0,
+  currentMonthDebt: 0,
+  currentMonthPayment: 0,
+  currentMonthBalance: 0,
+  topDebtors: [],
+  monthlyStatistics: [],
+};
 
 const MetricCard = React.memo(function MetricCard({
   icon,
@@ -75,11 +96,6 @@ const MetricCard = React.memo(function MetricCard({
   );
 });
 
-function getCurrentMonthKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
 function formatMonth(monthKey: string) {
   const [year, month] = monthKey.split("-");
   const monthIndex = Number(month) - 1;
@@ -91,46 +107,129 @@ function getBarWidth(value: number, max: number): `${number}%` {
   return `${Math.max(4, Math.round((value / max) * 100))}%`;
 }
 
+function getNameInitials(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "M";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+}
+
 export function ReportsScreen() {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
-  const { customers, transactions, isLoadingData, refreshCustomers } = useApp();
-  const { stats, topDebtors, monthlyMap } = useReports(customers, transactions);
-
-  const remainingBalance = Math.max(stats.remainingBalance, 0);
-  const settledCustomers = Math.max(
-    stats.totalCustomers - stats.activeDebtorsCount,
-    0,
+  const { showToast } = useToast();
+  const [isExporting, setIsExporting] = React.useState(false);
+  const {
+    report,
+    error: dataError,
+    isLoading,
+    isRefreshing,
+    refetch,
+  } = useReports();
+  const data = report ?? EMPTY_REPORT;
+  const { topDebtors } = data;
+  const monthlyMap = React.useMemo(
+    () =>
+      data.monthlyStatistics.map(
+        (item) =>
+          [item.month, { debt: item.debt, payment: item.payment }] as const,
+      ),
+    [data.monthlyStatistics],
   );
-  const paymentPercent =
-    stats.totalDebt > 0
-      ? Math.min(100, Math.round((stats.totalPaid / stats.totalDebt) * 100))
-      : 0;
-  const currentMonth = monthlyMap.find(
-    ([month]) => month === getCurrentMonthKey(),
-  )?.[1] ?? { debt: 0, payment: 0 };
+
+  const remainingBalance = data.remainingBalance;
+  const hasDebt = remainingBalance > 0;
+  const hasOverpayment = remainingBalance < 0;
+  const heroAccentColor = hasDebt ? theme.debtColor : theme.paymentColor;
+  const heroLabel = hasDebt
+    ? "Qoldiq qarz"
+    : hasOverpayment
+      ? "Ortiqcha to'lov"
+      : "Qarz yo'q";
+  const heroCaption = hasDebt
+    ? "To'lash kerak bo'lgan summa"
+    : hasOverpayment
+      ? "Mijozda ortiqcha to'lov mavjud"
+      : "Barcha qarzlar yopilgan";
+  const heroCardTone = hasDebt
+    ? styles.heroDebtCard
+    : styles.heroSuccessCard;
+  // const settledCustomers = Math.max(data.debtFreeClientsCount, 0);
+  const paymentPercent = Math.min(
+    100,
+    Math.max(0, Math.round(data.paymentEfficiencyPercent)),
+  );
+  const currentMonth = {
+    debt: data.currentMonthDebt,
+    payment: data.currentMonthPayment,
+  };
   const monthlyMax = monthlyMap.reduce(
     (max, [, data]) => Math.max(max, data.debt, data.payment),
     0,
   );
-  const isInitialLoading =
-    isLoadingData && customers.length === 0 && transactions.length === 0;
+  const isInitialLoading = isLoading && !report;
+  const handleRefresh = React.useCallback(async () => {
+    const result = await refetch();
+    if (result.error) {
+      showToast(
+        getApiErrorMessage(result.error, "Hisobotni yangilab bo'lmadi"),
+        "error",
+      );
+    }
+  }, [refetch, showToast]);
 
-  const heroMessage =
-    stats.totalDebt === 0
-      ? "Hozircha qarz yozilmagan"
-      : remainingBalance === 0
-        ? "Barcha qarzlar yopilgan"
-        : `${stats.activeDebtorsCount} mijozda faol qarz bor`;
+  const handleExport = React.useCallback(async () => {
+    if (isExporting) return;
+
+    setIsExporting(true);
+    try {
+      await exportClientsReport();
+      showToast("Excel hisobot tayyor", "success");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, "Excel hisobotini yuklab bo'lmadi"),
+        "error",
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, showToast]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
-        <Text style={styles.screenTitle}>Hisobot</Text>
-        <Text style={styles.screenSubtitle}>
-          Biznesingizdagi pul oqimini kuzating
-        </Text>
+        <View style={styles.headerCopy}>
+          <Text style={styles.screenTitle}>Hisobot</Text>
+          <Text style={styles.screenSubtitle}>
+            Biznesingizdagi pul oqimini kuzating
+          </Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Mijozlar hisobotini Excel formatida yuklash"
+          accessibilityState={{ disabled: isExporting, busy: isExporting }}
+          disabled={isExporting}
+          onPress={() => {
+            void handleExport();
+          }}
+          style={({ pressed }) => [
+            styles.headerExportButton,
+            pressed && styles.pressed,
+            isExporting && styles.headerExportButtonDisabled,
+          ]}
+        >
+          {isExporting ? (
+            <ActivityIndicator size="small" color={theme.primary} />
+          ) : (
+            <Ionicons
+              name="download-outline"
+              size={18}
+              color={theme.primary}
+            />
+          )}
+          <Text style={styles.headerExportText}>Excel</Text>
+        </Pressable>
       </View>
 
       <ScrollView
@@ -139,24 +238,37 @@ export function ReportsScreen() {
         contentContainerStyle={styles.scroll}
         refreshControl={
           <RefreshControl
-            refreshing={isLoadingData && !isInitialLoading}
-            onRefresh={() => {
-              void refreshCustomers();
-            }}
+            refreshing={isRefreshing}
+            onRefresh={() => void handleRefresh()}
             colors={[theme.primary]}
             tintColor={theme.primary}
           />
         }
       >
-        {isInitialLoading ? (
+        {dataError && !report ? (
+          <EmptyState
+            iconName="cloud-offline-outline"
+            title="Hisobotni yuklab bo'lmadi"
+            description={getApiErrorMessage(
+              dataError,
+              "Internetni tekshiring va qayta urinib ko'ring",
+            )}
+            action={
+              <PrimaryButton
+                label="Qayta urinish"
+                onPress={() => void handleRefresh()}
+              />
+            }
+          />
+        ) : isInitialLoading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={theme.primary} />
             <Text style={styles.loadingText}>Hisobot tayyorlanmoqda...</Text>
           </View>
         ) : (
           <>
-            <View style={styles.heroCard}>
-              <View style={styles.heroTop}>
+            <View style={[styles.heroCard, heroCardTone]}>
+              {/* <View style={styles.heroTop}>
                 <View style={styles.heroIcon}>
                   <Ionicons name="wallet-outline" size={24} color="#FFFFFF" />
                 </View>
@@ -164,25 +276,27 @@ export function ReportsScreen() {
                   <View style={styles.liveDot} />
                   <Text style={styles.heroStatusText}>Joriy holat</Text>
                 </View>
-              </View>
+              </View> */}
 
-              <Text style={styles.heroLabel}>Qoldiq qarz</Text>
+              <Text style={[styles.heroLabel, { color: heroAccentColor }]}>
+                {heroLabel}
+              </Text>
               <Text
                 selectable
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.68}
-                style={styles.heroValue}
+                style={[styles.heroValue, { color: heroAccentColor }]}
               >
-                {formatCurrency(remainingBalance)}
+                {formatDisplayedBalance(remainingBalance)}
               </Text>
-              <Text style={styles.heroMessage}>{heroMessage}</Text>
+              <Text style={styles.heroCaption}>{heroCaption}</Text>
 
-              <View style={styles.heroDivider} />
+              {/* <View style={styles.heroDivider} />
               <View style={styles.heroSummary}>
                 <View style={styles.heroSummaryItem}>
                   <Text selectable style={styles.heroSummaryValue}>
-                    {stats.activeDebtorsCount}
+                    {data.activeDebtorsCount}
                   </Text>
                   <Text style={styles.heroSummaryLabel}>Faol qarzdor</Text>
                 </View>
@@ -193,7 +307,7 @@ export function ReportsScreen() {
                   </Text>
                   <Text style={styles.heroSummaryLabel}>Qarzsiz mijoz</Text>
                 </View>
-              </View>
+              </View> */}
             </View>
 
             <View style={styles.metricGrid}>
@@ -201,14 +315,14 @@ export function ReportsScreen() {
                 <MetricCard
                   icon="arrow-down"
                   label="Jami qarz berildi"
-                  value={formatCurrency(stats.totalDebt)}
+                  value={formatCurrency(data.totalDebt)}
                   color={theme.debtColor}
                   backgroundColor={theme.debtBg}
                 />
                 <MetricCard
                   icon="arrow-up"
                   label="Jami to'lov olindi"
-                  value={formatCurrency(stats.totalPaid)}
+                  value={formatCurrency(data.totalPayment)}
                   color={theme.paymentColor}
                   backgroundColor={theme.paymentBg}
                 />
@@ -217,14 +331,14 @@ export function ReportsScreen() {
                 <MetricCard
                   icon="people"
                   label="Barcha mijozlar"
-                  value={String(stats.totalCustomers)}
+                  value={String(data.totalClients)}
                   color={theme.primary}
                   backgroundColor={theme.primaryLight}
                 />
                 <MetricCard
                   icon="swap-horizontal"
                   label="Amaliyotlar"
-                  value={String(transactions.length)}
+                  value={String(data.totalTransactions)}
                   color={theme.secondary}
                   backgroundColor={theme.inputBackground}
                 />
@@ -332,12 +446,12 @@ export function ReportsScreen() {
               ) : (
                 topDebtors.map((entry, index) => (
                   <Pressable
-                    key={entry.customer.id}
+                    key={entry.clientId}
                     accessibilityRole="button"
-                    accessibilityLabel={`${getFullName(entry.customer)}, ${formatCurrency(entry.balance)} qarz`}
+                    accessibilityLabel={`${entry.fullName}, ${formatCurrency(entry.balance)} qarz`}
                     onPress={() =>
                       navigation.navigate("CustomerDetail", {
-                        customerId: entry.customer.id,
+                        customerId: entry.clientId,
                       })
                     }
                     style={({ pressed }) => [
@@ -351,19 +465,19 @@ export function ReportsScreen() {
                     </View>
                     <View style={styles.avatar}>
                       <Text style={styles.avatarText}>
-                        {getInitials(entry.customer)}
+                        {getNameInitials(entry.fullName)}
                       </Text>
                     </View>
                     <View style={styles.debtorIdentity}>
                       <Text style={styles.debtorName} numberOfLines={1}>
-                        {getFullName(entry.customer)}
+                        {entry.fullName}
                       </Text>
                       <Text
                         selectable
                         style={styles.debtorPhone}
                         numberOfLines={1}
                       >
-                        {entry.customer.phone}
+                        {entry.phoneNumber}
                       </Text>
                     </View>
                     <View style={styles.debtorAmountWrap}>
@@ -490,11 +604,15 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.background,
     },
     header: {
+      minHeight: 68,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
       paddingHorizontal: 16,
       paddingTop: 12,
       paddingBottom: 10,
-      gap: 2,
     },
+    headerCopy: { minWidth: 0, flex: 1, gap: 2 },
     screenTitle: {
       color: theme.text,
       fontSize: 32,
@@ -506,6 +624,28 @@ const createStyles = (theme: AppTheme) =>
       color: theme.textSecondary,
       fontSize: 15,
       lineHeight: 21,
+    },
+    headerExportButton: {
+      minWidth: 76,
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: 11,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 14,
+      borderCurve: "continuous",
+      backgroundColor: theme.surface,
+      boxShadow: theme.cardShadow,
+    },
+    headerExportButtonDisabled: { opacity: 0.62 },
+    headerExportText: {
+      color: theme.primary,
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: "800",
     },
     scroll: {
       flexGrow: 1,
@@ -530,10 +670,18 @@ const createStyles = (theme: AppTheme) =>
       overflow: "hidden",
       padding: 18,
       gap: 4,
-      backgroundColor: theme.primary,
       borderRadius: 22,
       borderCurve: "continuous",
+      borderWidth: 1,
       boxShadow: theme.cardShadow,
+    },
+    heroDebtCard: {
+      backgroundColor: theme.debtBg,
+      borderColor: theme.debtColor,
+    },
+    heroSuccessCard: {
+      backgroundColor: theme.paymentBg,
+      borderColor: theme.paymentColor,
     },
     heroTop: {
       flexDirection: "row",
@@ -571,18 +719,23 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "700",
     },
     heroLabel: {
-      color: "rgba(255,255,255,0.78)",
+      color: theme.textSecondary,
       fontSize: 13,
       lineHeight: 18,
-      fontWeight: "500",
+      fontWeight: "700",
     },
     heroValue: {
-      color: "#FFFFFF",
+      color: theme.text,
       fontSize: 31,
       lineHeight: 38,
       fontWeight: "800",
       letterSpacing: -0.8,
       fontVariant: ["tabular-nums"],
+    },
+    heroCaption: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
     },
     heroMessage: {
       color: "rgba(255,255,255,0.82)",
@@ -630,13 +783,13 @@ const createStyles = (theme: AppTheme) =>
     },
     metricCard: {
       minWidth: 0,
-      minHeight: 82,
+      minHeight: 60,
       flex: 1,
       flexDirection: "row",
       alignItems: "center",
       gap: 9,
       paddingHorizontal: 11,
-      paddingVertical: 12,
+      paddingVertical: 6,
       backgroundColor: theme.surface,
       borderWidth: 1,
       borderColor: theme.border,
@@ -843,12 +996,12 @@ const createStyles = (theme: AppTheme) =>
       boxShadow: theme.cardShadow,
     },
     debtorRow: {
-      minHeight: 70,
+      minHeight: 60,
       flexDirection: "row",
       alignItems: "center",
       gap: 9,
       paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingVertical: 6,
     },
     rowBorder: {
       borderBottomWidth: 1,
@@ -980,7 +1133,7 @@ const createStyles = (theme: AppTheme) =>
       fontVariant: ["tabular-nums"],
     },
     emptyState: {
-      minHeight: 158,
+      minHeight: 130,
       alignItems: "center",
       justifyContent: "center",
       gap: 5,

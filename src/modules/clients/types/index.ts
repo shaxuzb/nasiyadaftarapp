@@ -1,7 +1,6 @@
 export interface Customer {
   id: number;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   phone: string;
   note?: string;
   createdAt?: string;
@@ -9,18 +8,16 @@ export interface Customer {
 }
 
 export interface ClientCreateRequest {
-  firstName: string;
-  lastName: string;
+  fullName: string;
   phoneNumber: string;
   note: string;
 }
 
 export interface ClientDto {
   id: number | string;
-  firstName: string;
-  lastName: string;
+  fullName: string;
   phoneNumber: string;
   note?: string;
-  currentBalance?: number;
+  currentBalance?: number | string;
   createdDate?: string;
 }

@@ -22,8 +22,7 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
   const addCustomerMutation = useMutation({
     mutationFn: (data: Omit<Customer, "id" | "createdAt">) =>
       createClient({
-        firstName: data.firstName,
-        lastName: data.lastName,
+        fullName: data.fullName,
         phoneNumber: data.phone,
         note: data.note ?? "",
       }),
@@ -54,7 +53,16 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
     (id: number) =>
       queryClient.fetchQuery({
         queryKey: queryKeys.client(scope, id),
-        queryFn: () => getClientById(id),
+        queryFn: async () => {
+          const customer = await getClientById(id);
+          queryClient.setQueryData<Customer[]>(
+            queryKeys.clients(scope),
+            (current = []) =>
+              current.map((item) => (item.id === customer.id ? customer : item)),
+          );
+          return customer;
+        },
+        staleTime: 30_000,
       }),
     [queryClient, scope],
   );
@@ -73,6 +81,7 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
   return {
     customers: clientsQuery.data ?? EMPTY_CUSTOMERS,
     isLoading: clientsQuery.isPending || clientsQuery.isFetching,
+    error: clientsQuery.error,
     addCustomer,
     deleteCustomer,
     loadCustomerDetail,

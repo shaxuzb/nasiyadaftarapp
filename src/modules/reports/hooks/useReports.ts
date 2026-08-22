@@ -1,28 +1,34 @@
-import { useMemo } from "react";
-import { Customer } from "../../clients/types";
-import { Transaction } from "../../transactions/types";
-import {
-  getDashboardStats,
-  getMonthlyTotals,
-  getTopDebtors,
-} from "../utils/reportCalculations";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../../../context/AuthContext";
+import { queryKeys } from "../../../core/query/queryKeys";
+import { getReports } from "../services/reportsService";
+import { ReportsQueryParams } from "../types";
+
+export const DEFAULT_REPORTS_QUERY: ReportsQueryParams = {
+  months: 6,
+  topDebtorsLimit: 5,
+};
 
 export function useReports(
-  customers: Customer[],
-  transactions: Transaction[],
+  params: ReportsQueryParams = DEFAULT_REPORTS_QUERY,
 ) {
-  const stats = useMemo(
-    () => getDashboardStats(customers, transactions),
-    [customers, transactions],
-  );
-  const topDebtors = useMemo(
-    () => getTopDebtors(customers, transactions),
-    [customers, transactions],
-  );
-  const monthlyMap = useMemo(
-    () => getMonthlyTotals(transactions),
-    [transactions],
-  );
+  const { user } = useAuth();
+  const scope = user?.organizationId ?? user?.id ?? "anonymous";
+  const enabled = Boolean(user);
 
-  return { stats, topDebtors, monthlyMap };
+  const query = useQuery({
+    queryKey: queryKeys.reports(scope, params),
+    queryFn: () => getReports(params),
+    enabled,
+    staleTime: 60_000,
+    refetchOnMount: "always",
+  });
+
+  return {
+    report: query.data,
+    error: query.error,
+    isLoading: query.isPending,
+    isRefreshing: query.isFetching && !query.isPending,
+    refetch: query.refetch,
+  };
 }

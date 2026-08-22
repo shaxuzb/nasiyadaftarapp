@@ -1,7 +1,8 @@
 import { BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
 import { ComponentType, ReactElement } from "react";
+import { Transaction } from "../modules/transactions/types";
 
-export type SheetType = "transaction";
+export type SheetType = "transaction" | "transactionDetail";
 
 export interface TransactionSheetProps {
   customerId: number;
@@ -10,8 +11,14 @@ export interface TransactionSheetProps {
   currentBalance?: number;
 }
 
+export interface TransactionDetailSheetProps {
+  transaction: Transaction;
+  customerName: string;
+}
+
 export interface SheetPropsMap {
   transaction: TransactionSheetProps;
+  transactionDetail: TransactionDetailSheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {

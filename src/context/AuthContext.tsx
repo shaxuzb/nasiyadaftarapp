@@ -7,11 +7,13 @@ import React, {
   useMemo,
   useState,
 } from "react";
+
 import {
   googleAccount,
   loginAccount,
   logoutAccount,
   registerAccount,
+  selectOrganizationAccount,
 } from "../modules/auth/services/authService";
 import {
   clearAuthSession,
@@ -26,101 +28,282 @@ import {
   AuthUser,
   GoogleLoginRequest,
   LoginRequest,
+  OrganizationSelectResponse,
   RegisterRequest,
 } from "../modules/auth/types";
 import { setUnauthorizedHandler } from "../services/axiosService";
 import {
   createOrganization,
-  getCurrentOrganization,
+  getManualOrganizations,
 } from "../modules/organization/services/organizationService";
 import {
+  MAX_ORGANIZATIONS_PER_USER,
+  OrganizationMembership,
   OrganizationRequest,
-  OrganizationResponse,
 } from "../modules/organization/types";
 import { isAuthResponse } from "../modules/auth/utils/authResponse";
+import {
+  clearOrganizationQueries,
+  invalidateAccountDependentQueries,
+} from "../core/query/queryInvalidation";
 
 interface AuthContextValue {
   user: AuthUser | null;
-  currentOrganization: OrganizationResponse | null;
+  organizations: OrganizationMembership[];
+  currentOrganization: OrganizationMembership | null;
   isBootstrapping: boolean;
+  isOrganizationLoading: boolean;
   login: (payload: LoginRequest) => Promise<void>;
   register: (payload: RegisterRequest) => Promise<void>;
   loginWithGoogleIdToken: (idToken: string) => Promise<void>;
-  createOrganizationForCurrentUser: (payload: OrganizationRequest) => Promise<void>;
+  createOrganizationForCurrentUser: (
+    payload: OrganizationRequest,
+  ) => Promise<void>;
+  refreshOrganizations: () => Promise<void>;
+  selectOrganization: (organizationId: number) => Promise<void>;
+  openOrganizationSelector: () => Promise<void>;
+  updateUserProfile: (patch: Partial<AuthUser>) => Promise<void>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
+function getSelectedOrganization(
+  organizations: OrganizationMembership[],
+  organizationId?: number | null,
+): OrganizationMembership | null {
+  if (typeof organizationId !== "number") return null;
+  return (
+    organizations.find((organization) => organization.id === organizationId) ??
+    null
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [currentOrganization, setCurrentOrganization] = useState<OrganizationResponse | null>(null);
+  const [organizations, setOrganizations] = useState<OrganizationMembership[]>(
+    [],
+  );
+  const [currentOrganization, setCurrentOrganization] =
+    useState<OrganizationMembership | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
+  const [isOrganizationLoading, setIsOrganizationLoading] = useState(false);
 
-  const completeAuth = useCallback(async (response: AuthResponse) => {
-    const uniqueId = await getOrCreateUniqueId();
-    await setAuthSession({
-      token: response.token,
-      refreshToken: response.refreshToken,
-      user: response.user,
-      uniqueId,
-    });
-    setUser(response.user);
+  const persistUser = useCallback(async (nextUser: AuthUser) => {
+    const session = getAuthSessionSync() ?? (await hydrateAuthSession());
+    if (session) {
+      await setAuthSession({ ...session, user: nextUser });
+    }
+    setUser(nextUser);
   }, []);
 
-  const updateOrganizationState = useCallback(
+  const updateUserProfile = useCallback(
     async (patch: Partial<AuthUser>) => {
       const updatedSession = await updateAuthUserInSession(patch);
       if (updatedSession) {
         setUser(updatedSession.user);
       } else {
-        setUser((prev) => (prev ? { ...prev, ...patch } : prev));
+        setUser((current) => (current ? { ...current, ...patch } : current));
       }
+
+      await invalidateAccountDependentQueries();
     },
     [],
   );
 
-  const syncOrganization = useCallback(async () => {
-    try {
-      const current = await getCurrentOrganization();
-      setCurrentOrganization(current);
-
-      if (current) {
-        await updateOrganizationState({
-          hasOrganization: true,
-          organizationId: current.id,
-          organizationName: current.name,
-        });
-      } else {
-        await updateOrganizationState({ hasOrganization: false });
+  const applyOrganizationSelection = useCallback(
+    async (
+      baseUser: AuthUser,
+      availableOrganizations: OrganizationMembership[],
+      organizationId: number,
+    ) => {
+      const selected = getSelectedOrganization(
+        availableOrganizations,
+        organizationId,
+      );
+      if (!selected) {
+        throw new Error("Tanlangan tashkilot topilmadi");
       }
-    } catch {
+
+      const response: OrganizationSelectResponse =
+        (await selectOrganizationAccount(organizationId)) ?? {};
+      const nextOrganizations =
+        response.user?.organizations ?? availableOrganizations;
+      const nextUser: AuthUser = {
+        ...baseUser,
+        ...response.user,
+        organizations: nextOrganizations,
+        hasOrganization: true,
+        organizationId,
+        organizationName: selected.name,
+      };
+      const session = getAuthSessionSync() ?? (await hydrateAuthSession());
+
+      if (session) {
+        await setAuthSession({
+          ...session,
+          token: response.token ?? session.token,
+          refreshToken: response.refreshToken ?? session.refreshToken,
+          user: nextUser,
+        });
+      }
+
+      clearOrganizationQueries();
+      setOrganizations(nextOrganizations);
+      setCurrentOrganization(selected);
+      setUser(nextUser);
+    },
+    [],
+  );
+
+  const resolveOrganizations = useCallback(
+    async (baseUser: AuthUser) => {
+      setIsOrganizationLoading(true);
+      try {
+        let availableOrganizations: OrganizationMembership[];
+        try {
+          availableOrganizations = await getManualOrganizations();
+        } catch (error) {
+          if (baseUser.organizations?.length) {
+            availableOrganizations = baseUser.organizations;
+          } else {
+            throw error;
+          }
+        }
+
+        setOrganizations(availableOrganizations);
+        const selected = getSelectedOrganization(
+          availableOrganizations,
+          baseUser.organizationId,
+        );
+
+        if (selected) {
+          setCurrentOrganization(selected);
+          await persistUser({
+            ...baseUser,
+            organizations: availableOrganizations,
+            hasOrganization: true,
+            organizationName: selected.name,
+          });
+          return;
+        }
+
+        if (availableOrganizations.length === 1) {
+          await applyOrganizationSelection(
+            baseUser,
+            availableOrganizations,
+            availableOrganizations[0].id,
+          );
+          return;
+        }
+
+        setCurrentOrganization(null);
+        await persistUser({
+          ...baseUser,
+          organizations: availableOrganizations,
+          organizationId: null,
+          organizationName: null,
+          hasOrganization: availableOrganizations.length > 0,
+        });
+      } finally {
+        setIsOrganizationLoading(false);
+      }
+    },
+    [applyOrganizationSelection, persistUser],
+  );
+
+  const completeAuth = useCallback(
+    async (response: AuthResponse) => {
+      const uniqueId = await getOrCreateUniqueId();
+      const authenticatedUser: AuthUser = {
+        ...response.user,
+        organizations: response.user.organizations ?? [],
+      };
+
+      await setAuthSession({
+        token: response.token,
+        refreshToken: response.refreshToken,
+        user: authenticatedUser,
+        uniqueId,
+      });
+      setUser(authenticatedUser);
+      setOrganizations(authenticatedUser.organizations ?? []);
       setCurrentOrganization(null);
-      await updateOrganizationState({ hasOrganization: false });
-    }
-  }, [updateOrganizationState]);
+      await resolveOrganizations(authenticatedUser);
+    },
+    [resolveOrganizations],
+  );
+
+  const refreshOrganizations = useCallback(async () => {
+    if (!user) return;
+    await resolveOrganizations(user);
+  }, [resolveOrganizations, user]);
+
+  const selectOrganization = useCallback(
+    async (organizationId: number) => {
+      if (!user) throw new Error("Tashkilotni tanlash uchun tizimga kiring");
+
+      setIsOrganizationLoading(true);
+      try {
+        let availableOrganizations = organizations;
+        if (!getSelectedOrganization(availableOrganizations, organizationId)) {
+          availableOrganizations = await getManualOrganizations();
+          setOrganizations(availableOrganizations);
+        }
+        await applyOrganizationSelection(user, availableOrganizations, organizationId);
+      } finally {
+        setIsOrganizationLoading(false);
+      }
+    },
+    [applyOrganizationSelection, organizations, user],
+  );
+
+  const openOrganizationSelector = useCallback(async () => {
+    if (!user) return;
+    setCurrentOrganization(null);
+    await updateUserProfile({ organizationId: null, organizationName: null });
+  }, [updateUserProfile, user]);
 
   const createOrganizationForCurrentUser = useCallback(
     async (payload: OrganizationRequest) => {
+      if (!user) throw new Error("Tashkilot yaratish uchun tizimga kiring");
+
+      const existingOrganizations = await getManualOrganizations();
+      if (existingOrganizations.length >= MAX_ORGANIZATIONS_PER_USER) {
+        throw new Error(
+          `Ko'pi bilan ${MAX_ORGANIZATIONS_PER_USER} ta tashkilot yaratish mumkin`,
+        );
+      }
+
       const created = await createOrganization(payload);
+      clearOrganizationQueries();
+      const availableOrganizations = await getManualOrganizations();
+      const target =
+        (created &&
+          getSelectedOrganization(availableOrganizations, created.id)) ||
+        availableOrganizations.find(
+          (organization) =>
+            organization.name.trim().toLocaleLowerCase() ===
+            payload.name.trim().toLocaleLowerCase(),
+        );
 
-      setCurrentOrganization(
-        created ?? {
-          id: user?.organizationId ?? 0,
-          name: payload.name,
-          phoneNumber: payload.phoneNumber,
-          address: payload.address,
-          note: payload.note,
-        },
-      );
+      if (!target) {
+        throw new Error("Yaratilgan tashkilotni aniqlab bo'lmadi");
+      }
 
-      await updateOrganizationState({
-        hasOrganization: true,
-        organizationId: created?.id ?? user?.organizationId ?? null,
-        organizationName: created?.name ?? payload.name,
-      });
+      setOrganizations(availableOrganizations);
+      setIsOrganizationLoading(true);
+      try {
+        await applyOrganizationSelection(
+          user,
+          availableOrganizations,
+          target.id,
+        );
+      } finally {
+        setIsOrganizationLoading(false);
+      }
     },
-    [updateOrganizationState, user?.organizationId],
+    [applyOrganizationSelection, user],
   );
 
   const logout = useCallback(async () => {
@@ -133,12 +316,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           uniqueId: session.uniqueId,
         });
       } catch {
-        // local session still must be cleared even if logout API fails
+        // Local credentials must still be cleared when the logout request fails.
       }
     }
 
+    clearOrganizationQueries();
     await clearAuthSession();
     setCurrentOrganization(null);
+    setOrganizations([]);
     setUser(null);
   }, []);
 
@@ -181,23 +366,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let active = true;
 
     (async () => {
-      const session = await hydrateAuthSession();
-      await getOrCreateUniqueId();
+      try {
+        const session = await hydrateAuthSession();
+        await getOrCreateUniqueId();
+        if (!active) return;
 
-      if (!active) return;
-
-      setUser(session?.user ?? null);
-      setIsBootstrapping(false);
-
-      if (session?.user) {
-        await syncOrganization();
+        if (session?.user) {
+          setUser(session.user);
+          setOrganizations(session.user.organizations ?? []);
+          await resolveOrganizations(session.user);
+        }
+      } catch (error) {
+        if (__DEV__) {
+          console.warn("Auth bootstrap failed", error);
+        }
+        if (active) {
+          setCurrentOrganization(null);
+          setOrganizations([]);
+          setUser(null);
+        }
+      } finally {
+        if (active) {
+          setIsBootstrapping(false);
+        }
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [syncOrganization]);
+  }, [resolveOrganizations]);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -212,22 +410,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
+      organizations,
       currentOrganization,
       isBootstrapping,
+      isOrganizationLoading,
       login,
       register,
       loginWithGoogleIdToken,
       createOrganizationForCurrentUser,
+      refreshOrganizations,
+      selectOrganization,
+      openOrganizationSelector,
+      updateUserProfile,
       logout,
     }),
     [
       createOrganizationForCurrentUser,
       currentOrganization,
       isBootstrapping,
+      isOrganizationLoading,
       login,
       loginWithGoogleIdToken,
       logout,
+      openOrganizationSelector,
+      organizations,
+      refreshOrganizations,
       register,
+      selectOrganization,
+      updateUserProfile,
       user,
     ],
   );

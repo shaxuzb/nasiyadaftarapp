@@ -19,7 +19,13 @@ import { useToast } from "../context/ToastContext";
 import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { TransactionItem } from "../modules/transactions/components/TransactionItem";
 import { EmptyState } from "../components/EmptyState";
-import { formatCurrency, formatDate, getFullName, getInitials } from "../utils";
+import {
+  formatCurrency,
+  formatDate,
+  formatDisplayedBalance,
+  getFullName,
+  getInitials,
+} from "../utils";
 import { APP_NAME } from "../constants";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
@@ -49,10 +55,12 @@ function DetailStat({
   const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.statBox}>
-      <View style={[styles.statIcon, { backgroundColor }]}>
-        <Ionicons name={icon} size={21} color={color} />
+      <View style={styles.statContent}>
+        <View style={[styles.statIcon, { backgroundColor }]}>
+          <Ionicons name={icon} size={18} color={color} />
+        </View>
+        <Text style={styles.statLabel}>{label}</Text>
       </View>
-      <Text style={styles.statLabel}>{label}</Text>
       <Text
         selectable
         numberOfLines={1}
@@ -100,11 +108,11 @@ export function CustomerDetailScreen() {
 
     return {
       txs: customerTransactions,
-      balance: debt - paid,
+      balance: customer?.currentBalance ?? debt - paid,
       totalDebt: debt,
       totalPaid: paid,
     };
-  }, [customerId, transactions]);
+  }, [customer?.currentBalance, customerId, transactions]);
 
   const filteredTxs = useMemo(() => {
     if (txDateFilter === "all") return txs;
@@ -129,9 +137,16 @@ export function CustomerDetailScreen() {
   }, [txDateFilter, txs]);
 
   useEffect(() => {
-    void loadCustomerDetail(customerId);
-    void loadCustomerHistory(customerId);
-  }, [customerId, loadCustomerDetail, loadCustomerHistory]);
+    void Promise.all([
+      loadCustomerDetail(customerId),
+      loadCustomerHistory(customerId),
+    ]).catch((error) => {
+      showToast(
+        getApiErrorMessage(error, "Mijoz ma'lumotlarini yuklab bo'lmadi"),
+        "error",
+      );
+    });
+  }, [customerId, loadCustomerDetail, loadCustomerHistory, showToast]);
 
   function handleCall() {
     if (!customer) return;
@@ -203,7 +218,14 @@ export function CustomerDetailScreen() {
     );
   }
 
-  const settled = balance <= 0;
+  const isDebtor = balance > 0;
+  const isCredit = balance < 0;
+  const statusColor = isDebtor ? theme.debtColor : theme.paymentColor;
+  const statusLabel = isDebtor
+    ? "Qarzdor"
+    : isCredit
+      ? "Ortiqcha to'lov"
+      : "Qarz yo'q";
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -227,6 +249,26 @@ export function CustomerDetailScreen() {
           <Text selectable style={styles.headerSubtitle} numberOfLines={1}>
             {customer.phone}
           </Text>
+          <View
+            style={[
+              styles.statusChip,
+              isDebtor ? styles.debtChip : styles.settledChip,
+            ]}
+          >
+            <Ionicons
+              name={isDebtor ? "alert-circle" : "checkmark-circle"}
+              size={16}
+              color={statusColor}
+            />
+            <Text
+              style={[
+                styles.statusText,
+                { color: statusColor },
+              ]}
+            >
+              {statusLabel}
+            </Text>
+          </View>
         </View>
 
         <Pressable
@@ -248,54 +290,6 @@ export function CustomerDetailScreen() {
         contentContainerStyle={styles.scroll}
       >
         <View style={styles.profileCard}>
-          <View style={styles.profileTop}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{getInitials(customer)}</Text>
-            </View>
-
-            <View style={styles.profileIdentity}>
-              <Text style={styles.profileName} numberOfLines={2}>
-                {getFullName(customer)}
-              </Text>
-              <Text selectable style={styles.profilePhone} numberOfLines={1}>
-                {customer.phone}
-              </Text>
-              <View style={styles.idBadge}>
-                <Text selectable style={styles.idText}>
-                  ID: {customer.id}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.statusBlock}>
-              <View
-                style={[
-                  styles.statusChip,
-                  settled ? styles.settledChip : styles.debtChip,
-                ]}
-              >
-                <Ionicons
-                  name={settled ? "checkmark-circle" : "alert-circle"}
-                  size={16}
-                  color={settled ? theme.paymentColor : theme.debtColor}
-                />
-                <Text
-                  style={[
-                    styles.statusText,
-                    { color: settled ? theme.paymentColor : theme.debtColor },
-                  ]}
-                >
-                  {settled ? "Qarz yo'q" : "Qarzdor"}
-                </Text>
-              </View>
-              <Text style={styles.statusCaption}>
-                {settled ? "Hisob yopilgan" : "Hisob ochiq"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.profileDivider} />
-
           <View style={styles.statsRow}>
             <DetailStat
               icon="arrow-down"
@@ -316,9 +310,15 @@ export function CustomerDetailScreen() {
             <DetailStat
               icon="wallet-outline"
               label="Balans"
-              value={formatCurrency(Math.max(balance, 0))}
-              color={theme.primary}
-              backgroundColor={theme.primaryLight}
+              value={formatDisplayedBalance(balance)}
+              color={
+                isDebtor
+                  ? theme.debtColor
+                  : isCredit
+                    ? theme.paymentColor
+                    : theme.primary
+              }
+              backgroundColor={isDebtor ? theme.debtBg : theme.paymentBg}
             />
           </View>
         </View>
@@ -469,6 +469,12 @@ export function CustomerDetailScreen() {
                 key={transaction.id}
                 transaction={transaction}
                 isLast={index === filteredTxs.length - 1}
+                onPress={() =>
+                  openSheet("transactionDetail", {
+                    transaction,
+                    customerName: getFullName(customer),
+                  })
+                }
               />
             ))}
           </View>
@@ -543,7 +549,7 @@ const createStyles = (theme: AppTheme) =>
       gap: 12,
     },
     profileCard: {
-      padding: 14,
+      padding: 10,
       gap: 14,
       backgroundColor: theme.surface,
       borderWidth: 1,
@@ -656,9 +662,13 @@ const createStyles = (theme: AppTheme) =>
       gap: 5,
       paddingHorizontal: 4,
     },
+    statContent: {
+      alignItems: "flex-start",
+      gap: 5,
+    },
     statIcon: {
-      width: 30,
-      height: 30,
+      width: 28,
+      height: 28,
       borderRadius: 15,
       alignItems: "center",
       justifyContent: "center",

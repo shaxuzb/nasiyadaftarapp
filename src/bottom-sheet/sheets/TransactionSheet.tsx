@@ -13,17 +13,15 @@ import {
   BottomSheetScrollView,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
-import {
-  KeyboardAwareScrollView,
-  KeyboardToolbar,
-} from "react-native-keyboard-controller";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
 import { SheetRenderProps } from "../types";
 import { useToast } from "../../context/ToastContext";
 import { formatCurrency } from "../../utils";
 import { hapticError, hapticSuccess } from "../../utils/haptics";
 import { createClientTransaction } from "../../modules/transactions/services/transactionsService";
-import { queryClient } from "../../core/query/queryClient";
+import { queryKeys } from "../../core/query/queryKeys";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme } from "../../types";
 import { getApiErrorMessage } from "../../utils/apiError";
@@ -51,6 +49,7 @@ export function TransactionSheet({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { showToast } = useToast();
+  const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
@@ -95,8 +94,12 @@ export function TransactionSheet({
         note: note.trim() || (isDebt ? "Qarz" : "To'lov"),
       });
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["clients"] }),
-        queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.clientsRoot() }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.clientRoot() }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.transactionsRoot(),
+        }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.reportsRoot() }),
       ]);
 
       hapticSuccess();
@@ -104,10 +107,7 @@ export function TransactionSheet({
       closeSheet();
     } catch (error) {
       hapticError();
-      showToast(
-        getApiErrorMessage(error, "Tranzaksiya saqlanmadi"),
-        "error",
-      );
+      showToast(getApiErrorMessage(error, "Tranzaksiya saqlanmadi"), "error");
     } finally {
       setSaving(false);
     }
@@ -238,11 +238,6 @@ export function TransactionSheet({
           )}
         </Pressable>
       </KeyboardAwareScrollView>
-      <KeyboardToolbar
-        doneText="Tayyor"
-        showArrows
-        onDoneCallback={Keyboard.dismiss}
-      />
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Transaction } from "../modules/transactions/types";
@@ -10,9 +10,14 @@ import { AppTheme } from "../types";
 interface Props {
   transaction: Transaction;
   isLast?: boolean;
+  onPress?: () => void;
 }
 
-export function TransactionItem({ transaction, isLast = false }: Props) {
+export function TransactionItem({
+  transaction,
+  isLast = false,
+  onPress,
+}: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const isDebt = transaction.type === "debt";
@@ -20,17 +25,24 @@ export function TransactionItem({ transaction, isLast = false }: Props) {
   const backgroundColor = isDebt ? theme.debtBg : theme.paymentBg;
 
   return (
-    <View
-      style={[
+    <Pressable
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={
+        onPress
+          ? `${isDebt ? "Qarz" : "To'lov"}, ${formatCurrency(transaction.amount)}`
+          : undefined
+      }
+      onPress={onPress}
+      style={({ pressed }) => [
         styles.row,
-        isDebt && styles.debtRow,
         !isLast && styles.rowBorder,
+        pressed && onPress && styles.pressed,
       ]}
     >
       <View style={[styles.icon, { backgroundColor }]}>
         <Ionicons
           name={isDebt ? "arrow-down" : "arrow-up"}
-          size={19}
+          size={16}
           color={color}
         />
       </View>
@@ -60,19 +72,19 @@ export function TransactionItem({ transaction, isLast = false }: Props) {
       </View>
 
       <Ionicons name="chevron-forward" size={17} color={theme.textMuted} />
-    </View>
+    </Pressable>
   );
 }
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     row: {
-      minHeight: 72,
+      minHeight: 60,
       flexDirection: "row",
       alignItems: "center",
       gap: 9,
       paddingHorizontal: 12,
-      paddingVertical: 10,
+      paddingVertical: 5,
       backgroundColor: theme.surface,
     },
     debtRow: {
@@ -83,8 +95,8 @@ const createStyles = (theme: AppTheme) =>
       borderBottomColor: theme.border,
     },
     icon: {
-      width: 36,
-      height: 36,
+      width: 30,
+      height: 30,
       flexShrink: 0,
       borderRadius: 18,
       alignItems: "center",
@@ -122,5 +134,8 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 9,
       lineHeight: 13,
       fontVariant: ["tabular-nums"],
+    },
+    pressed: {
+      backgroundColor: theme.inputBackground,
     },
   });

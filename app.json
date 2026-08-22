@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "NasiyaDaftari",
+    "name": "Qarz Daftar",
     "slug": "NasiyaDaftari",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/icon.png",
       "resizeMode": "contain",
@@ -20,14 +20,16 @@
       }
     },
     "android": {
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#092A59"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.rbsx.nasiyadaftarapp",
-      "permissions": ["android.permission.READ_CONTACTS"]
+      "permissions": [
+        "android.permission.READ_CONTACTS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -50,7 +52,9 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-secure-store",
+      "expo-sharing"
     ],
     "extra": {
       "eas": {

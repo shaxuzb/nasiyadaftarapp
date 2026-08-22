@@ -15,6 +15,14 @@ function toNumber(value: number | string | undefined, fallback: number) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function readRequiredId(value: number | string | undefined, entity: string) {
+  const id = Number(value);
+  if (!Number.isFinite(id) || id <= 0) {
+    throw new Error(`Invalid ${entity} id in API response`);
+  }
+  return id;
+}
+
 function normalizeTransactionType(type: string | undefined): TransactionType {
   const normalized = (type ?? "").trim().toLowerCase();
   if (normalized.includes("pay") || normalized.includes("tol")) {
@@ -24,14 +32,22 @@ function normalizeTransactionType(type: string | undefined): TransactionType {
 }
 
 function mapClient(dto: ClientDto): Customer {
+  const rawBalance = dto.currentBalance;
+  const currentBalance =
+    rawBalance === undefined || rawBalance === null
+      ? undefined
+      : Number(rawBalance);
+
   return {
-    id: toNumber(dto.id, Date.now()),
-    firstName: dto.firstName ?? "",
-    lastName: dto.lastName ?? "",
+    id: readRequiredId(dto.id, "client"),
+    fullName: dto.fullName?.trim() ?? "",
     phone: dto.phoneNumber ?? "",
     note: dto.note ?? "",
     createdAt: dto.createdDate,
-    currentBalance: Number(dto.currentBalance ?? 0),
+    // Keep the API value unchanged. Sign inversion is presentation-only.
+    currentBalance: Number.isFinite(currentBalance)
+      ? currentBalance
+      : undefined,
   };
 }
 
@@ -61,7 +77,7 @@ function extractArray<T>(input: unknown): T[] {
     if (Array.isArray(candidate.data)) return candidate.data as T[];
     if (Array.isArray(candidate.result)) return candidate.result as T[];
   }
-  return [];
+  throw new Error("Invalid list response from API");
 }
 
 function extractClient(input: unknown): ClientDto | null {
@@ -121,8 +137,7 @@ export async function createClient(
   const matched = fallbackList.find(
     (item) =>
       item.phone === payload.phoneNumber &&
-      item.firstName === payload.firstName &&
-      item.lastName === payload.lastName,
+      item.fullName.toLowerCase() === payload.fullName.toLowerCase(),
   );
 
   if (matched) {
@@ -177,4 +192,24 @@ export async function getClientHistory(
       note: "",
     }),
   );
+}
+
+/**
+ * Loads dashboard history with bounded concurrency. This preserves the
+ * current API contract while avoiding an unbounded request burst as the
+ * customer list grows.
+ */
+export async function getClientHistories(
+  clientIds: number[],
+  concurrency = 6,
+): Promise<Transaction[]> {
+  const histories: Transaction[][] = [];
+  const batchSize = Math.max(1, concurrency);
+
+  for (let index = 0; index < clientIds.length; index += batchSize) {
+    const batch = clientIds.slice(index, index + batchSize);
+    histories.push(...(await Promise.all(batch.map(getClientHistory))));
+  }
+
+  return histories.flat();
 }
