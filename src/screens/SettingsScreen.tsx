@@ -285,7 +285,7 @@ export function SettingsScreen() {
             iconColor={theme.warningColor}
             iconBackground={theme.inputBackground}
             title="Kirish va xavfsizlik"
-            description="Parol va Google akkaunt"
+            description="PIN, biometrika, parol va Google akkaunt"
             onPress={() => navigation.navigate("AccountSecurity")}
             isLast
           />

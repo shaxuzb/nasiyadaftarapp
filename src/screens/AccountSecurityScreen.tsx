@@ -31,6 +31,7 @@ import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
 import { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
+import { useAppLock } from "../modules/pin-auth/context/AppLockContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AccountSecurity">;
 type PasswordStep = "idle" | "request" | "confirm";
@@ -99,6 +100,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { user, updateUserProfile } = useAuth();
+  const { setupRequired, biometric, lockNow } = useAppLock();
   const { showToast } = useToast();
 
   const [passwordStep, setPasswordStep] = useState<PasswordStep>("idle");
@@ -272,6 +274,20 @@ export function AccountSecurityScreen({ navigation }: Props) {
         <Text style={styles.sectionTitle}>Xavfsizlik sozlamalari</Text>
         <View style={styles.card}>
           <ActionRow
+            icon="key-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title="PIN login"
+            description={
+              setupRequired
+                ? "PIN-kod hali o'rnatilmagan"
+                : biometric?.available
+                  ? `${biometric.label} va 4 xonali PIN bilan himoyalangan`
+                  : "4 xonali PIN bilan himoyalangan"
+            }
+            onPress={lockNow}
+          />
+          <ActionRow
             icon="lock-closed-outline"
             iconColor={theme.warningColor}
             iconBackground={theme.inputBackground}
@@ -295,8 +311,16 @@ export function AccountSecurityScreen({ navigation }: Props) {
             onPress={() => {
               void handleGoogleRequest();
             }}
-            isLast
             loading={googleLoading && googleStep === "idle"}
+          />
+          <ActionRow
+            icon="lock-closed-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title="Ilovani qulflash"
+            description="PIN yoki biometrika bilan qayta ochiladi"
+            onPress={lockNow}
+            isLast
           />
         </View>
 

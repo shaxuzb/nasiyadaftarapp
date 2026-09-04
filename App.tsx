@@ -21,6 +21,7 @@ import { BottomSheetProvider } from "./src/bottom-sheet";
 import { AppUpdateGate } from "./src/modules/app-update";
 import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
 import { AccountSecurityProvider } from "./src/modules/account/context/AccountSecurityContext";
+import { AppLockProvider } from "./src/modules/pin-auth/context/AppLockContext";
 
 const ONBOARDING_DONE_KEY = "onboarding_done_v1";
 
@@ -102,6 +103,7 @@ function ThemedApp() {
               <KeyboardProvider>
                 <BottomSheetModalProvider>
                   <AuthProvider>
+                    <AppLockProvider>
                     <AccountSecurityProvider>
                       <AppProvider>
                         <BottomSheetProvider>
@@ -123,6 +125,7 @@ function ThemedApp() {
                         </BottomSheetProvider>
                       </AppProvider>
                     </AccountSecurityProvider>
+                    </AppLockProvider>
                   </AuthProvider>
                 </BottomSheetModalProvider>
               </KeyboardProvider>

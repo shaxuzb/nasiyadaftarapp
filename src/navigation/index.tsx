@@ -34,6 +34,8 @@ import {
 } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { BottomSheetBackHandler } from "../bottom-sheet";
+import { useAppLock } from "../modules/pin-auth/context/AppLockContext";
+import { PinGateScreen } from "../modules/pin-auth/screens/PinGateScreen";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -252,6 +254,7 @@ export function AppNavigator() {
     isOrganizationLoading,
     organizationSelectionReturnTab,
   } = useAuth();
+  const { isResolving: isPinResolving, setupRequired, isLocked } = useAppLock();
 
   const navTheme = React.useMemo(() => {
     const baseTheme = resolvedScheme === "dark" ? DarkTheme : DefaultTheme;
@@ -269,7 +272,7 @@ export function AppNavigator() {
     };
   }, [resolvedScheme, theme]);
 
-  if (isBootstrapping || isOrganizationLoading) {
+  if (isBootstrapping || isOrganizationLoading || isPinResolving) {
     return (
       <View
         style={[styles.loader, { backgroundColor: navTheme.colors.background }]}
@@ -284,6 +287,8 @@ export function AppNavigator() {
       <BottomSheetBackHandler />
       {!user ? (
         <AuthNavigator />
+      ) : setupRequired || isLocked ? (
+        <PinGateScreen />
       ) : currentOrganization ? (
         <MainNavigator initialTab={organizationSelectionReturnTab ?? undefined} />
       ) : (
