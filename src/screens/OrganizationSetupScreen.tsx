@@ -123,9 +123,9 @@ export function OrganizationSetupScreen() {
         enableDynamicSizing={false}
         enablePanDownToClose
         enableOverDrag={false}
-        keyboardBehavior="extend"
+        keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
+        android_keyboardInputMode="adjustPan"
         enableBlurKeyboardOnGesture
         topInset={insets.top}
         backdropComponent={renderBackdrop}

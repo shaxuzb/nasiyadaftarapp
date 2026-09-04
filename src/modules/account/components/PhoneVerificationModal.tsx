@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -21,6 +27,7 @@ import {
   confirmPhoneChange,
   requestPhoneChange,
 } from "../services/accountService";
+import { useOtpAutoFill } from "../../auth/hooks/useOtpAutoFill";
 
 interface Props {
   visible: boolean;
@@ -30,6 +37,15 @@ interface Props {
 }
 
 const OTP_LENGTH = 6;
+
+function PhoneOtpAutoFill({
+  onCodeReceived,
+}: {
+  onCodeReceived: (code: string) => void;
+}) {
+  useOtpAutoFill({ onCodeReceived });
+  return null;
+}
 
 export function PhoneVerificationModal({
   visible,
@@ -48,6 +64,11 @@ export function PhoneVerificationModal({
   const [error, setError] = useState<string | undefined>();
 
   const isChange = Boolean(currentPhone?.trim());
+
+  const handleAutoFilledCode = useCallback((value: string) => {
+    setCode(value);
+    setError(undefined);
+  }, []);
 
   useEffect(() => {
     if (!visible) return;
@@ -144,6 +165,9 @@ export function PhoneVerificationModal({
             />
           ) : (
             <View style={styles.codeSection}>
+              {visible ? (
+                <PhoneOtpAutoFill onCodeReceived={handleAutoFilledCode} />
+              ) : null}
               <Text style={styles.codeLabel}>Tasdiqlash kodi</Text>
               <OtpInput
                 ref={otpRef}

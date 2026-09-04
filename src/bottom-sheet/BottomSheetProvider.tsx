@@ -125,9 +125,13 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
           snapPoints={activeDefinition.snapPoints}
           enableDynamicSizing={false}
           enablePanDownToClose={activeDefinition.enablePanDownToClose ?? true}
-          keyboardBehavior="extend"
+          // Keep the sheet anchored above the keyboard instead of expanding it
+          // to the whole screen. This matches the native messaging UX.
+          keyboardBehavior="interactive"
           keyboardBlurBehavior="restore"
-          android_keyboardInputMode="adjustResize"
+          // The app uses edge-to-edge on Android, where adjustResize behaves
+          // like adjustNothing. Let the sheet apply the keyboard offset itself.
+          android_keyboardInputMode="adjustPan"
           enableBlurKeyboardOnGesture
           topInset={insets.top}
           onChange={handleChange}

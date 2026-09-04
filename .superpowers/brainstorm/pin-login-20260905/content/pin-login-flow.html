@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nasiya Daftari — PIN login konsepti</title>
+  <style>
+    :root { --ink:#071426; --muted:#71819a; --line:#e2e9f2; --blue:#0b5deb; --soft:#e7f0ff; --navy:#091833; --bg:#f7f9fc; --green:#159447; --green-bg:#e7f8ed; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:linear-gradient(145deg,#f5f8fe,#eef4fc 55%,#f9fbff); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+    main { max-width:1460px; margin:0 auto; padding:38px 28px 52px; }
+    .eyebrow { color:var(--blue); font-size:12px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; margin:0 0 8px; }
+    h1 { margin:0; font-size:30px; letter-spacing:-.7px; }
+    .lead { color:#536987; max-width:760px; line-height:1.55; margin:10px 0 30px; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(250px,1fr)); gap:20px; align-items:start; }
+    .concept { min-width:0; }
+    .concept-head { display:flex; gap:10px; align-items:center; margin:0 0 10px; }
+    .number { width:26px; height:26px; border-radius:50%; background:var(--navy); color:white; display:grid; place-items:center; font-size:12px; font-weight:800; }
+    .concept h2 { font-size:15px; margin:0; letter-spacing:-.15px; }
+    .concept p { color:#536987; font-size:12px; line-height:1.45; margin:5px 0 13px 36px; min-height:35px; }
+    .phone { width:100%; max-width:300px; height:610px; margin:0 auto; background:#fff; border:8px solid #102443; border-radius:38px; overflow:hidden; box-shadow:0 25px 50px rgba(19,49,89,.19); position:relative; }
+    .speaker { position:absolute; z-index:3; width:83px; height:22px; border-radius:0 0 16px 16px; background:#102443; left:50%; transform:translateX(-50%); top:-1px; }
+    .screen { height:100%; padding:32px 18px 16px; background:var(--bg); display:flex; flex-direction:column; }
+    .top { display:flex; justify-content:space-between; align-items:center; min-height:22px; color:#536987; font-size:11px; font-weight:700; }
+    .back { width:28px; height:28px; display:grid; place-items:center; border-radius:50%; background:white; border:1px solid var(--line); color:#071426; font-size:19px; }
+    .logo { width:51px; height:51px; margin:31px auto 16px; background:var(--soft); border-radius:17px; display:grid; place-items:center; color:var(--blue); font-size:25px; font-weight:900; box-shadow:0 8px 18px rgba(11,93,235,.12); }
+    .title { font-size:21px; line-height:1.2; font-weight:800; text-align:center; letter-spacing:-.45px; }
+    .description { color:#536987; font-size:12px; line-height:1.45; text-align:center; margin:8px auto 0; max-width:230px; }
+    .steps { display:flex; justify-content:center; gap:6px; margin:15px 0 22px; }
+    .steps i { width:25px; height:4px; border-radius:3px; background:#cbd9ef; }.steps i.active{background:var(--blue)}
+    .dots { display:flex; justify-content:center; gap:13px; margin:0 0 22px; }.dot { width:13px; height:13px; border:1.7px solid #7d91ae; border-radius:50%; }.dot.fill{background:var(--blue);border-color:var(--blue)}
+    .notice { display:flex; gap:8px; padding:10px; background:#f0f6ff; border:1px solid #d9e7ff; border-radius:12px; color:#3d5b86; font-size:10px; line-height:1.35; margin-bottom:16px; }
+    .notice b { color:var(--blue); font-size:14px; }
+    .keypad { margin:auto auto 0; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; width:205px; }.key { height:39px; display:grid; place-items:center; font-size:19px; font-weight:600; border-radius:12px; }.key.empty{font-size:14px;color:#536987}.key.action{color:var(--blue);font-size:20px}
+    .small-action { text-align:center; color:var(--blue); font-size:11px; font-weight:700; padding-top:13px; }
+    .profile-head { padding:10px 0 14px; font-size:26px; letter-spacing:-.5px; font-weight:800; }.user { display:flex; align-items:center; gap:10px; background:white; border:1px solid var(--line); padding:11px; border-radius:16px; }.avatar{width:37px;height:37px;border-radius:13px;background:var(--soft);color:var(--blue);display:grid;place-items:center;font-weight:800}.user strong{font-size:13px;display:block}.user span{color:var(--muted);font-size:10px}.section { margin:19px 0 7px; font-size:11px; font-weight:800; color:#536987; }.card { background:#fff;border:1px solid var(--line);border-radius:17px;overflow:hidden; }.row { display:flex; align-items:center; gap:10px; padding:11px; min-height:57px; border-bottom:1px solid #edf1f6; }.row:last-child{border:0}.icon{width:32px;height:32px;display:grid;place-items:center;border-radius:10px;background:var(--soft);color:var(--blue);font-size:16px}.copy{flex:1}.copy strong{font-size:11px;display:block}.copy small{font-size:10px;color:var(--muted);display:block;margin-top:2px}.chev{color:var(--muted);font-size:18px}.tag{font-size:9px;color:var(--green);background:var(--green-bg);font-weight:800;padding:4px 6px;border-radius:99px}.switch{width:31px;height:18px;border-radius:99px;background:var(--blue);padding:2px}.switch:after{content:"";display:block;width:14px;height:14px;background:#fff;border-radius:50%;margin-left:auto}.bio { margin:18px auto 0; width:52px; height:52px; border-radius:18px; background:var(--soft); color:var(--blue); display:grid; place-items:center; font-size:25px; }.bio-label{text-align:center;color:var(--blue);font-size:12px;font-weight:800;margin-top:9px}.account { margin-top:auto;text-align:center;color:var(--muted);font-size:10px;padding:9px 0 2px; }
+    .platform { display:flex; gap:6px; justify-content:center; align-items:center; color:#536987; font-size:10px; margin-top:13px; }.platform span { padding:4px 7px; border-radius:999px; background:#eef3fa; }.platform span:first-child{color:var(--blue);background:var(--soft);font-weight:800}
+    .footer { margin-top:34px; padding:15px 18px; background:#eef4fc; border:1px solid #dbe7f5; border-radius:16px; font-size:12px; line-height:1.5; color:#405d84; }.footer b{color:var(--navy)}
+    @media(max-width:1100px){.grid{grid-template-columns:repeat(2,minmax(250px,1fr));}.phone{max-width:320px}} @media(max-width:600px){main{padding:24px 16px}.grid{grid-template-columns:1fr}.phone{max-width:310px}}
+  </style>
+</head>
+<body>
+  <main>
+    <p class="eyebrow">Nasiya Daftari · xavfsiz kirish</p>
+    <h1>PIN login: 4 ekranli professional oqim</h1>
+    <p class="lead">Mavjud ko‘k, navy va yumshoq-card dizayn tiliga mos. PIN faqat login/ro‘yxatdan o‘tish muvaffaqiyatli yakunlangach yaratiladi; biometrika esa qurilmada mavjud bo‘lsa PIN’ga tezkor alternativ bo‘ladi.</p>
+    <section class="grid">
+      <article class="concept" data-choice="pin-create" onclick="toggleSelect(this)">
+        <div class="concept-head"><span class="number">1</span><h2>PIN yaratish</h2></div>
+        <p>Login yoki registratsiyadan keyingi majburiy, lekin tushunarli boshlang‘ich qadam.</p>
+        <div class="phone"><div class="speaker"></div><div class="screen"><div class="top"><span class="back">‹</span><span>1 / 2</span></div><div class="logo">⌁</div><div class="title">PIN-kod yarating</div><div class="description">Hisobingizga tez va xavfsiz kirish uchun 6 xonali PIN tanlang.</div><div class="steps"><i class="active"></i><i></i></div><div class="dots"><b class="dot fill"></b><b class="dot fill"></b><b class="dot"></b><b class="dot"></b><b class="dot"></b><b class="dot"></b></div><div class="notice"><b>⌑</b><span>Oddiy ketma-ketliklar va tug‘ilgan sanadan foydalanmang.</span></div><div class="keypad"><div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key empty"></div><div class="key">0</div><div class="key action">⌫</div></div></div></div>
+      </article>
+      <article class="concept" data-choice="pin-confirm" onclick="toggleSelect(this)">
+        <div class="concept-head"><span class="number">2</span><h2>PIN’ni tasdiqlash</h2></div>
+        <p>Xato PIN saqlanishining oldini oluvchi ikkinchi qadam; bir xil keypad tajribasi.</p>
+        <div class="phone"><div class="speaker"></div><div class="screen"><div class="top"><span class="back">‹</span><span>2 / 2</span></div><div class="logo">✓</div><div class="title">PIN-kodni takrorlang</div><div class="description">Kiritgan PIN-kodingizni yana bir marta yozing.</div><div class="steps"><i class="active"></i><i class="active"></i></div><div class="dots"><b class="dot fill"></b><b class="dot fill"></b><b class="dot fill"></b><b class="dot fill"></b><b class="dot"></b><b class="dot"></b></div><div class="notice"><b>⌑</b><span>PIN qurilmangizda himoyalangan holda saqlanadi.</span></div><div class="keypad"><div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key empty"></div><div class="key">0</div><div class="key action">⌫</div></div></div></div>
+      </article>
+      <article class="concept" data-choice="pin-unlock" onclick="toggleSelect(this)">
+        <div class="concept-head"><span class="number">3</span><h2>PIN bilan kirish</h2></div>
+        <p>Ilova qayta ochilganda: PIN asosiy usul, biometrika esa bir tegishda muqobil.</p>
+        <div class="phone"><div class="speaker"></div><div class="screen"><div class="top"><span>Nasiya Daftari</span><span>•••</span></div><div class="logo">ND</div><div class="title">Xush kelibsiz, Aziz</div><div class="description">Davom etish uchun PIN-kodni kiriting.</div><div class="dots" style="margin-top:22px"><b class="dot fill"></b><b class="dot fill"></b><b class="dot fill"></b><b class="dot"></b><b class="dot"></b><b class="dot"></b></div><div class="bio">⌁</div><div class="bio-label">Face ID bilan kirish</div><div class="platform"><span>iOS: Face ID</span><span>Android: barmoq izi</span></div><div class="keypad"><div class="key">1</div><div class="key">2</div><div class="key">3</div><div class="key">4</div><div class="key">5</div><div class="key">6</div><div class="key">7</div><div class="key">8</div><div class="key">9</div><div class="key empty">Chiqish</div><div class="key">0</div><div class="key action">⌫</div></div></div></div>
+      </article>
+      <article class="concept" data-choice="profile-security" onclick="toggleSelect(this)">
+        <div class="concept-head"><span class="number">4</span><h2>Profil · xavfsizlik</h2></div>
+        <p>Profil ichidan PIN va biometrikani ko‘rish, yoqish/o‘chirish yoki PIN’ni yangilash.</p>
+        <div class="phone"><div class="speaker"></div><div class="screen"><div class="top"><span>9:41</span><span>◒  ▮▮▮</span></div><div class="profile-head">Profil</div><div class="user"><div class="avatar">AB</div><div><strong>Azizbek Bahodirov</strong><span>@azizbek</span></div></div><div class="section">KIRISH VA XAVFSIZLIK</div><div class="card"><div class="row"><div class="icon">⌑</div><div class="copy"><strong>PIN login</strong><small>PIN-kod o‘rnatilgan</small></div><span class="tag">Faol</span><span class="chev">›</span></div><div class="row"><div class="icon">⌁</div><div class="copy"><strong>Biometrik kirish</strong><small>Face ID bilan tez kirish</small></div><span class="switch"></span></div><div class="row"><div class="icon">↻</div><div class="copy"><strong>PIN-kodni o‘zgartirish</strong><small>Avval amaldagi PIN so‘raladi</small></div><span class="chev">›</span></div></div><div class="section">HISOB</div><div class="card"><div class="row"><div class="icon">▣</div><div class="copy"><strong>Telefon raqami</strong><small>+998 90 123 45 67</small></div><span class="chev">›</span></div></div><div class="account">Hisobingiz himoyasi faqat sizning qurilmangizda ishlaydi</div></div></div>
+      </article>
+    </section>
+    <div class="footer"><b>Oqim:</b> Login / registratsiya → PIN yaratish → PIN tasdiqlash → ilova qulfida PIN yoki biometrika → Profil › Kirish va xavfsizlik orqali boshqarish. Biometrik nom va ikonka avtomatik ravishda iOS’da <b>Face ID/Touch ID</b>, Android’da <b>Barmoq izi</b> bo‘ladi.</div>
+  </main>
+</body>
+</html>

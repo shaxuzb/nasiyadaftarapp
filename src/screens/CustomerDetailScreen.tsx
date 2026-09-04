@@ -19,13 +19,7 @@ import { useToast } from "../context/ToastContext";
 import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { TransactionItem } from "../modules/transactions/components/TransactionItem";
 import { EmptyState } from "../components/EmptyState";
-import {
-  formatCurrency,
-  formatDate,
-  formatDisplayedBalance,
-  getFullName,
-  getInitials,
-} from "../utils";
+import { formatCurrency, formatDate, getFullName, getInitials } from "../utils";
 import { APP_NAME } from "../constants";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
@@ -108,11 +102,11 @@ export function CustomerDetailScreen() {
 
     return {
       txs: customerTransactions,
-      balance: customer?.currentBalance ?? debt - paid,
+      balance: debt - paid,
       totalDebt: debt,
       totalPaid: paid,
     };
-  }, [customer?.currentBalance, customerId, transactions]);
+  }, [customerId, transactions]);
 
   const filteredTxs = useMemo(() => {
     if (txDateFilter === "all") return txs;
@@ -218,14 +212,7 @@ export function CustomerDetailScreen() {
     );
   }
 
-  const isDebtor = balance > 0;
-  const isCredit = balance < 0;
-  const statusColor = isDebtor ? theme.debtColor : theme.paymentColor;
-  const statusLabel = isDebtor
-    ? "Qarzdor"
-    : isCredit
-      ? "Ortiqcha to'lov"
-      : "Qarz yo'q";
+  const settled = balance <= 0;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -252,21 +239,21 @@ export function CustomerDetailScreen() {
           <View
             style={[
               styles.statusChip,
-              isDebtor ? styles.debtChip : styles.settledChip,
+              settled ? styles.settledChip : styles.debtChip,
             ]}
           >
             <Ionicons
-              name={isDebtor ? "alert-circle" : "checkmark-circle"}
+              name={settled ? "checkmark-circle" : "alert-circle"}
               size={16}
-              color={statusColor}
+              color={settled ? theme.paymentColor : theme.debtColor}
             />
             <Text
               style={[
                 styles.statusText,
-                { color: statusColor },
+                { color: settled ? theme.paymentColor : theme.debtColor },
               ]}
             >
-              {statusLabel}
+              {settled ? "Qarz yo'q" : "Qarzdor"}
             </Text>
           </View>
         </View>
@@ -310,15 +297,9 @@ export function CustomerDetailScreen() {
             <DetailStat
               icon="wallet-outline"
               label="Balans"
-              value={formatDisplayedBalance(balance)}
-              color={
-                isDebtor
-                  ? theme.debtColor
-                  : isCredit
-                    ? theme.paymentColor
-                    : theme.primary
-              }
-              backgroundColor={isDebtor ? theme.debtBg : theme.paymentBg}
+              value={formatCurrency(Math.max(balance, 0))}
+              color={theme.primary}
+              backgroundColor={theme.primaryLight}
             />
           </View>
         </View>
@@ -469,12 +450,6 @@ export function CustomerDetailScreen() {
                 key={transaction.id}
                 transaction={transaction}
                 isLast={index === filteredTxs.length - 1}
-                onPress={() =>
-                  openSheet("transactionDetail", {
-                    transaction,
-                    customerName: getFullName(customer),
-                  })
-                }
               />
             ))}
           </View>
@@ -663,8 +638,9 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: 4,
     },
     statContent: {
-      alignItems: "flex-start",
-      gap: 5,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
     },
     statIcon: {
       width: 28,

@@ -17,6 +17,7 @@ import { useAuth } from "../context/AuthContext";
 import { sendSmsCode, verifySmsCode } from "../services/authApi";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { getApiErrorMessage, getApiErrorStatus } from "../utils/apiError";
+import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
 
 const OTP_LENGTH = 6;
 
@@ -73,6 +74,10 @@ export function RegisterSmsVerifyScreen({
     }
     setCode(value);
   }, []);
+
+  const { restartListening } = useOtpAutoFill({
+    onCodeReceived: handleCodeChange,
+  });
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -174,6 +179,7 @@ export function RegisterSmsVerifyScreen({
       lastSubmittedCodeRef.current = null;
       setCode("");
       setSecondsLeft(response.expiresInSeconds ?? 180);
+      restartListening();
       focusOtpInput();
       showToast("Kod qayta yuborildi", "success");
     } catch (error) {

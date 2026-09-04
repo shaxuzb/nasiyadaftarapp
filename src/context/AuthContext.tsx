@@ -5,6 +5,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
@@ -46,6 +47,7 @@ import {
   clearOrganizationQueries,
   invalidateAccountDependentQueries,
 } from "../core/query/queryInvalidation";
+import { getOrganizationSelectionBackAction } from "./organizationSelection";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -62,6 +64,8 @@ interface AuthContextValue {
   refreshOrganizations: () => Promise<void>;
   selectOrganization: (organizationId: number) => Promise<void>;
   openOrganizationSelector: () => Promise<void>;
+  cancelOrganizationSelection: () => Promise<void>;
+  organizationSelectionReturnTab: "Settings" | null;
   updateUserProfile: (patch: Partial<AuthUser>) => Promise<void>;
   logout: () => Promise<void>;
 }
@@ -88,6 +92,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useState<OrganizationMembership | null>(null);
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isOrganizationLoading, setIsOrganizationLoading] = useState(false);
+  const previousOrganizationRef = useRef<OrganizationMembership | null>(null);
+  const [organizationSelectionReturnTab, setOrganizationSelectionReturnTab] =
+    useState<"Settings" | null>(null);
 
   const persistUser = useCallback(async (nextUser: AuthUser) => {
     const session = getAuthSessionSync() ?? (await hydrateAuthSession());
@@ -150,6 +157,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       clearOrganizationQueries();
       setOrganizations(nextOrganizations);
+      previousOrganizationRef.current = null;
+      setOrganizationSelectionReturnTab(null);
       setCurrentOrganization(selected);
       setUser(nextUser);
     },
@@ -260,9 +269,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const openOrganizationSelector = useCallback(async () => {
     if (!user) return;
+    previousOrganizationRef.current = currentOrganization;
+    setOrganizationSelectionReturnTab(currentOrganization ? "Settings" : null);
     setCurrentOrganization(null);
     await updateUserProfile({ organizationId: null, organizationName: null });
-  }, [updateUserProfile, user]);
+  }, [currentOrganization, updateUserProfile, user]);
 
   const createOrganizationForCurrentUser = useCallback(
     async (payload: OrganizationRequest) => {
@@ -322,10 +333,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     clearOrganizationQueries();
     await clearAuthSession();
+    previousOrganizationRef.current = null;
+    setOrganizationSelectionReturnTab(null);
     setCurrentOrganization(null);
     setOrganizations([]);
     setUser(null);
   }, []);
+
+  const cancelOrganizationSelection = useCallback(async () => {
+    const action = getOrganizationSelectionBackAction(
+      previousOrganizationRef.current,
+    );
+    previousOrganizationRef.current = null;
+
+    if (action.type === "logout") {
+      setOrganizationSelectionReturnTab(null);
+      await logout();
+      return;
+    }
+
+    setOrganizationSelectionReturnTab("Settings");
+    setCurrentOrganization(action.organization);
+    await updateUserProfile({
+      organizationId: action.organization.id,
+      organizationName: action.organization.name,
+      hasOrganization: true,
+    });
+  }, [logout, updateUserProfile]);
 
   const login = useCallback(
     async (payload: LoginRequest) => {
@@ -421,18 +455,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshOrganizations,
       selectOrganization,
       openOrganizationSelector,
+      cancelOrganizationSelection,
+      organizationSelectionReturnTab,
       updateUserProfile,
       logout,
     }),
     [
       createOrganizationForCurrentUser,
       currentOrganization,
+      cancelOrganizationSelection,
       isBootstrapping,
       isOrganizationLoading,
       login,
       loginWithGoogleIdToken,
       logout,
       openOrganizationSelector,
+      organizationSelectionReturnTab,
       organizations,
       refreshOrganizations,
       register,

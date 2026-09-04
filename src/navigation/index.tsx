@@ -81,14 +81,14 @@ const TabIcon = React.memo(function TabIcon({
   );
 });
 
-function TabNavigator() {
+function TabNavigator({ initialRouteName = "Customers" }: { initialRouteName?: TabRouteName }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 8);
 
   return (
     <Tab.Navigator
-      initialRouteName="Customers"
+      initialRouteName={initialRouteName}
       screenOptions={({ route }) => ({
         headerShown: false,
         lazy: true,
@@ -150,10 +150,12 @@ function TabNavigator() {
   );
 }
 
-function MainNavigator() {
+function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="MainTabs">
+        {() => <TabNavigator initialRouteName={initialTab} />}
+      </Stack.Screen>
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
     </Stack.Navigator>
@@ -248,6 +250,7 @@ export function AppNavigator() {
     currentOrganization,
     isBootstrapping,
     isOrganizationLoading,
+    organizationSelectionReturnTab,
   } = useAuth();
 
   const navTheme = React.useMemo(() => {
@@ -282,7 +285,7 @@ export function AppNavigator() {
       {!user ? (
         <AuthNavigator />
       ) : currentOrganization ? (
-        <MainNavigator />
+        <MainNavigator initialTab={organizationSelectionReturnTab ?? undefined} />
       ) : (
         <OrganizationNavigator hasOrganizations={organizations.length > 0} />
       )}

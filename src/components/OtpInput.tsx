@@ -1,5 +1,12 @@
 import React, { forwardRef, useImperativeHandle, useMemo, useRef } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
 
@@ -51,7 +58,7 @@ export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
         keyboardType="number-pad"
         autoFocus={autoFocus}
         textContentType="oneTimeCode"
-        autoComplete="sms-otp"
+        autoComplete={Platform.OS === "ios" ? "one-time-code" : "sms-otp"}
         importantForAutofill="yes"
         caretHidden
         style={styles.hiddenInput}

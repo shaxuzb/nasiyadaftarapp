@@ -1,6 +1,13 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
+  BackHandler,
   Keyboard,
   Pressable,
   ScrollView,
@@ -46,6 +53,7 @@ export function OrganizationSelectScreen() {
     createOrganizationForCurrentUser,
     refreshOrganizations,
     logout,
+    cancelOrganizationSelection,
     isOrganizationLoading,
   } = useAuth();
   const [selectingId, setSelectingId] = useState<number | null>(null);
@@ -76,6 +84,30 @@ export function OrganizationSelectScreen() {
     Keyboard.dismiss();
     createSheetRef.current?.dismiss();
   }, []);
+
+  const handleBack = useCallback(() => {
+    Keyboard.dismiss();
+
+    if (isCreateSheetOpen) {
+      closeCreateSheet();
+      return;
+    }
+
+    void cancelOrganizationSelection();
+  }, [cancelOrganizationSelection, closeCreateSheet, isCreateSheetOpen]);
+
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (isCreateSheetOpen) return false;
+        handleBack();
+        return true;
+      },
+    );
+
+    return () => subscription.remove();
+  }, [handleBack, isCreateSheetOpen]);
 
   useBottomSheetBackHandler(isCreateSheetOpen, closeCreateSheet);
 
@@ -120,6 +152,21 @@ export function OrganizationSelectScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <View style={styles.topBar}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Orqaga qaytish"
+          hitSlop={8}
+          onPress={handleBack}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.rowPressed,
+          ]}
+        >
+          <Ionicons name="chevron-back" size={24} color={theme.text} />
+          <Text style={styles.backButtonText}>Orqaga</Text>
+        </Pressable>
+      </View>
       <ScrollView
         contentInsetAdjustmentBehavior="automatic"
         showsVerticalScrollIndicator={false}
@@ -226,9 +273,9 @@ export function OrganizationSelectScreen() {
         enableDynamicSizing={false}
         enablePanDownToClose
         enableOverDrag={false}
-        keyboardBehavior="extend"
+        keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
+        android_keyboardInputMode="adjustPan"
         enableBlurKeyboardOnGesture
         topInset={insets.top}
         backdropComponent={renderBackdrop}
@@ -253,6 +300,26 @@ export function OrganizationSelectScreen() {
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.background },
+    topBar: {
+      minHeight: 52,
+      justifyContent: "center",
+      paddingHorizontal: 12,
+    },
+    backButton: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 2,
+      paddingHorizontal: 4,
+      borderRadius: 12,
+    },
+    backButtonText: {
+      color: theme.text,
+      fontSize: 14,
+      lineHeight: 19,
+      fontWeight: "700",
+    },
     content: {
       flexGrow: 1,
       width: "100%",

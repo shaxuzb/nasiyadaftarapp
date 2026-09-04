@@ -433,7 +433,7 @@ export function CustomersScreen() {
         enableDynamicSizing={false}
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustResize"
+        android_keyboardInputMode="adjustPan"
         enableBlurKeyboardOnGesture
         topInset={insets.top}
         backdropComponent={renderBackdrop}

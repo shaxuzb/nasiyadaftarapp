@@ -11,6 +11,7 @@ import { confirmPasswordReset } from "../services/authApi";
 import { useToast } from "../context/ToastContext";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { getApiErrorMessage } from "../utils/apiError";
+import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
 
 interface Props {
   phone: string;
@@ -25,8 +26,10 @@ export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
   const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useOtpAutoFill({ onCodeReceived: setCode });
+
   const canSubmit = useMemo(
-    () => code.trim().length >= 4 && newPassword.trim().length >= 6,
+    () => code.trim().length === 6 && newPassword.trim().length >= 6,
     [code, newPassword],
   );
 
