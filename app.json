@@ -54,6 +54,12 @@
       ],
       "expo-font",
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Qarz Daftar hisobingizni himoyalash uchun Face ID’dan foydalanadi."
+        }
+      ],
       "expo-sharing"
     ],
     "extra": {
