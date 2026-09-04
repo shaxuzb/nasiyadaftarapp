@@ -28,6 +28,10 @@ await storage.setPin({
 });
 
 assert(pinStorageKey(17) !== pinStorageKey(18), "Keys must be user scoped");
+assert(
+  /^[A-Za-z0-9._-]+$/.test(pinStorageKey(17)),
+  "SecureStore key must contain only supported characters",
+);
 assert(await storage.hasPin(17), "Owner must have a PIN record");
 assert(!(await storage.hasPin(18)), "Other user must not see owner PIN");
 assert(await storage.verifyPin(17, "4826"), "Correct PIN must verify");

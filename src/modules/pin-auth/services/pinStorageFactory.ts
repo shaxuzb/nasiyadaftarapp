@@ -20,7 +20,7 @@ export interface SetPinInput {
   biometricEnabled?: boolean;
 }
 
-export const pinStorageKey = (userId: number) => `pin-auth:v1:${userId}`;
+export const pinStorageKey = (userId: number) => `pin_auth_v1_${userId}`;
 
 function isPinRecord(value: unknown): value is PinRecord {
   if (!value || typeof value !== "object") return false;
