@@ -39,6 +39,7 @@ interface AppLockValue {
   changePin(currentPin: string, nextPin: string): Promise<{ success: boolean; message?: string }>;
   setBiometricEnabled(enabled: boolean): Promise<{ success: boolean; message?: string }>;
   removePin(): Promise<{ success: boolean; message?: string }>;
+  resetPinAndLogout(): Promise<void>;
   startPinSetup(): void;
   lockNow(): void;
 }
@@ -230,6 +231,12 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     setLocked(false);
     return { success: true };
   }, [user]);
+  const resetPinAndLogout = useCallback(async () => {
+    if (!user) return;
+    await pinStorage.clearPin(user.id);
+    await pinStorage.clearPinSetupState(user.id);
+    await logout();
+  }, [logout, user]);
   const gateResolving =
     isResolving || (!isBootstrapping && (user?.id ?? null) !== resolvedUserId);
   const value = useMemo<AppLockValue>(
@@ -248,6 +255,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       changePin,
       setBiometricEnabled,
       removePin,
+      resetPinAndLogout,
       startPinSetup: () => {
         setSetupRequired(true);
         setLocked(true);
@@ -267,6 +275,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       verifyCurrentPin,
       setBiometricEnabled,
       removePin,
+      resetPinAndLogout,
       unlockWithBiometrics,
       user?.fullName,
     ],

@@ -8,6 +8,7 @@ import { useTheme } from "../../../hooks/useTheme";
 import { AppTheme } from "../../../types";
 import { radius, spacing, typography } from "../../../theme";
 import { useAppLock } from "../context/AppLockContext";
+import { useConfirmDialog } from "../../../context/ConfirmDialogContext";
 import { PIN_LENGTH, validatePin } from "../utils/pinValidation";
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
@@ -16,7 +17,8 @@ const wait = (duration: number) => new Promise<void>((resolve) => setTimeout(res
 export function PinGateScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { setupRequired, displayName, biometric, biometricEnabled, submitSetupPin, submitUnlockPin, unlockWithBiometrics } = useAppLock();
+  const { setupRequired, displayName, biometric, biometricEnabled, submitSetupPin, submitUnlockPin, unlockWithBiometrics, resetPinAndLogout } = useAppLock();
+  const { confirm } = useConfirmDialog();
   const [value, setValue] = useState("");
   const [firstPin, setFirstPin] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -101,6 +103,20 @@ export function PinGateScreen() {
     if (!unlocked) animateError(`${biometric?.label ?? "Biometrik kirish"} tasdiqlanmadi`);
   };
 
+  const onForgotPin = async () => {
+    if (busy) return;
+    const accepted = await confirm({
+      title: "PIN-kodni unutdingizmi?",
+      message: "PIN ma’lumotlari o‘chiriladi va xavfsizlik uchun hisobdan chiqasiz. Qayta login qilgach, yangi PIN o‘rnatishingiz mumkin.",
+      confirmText: "Chiqish va o‘chirish",
+      cancelText: "Bekor qilish",
+      variant: "danger",
+    });
+    if (!accepted) return;
+    setBusy(true);
+    await resetPinAndLogout();
+  };
+
   React.useEffect(() => {
     if (setupRequired || !biometric?.available || !biometricEnabled || autoPrompted.current) return;
     autoPrompted.current = true;
@@ -139,7 +155,8 @@ export function PinGateScreen() {
         </Animated.View>
         {message ? <Text style={[styles.message, { color: passed ? theme.successColor : theme.dangerColor }]}>{message}</Text> : <View style={styles.messageSpacer} />}
         {!setupRequired && biometric?.available && biometricEnabled ? <Pressable accessibilityRole="button" accessibilityLabel={`${biometric.label} bilan kirish`} onPress={() => void onBiometric()} style={({ pressed }) => [styles.biometric, pressed && styles.pressed]}>{busy ? <ActivityIndicator color={theme.primary} /> : <Ionicons name={biometric.icon} size={24} color={theme.primary} />}<Text style={styles.biometricText}>{biometric.label} bilan kirish</Text></Pressable> : <View style={styles.biometricSpacer} />}
-        <View style={styles.keypad}>{DIGITS.map((digit, index) => digit ? <Pressable key={digit} accessibilityRole="button" accessibilityLabel={digit === "back" ? "O‘chirish" : digit} onPress={() => press(digit)} style={({ pressed }) => [styles.key, pressed && { backgroundColor: theme.primaryLight }]}><Text style={styles.keyText}>{digit === "back" ? "⌫" : digit}</Text></Pressable> : <View key={`empty-${index}`} style={styles.key} />)}</View>
+        {busy ? <View style={styles.loadingPanel}><ActivityIndicator size="small" color={theme.primary} /><Text style={styles.loadingText}>{passed ? "Tasdiqlanmoqda…" : "Tekshirilmoqda…"}</Text></View> : <View style={styles.keypad}>{DIGITS.map((digit, index) => digit ? <Pressable key={digit} accessibilityRole="button" accessibilityLabel={digit === "back" ? "O‘chirish" : digit} onPress={() => press(digit)} style={({ pressed }) => [styles.key, pressed && { backgroundColor: theme.primaryLight }]}><Text style={styles.keyText}>{digit === "back" ? "⌫" : digit}</Text></Pressable> : <View key={`empty-${index}`} style={styles.key} />)}</View>}
+        {!setupRequired && !busy ? <Pressable accessibilityRole="button" accessibilityLabel="PIN-kodni unutdim" onPress={() => void onForgotPin()} style={({ pressed }) => [styles.forgotButton, pressed && styles.pressed]}><Ionicons name="help-circle-outline" size={16} color={theme.textSecondary} /><Text style={styles.forgotText}>PIN-kodni unutdingizmi?</Text></Pressable> : null}
       </View>
     </SafeAreaView>
   );
@@ -161,7 +178,11 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   biometricText: { ...typography.label, color: theme.primary },
   biometricSpacer: { height: 62 },
   keypad: { width: 250, marginTop: "auto", flexDirection: "row", flexWrap: "wrap", justifyContent: "center", paddingBottom: spacing.md },
+  loadingPanel: { height: 224, width: 250, marginTop: "auto", alignItems: "center", justifyContent: "center", gap: spacing.sm },
+  loadingText: { ...typography.caption, color: theme.textSecondary },
   key: { width: "33.33%", height: 56, alignItems: "center", justifyContent: "center", borderRadius: 16 },
   keyText: { color: theme.text, fontSize: 23, fontWeight: "600" },
   pressed: { opacity: 0.72 },
+  forgotButton: { minHeight: 38, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: spacing.md, borderRadius: radius.md },
+  forgotText: { ...typography.caption, color: theme.textSecondary },
 });

@@ -73,6 +73,9 @@ export function createPinStorage({
     async markPinSetupComplete(userId: number): Promise<void> {
       await secureStore.setItemAsync(pinSetupStateKey(userId), "1");
     },
+    async clearPinSetupState(userId: number): Promise<void> {
+      await secureStore.deleteItemAsync(pinSetupStateKey(userId));
+    },
     async hasPin(userId: number): Promise<boolean> {
       return Boolean(await getPinRecord(userId));
     },
