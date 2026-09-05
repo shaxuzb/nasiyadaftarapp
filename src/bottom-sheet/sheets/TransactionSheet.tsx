@@ -168,7 +168,7 @@ export function TransactionSheet({
               onChangeText={(value) => setAmount(formatAmountInput(value))}
               keyboardType="number-pad"
               // returnKeyType="next"
-              blurOnSubmit={false}
+              blurOnSubmit
               maxLength={19}
               placeholder={isDebt ? "Qarz summasi" : "To'lov summasi"}
               placeholderTextColor={theme.textMuted}
