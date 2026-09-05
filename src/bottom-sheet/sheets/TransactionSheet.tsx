@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -9,11 +9,12 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { TextInput as GestureTextInput } from "react-native-gesture-handler";
 import {
   BottomSheetScrollView,
   BottomSheetTextInput,
 } from "@gorhom/bottom-sheet";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { KeyboardAwareScrollView, KeyboardController } from "react-native-keyboard-controller";
 
 import { SheetRenderProps } from "../types";
 import { useToast } from "../../context/ToastContext";
@@ -55,6 +56,8 @@ export function TransactionSheet({
   const [saving, setSaving] = useState(false);
   const [amountFocused, setAmountFocused] = useState(false);
   const [noteFocused, setNoteFocused] = useState(false);
+  const amountInputRef = useRef<GestureTextInput>(null);
+  const noteInputRef = useRef<GestureTextInput>(null);
 
   const transactionType = props.type ?? "debt";
   const isDebt = transactionType === "debt";
@@ -76,14 +79,20 @@ export function TransactionSheet({
       : Math.max(currentBalance - parsedAmount, 0);
   }, [currentBalance, isDebt, parsedAmount]);
 
+  function dismissKeyboard() {
+    amountInputRef.current?.blur();
+    noteInputRef.current?.blur();
+    Keyboard.dismiss();
+    void KeyboardController.dismiss();
+  }
+
   async function handleSave() {
+    dismissKeyboard();
     if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
       hapticError();
       showToast("Summa 0 dan katta bo'lishi kerak", "error");
       return;
     }
-
-    Keyboard.dismiss();
 
     try {
       setSaving(true);
@@ -154,6 +163,7 @@ export function TransactionSheet({
             ]}
           >
             <BottomSheetTextInput
+              ref={amountInputRef}
               value={amount}
               onChangeText={(value) => setAmount(formatAmountInput(value))}
               keyboardType="number-pad"
@@ -201,6 +211,7 @@ export function TransactionSheet({
             ]}
           >
             <BottomSheetTextInput
+              ref={noteInputRef}
               value={note}
               onChangeText={setNote}
               placeholder="Qo'shimcha ma'lumot"
@@ -212,7 +223,7 @@ export function TransactionSheet({
               maxLength={250}
               returnKeyType="done"
               blurOnSubmit
-              onSubmitEditing={Keyboard.dismiss}
+              onSubmitEditing={dismissKeyboard}
               onFocus={() => setNoteFocused(true)}
               onBlur={() => setNoteFocused(false)}
               style={styles.noteInput}
