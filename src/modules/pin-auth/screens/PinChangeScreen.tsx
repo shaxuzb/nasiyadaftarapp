@@ -17,7 +17,7 @@ const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 export function PinChangeScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { changePin } = useAppLock();
+  const { changePin, verifyCurrentPin } = useAppLock();
   const [step, setStep] = useState<"current" | "new" | "confirm">("current");
   const [value, setValue] = useState("");
   const [currentPin, setCurrentPin] = useState("");
@@ -45,10 +45,19 @@ export function PinChangeScreen({ navigation }: Props) {
   const complete = async (pin: string) => {
     setValue("");
     if (step === "current") {
-      setCurrentPin(pin);
-      setStep("new");
-      setPassed(false);
-      setMessage("");
+      setBusy(true);
+      try {
+        if (!(await verifyCurrentPin(pin))) {
+          animateError("Amaldagi PIN-kod noto‘g‘ri. Qayta kiriting.");
+          return;
+        }
+        setCurrentPin(pin);
+        setStep("new");
+        setPassed(false);
+        setMessage("");
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (step === "new") {

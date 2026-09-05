@@ -32,6 +32,7 @@ interface AppLockValue {
   displayName: string;
   submitSetupPin(pin: string): Promise<void>;
   submitUnlockPin(pin: string): Promise<UnlockResult>;
+  verifyCurrentPin(pin: string): Promise<boolean>;
   unlockWithBiometrics(): Promise<boolean>;
   changePin(currentPin: string, nextPin: string): Promise<{ success: boolean; message?: string }>;
   setBiometricEnabled(enabled: boolean): Promise<{ success: boolean; message?: string }>;
@@ -150,6 +151,13 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     },
     [logout, security, user],
   );
+  const verifyCurrentPin = useCallback(
+    (pin: string) => {
+      if (!user) return Promise.resolve(false);
+      return security.verifyPin(user.id, pin);
+    },
+    [security, user],
+  );
   const unlockWithBiometrics = useCallback(async () => {
     if (!user || !biometric?.available || !biometricEnabled) return false;
     if (await security.unlockBiometric(user.id)) {
@@ -203,6 +211,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       displayName: user?.fullName ?? "Foydalanuvchi",
       submitSetupPin,
       submitUnlockPin,
+      verifyCurrentPin,
       unlockWithBiometrics,
       changePin,
       setBiometricEnabled,
@@ -223,6 +232,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       setupRequired,
       submitSetupPin,
       submitUnlockPin,
+      verifyCurrentPin,
       setBiometricEnabled,
       removePin,
       unlockWithBiometrics,

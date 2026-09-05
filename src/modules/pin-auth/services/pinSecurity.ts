@@ -43,6 +43,10 @@ export function createPinSecurity(
     };
   }
 
+  async function verifyPin(userId: number, pin: string): Promise<boolean> {
+    return storage.verifyPin(userId, pin);
+  }
+
   async function changePin(
     userId: number,
     currentPin: string,
@@ -92,5 +96,5 @@ export function createPinSecurity(
     return true;
   }
 
-  return { checkPin, changePin, setBiometric, unlockBiometric };
+  return { checkPin, verifyPin, changePin, setBiometric, unlockBiometric };
 }

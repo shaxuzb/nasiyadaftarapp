@@ -396,23 +396,27 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 .finally(() => setBiometricLoading(false));
             }}
           />
-          <ActionRow
-            icon="create-outline"
-            iconColor={theme.primary}
-            iconBackground={theme.inputBackground}
-            title="PIN-kodni o'zgartirish"
-            description="Amaldagi PIN-kodni tasdiqlab, yangisini o'rnating"
-            onPress={() => navigation.navigate("PinChange")}
-          />
-          <ActionRow
-            icon="trash-outline"
-            iconColor={theme.dangerColor}
-            iconBackground={theme.debtBg}
-            title="PIN-kodni o‘chirish"
-            description="PIN login va biometrik kirishni o‘chiradi"
-            onPress={handlePinRemove}
-            isLast
-          />
+          {pinEnabled ? (
+            <ActionRow
+              icon="create-outline"
+              iconColor={theme.primary}
+              iconBackground={theme.inputBackground}
+              title="PIN-kodni o'zgartirish"
+              description="Amaldagi PIN-kodni tasdiqlab, yangisini o'rnating"
+              onPress={() => navigation.navigate("PinChange")}
+            />
+          ) : null}
+          {pinEnabled ? (
+            <ActionRow
+              icon="trash-outline"
+              iconColor={theme.dangerColor}
+              iconBackground={theme.debtBg}
+              title="PIN-kodni o‘chirish"
+              description="PIN login va biometrik kirishni o‘chiradi"
+              onPress={handlePinRemove}
+              isLast
+            />
+          ) : null}
         </View>
 
         <Text style={styles.sectionTitle}>Parol va akkauntlar</Text>
