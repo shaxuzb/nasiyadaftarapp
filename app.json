@@ -16,7 +16,8 @@
       "bundleIdentifier": "com.rbsx.nasiyadaftarapp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSContactsUsageDescription": "Mijozni kontaktlardan tez qo'shish uchun kontaktlarga ruxsat bering."
+        "NSContactsUsageDescription": "Mijozni kontaktlardan tez qo'shish uchun kontaktlarga ruxsat bering.",
+        "NSFaceIDUsageDescription": "Qarz Daftar hisobingizni himoyalash uchun Face ID’dan foydalanadi."
       }
     },
     "android": {

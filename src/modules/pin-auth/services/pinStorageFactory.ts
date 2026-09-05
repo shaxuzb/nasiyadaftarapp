@@ -21,6 +21,7 @@ export interface SetPinInput {
 }
 
 export const pinStorageKey = (userId: number) => `pin_auth_v1_${userId}`;
+const pinSetupStateKey = (userId: number) => `pin_setup_v1_${userId}`;
 
 function isPinRecord(value: unknown): value is PinRecord {
   if (!value || typeof value !== "object") return false;
@@ -66,6 +67,12 @@ export function createPinStorage({
 
   return {
     getPinRecord,
+    async isPinSetupComplete(userId: number): Promise<boolean> {
+      return (await secureStore.getItemAsync(pinSetupStateKey(userId))) === "1";
+    },
+    async markPinSetupComplete(userId: number): Promise<void> {
+      await secureStore.setItemAsync(pinSetupStateKey(userId), "1");
+    },
     async hasPin(userId: number): Promise<boolean> {
       return Boolean(await getPinRecord(userId));
     },
@@ -81,6 +88,7 @@ export function createPinStorage({
         maskedContact: input.maskedContact,
       };
       await savePinRecord(input.userId, record);
+      await secureStore.setItemAsync(pinSetupStateKey(input.userId), "1");
       return record;
     },
     async verifyPin(userId: number, pin: string): Promise<boolean> {

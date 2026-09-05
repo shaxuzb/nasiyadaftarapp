@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -154,10 +155,12 @@ export function AccountSecurityScreen({ navigation }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { user, updateUserProfile } = useAuth();
   const {
-    setupRequired,
+    pinEnabled,
     biometric,
     biometricEnabled,
     setBiometricEnabled,
+    removePin,
+    startPinSetup,
     lockNow,
   } = useAppLock();
   const { showToast } = useToast();
@@ -179,6 +182,25 @@ export function AccountSecurityScreen({ navigation }: Props) {
   const hasEmail = Boolean(user?.email?.trim());
   const canUseSms = hasPhone;
   const canUseEmail = hasEmail;
+
+  const handlePinRemove = useCallback(() => {
+    Alert.alert(
+      "PIN-kodni o‘chirish",
+      "PIN login va biometrik kirish o‘chiriladi. Keyin istalgan vaqtda yangi PIN o‘rnatishingiz mumkin.",
+      [
+        { text: "Bekor qilish", style: "cancel" },
+        {
+          text: "O‘chirish",
+          style: "destructive",
+          onPress: () => {
+            void removePin().then((result) => {
+              showToast(result.success ? "PIN-kod o‘chirildi" : result.message ?? "PIN-kodni o‘chirib bo‘lmadi", result.success ? "success" : "error");
+            });
+          },
+        },
+      ],
+    );
+  }, [removePin, showToast]);
 
   const resetPasswordChange = useCallback(() => {
     setPasswordStep("idle");
@@ -331,7 +353,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>Xavfsizlik sozlamalari</Text>
+        <Text style={styles.sectionTitle}>PIN-kod va biometrika</Text>
         <View style={styles.card}>
           <ActionRow
             icon="key-outline"
@@ -339,14 +361,14 @@ export function AccountSecurityScreen({ navigation }: Props) {
             iconBackground={theme.primaryLight}
             title="PIN login"
             description={
-              setupRequired
+              !pinEnabled
                 ? "PIN-kod hali o'rnatilmagan"
                 : biometric?.available && biometricEnabled
                   ? `${biometric.label} va 4 xonali PIN bilan himoyalangan`
                   : "4 xonali PIN bilan himoyalangan"
             }
             onPress={() => {
-              if (setupRequired) lockNow();
+              if (!pinEnabled) startPinSetup();
               else navigation.navigate("PinChange");
             }}
           />
@@ -356,12 +378,14 @@ export function AccountSecurityScreen({ navigation }: Props) {
             iconBackground={theme.primaryLight}
             title={biometric?.label ?? "Biometrik kirish"}
             description={
-              biometric?.available
+              !pinEnabled
+                ? "Avval PIN-kod o‘rnating"
+                : biometric?.available
                 ? "Ilovaga Face ID, Touch ID yoki barmoq izi bilan kiring"
                 : "Bu qurilmada biometrik kirish mavjud emas"
             }
             value={biometricEnabled}
-            disabled={!biometric?.available || biometricLoading}
+            disabled={!pinEnabled || !biometric?.available || biometricLoading}
             onPress={() => {
               setBiometricLoading(true);
               void setBiometricEnabled(!biometricEnabled)
@@ -380,6 +404,19 @@ export function AccountSecurityScreen({ navigation }: Props) {
             description="Amaldagi PIN-kodni tasdiqlab, yangisini o'rnating"
             onPress={() => navigation.navigate("PinChange")}
           />
+          <ActionRow
+            icon="trash-outline"
+            iconColor={theme.dangerColor}
+            iconBackground={theme.debtBg}
+            title="PIN-kodni o‘chirish"
+            description="PIN login va biometrik kirishni o‘chiradi"
+            onPress={handlePinRemove}
+            isLast
+          />
+        </View>
+
+        <Text style={styles.sectionTitle}>Parol va akkauntlar</Text>
+        <View style={styles.card}>
           <ActionRow
             icon="lock-closed-outline"
             iconColor={theme.warningColor}

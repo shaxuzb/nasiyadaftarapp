@@ -25,6 +25,7 @@ type UnlockResult = {
 interface AppLockValue {
   isResolving: boolean;
   setupRequired: boolean;
+  pinEnabled: boolean;
   isLocked: boolean;
   biometric: BiometricCapability | null;
   biometricEnabled: boolean;
@@ -34,6 +35,8 @@ interface AppLockValue {
   unlockWithBiometrics(): Promise<boolean>;
   changePin(currentPin: string, nextPin: string): Promise<{ success: boolean; message?: string }>;
   setBiometricEnabled(enabled: boolean): Promise<{ success: boolean; message?: string }>;
+  removePin(): Promise<{ success: boolean; message?: string }>;
+  startPinSetup(): void;
   lockNow(): void;
 }
 const AppLockContext = createContext<AppLockValue | undefined>(undefined);
@@ -49,6 +52,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const [isResolving, setResolving] = useState(true);
   const [resolvedUserId, setResolvedUserId] = useState<number | null>(null);
   const [setupRequired, setSetupRequired] = useState(false);
+  const [pinEnabled, setPinEnabled] = useState(false);
   const [isLocked, setLocked] = useState(false);
   const [biometric, setBiometric] = useState<BiometricCapability | null>(null);
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
@@ -66,6 +70,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       if (!user) {
         if (active) {
           setSetupRequired(false);
+          setPinEnabled(false);
           setLocked(false);
           setBiometric(null);
           setBiometricEnabledState(false);
@@ -74,8 +79,9 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         }
         return;
       }
-      const [record, capability] = await Promise.all([
+      const [record, pinSetupComplete, capability] = await Promise.all([
         pinStorage.getPinRecord(user.id),
+        pinStorage.isPinSetupComplete(user.id),
         getBiometricCapability().catch(() => null),
       ]);
       if (!active || userIdRef.current !== user.id) return;
@@ -86,7 +92,8 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       );
       if (active) {
         const hasPin = Boolean(record);
-        setSetupRequired(!hasPin);
+        setSetupRequired(!hasPin && !pinSetupComplete);
+        setPinEnabled(hasPin);
         setLocked(hasPin);
         setBiometric(capability);
         setBiometricEnabled(updatedRecord?.biometricEnabled ?? record?.biometricEnabled ?? false);
@@ -120,6 +127,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         }
       }
       setSetupRequired(false);
+      setPinEnabled(true);
       setLocked(false);
       setBiometricEnabledState(enabled);
     },
@@ -172,12 +180,23 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     },
     [biometric, user],
   );
+  const removePin = useCallback(async () => {
+    if (!user) return { success: false, message: "Foydalanuvchi topilmadi" };
+    await pinStorage.clearPin(user.id);
+    await pinStorage.markPinSetupComplete(user.id);
+    setBiometricEnabledState(false);
+    setPinEnabled(false);
+    setSetupRequired(false);
+    setLocked(false);
+    return { success: true };
+  }, [user]);
   const gateResolving =
     isResolving || (!isBootstrapping && (user?.id ?? null) !== resolvedUserId);
   const value = useMemo<AppLockValue>(
     () => ({
       isResolving: gateResolving,
       setupRequired,
+      pinEnabled,
       isLocked,
       biometric,
       biometricEnabled,
@@ -187,6 +206,11 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       unlockWithBiometrics,
       changePin,
       setBiometricEnabled,
+      removePin,
+      startPinSetup: () => {
+        setSetupRequired(true);
+        setLocked(true);
+      },
       lockNow: () => setLocked(true),
     }),
     [
@@ -195,10 +219,12 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       changePin,
       gateResolving,
       isLocked,
+      pinEnabled,
       setupRequired,
       submitSetupPin,
       submitUnlockPin,
       setBiometricEnabled,
+      removePin,
       unlockWithBiometrics,
       user?.fullName,
     ],

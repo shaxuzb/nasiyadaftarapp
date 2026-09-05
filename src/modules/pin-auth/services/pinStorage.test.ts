@@ -33,8 +33,12 @@ assert(
   "SecureStore key must contain only supported characters",
 );
 assert(await storage.hasPin(17), "Owner must have a PIN record");
+assert(await storage.isPinSetupComplete(17), "PIN setup state must be remembered");
 assert(!(await storage.hasPin(18)), "Other user must not see owner PIN");
 assert(await storage.verifyPin(17, "4826"), "Correct PIN must verify");
 assert(!(await storage.verifyPin(17, "4827")), "Incorrect PIN must fail");
+await storage.clearPin(17);
+assert(!(await storage.hasPin(17)), "PIN record must be removable");
+assert(await storage.isPinSetupComplete(17), "Removing PIN must not reset setup state");
 
 console.log("PIN storage isolation regression tests passed");

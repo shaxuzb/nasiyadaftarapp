@@ -22,6 +22,7 @@ export function PinGateScreen() {
   const [message, setMessage] = useState("");
   const [passed, setPassed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const autoPrompted = React.useRef(false);
   const shake = React.useRef(new Animated.Value(0)).current;
   const success = React.useRef(new Animated.Value(1)).current;
 
@@ -99,6 +100,26 @@ export function PinGateScreen() {
     setBusy(false);
     if (!unlocked) animateError(`${biometric?.label ?? "Biometrik kirish"} tasdiqlanmadi`);
   };
+
+  React.useEffect(() => {
+    if (setupRequired || !biometric?.available || !biometricEnabled || autoPrompted.current) return;
+    autoPrompted.current = true;
+    let active = true;
+    setBusy(true);
+    setPassed(true);
+    setMessage("Biometrika tekshirilmoqda…");
+    Animated.spring(success, { toValue: 1.12, friction: 5, tension: 100, useNativeDriver: true }).start();
+    void unlockWithBiometrics().then((unlocked) => {
+      if (!active) return;
+      if (!unlocked) animateError(`${biometric.label} tasdiqlanmadi`);
+      setBusy(false);
+    });
+    return () => {
+      active = false;
+      success.stopAnimation();
+      shake.stopAnimation();
+    };
+  }, [biometric, biometricEnabled, setupRequired, unlockWithBiometrics]);
 
   const confirming = setupRequired && firstPin !== null;
   const title = setupRequired ? (confirming ? "PIN-kodni takrorlang" : "PIN-kod yarating") : `Xush kelibsiz, ${displayName.split(" ")[0]}`;
