@@ -1,7 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,6 +28,7 @@ import {
 } from "../modules/auth/services/googleSignInService";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { useTheme } from "../hooks/useTheme";
 import { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
@@ -164,6 +164,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
     lockNow,
   } = useAppLock();
   const { showToast } = useToast();
+  const { confirm } = useConfirmDialog();
 
   const [passwordStep, setPasswordStep] = useState<PasswordStep>("idle");
   const [passwordDelivery, setPasswordDelivery] =
@@ -183,24 +184,21 @@ export function AccountSecurityScreen({ navigation }: Props) {
   const canUseSms = hasPhone;
   const canUseEmail = hasEmail;
 
-  const handlePinRemove = useCallback(() => {
-    Alert.alert(
-      "PIN-kodni o‘chirish",
-      "PIN login va biometrik kirish o‘chiriladi. Keyin istalgan vaqtda yangi PIN o‘rnatishingiz mumkin.",
-      [
-        { text: "Bekor qilish", style: "cancel" },
-        {
-          text: "O‘chirish",
-          style: "destructive",
-          onPress: () => {
-            void removePin().then((result) => {
-              showToast(result.success ? "PIN-kod o‘chirildi" : result.message ?? "PIN-kodni o‘chirib bo‘lmadi", result.success ? "success" : "error");
-            });
-          },
-        },
-      ],
+  const handlePinRemove = useCallback(async () => {
+    const accepted = await confirm({
+      title: "PIN-kodni o‘chirish",
+      message: "PIN login va biometrik kirish o‘chiriladi. Keyin istalgan vaqtda yangi PIN o‘rnatishingiz mumkin.",
+      confirmText: "O‘chirish",
+      cancelText: "Bekor qilish",
+      variant: "danger",
+    });
+    if (!accepted) return;
+    const result = await removePin();
+    showToast(
+      result.success ? "PIN-kod o‘chirildi" : result.message ?? "PIN-kodni o‘chirib bo‘lmadi",
+      result.success ? "success" : "error",
     );
-  }, [removePin, showToast]);
+  }, [confirm, removePin, showToast]);
 
   const resetPasswordChange = useCallback(() => {
     setPasswordStep("idle");
