@@ -110,11 +110,20 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         displayName: user.fullName,
         maskedContact: maskedContact(user.phoneNumber, user.email),
       });
+      let enabled = false;
+      if (biometric?.available) {
+        try {
+          enabled = await authenticateWithBiometrics();
+          if (enabled) await pinStorage.setBiometricEnabled(user.id, true);
+        } catch {
+          // Biometric setup is optional; PIN login remains available if it is cancelled.
+        }
+      }
       setSetupRequired(false);
       setLocked(false);
-      setBiometricEnabledState(false);
+      setBiometricEnabledState(enabled);
     },
-    [user],
+    [biometric, user],
   );
   const submitUnlockPin = useCallback(
     async (pin: string): Promise<UnlockResult> => {

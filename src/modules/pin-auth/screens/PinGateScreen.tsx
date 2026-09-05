@@ -1,9 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 
 import { useTheme } from "../../../hooks/useTheme";
 import { AppTheme } from "../../../types";
@@ -23,14 +22,18 @@ export function PinGateScreen() {
   const [message, setMessage] = useState("");
   const [passed, setPassed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const shake = useSharedValue(0);
-  const success = useSharedValue(0);
-  const entryStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
-  const successStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + success.value * 0.08 }] }));
+  const shake = React.useRef(new Animated.Value(0)).current;
+  const success = React.useRef(new Animated.Value(1)).current;
 
   const animateError = (text: string) => {
-    success.value = withTiming(0, { duration: 80 });
-    shake.value = withSequence(withTiming(-9, { duration: 45 }), withTiming(9, { duration: 45 }), withTiming(-5, { duration: 40 }), withTiming(0, { duration: 45 }));
+    success.stopAnimation();
+    success.setValue(1);
+    Animated.sequence([
+      Animated.timing(shake, { toValue: -9, duration: 45, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: 9, duration: 45, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -5, duration: 40, useNativeDriver: true }),
+      Animated.spring(shake, { toValue: 0, friction: 7, tension: 120, useNativeDriver: true }),
+    ]).start();
     setPassed(false);
     setMessage(text);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -53,7 +56,7 @@ export function PinGateScreen() {
           animateError("PIN-kodlar mos kelmadi. Qayta urinib ko‘ring.");
           return;
         }
-        success.value = withTiming(1, { duration: 180 });
+        Animated.spring(success, { toValue: 1.12, friction: 5, tension: 100, useNativeDriver: true }).start();
         setPassed(true);
         setMessage("PIN-kod saqlanmoqda…");
         void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -62,7 +65,7 @@ export function PinGateScreen() {
         return;
       }
 
-      success.value = withTiming(1, { duration: 180 });
+      Animated.spring(success, { toValue: 1.12, friction: 5, tension: 100, useNativeDriver: true }).start();
       setPassed(true);
       const result = await submitUnlockPin(pin);
       if (result.status === "invalid") animateError(`PIN noto‘g‘ri. ${result.attemptsRemaining} urinish qoldi.`);
@@ -91,7 +94,7 @@ export function PinGateScreen() {
     setBusy(true);
     setPassed(true);
     setMessage("Tasdiqlanmoqda…");
-    success.value = withTiming(1, { duration: 180 });
+    Animated.spring(success, { toValue: 1.12, friction: 5, tension: 100, useNativeDriver: true }).start();
     const unlocked = await unlockWithBiometrics();
     setBusy(false);
     if (!unlocked) animateError(`${biometric?.label ?? "Biometrik kirish"} tasdiqlanmadi`);
@@ -104,13 +107,13 @@ export function PinGateScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.content}>
-        <Animated.View style={[styles.icon, { backgroundColor: theme.primaryLight }, successStyle]}>
+        <Animated.View style={[styles.icon, { backgroundColor: theme.primaryLight }, { transform: [{ scale: success }] }]}>
           <Ionicons name={passed ? "checkmark" : setupRequired ? "key-outline" : "lock-closed-outline"} size={28} color={passed ? theme.successColor : theme.primary} />
         </Animated.View>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.description}>{description}</Text>
         {setupRequired ? <View style={styles.progress}><View style={[styles.progressBar, { backgroundColor: theme.primary }]} /><View style={[styles.progressBar, { backgroundColor: confirming ? theme.primary : theme.border }]} /></View> : null}
-        <Animated.View style={[styles.dots, entryStyle]}>
+        <Animated.View style={[styles.dots, { transform: [{ translateX: shake }] }]}>
           {Array.from({ length: PIN_LENGTH }, (_, index) => <View key={index} style={[styles.dot, { borderColor: message && !passed ? theme.dangerColor : theme.primary }, index < value.length && { backgroundColor: message && !passed ? theme.dangerColor : theme.primary }]} />)}
         </Animated.View>
         {message ? <Text style={[styles.message, { color: passed ? theme.successColor : theme.dangerColor }]}>{message}</Text> : <View style={styles.messageSpacer} />}

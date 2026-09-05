@@ -1,14 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSequence,
-  withTiming,
-} from "react-native-reanimated";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { useTheme } from "../../../hooks/useTheme";
@@ -31,19 +25,18 @@ export function PinChangeScreen({ navigation }: Props) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [passed, setPassed] = useState(false);
-  const shake = useSharedValue(0);
-  const success = useSharedValue(0);
-  const entryStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: shake.value }],
-  }));
+  const shake = React.useRef(new Animated.Value(0)).current;
+  const success = React.useRef(new Animated.Value(1)).current;
 
   const animateError = (text: string) => {
-    shake.value = withSequence(
-      withTiming(-9, { duration: 45 }),
-      withTiming(9, { duration: 45 }),
-      withTiming(-5, { duration: 40 }),
-      withTiming(0, { duration: 45 }),
-    );
+    success.stopAnimation();
+    success.setValue(1);
+    Animated.sequence([
+      Animated.timing(shake, { toValue: -9, duration: 45, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: 9, duration: 45, useNativeDriver: true }),
+      Animated.timing(shake, { toValue: -5, duration: 40, useNativeDriver: true }),
+      Animated.spring(shake, { toValue: 0, friction: 7, tension: 120, useNativeDriver: true }),
+    ]).start();
     setPassed(false);
     setMessage(text);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -87,7 +80,7 @@ export function PinChangeScreen({ navigation }: Props) {
         animateError(result.message ?? "PIN-kodni almashtirib bo'lmadi");
         return;
       }
-      success.value = withTiming(1, { duration: 180 });
+      Animated.spring(success, { toValue: 1.12, friction: 5, tension: 100, useNativeDriver: true }).start();
       setPassed(true);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setMessage("PIN-kod muvaffaqiyatli yangilandi");
@@ -128,9 +121,9 @@ export function PinChangeScreen({ navigation }: Props) {
         <Text style={styles.headerTitle}>PIN-kodni o‘zgartirish</Text>
       </View>
       <View style={styles.content}>
-        <View style={[styles.icon, { backgroundColor: theme.primaryLight }]}>
+        <Animated.View style={[styles.icon, { backgroundColor: theme.primaryLight }, { transform: [{ scale: success }] }]}>
           <Ionicons name="key-outline" size={27} color={theme.primary} />
-        </View>
+        </Animated.View>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.description}>{description}</Text>
         <View style={styles.progress}>
@@ -138,7 +131,7 @@ export function PinChangeScreen({ navigation }: Props) {
             <View key={item} style={[styles.progressBar, { backgroundColor: item === step || (["current", "new", "confirm"].indexOf(item) < ["current", "new", "confirm"].indexOf(step)) ? theme.primary : theme.border }]} />
           ))}
         </View>
-        <Animated.View style={[styles.dots, entryStyle]}>
+        <Animated.View style={[styles.dots, { transform: [{ translateX: shake }] }]}>
           {Array.from({ length: PIN_LENGTH }, (_, index) => (
             <View key={index} style={[styles.dot, { borderColor: message && !passed ? theme.dangerColor : theme.primary }, index < value.length && { backgroundColor: message && !passed ? theme.dangerColor : theme.primary }]} />
           ))}
