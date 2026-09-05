@@ -33,6 +33,7 @@ import { useTheme } from "../hooks/useTheme";
 import { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
 import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
+import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AccountSecurity">;
 type PasswordStep = "idle" | "request" | "confirm";
@@ -40,6 +41,15 @@ type GoogleStep = "idle" | "confirm";
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
 const OTP_LENGTH = 6;
+
+function PasswordSmsAutoFill({
+  onCodeReceived,
+}: {
+  onCodeReceived: (code: string) => void;
+}) {
+  useOtpAutoFill({ onCodeReceived });
+  return null;
+}
 
 interface ActionRowProps {
   icon: IconName;
@@ -535,7 +545,15 @@ export function AccountSecurityScreen({ navigation }: Props) {
               autoComplete="new-password"
             />
             <Text style={styles.codeLabel}>Tasdiqlash kodi</Text>
-            <OtpInput value={passwordCode} onChange={setPasswordCode} length={OTP_LENGTH} />
+            {passwordDelivery === "SMS" ? (
+              <PasswordSmsAutoFill onCodeReceived={setPasswordCode} />
+            ) : null}
+            <OtpInput
+              value={passwordCode}
+              onChange={setPasswordCode}
+              length={OTP_LENGTH}
+              autoFocus={passwordDelivery === "SMS"}
+            />
             <PrimaryButton
               label="Parolni yangilash"
               onPress={() => {

@@ -25,6 +25,7 @@
     "expo": "~55.0.29",
     "expo-application": "~55.0.18",
     "expo-build-properties": "~55.0.17",
+    "expo-clipboard": "~55.0.17",
     "expo-constants": "~55.0.17",
     "expo-contacts": "~55.0.17",
     "expo-crypto": "~55.0.19",

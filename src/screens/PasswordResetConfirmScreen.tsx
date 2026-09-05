@@ -79,7 +79,7 @@ export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
             <Text style={[typography.label, { color: theme.textSecondary, marginBottom: spacing.xs }]}>
               SMS kod
             </Text>
-            <OtpInput value={code} onChange={setCode} />
+            <OtpInput value={code} onChange={setCode} autoFocus />
 
             <AppInput
               label="Yangi parol"
