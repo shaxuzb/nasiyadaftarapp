@@ -25,6 +25,7 @@ import { OrganizationSelectScreen } from "../screens/OrganizationSelectScreen";
 import { PasswordResetRequestScreen } from "../screens/PasswordResetRequestScreen";
 import { PasswordResetConfirmScreen } from "../screens/PasswordResetConfirmScreen";
 import { AccountSecurityScreen } from "../screens/AccountSecurityScreen";
+import { PinChangeScreen } from "../modules/pin-auth/screens/PinChangeScreen";
 
 import {
   AuthStackParamList,
@@ -34,8 +35,8 @@ import {
 } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { BottomSheetBackHandler } from "../bottom-sheet";
-import { useAppLock } from "../modules/pin-auth/context/AppLockContext";
 import { PinGateScreen } from "../modules/pin-auth/screens/PinGateScreen";
+import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -83,7 +84,11 @@ const TabIcon = React.memo(function TabIcon({
   );
 });
 
-function TabNavigator({ initialRouteName = "Customers" }: { initialRouteName?: TabRouteName }) {
+function TabNavigator({
+  initialRouteName = "Customers",
+}: {
+  initialRouteName?: TabRouteName;
+}) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const bottomPadding = Math.max(insets.bottom, 8);
@@ -160,6 +165,7 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
       </Stack.Screen>
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
+      <Stack.Screen name="PinChange" component={PinChangeScreen} />
     </Stack.Navigator>
   );
 }
@@ -225,11 +231,17 @@ function AuthNavigator() {
   );
 }
 
-function OrganizationNavigator({ hasOrganizations }: { hasOrganizations: boolean }) {
+function OrganizationNavigator({
+  hasOrganizations,
+}: {
+  hasOrganizations: boolean;
+}) {
   return (
     <OrganizationStack.Navigator
       screenOptions={{ headerShown: false }}
-      initialRouteName={hasOrganizations ? "OrganizationSelect" : "OrganizationSetup"}
+      initialRouteName={
+        hasOrganizations ? "OrganizationSelect" : "OrganizationSetup"
+      }
     >
       <OrganizationStack.Screen
         name="OrganizationSelect"
@@ -290,7 +302,9 @@ export function AppNavigator() {
       ) : setupRequired || isLocked ? (
         <PinGateScreen />
       ) : currentOrganization ? (
-        <MainNavigator initialTab={organizationSelectionReturnTab ?? undefined} />
+        <MainNavigator
+          initialTab={organizationSelectionReturnTab ?? undefined}
+        />
       ) : (
         <OrganizationNavigator hasOrganizations={organizations.length > 0} />
       )}

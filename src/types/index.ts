@@ -29,6 +29,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   CustomerDetail: { customerId: number };
   AccountSecurity: undefined;
+  PinChange: undefined;
 };
 
 export type MainTabParamList = {

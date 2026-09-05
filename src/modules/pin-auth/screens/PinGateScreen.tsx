@@ -1,25 +1,143 @@
 import React, { useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
+
 import { useTheme } from "../../../hooks/useTheme";
+import { AppTheme } from "../../../types";
 import { radius, spacing, typography } from "../../../theme";
 import { useAppLock } from "../context/AppLockContext";
 import { PIN_LENGTH, validatePin } from "../utils/pinValidation";
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
+const wait = (duration: number) => new Promise<void>((resolve) => setTimeout(resolve, duration));
 
 export function PinGateScreen() {
   const theme = useTheme();
-  const { setupRequired, displayName, biometric, submitSetupPin, submitUnlockPin, unlockWithBiometrics } = useAppLock();
-  const [value, setValue] = useState(""); const [firstPin, setFirstPin] = useState<string | null>(null); const [message, setMessage] = useState("");
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { setupRequired, displayName, biometric, biometricEnabled, submitSetupPin, submitUnlockPin, unlockWithBiometrics } = useAppLock();
+  const [value, setValue] = useState("");
+  const [firstPin, setFirstPin] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+  const [passed, setPassed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const shake = useSharedValue(0);
+  const success = useSharedValue(0);
+  const entryStyle = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
+  const successStyle = useAnimatedStyle(() => ({ transform: [{ scale: 1 + success.value * 0.08 }] }));
+
+  const animateError = (text: string) => {
+    success.value = withTiming(0, { duration: 80 });
+    shake.value = withSequence(withTiming(-9, { duration: 45 }), withTiming(9, { duration: 45 }), withTiming(-5, { duration: 40 }), withTiming(0, { duration: 45 }));
+    setPassed(false);
+    setMessage(text);
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+  };
+
+  const submit = async (pin: string) => {
+    setValue("");
+    setBusy(true);
+    try {
+      if (setupRequired) {
+        if (!firstPin) {
+          const result = validatePin(pin);
+          if (!result.valid) { animateError(result.message); return; }
+          setFirstPin(pin);
+          setMessage("");
+          return;
+        }
+        if (pin !== firstPin) {
+          setFirstPin(null);
+          animateError("PIN-kodlar mos kelmadi. Qayta urinib ko‘ring.");
+          return;
+        }
+        success.value = withTiming(1, { duration: 180 });
+        setPassed(true);
+        setMessage("PIN-kod saqlanmoqda…");
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        await wait(220);
+        await submitSetupPin(pin);
+        return;
+      }
+
+      success.value = withTiming(1, { duration: 180 });
+      setPassed(true);
+      const result = await submitUnlockPin(pin);
+      if (result.status === "invalid") animateError(`PIN noto‘g‘ri. ${result.attemptsRemaining} urinish qoldi.`);
+      else if (result.status === "logged-out") animateError("Xavfsizlik uchun hisobdan chiqarildingiz.");
+      else void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      animateError(error instanceof Error ? error.message : "PIN-kodni saqlab bo‘lmadi");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const press = (digit: string) => {
+    if (busy) return;
+    if (digit === "back") { setValue((current) => current.slice(0, -1)); return; }
+    if (!digit || value.length >= PIN_LENGTH) return;
+    const next = value + digit;
+    setValue(next);
+    setMessage("");
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (next.length === PIN_LENGTH) void submit(next);
+  };
+
+  const onBiometric = async () => {
+    if (busy) return;
+    setBusy(true);
+    setPassed(true);
+    setMessage("Tasdiqlanmoqda…");
+    success.value = withTiming(1, { duration: 180 });
+    const unlocked = await unlockWithBiometrics();
+    setBusy(false);
+    if (!unlocked) animateError(`${biometric?.label ?? "Biometrik kirish"} tasdiqlanmadi`);
+  };
+
   const confirming = setupRequired && firstPin !== null;
   const title = setupRequired ? (confirming ? "PIN-kodni takrorlang" : "PIN-kod yarating") : `Xush kelibsiz, ${displayName.split(" ")[0]}`;
   const description = setupRequired ? (confirming ? "Kiritgan PIN-kodingizni yana bir marta yozing." : "Hisobingizga tez va xavfsiz kirish uchun 4 xonali PIN tanlang.") : "Davom etish uchun PIN-kodni kiriting.";
-  const dots = useMemo(() => Array.from({ length: PIN_LENGTH }, (_, index) => index < value.length), [value]);
-  const submit = async (pin: string) => { setValue(""); if (setupRequired) { if (!confirming) { const result = validatePin(pin); if (!result.valid) { setMessage(result.message); return; } setFirstPin(pin); setMessage(""); return; } if (pin !== firstPin) { setFirstPin(null); setMessage("PIN-kodlar mos kelmadi. Qayta urinib ko‘ring."); return; } await submitSetupPin(pin); return; } const result = await submitUnlockPin(pin); if (result.status === "invalid") setMessage(`PIN noto‘g‘ri. ${result.attemptsRemaining} urinish qoldi.`); };
-  const press = (digit: string) => { if (digit === "back") { setValue((current) => current.slice(0, -1)); return; } if (!digit || value.length >= PIN_LENGTH) return; const next = value + digit; setValue(next); void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); if (next.length === PIN_LENGTH) void submit(next); };
-  return <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]}><View style={styles.content}><View style={[styles.icon, { backgroundColor: theme.primaryLight }]}><Ionicons name={setupRequired ? "key-outline" : "lock-closed-outline"} size={28} color={theme.primary} /></View><Text style={[styles.title, { color: theme.text }]}>{title}</Text><Text style={[styles.description, { color: theme.textSecondary }]}>{description}</Text>{setupRequired ? <View style={styles.progress}><View style={[styles.progressBar, { backgroundColor: theme.primary }]} /><View style={[styles.progressBar, { backgroundColor: confirming ? theme.primary : theme.border }]} /></View> : null}<View style={styles.dots}>{dots.map((filled, index) => <View key={index} style={[styles.dot, { borderColor: theme.primary }, filled && { backgroundColor: theme.primary }]} />)}</View>{message ? <Text style={[styles.message, { color: theme.dangerColor }]}>{message}</Text> : null}{!setupRequired && biometric?.available ? <Pressable onPress={() => void unlockWithBiometrics()} style={styles.biometric}><Ionicons name={biometric.icon} size={24} color={theme.primary} /><Text style={[styles.biometricText, { color: theme.primary }]}>{biometric.label} bilan kirish</Text></Pressable> : <View style={styles.biometricSpacer} />}<View style={styles.keypad}>{DIGITS.map((digit, index) => digit ? <Pressable key={digit} onPress={() => press(digit)} style={({ pressed }) => [styles.key, pressed && { backgroundColor: theme.primaryLight }]}><Text style={[styles.keyText, { color: theme.text }]}>{digit === "back" ? "⌫" : digit}</Text></Pressable> : <View key={`empty-${index}`} style={styles.key} />)}</View></View></SafeAreaView>;
+
+  return (
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      <View style={styles.content}>
+        <Animated.View style={[styles.icon, { backgroundColor: theme.primaryLight }, successStyle]}>
+          <Ionicons name={passed ? "checkmark" : setupRequired ? "key-outline" : "lock-closed-outline"} size={28} color={passed ? theme.successColor : theme.primary} />
+        </Animated.View>
+        <Text style={styles.title}>{title}</Text>
+        <Text style={styles.description}>{description}</Text>
+        {setupRequired ? <View style={styles.progress}><View style={[styles.progressBar, { backgroundColor: theme.primary }]} /><View style={[styles.progressBar, { backgroundColor: confirming ? theme.primary : theme.border }]} /></View> : null}
+        <Animated.View style={[styles.dots, entryStyle]}>
+          {Array.from({ length: PIN_LENGTH }, (_, index) => <View key={index} style={[styles.dot, { borderColor: message && !passed ? theme.dangerColor : theme.primary }, index < value.length && { backgroundColor: message && !passed ? theme.dangerColor : theme.primary }]} />)}
+        </Animated.View>
+        {message ? <Text style={[styles.message, { color: passed ? theme.successColor : theme.dangerColor }]}>{message}</Text> : <View style={styles.messageSpacer} />}
+        {!setupRequired && biometric?.available && biometricEnabled ? <Pressable accessibilityRole="button" accessibilityLabel={`${biometric.label} bilan kirish`} onPress={() => void onBiometric()} style={({ pressed }) => [styles.biometric, pressed && styles.pressed]}>{busy ? <ActivityIndicator color={theme.primary} /> : <Ionicons name={biometric.icon} size={24} color={theme.primary} />}<Text style={styles.biometricText}>{biometric.label} bilan kirish</Text></Pressable> : <View style={styles.biometricSpacer} />}
+        <View style={styles.keypad}>{DIGITS.map((digit, index) => digit ? <Pressable key={digit} accessibilityRole="button" accessibilityLabel={digit === "back" ? "O‘chirish" : digit} onPress={() => press(digit)} style={({ pressed }) => [styles.key, pressed && { backgroundColor: theme.primaryLight }]}><Text style={styles.keyText}>{digit === "back" ? "⌫" : digit}</Text></Pressable> : <View key={`empty-${index}`} style={styles.key} />)}</View>
+      </View>
+    </SafeAreaView>
+  );
 }
 
-const styles = StyleSheet.create({ safe:{flex:1}, content:{flex:1,alignItems:"center",padding:spacing.lg}, icon:{width:64,height:64,borderRadius:20,alignItems:"center",justifyContent:"center",marginTop:spacing.xxl}, title:{...typography.headingLarge,textAlign:"center",marginTop:spacing.md}, description:{...typography.bodySmall,textAlign:"center",maxWidth:270,marginTop:spacing.xs}, progress:{flexDirection:"row",gap:6,marginTop:spacing.lg},progressBar:{width:32,height:4,borderRadius:4},dots:{flexDirection:"row",gap:14,marginTop:spacing.xl,minHeight:16},dot:{width:14,height:14,borderRadius:7,borderWidth:1.5},message:{...typography.caption,textAlign:"center",marginTop:spacing.md},biometric:{alignItems:"center",gap:6,marginTop:spacing.md,minHeight:62},biometricText:{...typography.label},biometricSpacer:{height:62},keypad:{width:250,marginTop:"auto",display:"flex",flexDirection:"row",flexWrap:"wrap",justifyContent:"center",paddingBottom:spacing.md},key:{width:"33.33%",height:56,alignItems:"center",justifyContent:"center",borderRadius:16},keyText:{fontSize:23,fontWeight:"600"} });
+const createStyles = (theme: AppTheme) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: theme.background },
+  content: { flex: 1, alignItems: "center", padding: spacing.lg },
+  icon: { width: 64, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center", marginTop: spacing.xxl },
+  title: { ...typography.headingLarge, color: theme.text, textAlign: "center", marginTop: spacing.md },
+  description: { ...typography.bodySmall, color: theme.textSecondary, textAlign: "center", maxWidth: 290, marginTop: spacing.xs },
+  progress: { flexDirection: "row", gap: 6, marginTop: spacing.lg },
+  progressBar: { width: 32, height: 4, borderRadius: 4 },
+  dots: { flexDirection: "row", gap: 14, marginTop: spacing.xl, minHeight: 16 },
+  dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5 },
+  message: { ...typography.caption, textAlign: "center", marginTop: spacing.md },
+  messageSpacer: { height: 28 },
+  biometric: { minHeight: 62, alignItems: "center", justifyContent: "center", gap: 6, marginTop: spacing.md, paddingHorizontal: spacing.md, borderRadius: radius.md },
+  biometricText: { ...typography.label, color: theme.primary },
+  biometricSpacer: { height: 62 },
+  keypad: { width: 250, marginTop: "auto", flexDirection: "row", flexWrap: "wrap", justifyContent: "center", paddingBottom: spacing.md },
+  key: { width: "33.33%", height: 56, alignItems: "center", justifyContent: "center", borderRadius: 16 },
+  keyText: { color: theme.text, fontSize: 23, fontWeight: "600" },
+  pressed: { opacity: 0.72 },
+});

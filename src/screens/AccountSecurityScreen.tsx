@@ -31,7 +31,7 @@ import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
 import { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
-import { useAppLock } from "../modules/pin-auth/context/AppLockContext";
+import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AccountSecurity">;
 type PasswordStep = "idle" | "request" | "confirm";
@@ -96,11 +96,70 @@ function ActionRow({
   );
 }
 
+interface ToggleRowProps {
+  icon: IconName;
+  iconColor: string;
+  iconBackground: string;
+  title: string;
+  description: string;
+  value: boolean;
+  disabled?: boolean;
+  onPress: () => void;
+  isLast?: boolean;
+}
+
+function ToggleRow({
+  icon,
+  iconColor,
+  iconBackground,
+  title,
+  description,
+  value,
+  disabled,
+  onPress,
+  isLast,
+}: ToggleRowProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel={title}
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.actionRow,
+        !isLast && styles.rowBorder,
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
+    >
+      <View style={[styles.actionIcon, { backgroundColor: iconBackground }]}>
+        <Ionicons name={icon} size={19} color={iconColor} />
+      </View>
+      <View style={styles.actionCopy}>
+        <Text style={styles.actionTitle}>{title}</Text>
+        <Text style={styles.actionDescription} numberOfLines={2}>{description}</Text>
+      </View>
+      <View style={[styles.toggleTrack, value && { backgroundColor: theme.primary }, disabled && styles.disabled]}>
+        <View style={[styles.toggleThumb, value && styles.toggleThumbActive]} />
+      </View>
+    </Pressable>
+  );
+}
+
 export function AccountSecurityScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { user, updateUserProfile } = useAuth();
-  const { setupRequired, biometric, lockNow } = useAppLock();
+  const {
+    setupRequired,
+    biometric,
+    biometricEnabled,
+    setBiometricEnabled,
+    lockNow,
+  } = useAppLock();
   const { showToast } = useToast();
 
   const [passwordStep, setPasswordStep] = useState<PasswordStep>("idle");
@@ -114,6 +173,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
   const [googleCode, setGoogleCode] = useState("");
   const [googleIdToken, setGoogleIdToken] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   const hasPhone = Boolean(user?.phoneNumber?.trim());
   const hasEmail = Boolean(user?.email?.trim());
@@ -281,11 +341,44 @@ export function AccountSecurityScreen({ navigation }: Props) {
             description={
               setupRequired
                 ? "PIN-kod hali o'rnatilmagan"
-                : biometric?.available
+                : biometric?.available && biometricEnabled
                   ? `${biometric.label} va 4 xonali PIN bilan himoyalangan`
                   : "4 xonali PIN bilan himoyalangan"
             }
-            onPress={lockNow}
+            onPress={() => {
+              if (setupRequired) lockNow();
+              else navigation.navigate("PinChange");
+            }}
+          />
+          <ToggleRow
+            icon={biometric?.icon ?? "finger-print-outline"}
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title={biometric?.label ?? "Biometrik kirish"}
+            description={
+              biometric?.available
+                ? "Ilovaga Face ID, Touch ID yoki barmoq izi bilan kiring"
+                : "Bu qurilmada biometrik kirish mavjud emas"
+            }
+            value={biometricEnabled}
+            disabled={!biometric?.available || biometricLoading}
+            onPress={() => {
+              setBiometricLoading(true);
+              void setBiometricEnabled(!biometricEnabled)
+                .then((result) => {
+                  if (!result.success) showToast(result.message ?? "Biometrikani o'zgartirib bo'lmadi", "error");
+                  else showToast(biometricEnabled ? "Biometrik kirish o'chirildi" : "Biometrik kirish yoqildi", "success");
+                })
+                .finally(() => setBiometricLoading(false));
+            }}
+          />
+          <ActionRow
+            icon="create-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.inputBackground}
+            title="PIN-kodni o'zgartirish"
+            description="Amaldagi PIN-kodni tasdiqlab, yangisini o'rnating"
+            onPress={() => navigation.navigate("PinChange")}
           />
           <ActionRow
             icon="lock-closed-outline"
@@ -544,6 +637,22 @@ const createStyles = (theme: AppTheme) =>
     actionCopy: { minWidth: 0, flex: 1, gap: 2 },
     actionTitle: { color: theme.text, fontSize: 13, lineHeight: 18, fontWeight: "800" },
     actionDescription: { color: theme.textMuted, fontSize: 10, lineHeight: 14 },
+    toggleTrack: {
+      width: 48,
+      height: 28,
+      padding: 3,
+      justifyContent: "center",
+      borderRadius: 14,
+      backgroundColor: theme.border,
+    },
+    toggleThumb: {
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: theme.surface,
+      boxShadow: theme.cardShadow,
+    },
+    toggleThumbActive: { alignSelf: "flex-end" },
     formCard: {
       gap: 12,
       padding: 14,
