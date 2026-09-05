@@ -8,6 +8,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { AppState } from "react-native";
 import { useAuth } from "../../../context/AuthContext";
 import {
   getBiometricCapability,
@@ -17,6 +18,7 @@ import { pinStorage } from "../services/pinStorage";
 import { createPinSecurity } from "../services/pinSecurity";
 import type { BiometricCapability } from "../types";
 import { validatePin } from "../utils/pinValidation";
+import { shouldLockAfterInactivity } from "../utils/appInactivity";
 
 type UnlockResult = {
   status: "unlocked" | "invalid" | "logged-out";
@@ -58,6 +60,8 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const [biometric, setBiometric] = useState<BiometricCapability | null>(null);
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const userIdRef = useRef<number | null>(null);
+  const appStateRef = useRef(AppState.currentState);
+  const inactiveSinceRef = useRef<number | null>(null);
   const security = useMemo(
     () => createPinSecurity(pinStorage, validatePin, authenticateWithBiometrics),
     [],
@@ -106,7 +110,35 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [isBootstrapping, user]);
+  }, [isBootstrapping, user?.id]);
+
+  useEffect(() => {
+    if (isBootstrapping || !user || !pinEnabled) {
+      inactiveSinceRef.current = null;
+      appStateRef.current = AppState.currentState;
+      return;
+    }
+
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const previousState = appStateRef.current;
+      if (
+        (nextState === "inactive" || nextState === "background") &&
+        previousState === "active"
+      ) {
+        inactiveSinceRef.current = Date.now();
+      }
+
+      if (nextState === "active") {
+        if (shouldLockAfterInactivity(inactiveSinceRef.current, Date.now())) {
+          setLocked(true);
+        }
+        inactiveSinceRef.current = null;
+      }
+      appStateRef.current = nextState;
+    });
+
+    return () => subscription.remove();
+  }, [isBootstrapping, pinEnabled, user?.id]);
   const submitSetupPin = useCallback(
     async (pin: string) => {
       if (!user) throw new Error("Foydalanuvchi topilmadi");
