@@ -355,68 +355,59 @@ export function AccountSecurityScreen({ navigation }: Props) {
 
         <Text style={styles.sectionTitle}>PIN-kod va biometrika</Text>
         <View style={styles.card}>
-          <ActionRow
-            icon="key-outline"
-            iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
-            title="PIN login"
-            description={
-              !pinEnabled
-                ? "PIN-kod hali o'rnatilmagan"
-                : biometric?.available && biometricEnabled
-                  ? `${biometric.label} va 4 xonali PIN bilan himoyalangan`
-                  : "4 xonali PIN bilan himoyalangan"
-            }
-            onPress={() => {
-              if (!pinEnabled) startPinSetup();
-              else navigation.navigate("PinChange");
-            }}
-          />
-          <ToggleRow
-            icon={biometric?.icon ?? "finger-print-outline"}
-            iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
-            title={biometric?.label ?? "Biometrik kirish"}
-            description={
-              !pinEnabled
-                ? "Avval PIN-kod o‘rnating"
-                : biometric?.available
-                ? "Ilovaga Face ID, Touch ID yoki barmoq izi bilan kiring"
-                : "Bu qurilmada biometrik kirish mavjud emas"
-            }
-            value={biometricEnabled}
-            disabled={!pinEnabled || !biometric?.available || biometricLoading}
-            onPress={() => {
-              setBiometricLoading(true);
-              void setBiometricEnabled(!biometricEnabled)
-                .then((result) => {
-                  if (!result.success) showToast(result.message ?? "Biometrikani o'zgartirib bo'lmadi", "error");
-                  else showToast(biometricEnabled ? "Biometrik kirish o'chirildi" : "Biometrik kirish yoqildi", "success");
-                })
-                .finally(() => setBiometricLoading(false));
-            }}
-          />
           {pinEnabled ? (
+            <>
+              <ToggleRow
+                icon={biometric?.icon ?? "finger-print-outline"}
+                iconColor={theme.primary}
+                iconBackground={theme.primaryLight}
+                title={biometric?.label ?? "Biometrik kirish"}
+                description={
+                  biometric?.available
+                    ? "Ilovaga Face ID, Touch ID yoki barmoq izi bilan kiring"
+                    : "Bu qurilmada biometrik kirish mavjud emas"
+                }
+                value={biometricEnabled}
+                disabled={!biometric?.available || biometricLoading}
+                onPress={() => {
+                  setBiometricLoading(true);
+                  void setBiometricEnabled(!biometricEnabled)
+                    .then((result) => {
+                      if (!result.success) showToast(result.message ?? "Biometrikani o‘zgartirib bo‘lmadi", "error");
+                      else showToast(biometricEnabled ? "Biometrik kirish o‘chirildi" : "Biometrik kirish yoqildi", "success");
+                    })
+                    .finally(() => setBiometricLoading(false));
+                }}
+              />
+              <ActionRow
+                icon="create-outline"
+                iconColor={theme.primary}
+                iconBackground={theme.inputBackground}
+                title="PIN-kodni o'zgartirish"
+                description="Amaldagi PIN-kodni tasdiqlab, yangisini o'rnating"
+                onPress={() => navigation.navigate("PinChange")}
+              />
+              <ActionRow
+                icon="trash-outline"
+                iconColor={theme.dangerColor}
+                iconBackground={theme.debtBg}
+                title="PIN-kodni o‘chirish"
+                description="PIN login va biometrik kirishni o‘chiradi"
+                onPress={handlePinRemove}
+                isLast
+              />
+            </>
+          ) : (
             <ActionRow
-              icon="create-outline"
+              icon="key-outline"
               iconColor={theme.primary}
-              iconBackground={theme.inputBackground}
-              title="PIN-kodni o'zgartirish"
-              description="Amaldagi PIN-kodni tasdiqlab, yangisini o'rnating"
-              onPress={() => navigation.navigate("PinChange")}
-            />
-          ) : null}
-          {pinEnabled ? (
-            <ActionRow
-              icon="trash-outline"
-              iconColor={theme.dangerColor}
-              iconBackground={theme.debtBg}
-              title="PIN-kodni o‘chirish"
-              description="PIN login va biometrik kirishni o‘chiradi"
-              onPress={handlePinRemove}
+              iconBackground={theme.primaryLight}
+              title="PIN-kodni o‘rnatish"
+              description="Ilovaga tez va xavfsiz kirish uchun 4 xonali PIN yarating"
+              onPress={startPinSetup}
               isLast
             />
-          ) : null}
+          )}
         </View>
 
         <Text style={styles.sectionTitle}>Parol va akkauntlar</Text>
