@@ -15,7 +15,7 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
   const queryClient = useQueryClient();
   const clientsQuery = useQuery({
     queryKey: queryKeys.clients(scope),
-    queryFn: () => getClients(),
+    queryFn: ({ signal }) => getClients(undefined, signal),
     enabled,
   });
 
@@ -31,6 +31,9 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
         created,
         ...prev,
       ]);
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.clientSearchRoot(scope),
+      });
     },
   });
 
@@ -40,6 +43,9 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
       queryClient.setQueryData<Customer[]>(queryKeys.clients(scope), (prev = []) =>
         prev.filter((customer) => customer.id !== customerId),
       );
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.clientSearchRoot(scope),
+      });
       void queryClient.removeQueries({
         queryKey: queryKeys.transactionHistory(scope, customerId),
       });

@@ -9,6 +9,12 @@ import {
   ClientTransactionCreateRequest,
   ClientTransactionDto,
 } from "../modules/transactions/types";
+import { getClientResultCount } from "../modules/clients/utils/clientList";
+
+export interface ClientListResult {
+  customers: Customer[];
+  count: number;
+}
 
 function toNumber(value: number | string | undefined, fallback: number) {
   const parsed = Number(value);
@@ -106,12 +112,33 @@ function extractClient(input: unknown): ClientDto | null {
   return null;
 }
 
-export async function getClients(search?: string): Promise<Customer[]> {
+export async function getClientList(
+  search?: string,
+  signal?: AbortSignal,
+): Promise<ClientListResult> {
   const { data } = await apiClient.get<unknown>("/clients", {
     params: search?.trim() ? { search: search.trim() } : undefined,
+    signal,
   });
 
-  return extractArray<ClientDto>(data).map(mapClient);
+  const clients = extractArray<ClientDto>(data);
+  const responseCount =
+    data && typeof data === "object"
+      ? (data as Record<string, unknown>).count
+      : undefined;
+
+  return {
+    customers: clients.map(mapClient),
+    count: getClientResultCount(responseCount, clients.length),
+  };
+}
+
+export async function getClients(
+  search?: string,
+  signal?: AbortSignal,
+): Promise<Customer[]> {
+  const { customers } = await getClientList(search, signal);
+  return customers;
 }
 
 export async function getClientById(id: number): Promise<Customer> {

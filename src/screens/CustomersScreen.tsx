@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useRef, useCallback } from "react";
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+  useEffect,
+} from "react";
 import {
   View,
   Text,
@@ -26,6 +32,7 @@ import {
 import * as Contacts from "expo-contacts";
 
 import { useApp } from "../context/AppContext";
+import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
 import { SearchBar } from "../components/SearchBar";
@@ -35,6 +42,8 @@ import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { AppInput } from "../components/AppInput";
 import { createBalanceMap } from "../modules/clients/utils/clientCalculations";
+import { useClientSearch } from "../modules/clients/hooks/useClientSearch";
+import { getCustomerCountLabel } from "../modules/clients/utils/clientList";
 import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet, useBottomSheetBackHandler } from "../bottom-sheet";
@@ -65,6 +74,8 @@ const SHEET_SPRING = {
   restSpeedThreshold: 2,
 };
 
+const EMPTY_BALANCE_MAP = new Map<number, number>();
+
 export function CustomersScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -78,6 +89,7 @@ export function CustomersScreen() {
     isLoadingCustomers,
     dataError,
   } = useApp();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const { openSheet } = useBottomSheet();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
@@ -85,59 +97,88 @@ export function CustomersScreen() {
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
 
   const [query, setQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
   const [debtorOnly, setDebtorOnly] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("+998 ");
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [errors, setErrors] = useState<{ phone?: string }>({});
 
-  const balanceMap = useMemo(
-    () => createBalanceMap(transactions),
-    [transactions],
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query.trim());
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const handleSearchChange = useCallback((value: string) => {
+    setQuery(value);
+    if (!value.trim()) {
+      setDebouncedQuery("");
+    }
+  }, []);
+
+  const scope = user?.organizationId ?? user?.id ?? "anonymous";
+  const isSearchActive = debouncedQuery.length > 0;
+  const {
+    result: searchResult,
+    isLoading: isSearchLoading,
+    error: searchError,
+    refetch: refetchSearch,
+  } = useClientSearch(scope, Boolean(user), debouncedQuery);
+
+  const sourceCustomers = isSearchActive ? searchResult.customers : customers;
+  const requiresCalculatedBalances = useMemo(
+    () => sourceCustomers.some((customer) => customer.currentBalance == null),
+    [sourceCustomers],
   );
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return customers.filter((customer) => {
+  const balanceMap = useMemo(
+    () =>
+      requiresCalculatedBalances
+        ? createBalanceMap(transactions)
+        : EMPTY_BALANCE_MAP,
+    [requiresCalculatedBalances, transactions],
+  );
+
+  const filteredCustomers = useMemo(() => {
+    if (!debtorOnly) return sourceCustomers;
+
+    return sourceCustomers.filter((customer) => {
       const balance =
         customer.currentBalance ?? balanceMap.get(customer.id) ?? 0;
-      if (debtorOnly && balance <= 0) return false;
-      if (!q) return true;
-
-      return (
-        customer.fullName.toLowerCase().includes(q) ||
-        customer.phone.toLowerCase().includes(q) ||
-        String(customer.id).includes(q)
-      );
+      return balance > 0;
     });
-  }, [balanceMap, customers, debtorOnly, query]);
-
-  const latestTransactionMap = useMemo(() => {
-    const latestByCustomer = new Map<number, number>();
-    for (const transaction of transactions) {
-      const timestamp = new Date(transaction.date).getTime();
-      const current = latestByCustomer.get(transaction.customerId) ?? 0;
-      if (Number.isFinite(timestamp) && timestamp > current) {
-        latestByCustomer.set(transaction.customerId, timestamp);
-      }
-    }
-    return latestByCustomer;
-  }, [transactions]);
+  }, [balanceMap, debtorOnly, sourceCustomers]);
 
   const listData = useMemo(() => {
-    const now = Date.now();
-    return filtered.map((customer) => {
-      const lastTransactionAt = latestTransactionMap.get(customer.id);
-      const lastTxDaysAgo = lastTransactionAt
-        ? Math.max(0, Math.floor((now - lastTransactionAt) / 86_400_000))
-        : undefined;
-      return {
-        customer,
-        balance: customer.currentBalance ?? balanceMap.get(customer.id) ?? 0,
-        lastTxDaysAgo,
-      };
-    });
-  }, [balanceMap, filtered, latestTransactionMap]);
+    return filteredCustomers.map((customer) => ({
+      customer,
+      balance: customer.currentBalance ?? balanceMap.get(customer.id) ?? 0,
+    }));
+  }, [balanceMap, filteredCustomers]);
+
+  const customerCountLabel = useMemo(
+    () =>
+      getCustomerCountLabel({
+        visibleCount: listData.length,
+        serverCount: isSearchActive ? searchResult.count : customers.length,
+        query: debouncedQuery,
+        debtorOnly,
+      }),
+    [
+      customers.length,
+      debouncedQuery,
+      debtorOnly,
+      isSearchActive,
+      listData.length,
+      searchResult.count,
+    ],
+  );
+
+  const listError = isSearchActive ? searchError : dataError;
+  const isListLoading = isSearchActive ? isSearchLoading : isLoadingCustomers;
 
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -275,7 +316,6 @@ export function CustomersScreen() {
       <CustomerCard
         customer={item.customer}
         balance={item.balance}
-        lastTxDaysAgo={item.lastTxDaysAgo}
         onPress={() =>
           navigation.navigate("CustomerDetail", {
             customerId: item.customer.id,
@@ -328,19 +368,45 @@ export function CustomersScreen() {
           <View style={styles.searchWrap}>
             <SearchBar
               value={query}
-              onChangeText={setQuery}
+              onChangeText={handleSearchChange}
               placeholder="Ism, telefon yoki mijoz ID"
-              filterActive={debtorOnly}
-              onFilterPress={() => {
+            />
+          </View>
+          <View style={styles.searchMeta}>
+            <Text style={styles.customerCount}>{customerCountLabel}</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Faqat qarzdor mijozlarni ko'rsatish"
+              accessibilityState={{ selected: debtorOnly }}
+              activeOpacity={0.76}
+              onPress={() => {
                 hapticTap();
                 setDebtorOnly((value) => !value);
               }}
-            />
+              style={[
+                styles.debtorFilter,
+                debtorOnly && styles.debtorFilterActive,
+              ]}
+            >
+              <Ionicons
+                name="wallet-outline"
+                size={15}
+                color={debtorOnly ? theme.primary : theme.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.debtorFilterLabel,
+                  debtorOnly && styles.debtorFilterLabelActive,
+                ]}
+              >
+                Qarzdorlar
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
 
         <FlatList
-          data={isLoadingCustomers && listData.length === 0 ? [] : listData}
+          data={isListLoading && listData.length === 0 ? [] : listData}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
           ItemSeparatorComponent={ListSeparator}
@@ -354,19 +420,22 @@ export function CustomersScreen() {
           removeClippedSubviews
           scrollIndicatorInsets={{ top: 2 }}
           ListEmptyComponent={
-            dataError && listData.length === 0 ? (
+            listError && listData.length === 0 ? (
               <EmptyState
                 iconName="cloud-offline-outline"
                 title="Ma'lumotni yuklab bo'lmadi"
                 description={getApiErrorMessage(
-                  dataError,
+                  listError,
                   "Internetni tekshiring va qayta urinib ko'ring",
                 )}
                 action={
                   <PrimaryButton
                     label="Qayta urinish"
                     onPress={() => {
-                      void refreshCustomers().catch((error) =>
+                      const refresh = isSearchActive
+                        ? refetchSearch
+                        : refreshCustomers;
+                      void refresh().catch((error) =>
                         showToast(
                           getApiErrorMessage(error, "Qayta yuklashda xatolik"),
                           "error",
@@ -376,7 +445,7 @@ export function CustomersScreen() {
                   />
                 }
               />
-            ) : isLoadingCustomers && listData.length === 0 ? (
+            ) : isListLoading && listData.length === 0 ? (
               <>
                 <CustomerCardSkeleton />
                 <CustomerCardSkeleton />
@@ -386,21 +455,21 @@ export function CustomersScreen() {
               <EmptyState
                 iconName="people-outline"
                 title={
-                  query
+                  isSearchActive
                     ? "Topilmadi"
                     : debtorOnly
                       ? "Qarzdor mijoz yo'q"
                       : "Hali mijoz yo'q"
                 }
                 description={
-                  query
-                    ? `"${query}" bo'yicha natija topilmadi`
+                  isSearchActive
+                    ? `"${debouncedQuery}" bo'yicha natija topilmadi`
                     : debtorOnly
                       ? "Hozir barcha mijozlarning qarzi yopilgan"
                       : "Boshlash uchun avval mijoz qo'shing"
                 }
                 action={
-                  !query && !debtorOnly ? (
+                  !isSearchActive && !debtorOnly ? (
                     <PrimaryButton
                       label="Mijoz qo'shish"
                       onPress={openAddCustomerSheet}
@@ -412,9 +481,12 @@ export function CustomersScreen() {
           }
           refreshControl={
             <RefreshControl
-              refreshing={isLoadingCustomers}
+              refreshing={isListLoading}
               onRefresh={() => {
-                void refreshCustomers().catch((error) =>
+                const refresh = isSearchActive
+                  ? refetchSearch
+                  : refreshCustomers;
+                void refresh().catch((error) =>
                   showToast(
                     getApiErrorMessage(error, "Yangilashda xatolik"),
                     "error",
@@ -605,6 +677,45 @@ const createStyles = (theme: AppTheme) =>
       boxShadow: theme.cardShadow,
     },
     searchWrap: {},
+    searchMeta: {
+      minHeight: 30,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      marginTop: -8,
+    },
+    customerCount: {
+      flex: 1,
+      color: theme.textMuted,
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: "600",
+    },
+    debtorFilter: {
+      minHeight: 30,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.surface,
+    },
+    debtorFilterActive: {
+      borderColor: theme.primary,
+      backgroundColor: theme.primaryLight,
+    },
+    debtorFilterLabel: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: "700",
+    },
+    debtorFilterLabelActive: {
+      color: theme.primary,
+    },
     list: {
       paddingHorizontal: 16,
       paddingTop: 10,
