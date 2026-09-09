@@ -1,11 +1,15 @@
 import { SheetRegistry } from "./types";
-import { TransactionSheet } from "./sheets/TransactionSheet";
+import {
+  TransactionSheet,
+  TransactionSheetProvider,
+} from "./sheets/TransactionSheet";
 import { TransactionDetailSheet } from "./sheets/TransactionDetailSheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
     component: TransactionSheet,
-    snapPoints: ["88%", "100%"],
+    provider: TransactionSheetProvider,
+    enableDynamicSizing: true,
     enablePanDownToClose: true,
   },
   transactionDetail: {

@@ -4,4 +4,5 @@ export {
   getClientById,
   getClientList,
   getClients,
+  updateClient,
 } from "../../../services/clientsApi";

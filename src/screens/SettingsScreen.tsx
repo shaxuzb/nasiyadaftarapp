@@ -24,6 +24,7 @@ import { radius, spacing, typography } from "../theme";
 import { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
+import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -125,6 +126,10 @@ export function SettingsScreen() {
   const [isOpeningBot, setIsOpeningBot] = useState(false);
 
   const phoneVerified = hasVerifiedPhone(user);
+  const smsCapabilities = useMemo(
+    () => getClientSmsCapabilities(user?.permissions),
+    [user?.permissions],
+  );
   const initials = useMemo(
     () =>
       (user?.fullName ?? "U")
@@ -178,10 +183,7 @@ export function SettingsScreen() {
       await logout();
       showToast("Tizimdan chiqildi", "success");
     } catch (error) {
-      showToast(
-        getApiErrorMessage(error, "Hisobdan chiqib bo'lmadi"),
-        "error",
-      );
+      showToast(getApiErrorMessage(error, "Hisobdan chiqib bo'lmadi"), "error");
     }
   }, [confirm, logout, showToast]);
 
@@ -301,8 +303,27 @@ export function SettingsScreen() {
             onPress={() => {
               void handleOrganizationSwitch();
             }}
-            isLast
           />
+          <ProfileMenuRow
+            icon="warning-outline"
+            iconColor={theme.warningColor}
+            iconBackground={theme.inputBackground}
+            title="Qora ro'yxat sozlamasi"
+            description="Kechikish muddatini boshqarish"
+            onPress={() => navigation.navigate("BlacklistSettings")}
+            isLast={!smsCapabilities.canView}
+          />
+          {smsCapabilities.canView ? (
+            <ProfileMenuRow
+              icon="chatbubble-ellipses-outline"
+              iconColor={theme.primary}
+              iconBackground={theme.primaryLight}
+              title="Mijozlarga SMS"
+              description="Qarzdorlarga eslatma yuborish"
+              onPress={() => navigation.navigate("ClientSms")}
+              isLast
+            />
+          ) : null}
         </View>
 
         <SectionTitle title="Yordam va aloqa" />
@@ -371,7 +392,11 @@ export function SettingsScreen() {
             pressed && styles.logoutPressed,
           ]}
         >
-          <Ionicons name="log-out-outline" size={20} color={theme.dangerColor} />
+          <Ionicons
+            name="log-out-outline"
+            size={20}
+            color={theme.dangerColor}
+          />
           <Text style={styles.logoutText}>Hisobdan chiqish</Text>
         </Pressable>
       </ScrollView>

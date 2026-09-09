@@ -26,6 +26,9 @@ import { PasswordResetRequestScreen } from "../screens/PasswordResetRequestScree
 import { PasswordResetConfirmScreen } from "../screens/PasswordResetConfirmScreen";
 import { AccountSecurityScreen } from "../screens/AccountSecurityScreen";
 import { PinChangeScreen } from "../modules/pin-auth/screens/PinChangeScreen";
+import { ClientSmsScreen } from "../screens/ClientSmsScreen";
+import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
+import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
 
 import {
   AuthStackParamList,
@@ -166,6 +169,15 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <Stack.Screen name="PinChange" component={PinChangeScreen} />
+      <Stack.Screen name="ClientSms" component={ClientSmsScreen} />
+      <Stack.Screen
+        name="ClientSmsHistory"
+        component={ClientSmsHistoryScreen}
+      />
+      <Stack.Screen
+        name="BlacklistSettings"
+        component={BlacklistSettingsScreen}
+      />
     </Stack.Navigator>
   );
 }

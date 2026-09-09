@@ -13,9 +13,13 @@ import {
   TouchableOpacity,
   Linking,
   RefreshControl,
-  ScrollViewProps,
+  TextInput,
+  useWindowDimensions,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -25,10 +29,7 @@ import {
   BottomSheetScrollView,
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
-import {
-  KeyboardAwareScrollView,
-  KeyboardController,
-} from "react-native-keyboard-controller";
+import { KeyboardController } from "react-native-keyboard-controller";
 import * as Contacts from "expo-contacts";
 
 import { useApp } from "../context/AppContext";
@@ -56,9 +57,6 @@ import { getApiErrorMessage } from "../utils/apiError";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const KeyboardBottomSheetScrollView =
-  BottomSheetScrollView as unknown as React.ComponentType<ScrollViewProps>;
-
 function ListSeparator() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -80,6 +78,7 @@ export function CustomersScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const navigation = useNavigation<Nav>();
   const {
     customers,
@@ -93,7 +92,7 @@ export function CustomersScreen() {
   const { showToast } = useToast();
   const { openSheet } = useBottomSheet();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["78%"], []);
+  const phoneInputRef = useRef<TextInput>(null);
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
 
   const [query, setQuery] = useState("");
@@ -204,10 +203,7 @@ export function CustomersScreen() {
     bottomSheetRef.current?.dismiss();
   }
 
-  useBottomSheetBackHandler(
-    isAddCustomerSheetOpen,
-    closeAddCustomerSheet,
-  );
+  useBottomSheetBackHandler(isAddCustomerSheetOpen, closeAddCustomerSheet);
 
   function resetCustomerForm() {
     setFullName("");
@@ -227,6 +223,7 @@ export function CustomersScreen() {
   }
 
   async function handleCreateCustomer() {
+    if (isCreatingCustomer) return;
     if (!validateForm()) {
       hapticError();
       showToast("Formani tekshiring", "error");
@@ -237,7 +234,7 @@ export function CustomersScreen() {
 
     try {
       setIsCreatingCustomer(true);
-      const customer = await addCustomer({
+      await addCustomer({
         fullName: fullName.trim().replace(/\s+/g, " "),
         phone: toStoredUzPhone(phone),
         note: "",
@@ -247,7 +244,6 @@ export function CustomersScreen() {
       closeAddCustomerSheet();
       hapticSuccess();
       showToast("Mijoz qo'shildi", "success");
-      navigation.navigate("CustomerDetail", { customerId: customer.id });
     } catch (error) {
       hapticError();
       showToast(getApiErrorMessage(error, "Mijoz qo'shishda xatolik"), "error");
@@ -258,6 +254,7 @@ export function CustomersScreen() {
 
   async function handlePickFromContacts() {
     try {
+      await KeyboardController.dismiss();
       const existingPermission = await Contacts.getPermissionsAsync();
       const permission =
         existingPermission.status === "granted"
@@ -316,27 +313,18 @@ export function CustomersScreen() {
       <CustomerCard
         customer={item.customer}
         balance={item.balance}
-        onPress={() =>
-          navigation.navigate("CustomerDetail", {
-            customerId: item.customer.id,
-          })
-        }
-        onAddDebt={() => {
+        onPress={() => {
           hapticTap();
           openSheet("transaction", {
             customerId: item.customer.id,
             type: "debt",
             customerName: item.customer.fullName,
+            customerPhone: item.customer.phone,
             currentBalance: item.balance,
-          });
-        }}
-        onAddPayment={() => {
-          hapticTap();
-          openSheet("transaction", {
-            customerId: item.customer.id,
-            type: "payment",
-            customerName: item.customer.fullName,
-            currentBalance: item.balance,
+            onOpenProfile: () =>
+              navigation.navigate("CustomerDetail", {
+                customerId: item.customer.id,
+              }),
           });
         }}
       />
@@ -501,12 +489,13 @@ export function CustomersScreen() {
       <BottomSheetModal
         ref={bottomSheetRef}
         index={0}
-        snapPoints={snapPoints}
-        enableDynamicSizing={false}
+        enableDynamicSizing
+        maxDynamicContentSize={Math.max(1, windowHeight - insets.top - 24)}
         keyboardBehavior="interactive"
         keyboardBlurBehavior="restore"
         android_keyboardInputMode="adjustPan"
         enableBlurKeyboardOnGesture
+        enableContentPanningGesture={false}
         topInset={insets.top}
         backdropComponent={renderBackdrop}
         enablePanDownToClose
@@ -517,115 +506,90 @@ export function CustomersScreen() {
         backgroundStyle={styles.sheetBackground}
         handleIndicatorStyle={styles.sheetHandle}
       >
-        <View style={styles.sheetKeyboardWrap}>
-          <KeyboardAwareScrollView
-            ScrollViewComponent={KeyboardBottomSheetScrollView}
-            style={styles.sheetKeyboardScroll}
-            bottomOffset={72}
-            extraKeyboardSpace={16}
-            disableScrollOnKeyboardHide={false}
-            contentContainerStyle={[
-              styles.sheetContent,
-              { paddingBottom: Math.max(insets.bottom, 16) + 16 },
-            ]}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="interactive"
-            showsVerticalScrollIndicator={false}
-            bounces={false}
-          >
-            <View style={styles.sheetHeader}>
-              <View style={styles.sheetHeaderIcon}>
-                <Ionicons
-                  name="person-add-outline"
-                  size={22}
-                  color={theme.primary}
-                />
-              </View>
-              <View style={styles.sheetHeaderText}>
-                <Text style={styles.sheetTitle}>Yangi mijoz</Text>
-                <Text style={styles.sheetSubtitle}>
-                  Mijoz ma'lumotlarini kiriting
-                </Text>
-              </View>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Yopish"
-                activeOpacity={0.72}
-                onPress={closeAddCustomerSheet}
-                style={styles.sheetCloseButton}
-              >
-                <Ionicons name="close" size={22} color={theme.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
+        <BottomSheetScrollView
+          contentContainerStyle={[
+            styles.sheetContent,
+            { paddingBottom: Math.max(insets.bottom, 12) + 8 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Mijoz qo'shish</Text>
             <TouchableOpacity
               accessibilityRole="button"
-              activeOpacity={0.78}
-              onPress={handlePickFromContacts}
-              style={styles.contactPickerButton}
+              accessibilityLabel="Yopish"
+              activeOpacity={0.72}
+              onPress={closeAddCustomerSheet}
+              style={styles.sheetCloseButton}
             >
-              <View style={styles.contactPickerIcon}>
-                <Ionicons
-                  name="people-outline"
-                  size={21}
-                  color={theme.primary}
-                />
-              </View>
-              <View style={styles.contactPickerText}>
-                <Text style={styles.contactPickerTitle}>
-                  Kontaktdan tanlash
-                </Text>
-                <Text style={styles.contactPickerSubtitle}>
-                  Mavjud ism va telefon avtomatik to'ldiriladi
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={21}
-                color={theme.textMuted}
-              />
+              <Ionicons name="close" size={22} color={theme.textSecondary} />
             </TouchableOpacity>
+          </View>
 
-            <View style={styles.sheetFields}>
-              <AppInput
-                variant="sheet"
-                label="To'liq ism"
-                value={fullName}
-                onChangeText={setFullName}
-                placeholder="Masalan: Ali Valiyev"
-                iconName="person-outline"
-                autoCapitalize="words"
-                returnKeyType="next"
-              />
-              <AppInput
-                variant="sheet"
-                label="Telefon raqami *"
-                value={phone}
-                onChangeText={(value) => {
-                  setPhone(formatUzPhoneFromDigits(value));
-                  if (errors.phone) {
-                    setErrors((current) => ({ ...current, phone: undefined }));
-                  }
-                }}
-                placeholder="+998 XX XXX XX XX"
-                iconName="call-outline"
-                keyboardType="phone-pad"
-                returnKeyType="done"
-                error={errors.phone}
-              />
-            </View>
+          <View style={styles.sheetFields}>
+            <AppInput
+              variant="sheet"
+              compact
+              label="Ism"
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Mijoz ismini kiriting"
+              editable={!isCreatingCustomer}
+              autoCapitalize="words"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => phoneInputRef.current?.focus()}
+            />
+            <AppInput
+              variant="sheet"
+              compact
+              inputRef={phoneInputRef}
+              label="Telefon *"
+              value={phone}
+              onChangeText={(value) => {
+                setPhone(formatUzPhoneFromDigits(value));
+                if (errors.phone) {
+                  setErrors((current) => ({ ...current, phone: undefined }));
+                }
+              }}
+              placeholder="+998 XX XXX XX XX"
+              editable={!isCreatingCustomer}
+              autoComplete="tel"
+              keyboardType="phone-pad"
+              returnKeyType="done"
+              onSubmitEditing={() => void KeyboardController.dismiss()}
+              error={errors.phone}
+              trailingAccessory={
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Kontaktdan tanlash"
+                  accessibilityHint="Mijoz ismi va telefonini kontaktlardan to'ldirish"
+                  disabled={isCreatingCustomer}
+                  activeOpacity={0.7}
+                  onPress={handlePickFromContacts}
+                  style={styles.contactPickerButton}
+                >
+                  <Ionicons
+                    name="people-outline"
+                    size={23}
+                    color={theme.primary}
+                  />
+                </TouchableOpacity>
+              }
+            />
+          </View>
 
-            <View style={styles.sheetActions}>
-              <Text style={styles.requiredHint}>* Telefon raqami majburiy</Text>
-              <PrimaryButton
-                label="Mijozni saqlash"
-                onPress={handleCreateCustomer}
-                loading={isCreatingCustomer}
-                style={styles.sheetSaveButton}
-              />
-            </View>
-          </KeyboardAwareScrollView>
-        </View>
+          <PrimaryButton
+            label="Mijoz qo'shish"
+            onPress={handleCreateCustomer}
+            loading={isCreatingCustomer}
+            disabled={!isValidUzPhone(phone)}
+            style={styles.sheetSaveButton}
+          />
+        </BottomSheetScrollView>
       </BottomSheetModal>
     </SafeAreaView>
   );
@@ -641,7 +605,7 @@ const createStyles = (theme: AppTheme) =>
     header: {
       paddingHorizontal: 16,
       paddingTop: 12,
-      paddingBottom: 10,
+      paddingBottom: 5,
       gap: 16,
     },
     headerTop: {
@@ -718,7 +682,7 @@ const createStyles = (theme: AppTheme) =>
     },
     list: {
       paddingHorizontal: 16,
-      paddingTop: 10,
+      paddingTop: 5,
       paddingBottom: 28,
       flexGrow: 1,
     },
@@ -738,112 +702,43 @@ const createStyles = (theme: AppTheme) =>
     },
     sheetContent: {
       paddingHorizontal: 16,
-      paddingTop: 2,
-      paddingBottom: 32,
-      gap: 16,
+      paddingTop: 0,
+      gap: 18,
       backgroundColor: theme.surface,
-    },
-    sheetKeyboardWrap: {
-      flex: 1,
-    },
-    sheetKeyboardScroll: {
-      flex: 1,
     },
     sheetHeader: {
       flexDirection: "row",
       alignItems: "center",
       gap: 11,
     },
-    sheetHeaderIcon: {
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      flexShrink: 0,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.primaryLight,
-    },
-    sheetHeaderText: {
-      flex: 1,
-      minWidth: 0,
-      gap: 1,
-    },
     sheetTitle: {
+      flex: 1,
       color: theme.text,
       fontSize: 19,
       lineHeight: 25,
       fontWeight: "800",
       letterSpacing: -0.3,
     },
-    sheetSubtitle: {
-      color: theme.textSecondary,
-      fontSize: 12,
-      lineHeight: 17,
-      fontWeight: "500",
-    },
     sheetCloseButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 13,
+      width: 44,
+      height: 44,
+      marginRight: -8,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.inputBackground,
-      borderWidth: 1,
-      borderColor: theme.border,
     },
     contactPickerButton: {
-      minHeight: 66,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-      paddingHorizontal: 13,
-      backgroundColor: theme.primaryLight,
-      borderWidth: 1,
-      borderColor: theme.primary,
-      borderRadius: 16,
-      borderCurve: "continuous",
-    },
-    contactPickerIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 13,
-      flexShrink: 0,
+      width: 44,
+      height: 44,
+      marginRight: -8,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.surfaceElevated,
-    },
-    contactPickerText: {
-      flex: 1,
-      minWidth: 0,
-      gap: 1,
-    },
-    contactPickerTitle: {
-      color: theme.primary,
-      fontSize: 14,
-      lineHeight: 19,
-      fontWeight: "700",
-    },
-    contactPickerSubtitle: {
-      color: theme.textSecondary,
-      fontSize: 11,
-      lineHeight: 15,
-      fontWeight: "500",
     },
     sheetFields: {
-      paddingTop: 2,
-    },
-    sheetActions: {
-      gap: 8,
-    },
-    requiredHint: {
-      color: theme.textMuted,
-      fontSize: 11,
-      lineHeight: 15,
-      fontWeight: "500",
+      gap: 16,
     },
     sheetSaveButton: {
-      height: 56,
-      borderRadius: 15,
+      minHeight: 50,
+      borderRadius: 13,
       backgroundColor: theme.primary,
       boxShadow: theme.cardShadow,
     },

@@ -3,6 +3,7 @@ import {
   OrganizationMembership,
   OrganizationRequest,
   OrganizationResponse,
+  BlacklistSettingsRequest,
 } from "../modules/organization/types";
 
 function extractOrganization(data: unknown): OrganizationResponse | null {
@@ -33,7 +34,9 @@ function extractOrganization(data: unknown): OrganizationResponse | null {
   return null;
 }
 
-export async function createOrganization(payload: OrganizationRequest): Promise<OrganizationResponse | null> {
+export async function createOrganization(
+  payload: OrganizationRequest,
+): Promise<OrganizationResponse | null> {
   const { data } = await apiClient.post<unknown>("/organizations", payload);
   return extractOrganization(data);
 }
@@ -68,7 +71,8 @@ function parseOrganizationMembership(
       typeof item.roleId === "number" && Number.isInteger(item.roleId)
         ? item.roleId
         : undefined,
-    isSelected: typeof item.isSelected === "boolean" ? item.isSelected : undefined,
+    isSelected:
+      typeof item.isSelected === "boolean" ? item.isSelected : undefined,
   };
 }
 
@@ -94,7 +98,15 @@ function extractOrganizations(data: unknown): OrganizationMembership[] {
   return items.map(parseOrganizationMembership);
 }
 
-export async function getManualOrganizations(): Promise<OrganizationMembership[]> {
+export async function getManualOrganizations(): Promise<
+  OrganizationMembership[]
+> {
   const { data } = await apiClient.get<unknown>("/manual/organizations");
   return extractOrganizations(data);
+}
+
+export async function updateBlacklistSettings(
+  payload: BlacklistSettingsRequest,
+): Promise<void> {
+  await apiClient.put("/organizations/current/blacklist-settings", payload);
 }

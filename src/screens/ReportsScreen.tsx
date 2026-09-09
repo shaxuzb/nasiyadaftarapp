@@ -201,9 +201,6 @@ export function ReportsScreen() {
       <View style={styles.header}>
         <View style={styles.headerCopy}>
           <Text style={styles.screenTitle}>Hisobot</Text>
-          <Text style={styles.screenSubtitle}>
-            Biznesingizdagi pul oqimini kuzating
-          </Text>
         </View>
         <Pressable
           accessibilityRole="button"
@@ -327,7 +324,7 @@ export function ReportsScreen() {
                   backgroundColor={theme.paymentBg}
                 />
               </View>
-              <View style={styles.metricRow}>
+              {/* <View style={styles.metricRow}>
                 <MetricCard
                   icon="people"
                   label="Barcha mijozlar"
@@ -342,10 +339,10 @@ export function ReportsScreen() {
                   color={theme.secondary}
                   backgroundColor={theme.inputBackground}
                 />
-              </View>
+              </View> */}
             </View>
 
-            <View style={styles.paymentCard}>
+            {/* <View style={styles.paymentCard}>
               <View style={styles.cardHeader}>
                 <View style={styles.sectionIconGreen}>
                   <Ionicons
@@ -412,7 +409,7 @@ export function ReportsScreen() {
                   </View>
                 </View>
               </View>
-            </View>
+            </View> */}
 
             <View style={styles.sectionHeader}>
               <View>
@@ -502,16 +499,16 @@ export function ReportsScreen() {
               )}
             </View>
 
-            <View style={styles.sectionHeader}>
+            {/* <View style={styles.sectionHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Oylik pul oqimi</Text>
                 <Text style={styles.sectionSubtitle}>
                   So'nggi 6 oy ko'rsatkichlari
                 </Text>
               </View>
-            </View>
+            </View> */}
 
-            <View style={styles.listCard}>
+            {/* <View style={styles.listCard}>
               {monthlyMap.length === 0 ? (
                 <View style={styles.emptyState}>
                   <View style={styles.emptyIconBlue}>
@@ -587,7 +584,7 @@ export function ReportsScreen() {
                   </View>
                 ))
               )}
-            </View>
+            </View> */}
 
             <View style={styles.footerSpace} />
           </>

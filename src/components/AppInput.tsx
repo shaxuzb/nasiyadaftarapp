@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   View,
   TextInput,
@@ -21,6 +21,9 @@ interface Props extends TextInputProps {
   onChangeRawText?: (raw: string) => void;
   variant?: "default" | "sheet";
   passwordToggle?: boolean;
+  compact?: boolean;
+  trailingAccessory?: React.ReactNode;
+  inputRef?: React.Ref<TextInput>;
 }
 
 export function AppInput({
@@ -33,10 +36,17 @@ export function AppInput({
   onChangeRawText,
   variant = "default",
   passwordToggle = false,
+  compact = false,
+  trailingAccessory,
+  inputRef,
   secureTextEntry,
   ...rest
 }: Props) {
   const theme = useTheme();
+  const setInputRef = useCallback((instance: TextInput | null | undefined) => {
+    if (typeof inputRef === "function") return inputRef(instance ?? null);
+    if (inputRef) inputRef.current = instance ?? null;
+  }, [inputRef]);
   const [focused, setFocused] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const isSheet = variant === "sheet";
@@ -64,7 +74,7 @@ export function AppInput({
   ];
 
   return (
-    <View style={styles.wrapper}>
+    <View style={[styles.wrapper, compact && styles.compactWrapper]}>
       {label ? (
         <Text
           style={[
@@ -82,6 +92,7 @@ export function AppInput({
         style={[
           styles.inputRow,
           isSheet ? styles.sheetInputRow : null,
+          compact && styles.compactInputRow,
           {
             backgroundColor: isSheet ? theme.surface : theme.inputBackground,
             borderColor,
@@ -108,6 +119,7 @@ export function AppInput({
 
         {mask ? (
           <MaskInput
+            ref={setInputRef}
             style={inputStyle}
             mask={mask}
             placeholderTextColor={theme.textMuted}
@@ -122,6 +134,7 @@ export function AppInput({
           />
         ) : isSheet ? (
           <BottomSheetTextInput
+            ref={setInputRef}
             style={inputStyle}
             placeholderTextColor={theme.textMuted}
             onFocus={() => setFocused(true)}
@@ -132,6 +145,7 @@ export function AppInput({
           />
         ) : (
           <TextInput
+            ref={setInputRef}
             style={inputStyle}
             placeholderTextColor={theme.textMuted}
             onFocus={() => setFocused(true)}
@@ -142,6 +156,7 @@ export function AppInput({
           />
         )}
 
+        {trailingAccessory}
         {hasPasswordToggle ? (
           <Pressable
             onPress={() => setPasswordVisible((visible) => !visible)}
@@ -180,6 +195,13 @@ export function AppInput({
 const styles = StyleSheet.create({
   wrapper: {
     marginBottom: spacing.md,
+  },
+  compactWrapper: {
+    marginBottom: 0,
+  },
+  compactInputRow: {
+    minHeight: 50,
+    borderRadius: 13,
   },
   label: {
     marginBottom: spacing.xs,

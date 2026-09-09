@@ -27,3 +27,7 @@ export interface OrganizationMembership extends OrganizationResponse {
 export interface SelectOrganizationRequest {
   organizationId: number;
 }
+
+export interface BlacklistSettingsRequest {
+  blacklistAfterDays: number;
+}

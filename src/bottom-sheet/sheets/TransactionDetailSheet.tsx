@@ -1,7 +1,5 @@
 import React, { useMemo } from "react";
-import {
-  BottomSheetScrollView,
-} from "@gorhom/bottom-sheet";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
@@ -46,8 +44,8 @@ export function TransactionDetailSheet({
   const accentColor = isDebt ? theme.debtColor : theme.paymentColor;
   const accentBackground = isDebt ? theme.debtBg : theme.paymentBg;
   const title = isDebt ? "Qarz berildi" : "To'lov qabul qilindi";
-  const note = transaction.note?.trim() ||
-    (isDebt ? "Nasiya berildi" : "To'lov olindi");
+  const note =
+    transaction.note?.trim() || (isDebt ? "Nasiya berildi" : "To'lov olindi");
 
   return (
     <BottomSheetScrollView
@@ -56,7 +54,9 @@ export function TransactionDetailSheet({
       keyboardShouldPersistTaps="handled"
     >
       <View style={styles.header}>
-        <View style={[styles.headerIcon, { backgroundColor: accentBackground }]}>
+        <View
+          style={[styles.headerIcon, { backgroundColor: accentBackground }]}
+        >
           <Ionicons
             name={isDebt ? "arrow-down" : "arrow-up"}
             size={23}
@@ -99,7 +99,11 @@ export function TransactionDetailSheet({
           value={isDebt ? "Qarz" : "To'lov"}
         />
         <View style={styles.rowDivider} />
-        <DetailRow icon="calendar-outline" label="Sana" value={formatDate(transaction.date)} />
+        <DetailRow
+          icon="calendar-outline"
+          label="Sana"
+          value={formatDate(transaction.date)}
+        />
         <View style={styles.rowDivider} />
         <DetailRow icon="document-text-outline" label="Izoh" value={note} />
         <View style={styles.rowDivider} />
@@ -113,11 +117,8 @@ export function TransactionDetailSheet({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Yopish"
-        onPress={closeSheet}
-        style={({ pressed }) => [
-          styles.closeButton,
-          pressed && styles.pressed,
-        ]}
+        onPress={() => closeSheet()}
+        style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
       >
         <Text style={styles.closeButtonText}>Yopish</Text>
       </Pressable>

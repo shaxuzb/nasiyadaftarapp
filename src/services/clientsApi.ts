@@ -3,6 +3,7 @@ import { Customer } from "../modules/clients/types";
 import { Transaction, TransactionType } from "../modules/transactions/types";
 import {
   ClientCreateRequest,
+  ClientUpdateRequest,
   ClientDto,
 } from "../modules/clients/types";
 import {
@@ -37,6 +38,28 @@ function normalizeTransactionType(type: string | undefined): TransactionType {
   return "debt";
 }
 
+function mapBlacklistedOrganizations(input: unknown) {
+  if (!Array.isArray(input)) return [];
+  return input.flatMap((value) => {
+    if (typeof value === "string" && value.trim()) {
+      return [{ name: value.trim() }];
+    }
+    if (!value || typeof value !== "object") return [];
+    const item = value as Record<string, unknown>;
+    const nameValue = item.name ?? item.organizationName;
+    const name = typeof nameValue === "string" ? nameValue.trim() : "";
+    if (!name) return [];
+    const rawId = item.id ?? item.organizationId;
+    const id = Number(rawId);
+    return [
+      {
+        ...(Number.isInteger(id) && id > 0 ? { id } : {}),
+        name,
+      },
+    ];
+  });
+}
+
 function mapClient(dto: ClientDto): Customer {
   const rawBalance = dto.currentBalance;
   const currentBalance =
@@ -54,6 +77,15 @@ function mapClient(dto: ClientDto): Customer {
     currentBalance: Number.isFinite(currentBalance)
       ? currentBalance
       : undefined,
+    isBlacklisted: dto.isBlacklisted === true,
+    overdueBalance: toNumber(dto.overdueBalance, 0),
+    blacklistedOrganizationCount: Math.max(
+      0,
+      Math.trunc(toNumber(dto.blacklistedOrganizationCount, 0)),
+    ),
+    blacklistedOrganizations: mapBlacklistedOrganizations(
+      dto.blacklistedOrganizations,
+    ),
   };
 }
 
@@ -141,8 +173,11 @@ export async function getClients(
   return customers;
 }
 
-export async function getClientById(id: number): Promise<Customer> {
-  const { data } = await apiClient.get<unknown>(`/clients/${id}`);
+export async function getClientById(
+  id: number,
+  signal?: AbortSignal,
+): Promise<Customer> {
+  const { data } = await apiClient.get<unknown>(`/clients/${id}`, { signal });
   const extracted = extractClient(data);
   if (!extracted) {
     throw new Error("Client parsing error");
@@ -178,6 +213,14 @@ export async function deleteClient(id: number): Promise<void> {
   await apiClient.delete(`/clients/${id}`);
 }
 
+export async function updateClient(
+  id: number,
+  payload: ClientUpdateRequest,
+): Promise<void> {
+  // The endpoint can return 200 with no body. Do not parse it as a client DTO.
+  await apiClient.put(`/clients/${id}`, payload);
+}
+
 export async function createClientTransaction(
   clientId: number,
   payload: ClientTransactionCreateRequest,
@@ -188,28 +231,26 @@ export async function createClientTransaction(
   );
   const candidate =
     data && typeof data === "object"
-      ? ((data as Record<string, unknown>).data as ClientTransactionDto) ??
+      ? (((data as Record<string, unknown>).data as ClientTransactionDto) ??
         ((data as Record<string, unknown>).result as ClientTransactionDto) ??
-        (data as ClientTransactionDto)
+        (data as ClientTransactionDto))
       : undefined;
 
-  return mapTransaction(
-    candidate ?? {},
-    clientId,
-    Date.now(),
-    payload.type,
-    {
-      amount: payload.amount,
-      date: payload.date,
-      note: payload.note,
-    },
-  );
+  return mapTransaction(candidate ?? {}, clientId, Date.now(), payload.type, {
+    amount: payload.amount,
+    date: payload.date,
+    note: payload.note,
+  });
 }
 
 export async function getClientHistory(
   clientId: number,
+  signal?: AbortSignal,
 ): Promise<Transaction[]> {
-  const { data } = await apiClient.get<unknown>(`/clients/${clientId}/history`);
+  const { data } = await apiClient.get<unknown>(
+    `/clients/${clientId}/history`,
+    { signal },
+  );
   const transactions = extractArray<ClientTransactionDto>(data);
 
   return transactions.map((item, index) =>
@@ -235,7 +276,9 @@ export async function getClientHistories(
 
   for (let index = 0; index < clientIds.length; index += batchSize) {
     const batch = clientIds.slice(index, index + batchSize);
-    histories.push(...(await Promise.all(batch.map(getClientHistory))));
+    histories.push(
+      ...(await Promise.all(batch.map((id) => getClientHistory(id)))),
+    );
   }
 
   return histories.flat();

@@ -1,6 +1,15 @@
 export type QueryScope = string | number;
 
 export const queryKeys = {
+  clientSmsRoot: () => ["client-sms"] as const,
+  clientSmsRecipientsRoot: (scope: QueryScope) =>
+    ["client-sms", scope, "recipients"] as const,
+  clientSmsRecipients: (scope: QueryScope, filters: object) =>
+    ["client-sms", scope, "recipients", filters] as const,
+  clientSmsHistoryRoot: (scope: QueryScope) =>
+    ["client-sms", scope, "history"] as const,
+  clientSmsHistory: (scope: QueryScope, filters: object) =>
+    ["client-sms", scope, "history", filters] as const,
   organizationsRoot: () => ["organizations"] as const,
   clientsRoot: () => ["clients"] as const,
   clients: (scope: QueryScope) => ["clients", scope] as const,

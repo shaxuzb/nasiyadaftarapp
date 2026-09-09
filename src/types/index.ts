@@ -1,5 +1,8 @@
-export type { Transaction, TransactionType } from '../modules/transactions/types';
-export type { Customer } from '../modules/clients/types';
+export type {
+  Transaction,
+  TransactionType,
+} from "../modules/transactions/types";
+export type { Customer } from "../modules/clients/types";
 
 export interface AppTheme {
   background: string;
@@ -30,6 +33,9 @@ export type RootStackParamList = {
   CustomerDetail: { customerId: number };
   AccountSecurity: undefined;
   PinChange: undefined;
+  ClientSms: undefined;
+  ClientSmsHistory: undefined;
+  BlacklistSettings: undefined;
 };
 
 export type MainTabParamList = {

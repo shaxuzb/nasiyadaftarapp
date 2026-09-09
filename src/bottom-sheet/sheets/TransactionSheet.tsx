@@ -1,403 +1,536 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import {
   ActivityIndicator,
   Keyboard,
   Pressable,
-  ScrollViewProps,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { TextInput as GestureTextInput } from "react-native-gesture-handler";
 import {
+  BottomSheetFooter,
   BottomSheetScrollView,
   BottomSheetTextInput,
+  type BottomSheetFooterProps,
+  type BottomSheetModalProps,
 } from "@gorhom/bottom-sheet";
-import { KeyboardAwareScrollView, KeyboardController } from "react-native-keyboard-controller";
-
+import { KeyboardController } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQueryClient } from "@tanstack/react-query";
 import { SheetRenderProps } from "../types";
+import { AndroidSheetKeyboardBridge } from "../AndroidSheetKeyboardBridge";
 import { useToast } from "../../context/ToastContext";
-import { formatCurrency } from "../../utils";
+import { useApp } from "../../context/AppContext";
+import { useAuth } from "../../context/AuthContext";
+import { formatDisplayedBalance, getInitials } from "../../utils";
 import { hapticError, hapticSuccess } from "../../utils/haptics";
 import { createClientTransaction } from "../../modules/transactions/services/transactionsService";
 import { queryKeys } from "../../core/query/queryKeys";
-import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "../../hooks/useTheme";
-import { AppTheme } from "../../types";
+import { AppTheme, TransactionType } from "../../types";
 import { getApiErrorMessage } from "../../utils/apiError";
 
 function getLocalDateOnly(): string {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
 function formatAmountInput(value: string): string {
-  const digits = value.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
-  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return value
+    .replace(/\D/g, "")
+    .replace(/^0+(?=\d)/, "")
+    .slice(0, 13)
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
-const KeyboardBottomSheetScrollView =
-  BottomSheetScrollView as unknown as React.ComponentType<ScrollViewProps>;
-
-export function TransactionSheet({
+function useTransactionController({
   props,
   closeSheet,
+  setDismissLocked,
 }: SheetRenderProps<"transaction">) {
-  const theme = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { getCustomerById } = useApp();
+  const { user } = useAuth();
+  const customer = getCustomerById(props.customerId);
+  const scope = user?.organizationId ?? user?.id ?? "anonymous";
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [amountFocused, setAmountFocused] = useState(false);
-  const [noteFocused, setNoteFocused] = useState(false);
-  const amountInputRef = useRef<GestureTextInput>(null);
-  const noteInputRef = useRef<GestureTextInput>(null);
-
-  const transactionType = props.type ?? "debt";
-  const isDebt = transactionType === "debt";
-  const currentBalance = Math.max(props.currentBalance ?? 0, 0);
-  const accentColor = isDebt ? theme.primary : theme.paymentColor;
-  const accentBackground = isDebt ? theme.primaryLight : theme.paymentBg;
-
-  const parsedAmount = useMemo(
-    () => Number(amount.replace(/\s/g, "").replace(",", ".")),
-    [amount],
+  const [saving, setSaving] = useState<TransactionType | null>(null);
+  const [previewType, setPreviewType] = useState<TransactionType>(
+    props.type ?? "debt",
   );
+  const submitting = useRef(false);
+  const parsedAmount = Number(amount.replace(/\s/g, ""));
+  const validAmount = Number.isSafeInteger(parsedAmount) && parsedAmount > 0;
+  const currentBalance = props.currentBalance ?? customer?.currentBalance ?? 0;
+  const nextBalance =
+    currentBalance +
+    (validAmount ? (previewType === "debt" ? parsedAmount : -parsedAmount) : 0);
+  const name =
+    customer?.fullName || props.customerName || props.customerPhone || "Mijoz";
+  const phone = customer?.phone ?? props.customerPhone ?? "";
+  const initials = getInitials({ id: props.customerId, fullName: name, phone });
 
-  const nextBalance = useMemo(() => {
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
-      return currentBalance;
-    }
-    return isDebt
-      ? currentBalance + parsedAmount
-      : Math.max(currentBalance - parsedAmount, 0);
-  }, [currentBalance, isDebt, parsedAmount]);
-
-  function dismissKeyboard() {
-    amountInputRef.current?.blur();
-    noteInputRef.current?.blur();
-    Keyboard.dismiss();
-    void KeyboardController.dismiss();
-  }
-
-  async function handleSave() {
-    dismissKeyboard();
-    if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+  async function save(type: TransactionType) {
+    if (submitting.current) return;
+    if (!validAmount) {
       hapticError();
       showToast("Summa 0 dan katta bo'lishi kerak", "error");
       return;
     }
-
+    submitting.current = true;
+    setSaving(type);
+    setDismissLocked(true);
+    setPreviewType(type);
+    Keyboard.dismiss();
+    void KeyboardController.dismiss();
     try {
-      setSaving(true);
       await createClientTransaction(props.customerId, {
-        type: transactionType,
+        type,
         amount: parsedAmount,
         date: getLocalDateOnly(),
-        note: note.trim() || (isDebt ? "Qarz" : "To'lov"),
+        note: note.trim() || (type === "debt" ? "Qarz" : "To'lov"),
       });
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.clientsRoot() }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.clientRoot() }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.transactionsRoot(),
-        }),
-        queryClient.invalidateQueries({ queryKey: queryKeys.reportsRoot() }),
-      ]);
-
+      // A completed POST must not be retried just because a background refresh failed.
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.clients(scope),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.client(scope, props.customerId),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.transactions(scope),
+      });
+      void queryClient.invalidateQueries({ queryKey: ["reports", scope] });
       hapticSuccess();
-      showToast(isDebt ? "Qarz yozildi" : "To'lov qo'shildi", "success");
+      showToast(
+        type === "debt" ? "Qarz yozildi" : "To'lov qo'shildi",
+        "success",
+      );
+      setDismissLocked(false);
       closeSheet();
     } catch (error) {
       hapticError();
       showToast(getApiErrorMessage(error, "Tranzaksiya saqlanmadi"), "error");
-    } finally {
-      setSaving(false);
+      submitting.current = false;
+      setSaving(null);
+      setDismissLocked(false);
     }
   }
+  return {
+    props,
+    closeSheet,
+    amount,
+    setAmount,
+    note,
+    setNote,
+    saving,
+    previewType,
+    setPreviewType,
+    validAmount,
+    currentBalance,
+    nextBalance,
+    name,
+    phone,
+    initials,
+    save,
+  };
+}
 
+const TransactionContext = createContext<ReturnType<
+  typeof useTransactionController
+> | null>(null);
+function useTransaction() {
+  const context = useContext(TransactionContext);
+  if (!context) throw new Error("Transaction sheet must have its controller");
+  return context;
+}
+
+export function TransactionSheetProvider({
+  children,
+  ...props
+}: SheetRenderProps<"transaction"> & { children: ReactNode }) {
+  const value = useTransactionController(props);
+  const modal = React.Children.only(
+    children,
+  ) as ReactElement<BottomSheetModalProps>;
+  const [store] = useState(() => {
+    let snapshot = value;
+    const listeners = new Set<() => void>();
+    return {
+      getSnapshot: () => snapshot,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+      update: (next: typeof value) => {
+        snapshot = next;
+        listeners.forEach((listener) => listener());
+      },
+    };
+  });
+  useLayoutEffect(() => store.update(value), [store, value]);
+  // Keep the footer component identity stable so press-in state updates cannot
+  // remount the button and cancel its ensuing press/submit event.
+  const footer = useMemo(
+    () =>
+      function FooterBridge(footerProps: BottomSheetFooterProps) {
+        const snapshot = useSyncExternalStore(
+          store.subscribe,
+          store.getSnapshot,
+          store.getSnapshot,
+        );
+        return (
+          <TransactionContext.Provider value={snapshot}>
+            <TransactionFooter {...footerProps} />
+          </TransactionContext.Provider>
+        );
+      },
+    [store],
+  );
+  // Modal content is portaled: put the controller inside BOTH rendered slots.
+  return React.cloneElement(
+    modal,
+    { footerComponent: footer },
+    <TransactionContext.Provider value={value}>
+      {typeof modal.props.children === "function"
+        ? React.createElement(modal.props.children)
+        : modal.props.children}
+    </TransactionContext.Provider>,
+  );
+}
+
+function TransactionFooter(footerProps: BottomSheetFooterProps) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { saving, validAmount, save, setPreviewType } = useTransaction();
   return (
-    <View style={styles.keyboardWrap}>
-      <KeyboardAwareScrollView
-        ScrollViewComponent={KeyboardBottomSheetScrollView}
-        style={styles.keyboardScroll}
-        bottomOffset={24}
-        extraKeyboardSpace={12}
-        disableScrollOnKeyboardHide={false}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="always"
-        keyboardDismissMode="interactive"
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        <View style={styles.header}>
-          <View
-            style={[styles.headerIcon, { backgroundColor: accentBackground }]}
-          >
-            <Ionicons
-              name={isDebt ? "arrow-down" : "arrow-up"}
-              size={22}
-              color={accentColor}
-            />
-          </View>
-          <Text style={styles.title}>
-            {isDebt ? "Qarz yozish" : "To'lov olish"}
-          </Text>
-          <Text selectable style={styles.customerName} numberOfLines={1}>
-            {props.customerName ?? "Mijoz"}
-          </Text>
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Summa</Text>
-          <View
-            style={[
-              styles.amountField,
-              amountFocused && { borderColor: accentColor, borderWidth: 1.5 },
+    <BottomSheetFooter {...footerProps} bottomInset={insets.bottom}>
+      <View style={styles.footer}>
+        {(["payment", "debt"] as const).map((type) => (
+          <Pressable
+            key={type}
+            accessibilityRole="button"
+            accessibilityLabel={
+              type === "debt" ? "Qarz qo'shish" : "To'lov olish"
+            }
+            accessibilityState={{
+              disabled: !!saving || !validAmount,
+              busy: saving === type,
+            }}
+            disabled={!!saving || !validAmount}
+            onPressIn={() => setPreviewType(type)}
+            onPress={() => void save(type)}
+            style={({ pressed }) => [
+              styles.action,
+              {
+                backgroundColor:
+                  type === "debt" ? theme.primary : theme.paymentColor,
+              },
+              (!validAmount || !!saving || pressed) && styles.disabled,
             ]}
           >
-            <BottomSheetTextInput
-              ref={amountInputRef}
-              value={amount}
-              onChangeText={(value) => setAmount(formatAmountInput(value))}
-              keyboardType="number-pad"
-              // returnKeyType="next"
-              blurOnSubmit
-              maxLength={19}
-              placeholder={isDebt ? "Qarz summasi" : "To'lov summasi"}
-              placeholderTextColor={theme.textMuted}
-              selectionColor={accentColor}
-              cursorColor={accentColor}
-              onFocus={() => setAmountFocused(true)}
-              onBlur={() => setAmountFocused(false)}
-              style={styles.amountInput}
-            />
-            <Text style={styles.currencySuffix}>so'm</Text>
-          </View>
-        </View>
-
-        <View style={styles.balanceCard}>
-          <View style={styles.balanceItem}>
-            <Text style={styles.balanceLabel}>Joriy qoldiq</Text>
-            <Text selectable style={styles.balanceValue} numberOfLines={1}>
-              {formatCurrency(currentBalance)}
+            {saving === type ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Ionicons
+                name={type === "debt" ? "add-circle-outline" : "wallet-outline"}
+                size={24}
+                color="#FFFFFF"
+              />
+            )}
+            <Text style={styles.actionText}>
+              {type === "debt" ? "Qarz qo'shish" : "To'lov olish"}
             </Text>
-          </View>
-          <View style={styles.balanceDivider} />
-          <View style={styles.balanceItem}>
-            <Text style={styles.balanceLabel}>Keyingi qoldiq</Text>
-            <Text
-              selectable
-              style={[styles.balanceValue, { color: accentColor }]}
-              numberOfLines={1}
-            >
-              {formatCurrency(nextBalance)}
-            </Text>
-          </View>
-        </View>
+          </Pressable>
+        ))}
+      </View>
+    </BottomSheetFooter>
+  );
+}
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>Izoh</Text>
-          <View
-            style={[
-              styles.noteField,
-              noteFocused && { borderColor: accentColor, borderWidth: 1.5 },
-            ]}
-          >
-            <BottomSheetTextInput
-              ref={noteInputRef}
-              value={note}
-              onChangeText={setNote}
-              placeholder="Qo'shimcha ma'lumot"
-              placeholderTextColor={theme.textMuted}
-              selectionColor={accentColor}
-              cursorColor={accentColor}
-              multiline
-              textAlignVertical="top"
-              maxLength={250}
-              returnKeyType="done"
-              blurOnSubmit
-              onSubmitEditing={dismissKeyboard}
-              onFocus={() => setNoteFocused(true)}
-              onBlur={() => setNoteFocused(false)}
-              style={styles.noteInput}
-            />
-          </View>
-        </View>
-
+export function TransactionSheet(_: SheetRenderProps<"transaction">) {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const tx = useTransaction();
+  const [focused, setFocused] = useState<"amount" | "note" | null>(null);
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
+    void KeyboardController.dismiss();
+  };
+  return (
+    <BottomSheetScrollView
+      enableFooterMarginAdjustment
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: insets.bottom + 12 },
+      ]}
+      keyboardShouldPersistTaps="always"
+      keyboardDismissMode="interactive"
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+    >
+      <AndroidSheetKeyboardBridge />
+      <View style={styles.header}>
+        <Text style={styles.title}>Operatsiya</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={isDebt ? "Qarzni saqlash" : "To'lovni saqlash"}
-          disabled={saving}
-          onPress={handleSave}
-          style={({ pressed }) => [
-            styles.saveButton,
-            { backgroundColor: accentColor },
-            (pressed || saving) && styles.saveButtonPressed,
+          accessibilityLabel="Yopish"
+          disabled={!!tx.saving}
+          onPress={() => tx.closeSheet()}
+          style={styles.close}
+        >
+          <Ionicons name="close" size={24} color={theme.textSecondary} />
+        </Pressable>
+      </View>
+      <View style={styles.customer}>
+        <View style={styles.avatar}>
+          <Text style={styles.initials}>{tx.initials}</Text>
+        </View>
+        <View style={styles.identity}>
+          <Text style={styles.name} numberOfLines={1}>
+            {tx.name}
+          </Text>
+          {!!tx.phone && (
+            <Text style={styles.phone} numberOfLines={1}>
+              {tx.phone}
+            </Text>
+          )}
+          <Text
+            style={[
+              styles.balance,
+              {
+                color:
+                  tx.currentBalance > 0 ? theme.debtColor : theme.paymentColor,
+              },
+            ]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+          >
+            {formatDisplayedBalance(tx.currentBalance)}
+          </Text>
+        </View>
+        {tx.props.onOpenProfile && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Mijoz profilini ochish"
+            disabled={!!tx.saving}
+            onPress={() => tx.closeSheet(tx.props.onOpenProfile)}
+            style={styles.profile}
+          >
+            <Ionicons name="person-outline" size={19} color={theme.primary} />
+            <Text style={styles.profileText}>Profil</Text>
+            <Ionicons name="chevron-forward" size={16} color={theme.primary} />
+          </Pressable>
+        )}
+      </View>
+      <View
+        style={[styles.amountField, focused === "amount" && styles.focused]}
+      >
+        <View style={styles.amountCopy}>
+          <Text style={styles.label}>Summa</Text>
+          <BottomSheetTextInput
+            value={tx.amount}
+            onChangeText={(value) => tx.setAmount(formatAmountInput(value))}
+            editable={!tx.saving}
+            keyboardType="number-pad"
+            returnKeyType="done"
+            submitBehavior="blurAndSubmit"
+            onSubmitEditing={dismissKeyboard}
+            placeholder="0"
+            placeholderTextColor={theme.textMuted}
+            selectionColor={theme.primary}
+            onFocus={() => setFocused("amount")}
+            onBlur={() => setFocused(null)}
+            style={styles.amountInput}
+            accessibilityLabel="Operatsiya summasi"
+          />
+        </View>
+        <Text style={styles.currency}>so'm</Text>
+      </View>
+      <View style={[styles.noteField, focused === "note" && styles.focused]}>
+        <Text style={styles.label}>Izoh</Text>
+        <BottomSheetTextInput
+          value={tx.note}
+          onChangeText={tx.setNote}
+          editable={!tx.saving}
+          placeholder="Qo'shimcha ma'lumot"
+          placeholderTextColor={theme.textMuted}
+          selectionColor={theme.primary}
+          multiline
+          maxLength={250}
+          returnKeyType="done"
+          submitBehavior="blurAndSubmit"
+          onSubmitEditing={dismissKeyboard}
+          onFocus={() => setFocused("note")}
+          onBlur={() => setFocused(null)}
+          style={styles.noteInput}
+          accessibilityLabel="Operatsiya izohi"
+        />
+      </View>
+      <View style={styles.preview}>
+        <Text style={styles.previewLabel}>
+          Keyingi balans{tx.previewType === "payment" ? " (to'lov)" : " (qarz)"}
+          :
+        </Text>
+        <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
+          style={[
+            styles.nextBalance,
+            {
+              color: tx.nextBalance > 0 ? theme.debtColor : theme.paymentColor,
+            },
           ]}
         >
-          {saving ? (
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Text style={styles.saveButtonText}>Saqlash</Text>
-          )}
-        </Pressable>
-      </KeyboardAwareScrollView>
-    </View>
+          {formatDisplayedBalance(tx.nextBalance)}
+        </Text>
+      </View>
+    </BottomSheetScrollView>
   );
 }
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
-    keyboardWrap: {
-      flex: 1,
-    },
-    keyboardScroll: {
-      flex: 1,
-    },
-    content: {
-      paddingHorizontal: 16,
-      paddingTop: 2,
-      paddingBottom: 36,
-      gap: 20,
-      backgroundColor: theme.surface,
-    },
-    header: {
-      alignItems: "center",
-      gap: 3,
-      paddingBottom: 2,
-    },
-    headerIcon: {
-      width: 40,
+    content: { paddingHorizontal: 16, gap: 12 },
+    header: { flexDirection: "row", alignItems: "center" },
+    title: { flex: 1, color: theme.text, fontSize: 19, fontWeight: "800" },
+    close: {
+      width: 44,
       height: 40,
-      borderRadius: 20,
       alignItems: "center",
       justifyContent: "center",
-      marginBottom: 3,
+      marginRight: -8,
     },
-    title: {
-      color: theme.text,
-      fontSize: 19,
-      lineHeight: 25,
-      fontWeight: "800",
-      letterSpacing: -0.3,
-    },
-    customerName: {
-      color: theme.textSecondary,
-      fontSize: 13,
-      lineHeight: 18,
-      fontWeight: "500",
-    },
-    fieldGroup: {
-      gap: 7,
-    },
-    fieldLabel: {
-      color: theme.text,
-      fontSize: 13,
-      lineHeight: 18,
-      fontWeight: "700",
-    },
-    amountField: {
-      minHeight: 58,
+    customer: {
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
-      paddingHorizontal: 15,
-      backgroundColor: theme.surfaceElevated,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 15,
-      borderCurve: "continuous",
-    },
-    amountInput: {
-      flex: 1,
-      color: theme.text,
-      fontSize: 16,
-      lineHeight: 20,
-      fontWeight: "600",
-      paddingVertical: 0,
-      fontVariant: ["tabular-nums"],
-    },
-    currencySuffix: {
-      color: theme.textMuted,
-      fontSize: 12,
-      lineHeight: 17,
-      fontWeight: "600",
-    },
-    balanceCard: {
-      minHeight: 74,
-      flexDirection: "row",
-      alignItems: "stretch",
-      paddingVertical: 12,
-      paddingHorizontal: 14,
+      padding: 12,
+      borderRadius: 14,
       backgroundColor: theme.inputBackground,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 15,
-      borderCurve: "continuous",
     },
-    balanceItem: {
-      minWidth: 0,
-      flex: 1,
-      justifyContent: "center",
-      gap: 5,
-    },
-    balanceDivider: {
-      width: 1,
-      backgroundColor: theme.border,
-      marginHorizontal: 14,
-    },
-    balanceLabel: {
-      color: theme.textMuted,
-      fontSize: 11,
-      lineHeight: 15,
-      fontWeight: "500",
-    },
-    balanceValue: {
-      color: theme.text,
-      fontSize: 14,
-      lineHeight: 19,
-      fontWeight: "800",
-      fontVariant: ["tabular-nums"],
-    },
-    noteField: {
-      minHeight: 88,
-      paddingHorizontal: 15,
-      paddingVertical: 12,
-      backgroundColor: theme.surfaceElevated,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 15,
-      borderCurve: "continuous",
-    },
-    noteInput: {
-      minHeight: 60,
-      color: theme.text,
-      fontSize: 14,
-      lineHeight: 20,
-      padding: 0,
-    },
-    saveButton: {
-      minHeight: 56,
+    avatar: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      backgroundColor: theme.primaryLight,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 15,
-      borderCurve: "continuous",
-      boxShadow: theme.cardShadow,
     },
-    saveButtonPressed: {
-      opacity: 0.7,
+    initials: { fontSize: 22, fontWeight: "800", color: theme.primary },
+    identity: { flex: 1, minWidth: 0, gap: 2 },
+    name: { fontSize: 16, fontWeight: "700", color: theme.text },
+    phone: {
+      fontSize: 12,
+      color: theme.textSecondary,
+      fontVariant: ["tabular-nums"],
     },
-    saveButtonText: {
-      color: "#FFFFFF",
+    balance: { fontSize: 14, fontWeight: "800", fontVariant: ["tabular-nums"] },
+    profile: {
+      minHeight: 40,
+      paddingHorizontal: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: theme.primary,
+      backgroundColor: theme.surface,
+    },
+    profileText: { fontSize: 12, fontWeight: "700", color: theme.primary },
+    amountField: {
+      minHeight: 64,
+      flexDirection: "row",
+      alignItems: "center",
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    amountCopy: { flex: 1 },
+    label: { fontSize: 11, lineHeight: 16, color: theme.textMuted },
+    amountInput: {
+      minHeight: 30,
+      color: theme.text,
+      paddingVertical: 0,
+      paddingHorizontal: 0,
+      fontSize: 21,
+      fontWeight: "600",
+      fontVariant: ["tabular-nums"],
+    },
+    currency: {
+      paddingLeft: 14,
+      borderLeftWidth: 1,
+      borderLeftColor: theme.border,
+      color: theme.textMuted,
+      fontSize: 16,
+      fontWeight: "600",
+    },
+    noteField: {
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: 12,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+    },
+    noteInput: {
+      minHeight: 34,
+      maxHeight: 90,
+      textAlignVertical: "top",
+      color: theme.text,
       fontSize: 15,
-      lineHeight: 20,
-      fontWeight: "800",
+      padding: 0,
     },
+    focused: { borderColor: theme.primary },
+    preview: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      paddingVertical: 10,
+    },
+    previewLabel: { flex: 1, color: theme.text, fontSize: 12 },
+    nextBalance: {
+      maxWidth: "55%",
+      fontSize: 15,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    footer: {
+      flexDirection: "row",
+      gap: 10,
+      padding: 12,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.border,
+      backgroundColor: theme.surface,
+    },
+    action: {
+      flex: 1,
+      minHeight: 56,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      borderRadius: 12,
+      paddingHorizontal: 8,
+    },
+    actionText: { fontSize: 13, fontWeight: "700", color: "#FFFFFF" },
+    disabled: { opacity: 0.55 },
   });

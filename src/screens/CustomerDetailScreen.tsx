@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
-  Alert,
+  ActivityIndicator,
+  FlatList,
   Linking,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -13,13 +13,20 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
-
 import { useApp } from "../context/AppContext";
 import { useToast } from "../context/ToastContext";
 import { useConfirmDialog } from "../context/ConfirmDialogContext";
-import { TransactionItem } from "../modules/transactions/components/TransactionItem";
 import { EmptyState } from "../components/EmptyState";
-import { formatCurrency, formatDate, getFullName, getInitials } from "../utils";
+import { PrimaryButton } from "../components/PrimaryButton";
+import { CustomerEditSheet } from "../modules/clients/components/CustomerEditSheet";
+import { useClientDetail } from "../modules/clients/hooks/useClientDetail";
+import {
+  formatCurrency,
+  formatDate,
+  formatDisplayedBalance,
+  getFullName,
+  getInitials,
+} from "../utils";
 import { APP_NAME } from "../constants";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
@@ -29,760 +36,825 @@ import { getApiErrorMessage } from "../utils/apiError";
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, "CustomerDetail">;
 type TxDateFilter = "all" | "today" | "7d" | "30d";
-
-interface DetailStatProps {
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  label: string;
-  value: string;
-  color: string;
-  backgroundColor: string;
-}
-
-function DetailStat({
-  icon,
-  label,
-  value,
-  color,
-  backgroundColor,
-}: DetailStatProps) {
-  const theme = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return (
-    <View style={styles.statBox}>
-      <View style={styles.statContent}>
-        <View style={[styles.statIcon, { backgroundColor }]}>
-          <Ionicons name={icon} size={18} color={color} />
-        </View>
-        <Text style={styles.statLabel}>{label}</Text>
-      </View>
-      <Text
-        selectable
-        numberOfLines={1}
-        adjustsFontSizeToFit
-        minimumFontScale={0.7}
-        style={[styles.statAmount, { color }]}
-      >
-        {value}
-      </Text>
-    </View>
-  );
-}
+const filters: { key: TxDateFilter; label: string }[] = [
+  { key: "all", label: "Hammasi" },
+  { key: "today", label: "Bugun" },
+  { key: "7d", label: "7 kun" },
+  { key: "30d", label: "30 kun" },
+];
 
 export function CustomerDetailScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
-  const route = useRoute<Route>();
+  const {
+    params: { customerId },
+  } = useRoute<Route>();
   const { showToast } = useToast();
   const { openSheet } = useBottomSheet();
   const { confirm } = useConfirmDialog();
-  const { customerId } = route.params;
+  const { deleteCustomer } = useApp();
+  const { detail, history, update } = useClientDetail(customerId);
+  const customer = detail.data;
   const [txDateFilter, setTxDateFilter] = useState<TxDateFilter>("all");
+  const [showActions, setShowActions] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const deletePending = useRef(false);
 
-  const {
-    getCustomerById,
-    transactions,
-    deleteCustomer,
-    loadCustomerDetail,
-    loadCustomerHistory,
-  } = useApp();
-
-  const customer = getCustomerById(customerId);
-  const { txs, balance, totalDebt, totalPaid } = useMemo(() => {
-    const customerTransactions: typeof transactions = [];
-    let debt = 0;
-    let paid = 0;
-
-    for (const transaction of transactions) {
-      if (transaction.customerId !== customerId) continue;
-      customerTransactions.push(transaction);
-      if (transaction.type === "debt") debt += transaction.amount;
-      else paid += transaction.amount;
+  const { txs, totalDebt, totalPaid } = useMemo(() => {
+    const txs = [...(history.data ?? [])].sort(
+      (a, b) =>
+        (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0) || b.id - a.id,
+    );
+    let totalDebt = 0;
+    let totalPaid = 0;
+    for (const tx of txs) {
+      if (tx.type === "debt") totalDebt += tx.amount;
+      else totalPaid += tx.amount;
     }
-
-    return {
-      txs: customerTransactions,
-      balance: debt - paid,
-      totalDebt: debt,
-      totalPaid: paid,
-    };
-  }, [customerId, transactions]);
-
+    return { txs, totalDebt, totalPaid };
+  }, [history.data]);
+  const balance =
+    customer?.currentBalance ??
+    (history.data ? totalDebt - totalPaid : undefined);
   const filteredTxs = useMemo(() => {
     if (txDateFilter === "all") return txs;
-
     const now = new Date();
-    return txs.filter((transaction) => {
-      const date = new Date(transaction.date);
-      if (Number.isNaN(date.getTime())) return false;
-
-      if (txDateFilter === "today") {
-        return (
-          date.getFullYear() === now.getFullYear() &&
-          date.getMonth() === now.getMonth() &&
-          date.getDate() === now.getDate()
-        );
-      }
-
-      const days = txDateFilter === "7d" ? 7 : 30;
-      const difference = now.getTime() - date.getTime();
-      return difference >= 0 && difference <= days * 86_400_000;
+    return txs.filter((tx) => {
+      const date = new Date(tx.date);
+      if (txDateFilter === "today")
+        return date.toDateString() === now.toDateString();
+      const elapsed = now.getTime() - date.getTime();
+      return (
+        elapsed >= 0 && elapsed <= (txDateFilter === "7d" ? 7 : 30) * 86_400_000
+      );
     });
   }, [txDateFilter, txs]);
 
-  useEffect(() => {
-    void Promise.all([
-      loadCustomerDetail(customerId),
-      loadCustomerHistory(customerId),
-    ]).catch((error) => {
-      showToast(
-        getApiErrorMessage(error, "Mijoz ma'lumotlarini yuklab bo'lmadi"),
-        "error",
-      );
-    });
-  }, [customerId, loadCustomerDetail, loadCustomerHistory, showToast]);
-
-  function handleCall() {
-    if (!customer) return;
-    void Linking.openURL(`tel:${customer.phone}`).catch(() =>
-      Alert.alert("Xatolik", "Qo'ng'iroq qilib bo'lmadi"),
-    );
+  function goBack() {
+    if (navigation.canGoBack()) navigation.goBack();
+    else navigation.navigate("MainTabs");
   }
 
-  function handleWhatsApp() {
-    if (!customer) return;
-    const rawPhone = customer.phone.replace(/\D/g, "");
-    const message =
-      `Assalomu alaykum, ${getFullName(customer)}!\n\n` +
-      `Sizning ${APP_NAME} daftarimizdagi nasiya qoldig'ingiz: ` +
-      `${formatCurrency(Math.max(balance, 0))}\n\n` +
-      "Iltimos, to'lovni amalga oshiring. Rahmat!";
-    const url = `https://wa.me/${rawPhone}?text=${encodeURIComponent(message)}`;
-    void Linking.openURL(url).catch(() =>
-      Alert.alert("Xatolik", "WhatsApp ochib bo'lmadi"),
-    );
-  }
-
-  async function handleShare() {
+  async function openContact(whatsApp = false) {
     if (!customer) return;
     const message =
-      `${APP_NAME.toUpperCase()} — HISOBOT\n` +
-      `Mijoz: ${getFullName(customer)}\n` +
-      `Telefon: ${customer.phone}\n\n` +
-      `Jami nasiya: ${formatCurrency(totalDebt)}\n` +
-      `To'langan: ${formatCurrency(totalPaid)}\n` +
-      `Qoldiq: ${formatCurrency(Math.max(balance, 0))}\n` +
-      `Sana: ${formatDate(new Date().toISOString())}`;
-    await Share.share({ message });
-  }
-
-  async function handleDeleteCustomer() {
-    const accepted = await confirm({
-      title: "Mijozni o'chirish",
-      message:
-        "Bu amal qaytarilmaydi. Mijoz va barcha tranzaksiyalar o'chiriladi.",
-      confirmText: "O'chirish",
-      cancelText: "Bekor qilish",
-      variant: "danger",
-    });
-
-    if (!accepted) return;
-
+      `Assalomu alaykum, ${getFullName(customer)}!\n${APP_NAME} hisoboti` +
+      (balance === undefined
+        ? ""
+        : `\nQarz qoldig'i: ${formatCurrency(Math.max(balance, 0))}`);
+    const url = whatsApp
+      ? `https://wa.me/${customer.phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`
+      : `tel:${customer.phone}`;
     try {
-      await deleteCustomer(customerId);
-      showToast("Mijoz o'chirildi", "success");
-      if (navigation.canGoBack()) {
-        navigation.goBack();
-        return;
-      }
-      navigation.navigate("MainTabs");
-    } catch (error) {
+      await Linking.openURL(url);
+    } catch {
       showToast(
-        getApiErrorMessage(error, "Mijozni o'chirishda xatolik"),
+        whatsApp ? "WhatsApp ochib bo'lmadi" : "Qo'ng'iroq qilib bo'lmadi",
         "error",
       );
     }
   }
 
-  if (!customer) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.notFoundText}>Mijoz topilmadi</Text>
-      </View>
-    );
+  async function share() {
+    if (!customer) return;
+    const totals = history.data
+      ? `\nJami qarz: ${formatCurrency(totalDebt)}\nJami to'lov: ${formatCurrency(totalPaid)}`
+      : "";
+    try {
+      await Share.share({
+        message:
+          `${APP_NAME} — HISOBOT\nMijoz: ${getFullName(customer)}\nTelefon: ${customer.phone}${totals}` +
+          (balance === undefined
+            ? ""
+            : `\nBalans: ${formatDisplayedBalance(balance)}`) +
+          `\nSana: ${formatDate(new Date().toISOString())}`,
+      });
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, "Hisobotni ulashib bo'lmadi"),
+        "error",
+      );
+    }
   }
 
-  const settled = balance <= 0;
+  async function remove() {
+    if (deletePending.current) return;
+    deletePending.current = true;
+    try {
+      const accepted = await confirm({
+        title: "Mijozni o'chirish",
+        message:
+          "Mijoz va barcha tranzaksiyalar o'chiriladi. Bu amalni qaytarib bo'lmaydi.",
+        confirmText: "O'chirish",
+        cancelText: "Bekor qilish",
+        variant: "danger",
+      });
+      if (!accepted) return;
+      setDeleting(true);
+      await deleteCustomer(customerId);
+      showToast("Mijoz o'chirildi", "success");
+      goBack();
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, "Mijozni o'chirib bo'lmadi"),
+        "error",
+      );
+    } finally {
+      deletePending.current = false;
+      setDeleting(false);
+    }
+  }
+
+  const header = (
+    <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Orqaga qaytish"
+        onPress={goBack}
+        style={styles.headerButton}
+      >
+        <Ionicons name="arrow-back" size={24} color={theme.text} />
+      </Pressable>
+      <Text style={styles.headerCaption}>Mijoz ma'lumotlari</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Qarz, to'lov va sana filtrlari"
+        accessibilityState={{ expanded: showActions }}
+        onPress={() => setShowActions((value) => !value)}
+        disabled={!customer || deleting}
+        style={styles.headerButton}
+      >
+        <Ionicons
+          name={showActions ? "close" : "ellipsis-vertical"}
+          size={22}
+          color={theme.text}
+        />
+      </Pressable>
+    </View>
+  );
+
+  if (!customer)
+    return (
+      <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+        {header}
+        <View style={styles.centered}>
+          {detail.isPending ? (
+            <ActivityIndicator size="large" color={theme.primary} />
+          ) : (
+            <EmptyState
+              iconName="cloud-offline-outline"
+              title="Mijoz ma'lumotlari yuklanmadi"
+              description={getApiErrorMessage(
+                detail.error,
+                "Qayta urinib ko'ring",
+              )}
+              action={
+                <PrimaryButton
+                  label="Qayta urinish"
+                  onPress={() => void detail.refetch()}
+                />
+              }
+            />
+          )}
+        </View>
+      </SafeAreaView>
+    );
+
+  const balanceColor =
+    balance === undefined
+      ? theme.textMuted
+      : balance > 0
+        ? theme.debtColor
+        : theme.paymentColor;
+  const blacklistedOrganizationNames = [
+    ...new Set(
+      (customer.blacklistedOrganizations ?? [])
+        .map((item) => item.name.trim())
+        .filter(Boolean),
+    ),
+  ];
+  const footerActions: {
+    label: string;
+    icon: React.ComponentProps<typeof Ionicons>["name"];
+    color: string;
+    onPress: () => void;
+  }[] = [
+    {
+      label: "Qo'ng'iroq",
+      icon: "call",
+      color: theme.primary,
+      onPress: () => void openContact(),
+    },
+    {
+      label: "WhatsApp",
+      icon: "logo-whatsapp",
+      color: theme.paymentColor,
+      onPress: () => void openContact(true),
+    },
+    {
+      label: "Ulashish",
+      icon: "share-social-outline",
+      color: theme.primary,
+      onPress: () => void share(),
+    },
+    {
+      label: "Tahrirlash",
+      icon: "create-outline",
+      color: theme.textSecondary,
+      onPress: () => setEditing(true),
+    },
+    {
+      label: "O'chirish",
+      icon: "trash-outline",
+      color: theme.dangerColor,
+      onPress: () => void remove(),
+    },
+  ];
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Orqaga qaytish"
-          onPress={() => navigation.goBack()}
-          style={({ pressed }) => [
-            styles.headerButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons name="arrow-back" size={24} color={theme.text} />
-        </Pressable>
-
-        <View style={styles.headerIdentity}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {getFullName(customer)}
-          </Text>
-          <Text selectable style={styles.headerSubtitle} numberOfLines={1}>
-            {customer.phone}
-          </Text>
-          <View
-            style={[
-              styles.statusChip,
-              settled ? styles.settledChip : styles.debtChip,
-            ]}
-          >
-            <Ionicons
-              name={settled ? "checkmark-circle" : "alert-circle"}
-              size={16}
-              color={settled ? theme.paymentColor : theme.debtColor}
-            />
-            <Text
-              style={[
-                styles.statusText,
-                { color: settled ? theme.paymentColor : theme.debtColor },
-              ]}
-            >
-              {settled ? "Qarz yo'q" : "Qarzdor"}
-            </Text>
-          </View>
-        </View>
-
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Mijozni o'chirish"
-          onPress={handleDeleteCustomer}
-          style={({ pressed }) => [
-            styles.headerButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons name="trash-outline" size={22} color={theme.dangerColor} />
-        </Pressable>
-      </View>
-
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
+      {header}
+      <FlatList
+        data={filteredTxs}
+        keyExtractor={(tx) => String(tx.id)}
+        contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        <View style={styles.profileCard}>
-          <View style={styles.statsRow}>
-            <DetailStat
-              icon="arrow-down"
-              label="Jami qarz"
-              value={formatCurrency(totalDebt)}
-              color={theme.debtColor}
-              backgroundColor={theme.debtBg}
-            />
-            <View style={styles.statDivider} />
-            <DetailStat
-              icon="arrow-up"
-              label="Jami to'lov"
-              value={formatCurrency(totalPaid)}
-              color={theme.paymentColor}
-              backgroundColor={theme.paymentBg}
-            />
-            <View style={styles.statDivider} />
-            <DetailStat
-              icon="wallet-outline"
-              label="Balans"
-              value={formatCurrency(Math.max(balance, 0))}
-              color={theme.primary}
-              backgroundColor={theme.primaryLight}
-            />
-          </View>
-        </View>
-
-        <View style={styles.primaryActions}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() =>
-              openSheet("transaction", {
-                customerId,
-                type: "debt",
-                customerName: getFullName(customer),
-                currentBalance: balance,
-              })
-            }
-            style={({ pressed }) => [
-              styles.primaryAction,
-              styles.debtAction,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons
-              name="add-circle-outline"
-              size={23}
-              color={theme.primary}
-            />
-            <Text style={[styles.primaryActionText, styles.debtActionText]}>
-              Qarz qo'shish
-            </Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            onPress={() =>
-              openSheet("transaction", {
-                customerId,
-                type: "payment",
-                customerName: getFullName(customer),
-                currentBalance: balance,
-              })
-            }
-            style={({ pressed }) => [
-              styles.primaryAction,
-              styles.paymentAction,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons
-              name="wallet-outline"
-              size={23}
-              color={theme.paymentColor}
-            />
-            <Text style={[styles.primaryActionText, styles.paymentActionText]}>
-              To'lov olish
-            </Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.contactRow}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleCall}
-            style={({ pressed }) => [
-              styles.contactButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="call" size={20} color={theme.primary} />
-            <Text style={styles.contactText}>Qo'ng'iroq</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleWhatsApp}
-            style={({ pressed }) => [
-              styles.contactButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons
-              name="logo-whatsapp"
-              size={21}
-              color={theme.paymentColor}
-            />
-            <Text style={styles.contactText}>WhatsApp</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            onPress={handleShare}
-            style={({ pressed }) => [
-              styles.contactButton,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Ionicons name="share-social" size={20} color={theme.primary} />
-            <Text style={styles.contactText}>Ulashish</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.sectionTitleRow}>
-          <Ionicons
-            name="receipt-outline"
-            size={20}
-            color={theme.textSecondary}
-          />
-          <Text style={styles.sectionTitle}>Tranzaksiyalar tarixi</Text>
-        </View>
-
-        <View style={styles.filterRow}>
-          {[
-            { key: "all" as TxDateFilter, label: "Hammasi" },
-            { key: "today" as TxDateFilter, label: "Bugun" },
-            { key: "7d" as TxDateFilter, label: "7 kun" },
-            { key: "30d" as TxDateFilter, label: "30 kun" },
-          ].map((item) => {
-            const active = txDateFilter === item.key;
-            return (
-              <Pressable
-                key={item.key}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => setTxDateFilter(item.key)}
-                style={({ pressed }) => [
-                  styles.filterChip,
-                  active && styles.filterChipActive,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text
-                  style={[styles.filterText, active && styles.filterTextActive]}
+        initialNumToRender={12}
+        refreshing={detail.isRefetching || history.isRefetching}
+        onRefresh={() => {
+          void detail.refetch();
+          void history.refetch();
+        }}
+        ListHeaderComponent={
+          <>
+            <View style={styles.identity}>
+              <View style={styles.avatar}>
+                <Text style={styles.initials}>{getInitials(customer)}</Text>
+              </View>
+              <View style={styles.identityText}>
+                <Text style={styles.name} numberOfLines={2}>
+                  {getFullName(customer)}
+                </Text>
+                <Text selectable style={styles.phone}>
+                  {customer.phone}
+                </Text>
+              </View>
+              {balance !== undefined && (
+                <View
+                  style={[
+                    styles.badge,
+                    {
+                      backgroundColor:
+                        balance > 0 ? theme.debtBg : theme.paymentBg,
+                    },
+                  ]}
                 >
-                  {item.label}
+                  <Text style={[styles.badgeText, { color: balanceColor }]}>
+                    {balance > 0 ? "Qarzdor" : "Qarz yo'q"}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {!!customer.note?.trim() && (
+              <Text selectable style={styles.note}>
+                {customer.note}
+              </Text>
+            )}
+            <View style={styles.stats}>
+              {[
+                {
+                  label: "Jami qarz",
+                  value: history.data ? formatCurrency(totalDebt) : "—",
+                  color: theme.debtColor,
+                },
+                {
+                  label: "Jami to'lov",
+                  value: history.data ? formatCurrency(totalPaid) : "—",
+                  color: theme.paymentColor,
+                },
+                {
+                  label: "Balans",
+                  value:
+                    balance === undefined
+                      ? "—"
+                      : formatDisplayedBalance(balance),
+                  color: balanceColor,
+                },
+              ].map((stat, index) => (
+                <View
+                  key={stat.label}
+                  style={[styles.stat, index > 0 && styles.statBorder]}
+                >
+                  <Text style={styles.statLabel}>{stat.label}</Text>
+                  <Text
+                    selectable
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.7}
+                    style={[styles.statAmount, { color: stat.color }]}
+                  >
+                    {stat.value}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            {customer.isBlacklisted ? (
+              <View style={styles.blacklistCard}>
+                <View style={styles.blacklistHeader}>
+                  <View style={styles.blacklistIcon}>
+                    <Ionicons
+                      name="warning-outline"
+                      size={20}
+                      color={theme.dangerColor}
+                    />
+                  </View>
+                  <View style={styles.blacklistCopy}>
+                    <Text style={styles.blacklistTitle}>Qora ro'yxatda</Text>
+                    <Text style={styles.blacklistSubtitle}>
+                      {customer.blacklistedOrganizationCount ?? 0} ta tashkilot
+                      belgilagan
+                    </Text>
+                  </View>
+                  <Text
+                    style={styles.overdueBalance}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {formatCurrency(customer.overdueBalance ?? 0)}
+                  </Text>
+                </View>
+                {blacklistedOrganizationNames.length ? (
+                  <View style={styles.organizationTags}>
+                    {blacklistedOrganizationNames.map((name) => (
+                      <View key={name} style={styles.organizationTag}>
+                        <Ionicons
+                          name="business-outline"
+                          size={13}
+                          color={theme.warningColor}
+                        />
+                        <Text
+                          style={styles.organizationTagText}
+                          numberOfLines={1}
+                        >
+                          {name}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+            {detail.isError && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void detail.refetch()}
+                style={styles.error}
+              >
+                <Text style={styles.errorText}>
+                  Ma'lumotni yangilab bo'lmadi. Qayta urinish
                 </Text>
               </Pressable>
-            );
-          })}
-        </View>
-
-        {filteredTxs.length === 0 ? (
-          <EmptyState
-            iconName="receipt-outline"
-            title="Tranzaksiyalar topilmadi"
-            description="Tanlangan sana filtri bo'yicha tranzaksiya yo'q."
-          />
-        ) : (
-          <View style={styles.txCard}>
-            {filteredTxs.map((transaction, index) => (
-              <TransactionItem
-                key={transaction.id}
-                transaction={transaction}
-                isLast={index === filteredTxs.length - 1}
+            )}
+            {showActions && (
+              <View style={styles.tools}>
+                <View style={styles.transactionActions}>
+                  {(["debt", "payment"] as const).map((type) => (
+                    <Pressable
+                      key={type}
+                      accessibilityRole="button"
+                      disabled={deleting}
+                      onPress={() => {
+                        setShowActions(false);
+                        openSheet("transaction", {
+                          customerId,
+                          type,
+                          customerName: getFullName(customer),
+                          customerPhone: customer.phone,
+                          onOpenProfile: () =>
+                            navigation.navigate("CustomerDetail", {
+                              customerId,
+                            }),
+                          currentBalance: balance,
+                        });
+                      }}
+                      style={[
+                        styles.transactionAction,
+                        {
+                          backgroundColor:
+                            type === "debt"
+                              ? theme.primaryLight
+                              : theme.paymentBg,
+                        },
+                      ]}
+                    >
+                      <Ionicons
+                        name={
+                          type === "debt"
+                            ? "add-circle-outline"
+                            : "wallet-outline"
+                        }
+                        size={20}
+                        color={
+                          type === "debt" ? theme.primary : theme.paymentColor
+                        }
+                      />
+                      <Text
+                        style={[
+                          styles.transactionLabel,
+                          {
+                            color:
+                              type === "debt"
+                                ? theme.primary
+                                : theme.paymentColor,
+                          },
+                        ]}
+                      >
+                        {type === "debt" ? "Qarz qo'shish" : "To'lov olish"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <View style={styles.filters}>
+                  {filters.map((filter) => (
+                    <Pressable
+                      key={filter.key}
+                      accessibilityRole="button"
+                      accessibilityState={{
+                        selected: filter.key === txDateFilter,
+                      }}
+                      onPress={() => setTxDateFilter(filter.key)}
+                      style={[
+                        styles.filter,
+                        filter.key === txDateFilter && styles.filterActive,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.filterText,
+                          filter.key === txDateFilter && {
+                            color: theme.primary,
+                          },
+                        ]}
+                      >
+                        {filter.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+            <View style={styles.section}>
+              <Ionicons
+                name="receipt-outline"
+                size={22}
+                color={theme.textSecondary}
               />
-            ))}
-          </View>
+              <Text style={styles.sectionTitle}>Tranzaksiyalar tarixi</Text>
+              {txDateFilter !== "all" && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Sana filtrini tozalash"
+                  onPress={() => setTxDateFilter("all")}
+                  style={styles.clearFilter}
+                >
+                  <Ionicons
+                    name="close-circle-outline"
+                    size={22}
+                    color={theme.primary}
+                  />
+                </Pressable>
+              )}
+            </View>
+            {history.isError && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void history.refetch()}
+                style={styles.error}
+              >
+                <Text style={styles.errorText}>
+                  Tarixni yuklab bo'lmadi. Qayta urinish
+                </Text>
+              </Pressable>
+            )}
+          </>
+        }
+        renderItem={({ item: tx }) => (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${formatDate(tx.date)}, ${tx.type === "debt" ? "Qarz berildi" : "To'lov olindi"}, ${formatCurrency(tx.amount)}`}
+            onPress={() =>
+              openSheet("transactionDetail", {
+                transaction: tx,
+                customerName: getFullName(customer),
+              })
+            }
+            style={({ pressed }) => [styles.txRow, pressed && styles.pressed]}
+          >
+            <View style={styles.txCopy}>
+              <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
+              <Text style={styles.txLabel}>
+                {tx.type === "debt" ? "Qarz berildi" : "To'lov olindi"}
+              </Text>
+            </View>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+              style={[
+                styles.txAmount,
+                {
+                  color:
+                    tx.type === "debt" ? theme.debtColor : theme.paymentColor,
+                },
+              ]}
+            >
+              {tx.type === "debt" ? "−" : "+"}
+              {formatCurrency(tx.amount)}
+            </Text>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.textMuted}
+            />
+          </Pressable>
         )}
-
-        <View style={styles.footerSpace} />
-      </ScrollView>
+        ListEmptyComponent={
+          history.isPending ? (
+            <ActivityIndicator style={styles.loading} color={theme.primary} />
+          ) : history.isError ? null : (
+            <EmptyState
+              iconName="receipt-outline"
+              title="Tranzaksiyalar yo'q"
+              description={
+                txDateFilter === "all"
+                  ? "Qarz yoki to'lov qo'shish uchun yuqoridagi menyuni oching."
+                  : "Tanlangan davrda tranzaksiya topilmadi."
+              }
+            />
+          )
+        }
+      />
+      <View style={styles.footer}>
+        {footerActions.map((action) => (
+          <Pressable
+            key={action.label}
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            accessibilityState={{ disabled: deleting }}
+            disabled={deleting}
+            onPress={action.onPress}
+            style={({ pressed }) => [
+              styles.footerAction,
+              pressed && styles.pressed,
+            ]}
+          >
+            {deleting && action.label === "O'chirish" ? (
+              <ActivityIndicator color={action.color} />
+            ) : (
+              <Ionicons name={action.icon} size={25} color={action.color} />
+            )}
+            <Text
+              style={[
+                styles.footerLabel,
+                action.label === "O'chirish" && { color: theme.dangerColor },
+              ]}
+            >
+              {action.label}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {editing && (
+        <CustomerEditSheet
+          customer={customer}
+          onSave={update.mutateAsync}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
-    safe: {
-      flex: 1,
-      backgroundColor: theme.background,
-    },
-    centered: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.background,
-    },
-    notFoundText: {
-      color: theme.text,
-      fontSize: 16,
-      fontWeight: "600",
-    },
+    safe: { flex: 1, backgroundColor: theme.surface },
     header: {
-      minHeight: 66,
+      minHeight: 52,
+      paddingHorizontal: 8,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      paddingHorizontal: 16,
-      paddingVertical: 7,
     },
     headerButton: {
       width: 44,
       height: 44,
-      borderRadius: 13,
-      borderCurve: "continuous",
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
-      boxShadow: theme.cardShadow,
     },
-    headerIdentity: {
+    headerCaption: {
       flex: 1,
-      minWidth: 0,
-      alignItems: "center",
-      gap: 2,
-    },
-    headerTitle: {
-      color: theme.text,
-      fontSize: 18,
-      lineHeight: 23,
-      fontWeight: "800",
-      letterSpacing: -0.3,
-    },
-    headerSubtitle: {
-      color: theme.textSecondary,
+      color: theme.textMuted,
+      textAlign: "center",
       fontSize: 13,
-      lineHeight: 18,
-      fontWeight: "400",
-      fontVariant: ["tabular-nums"],
     },
-    scroll: {
-      paddingHorizontal: 16,
-      paddingTop: 6,
-      gap: 12,
-    },
-    profileCard: {
-      padding: 10,
-      gap: 14,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 18,
-      borderCurve: "continuous",
-      boxShadow: theme.cardShadow,
-    },
-    profileTop: {
+    centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+    list: { paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 },
+    identity: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
+      gap: 12,
+      paddingTop: 12,
+      paddingBottom: 24,
     },
     avatar: {
-      width: 60,
-      height: 60,
-      borderRadius: 30,
-      flexShrink: 0,
+      width: 62,
+      height: 62,
+      borderRadius: 31,
+      backgroundColor: theme.primaryLight,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: theme.paymentBg,
     },
-    avatarText: {
-      color: theme.paymentColor,
+    initials: { color: theme.primary, fontSize: 24, fontWeight: "700" },
+    identityText: { flex: 1, minWidth: 0, gap: 4 },
+    name: {
+      color: theme.text,
       fontSize: 23,
       lineHeight: 29,
       fontWeight: "800",
       letterSpacing: -0.5,
     },
-    profileIdentity: {
-      flex: 1,
-      minWidth: 0,
-      alignItems: "flex-start",
-      gap: 3,
+    phone: {
+      color: theme.textSecondary,
+      fontSize: 14,
+      fontVariant: ["tabular-nums"],
     },
-    profileName: {
-      color: theme.text,
-      fontSize: 17,
-      lineHeight: 22,
-      fontWeight: "800",
-      letterSpacing: -0.3,
+    badge: {
+      paddingHorizontal: 9,
+      paddingVertical: 5,
+      borderRadius: 999,
+      maxWidth: 85,
     },
-    profilePhone: {
+    badgeText: { fontSize: 11, fontWeight: "700" },
+    note: {
       color: theme.textSecondary,
       fontSize: 13,
-      lineHeight: 18,
-      fontVariant: ["tabular-nums"],
-    },
-    idBadge: {
-      minHeight: 23,
-      justifyContent: "center",
-      paddingHorizontal: 8,
-      backgroundColor: theme.inputBackground,
-      borderRadius: 8,
-    },
-    idText: {
-      color: theme.textSecondary,
-      fontSize: 11,
-      lineHeight: 15,
-      fontWeight: "500",
-      fontVariant: ["tabular-nums"],
-    },
-    statusBlock: {
-      maxWidth: 104,
-      alignItems: "flex-end",
-      gap: 5,
-    },
-    statusChip: {
-      minHeight: 28,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      paddingHorizontal: 8,
-      borderRadius: 999,
-      borderWidth: 1,
-    },
-    settledChip: {
-      backgroundColor: theme.paymentBg,
-      borderColor: theme.paymentColor,
-    },
-    debtChip: {
-      backgroundColor: theme.debtBg,
-      borderColor: theme.debtColor,
-    },
-    statusText: {
-      fontSize: 11,
-      lineHeight: 15,
-      fontWeight: "700",
-    },
-    statusCaption: {
-      color: theme.textMuted,
-      fontSize: 10,
-      lineHeight: 14,
-      textAlign: "right",
-    },
-    profileDivider: {
-      height: 1,
-      backgroundColor: theme.border,
-    },
-    statsRow: {
-      minHeight: 94,
-      flexDirection: "row",
-      alignItems: "stretch",
-    },
-    statBox: {
-      minWidth: 0,
-      flex: 1,
-      alignItems: "flex-start",
-      justifyContent: "space-between",
-      gap: 5,
-      paddingHorizontal: 4,
-    },
-    statContent: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    statIcon: {
-      width: 28,
-      height: 28,
-      borderRadius: 15,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    statLabel: {
-      color: theme.textSecondary,
-      fontSize: 11,
-      lineHeight: 15,
-      fontWeight: "500",
-    },
-    statAmount: {
-      width: "100%",
-      fontSize: 15,
-      lineHeight: 20,
-      fontWeight: "800",
-      fontVariant: ["tabular-nums"],
-    },
-    statDivider: {
-      width: 1,
-      backgroundColor: theme.border,
-      marginHorizontal: 6,
-    },
-    primaryActions: {
-      flexDirection: "row",
-      gap: 10,
-    },
-    primaryAction: {
-      minHeight: 52,
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 7,
-      paddingHorizontal: 8,
-      borderWidth: 1.25,
-      borderRadius: 14,
-      borderCurve: "continuous",
-    },
-    debtAction: {
-      backgroundColor: theme.primaryLight,
-      borderColor: theme.primary,
-    },
-    paymentAction: {
-      backgroundColor: theme.paymentBg,
-      borderColor: theme.paymentColor,
-    },
-    primaryActionText: {
-      fontSize: 14,
       lineHeight: 19,
+      paddingBottom: 16,
+    },
+    stats: {
+      flexDirection: "row",
+      paddingVertical: 20,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.border,
+    },
+    stat: { flex: 1, minWidth: 0, gap: 6, paddingHorizontal: 8 },
+    statBorder: {
+      borderLeftWidth: StyleSheet.hairlineWidth,
+      borderLeftColor: theme.border,
+    },
+    statLabel: { color: theme.textSecondary, fontSize: 12, lineHeight: 17 },
+    statAmount: {
+      color: theme.text,
+      fontSize: 15,
       fontWeight: "800",
+      fontVariant: ["tabular-nums"],
     },
-    debtActionText: {
-      color: theme.primary,
+    blacklistCard: {
+      marginTop: 14,
+      padding: 12,
+      gap: 10,
+      borderWidth: 1,
+      borderColor: theme.debtBg,
+      borderRadius: 14,
+      backgroundColor: theme.inputBackground,
     },
-    paymentActionText: {
-      color: theme.paymentColor,
-    },
-    contactRow: {
-      flexDirection: "row",
-      gap: 9,
-    },
-    contactButton: {
-      minHeight: 52,
-      minWidth: 0,
-      flex: 1,
-      flexDirection: "row",
+    blacklistHeader: { flexDirection: "row", alignItems: "center", gap: 9 },
+    blacklistIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 11,
       alignItems: "center",
       justifyContent: "center",
-      gap: 6,
-      paddingHorizontal: 8,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 14,
-      borderCurve: "continuous",
-      boxShadow: theme.cardShadow,
+      backgroundColor: theme.debtBg,
     },
-    contactText: {
+    blacklistCopy: { minWidth: 0, flex: 1, gap: 1 },
+    blacklistTitle: {
+      color: theme.dangerColor,
+      fontSize: 14,
+      fontWeight: "800",
+    },
+    blacklistSubtitle: { color: theme.textSecondary, fontSize: 11 },
+    overdueBalance: {
+      maxWidth: "38%",
+      color: theme.dangerColor,
+      fontSize: 13,
+      fontWeight: "800",
+    },
+    organizationTags: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+    organizationTag: {
+      maxWidth: "100%",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 5,
+      borderRadius: 999,
+      backgroundColor: theme.surface,
+    },
+    organizationTagText: {
+      maxWidth: "90%",
       color: theme.textSecondary,
-      fontSize: 12,
-      lineHeight: 17,
+      fontSize: 10,
       fontWeight: "600",
     },
-    sectionTitleRow: {
+    tools: { paddingTop: 16, gap: 12 },
+    transactionActions: { flexDirection: "row", gap: 10 },
+    transactionAction: {
+      flex: 1,
+      minHeight: 44,
+      borderRadius: 12,
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingTop: 2,
+      justifyContent: "center",
+      gap: 6,
+    },
+    transactionLabel: { fontSize: 13, fontWeight: "700" },
+    filters: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+    filter: {
+      paddingHorizontal: 12,
+      minHeight: 36,
+      justifyContent: "center",
+      borderRadius: 999,
+      backgroundColor: theme.inputBackground,
+    },
+    filterActive: { backgroundColor: theme.primaryLight },
+    filterText: { color: theme.textSecondary, fontSize: 12, fontWeight: "600" },
+    section: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 9,
+      paddingVertical: 18,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.border,
     },
     sectionTitle: {
+      flex: 1,
       color: theme.text,
       fontSize: 17,
-      lineHeight: 22,
-      fontWeight: "800",
-      letterSpacing: -0.3,
+      fontWeight: "700",
     },
-    filterRow: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      gap: 8,
-    },
-    filterChip: {
-      minHeight: 38,
-      minWidth: 70,
+    clearFilter: {
+      minWidth: 44,
+      minHeight: 44,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 14,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 999,
-      backgroundColor: theme.background,
     },
-    filterChipActive: {
-      borderColor: theme.primary,
+    txRow: {
+      minHeight: 66,
+      paddingVertical: 12,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: theme.border,
+    },
+    txCopy: { flex: 1, minWidth: 0, gap: 3 },
+    txDate: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
+    txLabel: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
+    txAmount: {
+      maxWidth: "52%",
+      fontSize: 16,
+      fontWeight: "700",
+      fontVariant: ["tabular-nums"],
+    },
+    footer: {
+      flexDirection: "row",
+      paddingHorizontal: 4,
+      paddingTop: 8,
+      paddingBottom: 4,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: theme.border,
       backgroundColor: theme.surface,
     },
-    filterText: {
+    footerAction: {
+      flex: 1,
+      minWidth: 0,
+      minHeight: 56,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 5,
+      paddingHorizontal: 2,
+    },
+    footerLabel: {
       color: theme.textSecondary,
-      fontSize: 13,
-      lineHeight: 18,
-      fontWeight: "600",
+      fontSize: 10,
+      lineHeight: 14,
+      textAlign: "center",
     },
-    filterTextActive: {
-      color: theme.primary,
-    },
-    txCard: {
-      overflow: "hidden",
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 16,
-      borderCurve: "continuous",
-      boxShadow: theme.cardShadow,
-    },
-    footerSpace: {
-      height: 20,
-    },
-    pressed: {
-      opacity: 0.7,
-    },
+    error: { paddingVertical: 12 },
+    errorText: { color: theme.dangerColor, fontSize: 13 },
+    loading: { marginVertical: 40 },
+    pressed: { opacity: 0.65 },
   });
