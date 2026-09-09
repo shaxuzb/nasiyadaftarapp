@@ -41,6 +41,7 @@ export type RootStackParamList = {
 export type MainTabParamList = {
   Customers: undefined;
   Reports: undefined;
+  ClientSms: undefined;
   Settings: undefined;
 };
 

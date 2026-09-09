@@ -186,11 +186,11 @@ export function CustomerDetailScreen() {
         disabled={!customer || deleting}
         style={styles.headerButton}
       >
-        <Ionicons
+        {/* <Ionicons
           name={showActions ? "close" : "ellipsis-vertical"}
           size={22}
           color={theme.text}
-        />
+        /> */}
       </Pressable>
     </View>
   );
@@ -235,6 +235,12 @@ export function CustomerDetailScreen() {
         .filter(Boolean),
     ),
   ];
+  const blacklistedOrganizationCount = Math.max(
+    customer.blacklistedOrganizationCount ?? 0,
+    blacklistedOrganizationNames.length,
+  );
+  const showBlacklistBadge =
+    customer.isBlacklisted === true || blacklistedOrganizationCount > 0;
   const footerActions: {
     label: string;
     icon: React.ComponentProps<typeof Ionicons>["name"];
@@ -300,6 +306,30 @@ export function CustomerDetailScreen() {
                 <Text selectable style={styles.phone}>
                   {customer.phone}
                 </Text>
+                {showBlacklistBadge ? (
+                  <View
+                    accessible
+                    accessibilityLabel={`Boshqa tashkilotlarda qora ro'yxatda${
+                      blacklistedOrganizationCount > 0
+                        ? `, ${blacklistedOrganizationCount} ta tashkilot`
+                        : ""
+                    }`}
+                    style={styles.blacklistBadge}
+                  >
+                    <Ionicons
+                      name="warning-outline"
+                      size={12}
+                      color={theme.dangerColor}
+                    />
+                    <Text
+                      style={styles.blacklistBadgeText}
+                      numberOfLines={1}
+                      ellipsizeMode="tail"
+                    >
+                      Boshqa tashkilotlarda qora ro'yxatda
+                    </Text>
+                  </View>
+                ) : null}
               </View>
               {balance !== undefined && (
                 <View
@@ -360,52 +390,6 @@ export function CustomerDetailScreen() {
                 </View>
               ))}
             </View>
-            {customer.isBlacklisted ? (
-              <View style={styles.blacklistCard}>
-                <View style={styles.blacklistHeader}>
-                  <View style={styles.blacklistIcon}>
-                    <Ionicons
-                      name="warning-outline"
-                      size={20}
-                      color={theme.dangerColor}
-                    />
-                  </View>
-                  <View style={styles.blacklistCopy}>
-                    <Text style={styles.blacklistTitle}>Qora ro'yxatda</Text>
-                    <Text style={styles.blacklistSubtitle}>
-                      {customer.blacklistedOrganizationCount ?? 0} ta tashkilot
-                      belgilagan
-                    </Text>
-                  </View>
-                  <Text
-                    style={styles.overdueBalance}
-                    numberOfLines={1}
-                    adjustsFontSizeToFit
-                  >
-                    {formatCurrency(customer.overdueBalance ?? 0)}
-                  </Text>
-                </View>
-                {blacklistedOrganizationNames.length ? (
-                  <View style={styles.organizationTags}>
-                    {blacklistedOrganizationNames.map((name) => (
-                      <View key={name} style={styles.organizationTag}>
-                        <Ionicons
-                          name="business-outline"
-                          size={13}
-                          color={theme.warningColor}
-                        />
-                        <Text
-                          style={styles.organizationTagText}
-                          numberOfLines={1}
-                        >
-                          {name}
-                        </Text>
-                      </View>
-                    ))}
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
             {detail.isError && (
               <Pressable
                 accessibilityRole="button"
@@ -554,9 +538,7 @@ export function CustomerDetailScreen() {
           >
             <View style={styles.txCopy}>
               <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
-              <Text style={styles.txLabel}>
-                {tx.type === "debt" ? "Qarz berildi" : "To'lov olindi"}
-              </Text>
+              <Text style={styles.txLabel}>{tx.note}</Text>
             </View>
             <Text
               numberOfLines={1}
@@ -707,12 +689,12 @@ const createStyles = (theme: AppTheme) =>
       paddingVertical: 20,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderColor: theme.border,
+      borderColor: theme.tabBarBorder,
     },
     stat: { flex: 1, minWidth: 0, gap: 6, paddingHorizontal: 8 },
     statBorder: {
       borderLeftWidth: StyleSheet.hairlineWidth,
-      borderLeftColor: theme.border,
+      borderLeftColor: theme.tabBarBorder,
     },
     statLabel: { color: theme.textSecondary, fontSize: 12, lineHeight: 17 },
     statAmount: {
@@ -721,53 +703,24 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "800",
       fontVariant: ["tabular-nums"],
     },
-    blacklistCard: {
-      marginTop: 14,
-      padding: 12,
-      gap: 10,
-      borderWidth: 1,
-      borderColor: theme.debtBg,
-      borderRadius: 14,
-      backgroundColor: theme.inputBackground,
-    },
-    blacklistHeader: { flexDirection: "row", alignItems: "center", gap: 9 },
-    blacklistIcon: {
-      width: 36,
-      height: 36,
-      borderRadius: 11,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.debtBg,
-    },
-    blacklistCopy: { minWidth: 0, flex: 1, gap: 1 },
-    blacklistTitle: {
-      color: theme.dangerColor,
-      fontSize: 14,
-      fontWeight: "800",
-    },
-    blacklistSubtitle: { color: theme.textSecondary, fontSize: 11 },
-    overdueBalance: {
-      maxWidth: "38%",
-      color: theme.dangerColor,
-      fontSize: 13,
-      fontWeight: "800",
-    },
-    organizationTags: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-    organizationTag: {
-      maxWidth: "100%",
+    blacklistBadge: {
+      alignSelf: "flex-start",
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
       paddingHorizontal: 8,
-      paddingVertical: 5,
+      paddingVertical: 3,
       borderRadius: 999,
-      backgroundColor: theme.surface,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: theme.debtColor,
+      backgroundColor: theme.debtBg,
     },
-    organizationTagText: {
-      maxWidth: "90%",
-      color: theme.textSecondary,
+    blacklistBadgeText: {
+      flexShrink: 1,
+      color: theme.dangerColor,
       fontSize: 10,
-      fontWeight: "600",
+      lineHeight: 13,
+      fontWeight: "700",
     },
     tools: { paddingTop: 16, gap: 12 },
     transactionActions: { flexDirection: "row", gap: 10 },
@@ -797,7 +750,7 @@ const createStyles = (theme: AppTheme) =>
       gap: 9,
       paddingVertical: 18,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.border,
+      borderBottomColor: theme.tabBarBorder,
     },
     sectionTitle: {
       flex: 1,
@@ -818,7 +771,7 @@ const createStyles = (theme: AppTheme) =>
       alignItems: "center",
       gap: 8,
       borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.border,
+      borderBottomColor: theme.tabBarBorder,
     },
     txCopy: { flex: 1, minWidth: 0, gap: 3 },
     txDate: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
@@ -835,7 +788,7 @@ const createStyles = (theme: AppTheme) =>
       paddingTop: 8,
       paddingBottom: 4,
       borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: theme.border,
+      borderTopColor: theme.tabBarBorder,
       backgroundColor: theme.surface,
     },
     footerAction: {

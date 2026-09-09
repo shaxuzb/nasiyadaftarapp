@@ -85,7 +85,7 @@ const createStyles = (theme: AppTheme) =>
       gap: 12,
       borderRadius: 18,
       paddingHorizontal: 16,
-      height: 56,
+      height: 50,
       borderWidth: 1,
       boxShadow: theme.cardShadow,
     },

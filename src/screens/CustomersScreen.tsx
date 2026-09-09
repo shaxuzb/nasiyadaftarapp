@@ -48,6 +48,7 @@ import { getCustomerCountLabel } from "../modules/clients/utils/clientList";
 import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet, useBottomSheetBackHandler } from "../bottom-sheet";
+import { AndroidSheetKeyboardBridge } from "../bottom-sheet/AndroidSheetKeyboardBridge";
 import {
   formatUzPhoneFromDigits,
   isValidUzPhone,
@@ -516,6 +517,7 @@ export function CustomersScreen() {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
+          <AndroidSheetKeyboardBridge />
           <View style={styles.sheetHeader}>
             <Text style={styles.sheetTitle}>Mijoz qo'shish</Text>
             <TouchableOpacity

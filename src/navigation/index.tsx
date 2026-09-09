@@ -40,6 +40,7 @@ import { useAuth } from "../context/AuthContext";
 import { BottomSheetBackHandler } from "../bottom-sheet";
 import { PinGateScreen } from "../modules/pin-auth/screens/PinGateScreen";
 import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
+import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -56,6 +57,10 @@ const TAB_ICONS: Record<
 > = {
   Customers: { active: "people", inactive: "people-outline" },
   Reports: { active: "bar-chart", inactive: "bar-chart-outline" },
+  ClientSms: {
+    active: "chatbubble-ellipses",
+    inactive: "chatbubble-ellipses-outline",
+  },
   Settings: { active: "person", inactive: "person-outline" },
 };
 
@@ -94,11 +99,17 @@ function TabNavigator({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
+  const canViewClientSms = getClientSmsCapabilities(user?.permissions).canView;
+  const resolvedInitialRouteName =
+    initialRouteName === "ClientSms" && !canViewClientSms
+      ? "Customers"
+      : initialRouteName;
   const bottomPadding = Math.max(insets.bottom, 8);
 
   return (
     <Tab.Navigator
-      initialRouteName={initialRouteName}
+      initialRouteName={resolvedInitialRouteName}
       screenOptions={({ route }) => ({
         headerShown: false,
         lazy: true,
@@ -151,6 +162,13 @@ function TabNavigator({
         component={ReportsScreen}
         options={{ title: "Hisobot" }}
       />
+      {canViewClientSms ? (
+        <Tab.Screen
+          name="ClientSms"
+          component={ClientSmsScreen}
+          options={{ title: "SMS" }}
+        />
+      ) : null}
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}

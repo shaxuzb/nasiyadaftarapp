@@ -24,7 +24,6 @@ import { radius, spacing, typography } from "../theme";
 import { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
-import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -126,10 +125,6 @@ export function SettingsScreen() {
   const [isOpeningBot, setIsOpeningBot] = useState(false);
 
   const phoneVerified = hasVerifiedPhone(user);
-  const smsCapabilities = useMemo(
-    () => getClientSmsCapabilities(user?.permissions),
-    [user?.permissions],
-  );
   const initials = useMemo(
     () =>
       (user?.fullName ?? "U")
@@ -311,19 +306,8 @@ export function SettingsScreen() {
             title="Qora ro'yxat sozlamasi"
             description="Kechikish muddatini boshqarish"
             onPress={() => navigation.navigate("BlacklistSettings")}
-            isLast={!smsCapabilities.canView}
+            isLast
           />
-          {smsCapabilities.canView ? (
-            <ProfileMenuRow
-              icon="chatbubble-ellipses-outline"
-              iconColor={theme.primary}
-              iconBackground={theme.primaryLight}
-              title="Mijozlarga SMS"
-              description="Qarzdorlarga eslatma yuborish"
-              onPress={() => navigation.navigate("ClientSms")}
-              isLast
-            />
-          ) : null}
         </View>
 
         <SectionTitle title="Yordam va aloqa" />

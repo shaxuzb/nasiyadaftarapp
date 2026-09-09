@@ -90,30 +90,32 @@ function HistoryContent() {
           placeholder="Mijoz yoki telefon bo'yicha qidirish"
         />
       </View>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filters}
-      >
-        {statuses.map((item) => (
-          <Pressable
-            key={item.label}
-            accessibilityRole="button"
-            accessibilityState={{ selected: status === item.value }}
-            onPress={() => setStatus(item.value)}
-            style={[styles.chip, status === item.value && styles.chipActive]}
-          >
-            <Text
-              style={[
-                styles.chipText,
-                status === item.value && styles.chipTextActive,
-              ]}
+      <View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filters}
+        >
+          {statuses.map((item) => (
+            <Pressable
+              key={item.label}
+              accessibilityRole="button"
+              accessibilityState={{ selected: status === item.value }}
+              onPress={() => setStatus(item.value)}
+              style={[styles.chip, status === item.value && styles.chipActive]}
             >
-              {item.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+              <Text
+                style={[
+                  styles.chipText,
+                  status === item.value && styles.chipTextActive,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      </View>
       <Text style={styles.count}>{count} ta SMS yozuvi</Text>
       {history.isLoading ? (
         <View style={styles.center}>

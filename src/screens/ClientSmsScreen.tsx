@@ -55,16 +55,24 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 const PAGE_SIZE = 20;
 type BooleanFilter = "blacklisted" | "hasDebt" | "canSend";
 
+function isBottomTabNavigation(navigation: Nav) {
+  return (navigation.getState() as unknown as { type?: string }).type === "tab";
+}
+
 export function ClientSmsScreen() {
   const navigation = useNavigation<Nav>();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { user } = useAuth();
   const capabilities = getClientSmsCapabilities(user?.permissions);
+  const isBottomTab = isBottomTabNavigation(navigation);
   if (!capabilities.canView) {
     return (
       <SafeAreaView style={styles.safe}>
-        <Header title="Mijozlarga SMS" onBack={() => navigation.goBack()} />
+        <Header
+          title="Mijozlarga SMS"
+          onBack={isBottomTab ? undefined : () => navigation.goBack()}
+        />
         <EmptyState
           iconName="lock-closed-outline"
           title="Ruxsat mavjud emas"
@@ -191,7 +199,11 @@ function ClientSmsContent({
       >
         <Header
           title="Mijozlarga SMS"
-          onBack={() => navigation.goBack()}
+          onBack={
+            isBottomTabNavigation(navigation)
+              ? undefined
+              : () => navigation.goBack()
+          }
           action={
             capabilities.canViewHistory ? (
               <Pressable
@@ -213,50 +225,52 @@ function ClientSmsContent({
             placeholder="Ism yoki telefon bo'yicha qidirish"
           />
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filters}
-          keyboardShouldPersistTaps="handled"
-        >
-          {(
-            [
-              {
-                key: "blacklisted",
-                label: "Qora ro'yxat",
-                icon: "warning-outline",
-              },
-              { key: "hasDebt", label: "Qarzdor", icon: "wallet-outline" },
-              {
-                key: "canSend",
-                label: "SMS mumkin",
-                icon: "checkmark-circle-outline",
-              },
-            ] as const
-          ).map((item) => {
-            const active = filters[item.key] === true;
-            return (
-              <Pressable
-                key={item.key}
-                accessibilityRole="button"
-                accessibilityState={{ selected: active }}
-                onPress={() => toggleFilter(item.key)}
-                style={[styles.chip, active && styles.chipActive]}
-              >
-                <Ionicons
-                  name={item.icon}
-                  size={16}
-                  color={active ? theme.primary : theme.textSecondary}
-                />
-                <Text
-                  style={[styles.chipText, active && styles.chipTextActive]}
+        <View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filters}
+            keyboardShouldPersistTaps="handled"
+          >
+            {(
+              [
+                {
+                  key: "blacklisted",
+                  label: "Qora ro'yxat",
+                  icon: "warning-outline",
+                },
+                { key: "hasDebt", label: "Qarzdor", icon: "wallet-outline" },
+                {
+                  key: "canSend",
+                  label: "SMS mumkin",
+                  icon: "checkmark-circle-outline",
+                },
+              ] as const
+            ).map((item) => {
+              const active = filters[item.key] === true;
+              return (
+                <Pressable
+                  key={item.key}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: active }}
+                  onPress={() => toggleFilter(item.key)}
+                  style={[styles.chip, active && styles.chipActive]}
                 >
-                  {item.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+                  <Ionicons
+                    name={item.icon}
+                    size={16}
+                    color={active ? theme.primary : theme.textSecondary}
+                  />
+                  <Text
+                    style={[styles.chipText, active && styles.chipTextActive]}
+                  >
+                    {item.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
         <View style={styles.summary}>
           <Text style={styles.summaryText}>{count} ta mijoz</Text>
           {capabilities.canSendBulk && rows.some((item) => item.canSend) ? (
@@ -408,12 +422,7 @@ function ClientSmsContent({
           </View>
         ) : null}
         {capabilities.canSendBulk && selected.size ? (
-          <View
-            style={[
-              styles.footer,
-              { paddingBottom: Math.max(insets.bottom, 10) },
-            ]}
-          >
+          <View style={[styles.footer, { paddingBottom: 10 }]}>
             <View>
               <Text style={styles.footerCount}>
                 {selected.size} ta tanlandi
@@ -441,21 +450,25 @@ function Header({
   action,
 }: {
   title: string;
-  onBack: () => void;
+  onBack?: () => void;
   action?: React.ReactNode;
 }) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <View style={styles.header}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Orqaga qaytish"
-        onPress={onBack}
-        style={styles.headerButton}
-      >
-        <Ionicons name="arrow-back" size={24} color={theme.text} />
-      </Pressable>
+      {/* {onBack ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Orqaga qaytish"
+          onPress={onBack}
+          style={styles.headerButton}
+        >
+          <Ionicons name="arrow-back" size={24} color={theme.text} />
+        </Pressable>
+      ) : (
+        <View style={styles.headerButton} />
+      )} */}
       <Text style={styles.title}>{title}</Text>
       {action ?? <View style={styles.headerButton} />}
     </View>
@@ -470,7 +483,7 @@ const createStyles = (theme: AppTheme) =>
       minHeight: 54,
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: spacing.md,
     },
     headerButton: {
       width: 44,
@@ -513,7 +526,8 @@ const createStyles = (theme: AppTheme) =>
     chipText: { ...typography.labelSmall, color: theme.textSecondary },
     chipTextActive: { color: theme.primary },
     summary: {
-      minHeight: 32,
+      minHeight: 16,
+      paddingBottom: spacing.sm,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
@@ -575,7 +589,7 @@ const createStyles = (theme: AppTheme) =>
       left: 0,
       right: 0,
       bottom: 0,
-      minHeight: 72,
+      minHeight: 52,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
@@ -588,5 +602,5 @@ const createStyles = (theme: AppTheme) =>
     },
     footerCount: { ...typography.label, color: theme.text, fontWeight: "800" },
     footerHint: { ...typography.labelSmall, color: theme.textMuted },
-    footerButton: { minHeight: 48, minWidth: 142, marginLeft: "auto" },
+    footerButton: { minHeight: 38, minWidth: 142, marginLeft: "auto" },
   });

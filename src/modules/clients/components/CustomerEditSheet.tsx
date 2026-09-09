@@ -27,6 +27,7 @@ import { PrimaryButton } from "../../../components/PrimaryButton";
 import { useTheme } from "../../../hooks/useTheme";
 import { useToast } from "../../../context/ToastContext";
 import { useBottomSheetBackHandler } from "../../../bottom-sheet";
+import { AndroidSheetKeyboardBridge } from "../../../bottom-sheet/AndroidSheetKeyboardBridge";
 import {
   formatUzPhoneFromDigits,
   isValidUzPhone,
@@ -143,6 +144,7 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
           { paddingBottom: Math.max(insets.bottom, 12) + 8 },
         ]}
       >
+        <AndroidSheetKeyboardBridge />
         <View style={styles.header}>
           <Text style={styles.title}>Mijozni tahrirlash</Text>
           <Pressable
