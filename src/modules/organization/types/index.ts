@@ -1,4 +1,4 @@
-export const MAX_ORGANIZATIONS_PER_USER = 3;
+export const MAX_ORGANIZATIONS_PER_USER = 1;
 
 export interface OrganizationRequest {
   name: string;
@@ -11,6 +11,7 @@ export interface OrganizationResponse {
   name: string;
   address?: string | null;
   note?: string | null;
+  blacklistAfterDays?: number;
   stateId?: number;
   state?: string;
   createdDate?: string;

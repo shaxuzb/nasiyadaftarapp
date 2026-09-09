@@ -18,7 +18,10 @@ interface Props {
   onGoToConfirm: (phone: string) => void;
 }
 
-export function PasswordResetRequestScreen({ onGoBackToLogin, onGoToConfirm }: Props) {
+export function PasswordResetRequestScreen({
+  onGoBackToLogin,
+  onGoToConfirm,
+}: Props) {
   const theme = useTheme();
   const { showToast } = useToast();
 
@@ -40,36 +43,54 @@ export function PasswordResetRequestScreen({ onGoBackToLogin, onGoToConfirm }: P
       showToast("SMS kod yuborildi", "success");
       onGoToConfirm(normalizedPhone);
     } catch (error) {
-      showToast(
-        getApiErrorMessage(error, "Foydalanuvchi topilmadi"),
-        "error",
-      );
+      showToast(getApiErrorMessage(error, "Foydalanuvchi topilmadi"), "error");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <ScreenContainer contentContainerStyle={styles.scrollContent} >
-      <KeyboardAvoidingView
-        style={styles.keyboardWrap}
-        behavior="padding"
-      >
+    <ScreenContainer contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView style={styles.keyboardWrap} behavior="padding">
         <View style={styles.wrapper}>
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: theme.surface, borderColor: theme.border },
+            ]}
+          >
             <View style={styles.headerWrap}>
-              <View style={[styles.logoWrap, { backgroundColor: theme.primaryLight }]}>
-                <Ionicons name="lock-open-outline" size={28} color={theme.primary} />
+              <View
+                style={[
+                  styles.logoWrap,
+                  { backgroundColor: theme.primaryLight },
+                ]}
+              >
+                <Ionicons
+                  name="lock-open-outline"
+                  size={28}
+                  color={theme.primary}
+                />
               </View>
-              <Text style={[typography.headingLarge, { color: theme.text }]}>Parolni tiklash</Text>
-              <Text style={[typography.bodySmall, styles.desc, { color: theme.textSecondary }]}>
-                {APP_NAME} uchun telefon raqamingizni kiriting, SMS kod yuboramiz
+              <Text style={[typography.headingLarge, { color: theme.text }]}>
+                Parolni tiklash
+              </Text>
+              <Text
+                style={[
+                  typography.bodySmall,
+                  styles.desc,
+                  { color: theme.textSecondary },
+                ]}
+              >
+                {APP_NAME} uchun telefon raqamingizni kiriting, SMS kod
+                yuboramiz
               </Text>
             </View>
 
             <AppInput
               label="Telefon raqam"
-              value={phone}
+              uncontrolled
+              defaultValue={phone}
               onChangeText={setPhone}
               placeholder="+998 XX XXX XX XX"
               iconName="call-outline"
@@ -85,8 +106,13 @@ export function PasswordResetRequestScreen({ onGoBackToLogin, onGoToConfirm }: P
               style={{ marginTop: spacing.xs }}
             />
 
-            <TouchableOpacity onPress={onGoBackToLogin} style={styles.footerBtn}>
-              <Text style={[typography.label, { color: theme.primary }]}>Loginga qaytish</Text>
+            <TouchableOpacity
+              onPress={onGoBackToLogin}
+              style={styles.footerBtn}
+            >
+              <Text style={[typography.label, { color: theme.primary }]}>
+                Loginga qaytish
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

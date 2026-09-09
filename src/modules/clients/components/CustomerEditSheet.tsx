@@ -62,6 +62,10 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
     name.trim() !== customer.fullName ||
     toStoredUzPhone(phone) !== customer.phone ||
     note.trim() !== (customer.note ?? "");
+  const handlePhoneChange = useCallback((value: string) => {
+    setPhone(formatUzPhoneFromDigits(value));
+    setPhoneError(undefined);
+  }, []);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => sheet.current?.present());
@@ -174,11 +178,10 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
           compact
           inputRef={phoneRef}
           label="Telefon *"
-          value={phone}
-          onChangeText={(value) => {
-            setPhone(formatUzPhoneFromDigits(value));
-            setPhoneError(undefined);
-          }}
+          uncontrolled
+          defaultValue={phone}
+          transformText={formatUzPhoneFromDigits}
+          onChangeText={handlePhoneChange}
           editable={!saving}
           keyboardType="phone-pad"
           autoComplete="tel"

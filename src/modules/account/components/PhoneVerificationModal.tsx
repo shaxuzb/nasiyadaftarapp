@@ -21,7 +21,11 @@ import { OtpInput, OtpInputHandle } from "../../../components/OtpInput";
 import { PrimaryButton } from "../../../components/PrimaryButton";
 import { useTheme } from "../../../hooks/useTheme";
 import { AppTheme } from "../../../types";
-import { isValidUzPhone, toStoredUzPhone, uzPhoneMask } from "../../../utils/masks";
+import {
+  isValidUzPhone,
+  toStoredUzPhone,
+  uzPhoneMask,
+} from "../../../utils/masks";
 import { getApiErrorMessage } from "../../../utils/apiError";
 import {
   confirmPhoneChange,
@@ -64,6 +68,11 @@ export function PhoneVerificationModal({
   const [error, setError] = useState<string | undefined>();
 
   const isChange = Boolean(currentPhone?.trim());
+
+  const handlePhoneChange = useCallback((value: string) => {
+    setPhoneNumber(value);
+    setError((current) => (current ? undefined : current));
+  }, []);
 
   const handleAutoFilledCode = useCallback((value: string) => {
     setCode(value);
@@ -109,11 +118,16 @@ export function PhoneVerificationModal({
     setLoading(true);
     setError(undefined);
     try {
-      await confirmPhoneChange({ phoneNumber: requestedPhone, code: code.trim() });
+      await confirmPhoneChange({
+        phoneNumber: requestedPhone,
+        code: code.trim(),
+      });
       await onVerified(requestedPhone);
       onDismiss();
     } catch (confirmError) {
-      setError(getApiErrorMessage(confirmError, "Kod noto'g'ri yoki muddati o'tgan"));
+      setError(
+        getApiErrorMessage(confirmError, "Kod noto'g'ri yoki muddati o'tgan"),
+      );
       setCode("");
       requestAnimationFrame(() => otpRef.current?.focus());
     } finally {
@@ -137,10 +151,16 @@ export function PhoneVerificationModal({
       >
         <View style={styles.card}>
           <View style={styles.iconWrap}>
-            <Ionicons name="phone-portrait-outline" size={27} color={theme.primary} />
+            <Ionicons
+              name="phone-portrait-outline"
+              size={27}
+              color={theme.primary}
+            />
           </View>
           <Text style={styles.title}>
-            {isChange ? "Telefon raqamini yangilang" : "Telefon raqamini biriktiring"}
+            {isChange
+              ? "Telefon raqamini yangilang"
+              : "Telefon raqamini biriktiring"}
           </Text>
           <Text style={styles.description}>
             {stage === "phone"
@@ -151,11 +171,9 @@ export function PhoneVerificationModal({
           {stage === "phone" ? (
             <AppInput
               label="Telefon raqami"
-              value={phoneNumber}
-              onChangeText={(value) => {
-                setPhoneNumber(value);
-                if (error) setError(undefined);
-              }}
+              uncontrolled
+              defaultValue={phoneNumber}
+              onChangeText={handlePhoneChange}
               placeholder="+998 XX XXX XX XX"
               iconName="call-outline"
               keyboardType="phone-pad"
@@ -266,8 +284,26 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "700",
     },
     errorText: { color: theme.dangerColor, fontSize: 12, lineHeight: 17 },
-    changePhoneButton: { minHeight: 36, justifyContent: "center", alignItems: "center" },
-    changePhoneText: { color: theme.primary, fontSize: 13, lineHeight: 18, fontWeight: "700" },
-    laterButton: { minHeight: 40, alignItems: "center", justifyContent: "center" },
-    laterText: { color: theme.textMuted, fontSize: 13, lineHeight: 18, fontWeight: "700" },
+    changePhoneButton: {
+      minHeight: 36,
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    changePhoneText: {
+      color: theme.primary,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+    },
+    laterButton: {
+      minHeight: 40,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    laterText: {
+      color: theme.textMuted,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+    },
   });

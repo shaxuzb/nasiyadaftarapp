@@ -19,6 +19,13 @@ export interface SmsHistoryFilters {
   pageSize: number;
 }
 
+export interface SmsTemplate {
+  template: string;
+  placeholders: string[];
+}
+
+export type SmsTemplateValues = Record<string, string | undefined>;
+
 export interface SmsRecipient {
   id: number;
   fullName: string;

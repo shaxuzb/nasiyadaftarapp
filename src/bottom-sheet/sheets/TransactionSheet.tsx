@@ -54,6 +54,50 @@ function formatAmountInput(value: string): string {
     .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
+type TransactionAmountInputProps = Omit<
+  React.ComponentProps<typeof BottomSheetTextInput>,
+  "value" | "defaultValue" | "onChangeText"
+> & {
+  initialValue: string;
+  onValueChange: (value: string) => void;
+};
+
+const TransactionAmountInput = React.memo(
+  function TransactionAmountInput({
+    initialValue,
+    onValueChange,
+    ...rest
+  }: TransactionAmountInputProps) {
+    const [value, setValue] = useState(initialValue);
+
+    const handleChangeText = React.useCallback(
+      (nextValue: string) => {
+        const formattedValue = formatAmountInput(nextValue);
+        setValue(formattedValue);
+        onValueChange(formattedValue);
+      },
+      [onValueChange],
+    );
+
+    return (
+      <BottomSheetTextInput
+        {...rest}
+        value={value}
+        onChangeText={handleChangeText}
+      />
+    );
+  },
+  (previous, next) => {
+    const { initialValue: _previousInitial, ...previousRest } = previous;
+    const { initialValue: _nextInitial, ...nextRest } = next;
+    return Object.keys(previousRest).every(
+      (key) =>
+        previousRest[key as keyof typeof previousRest] ===
+        nextRest[key as keyof typeof nextRest],
+    );
+  },
+);
+
 function useTransactionController({
   props,
   closeSheet,
@@ -270,10 +314,13 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const tx = useTransaction();
   const [focused, setFocused] = useState<"amount" | "note" | null>(null);
-  const dismissKeyboard = () => {
+  const dismissKeyboard = React.useCallback(() => {
     Keyboard.dismiss();
     void KeyboardController.dismiss();
-  };
+  }, []);
+  const handleAmountFocus = React.useCallback(() => setFocused("amount"), []);
+  const handleNoteFocus = React.useCallback(() => setFocused("note"), []);
+  const handleFieldBlur = React.useCallback(() => setFocused(null), []);
   return (
     <BottomSheetScrollView
       enableFooterMarginAdjustment
@@ -345,19 +392,19 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
       >
         <View style={styles.amountCopy}>
           <Text style={styles.label}>Summa</Text>
-          <BottomSheetTextInput
-            value={tx.amount}
-            onChangeText={(value) => tx.setAmount(formatAmountInput(value))}
+          <TransactionAmountInput
+            initialValue=""
+            onValueChange={tx.setAmount}
             editable={!tx.saving}
             keyboardType="number-pad"
-            returnKeyType="done"
+            returnKeyType="none"
             submitBehavior="blurAndSubmit"
             onSubmitEditing={dismissKeyboard}
             placeholder="0"
             placeholderTextColor={theme.textMuted}
             selectionColor={theme.primary}
-            onFocus={() => setFocused("amount")}
-            onBlur={() => setFocused(null)}
+            onFocus={handleAmountFocus}
+            onBlur={handleFieldBlur}
             style={styles.amountInput}
             accessibilityLabel="Operatsiya summasi"
           />
@@ -378,8 +425,8 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           returnKeyType="done"
           submitBehavior="blurAndSubmit"
           onSubmitEditing={dismissKeyboard}
-          onFocus={() => setFocused("note")}
-          onBlur={() => setFocused(null)}
+          onFocus={handleNoteFocus}
+          onBlur={handleFieldBlur}
           style={styles.noteInput}
           accessibilityLabel="Operatsiya izohi"
         />

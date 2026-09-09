@@ -21,6 +21,11 @@ function asFiniteNumber(value: unknown, field: string): number {
   return numberValue;
 }
 
+function asFiniteNumberOrDefault(value: unknown, fallback: number): number {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : fallback;
+}
+
 function asNonEmptyString(value: unknown, field: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`Invalid reports field: ${field}`);
@@ -36,10 +41,7 @@ function parseTopDebtor(value: unknown, index: number): ReportTopDebtor {
   const item = value as Record<string, unknown>;
   return {
     clientId: asFiniteNumber(item.clientId, `topDebtors[${index}].clientId`),
-    fullName: asNonEmptyString(
-      item.fullName,
-      `topDebtors[${index}].fullName`,
-    ),
+    fullName: asNonEmptyString(item.fullName, `topDebtors[${index}].fullName`),
     phoneNumber: asNonEmptyString(
       item.phoneNumber,
       `topDebtors[${index}].phoneNumber`,
@@ -88,48 +90,40 @@ function parseReportsResponse(value: unknown): ReportsResponse {
   if (!Array.isArray(topDebtors)) {
     throw new Error("Invalid reports field: topDebtors");
   }
-  if (!Array.isArray(monthlyStatistics)) {
-    throw new Error("Invalid reports field: monthlyStatistics");
-  }
+
+  const totalDebt = asFiniteNumber(data.totalDebt, "totalDebt");
+  const totalPayment = asFiniteNumber(data.totalPayment, "totalPayment");
+  const remainingBalance = asFiniteNumber(
+    data.remainingBalance,
+    "remainingBalance",
+  );
+  const paymentEfficiencyPercent = asFiniteNumberOrDefault(
+    data.paymentEfficiencyPercent,
+    totalDebt > 0 ? (totalPayment / totalDebt) * 100 : 0,
+  );
 
   return {
-    totalDebt: asFiniteNumber(data.totalDebt, "totalDebt"),
-    totalPayment: asFiniteNumber(data.totalPayment, "totalPayment"),
-    remainingBalance: asFiniteNumber(
-      data.remainingBalance,
-      "remainingBalance",
-    ),
-    totalClients: asFiniteNumber(data.totalClients, "totalClients"),
-    activeDebtorsCount: asFiniteNumber(
-      data.activeDebtorsCount,
-      "activeDebtorsCount",
-    ),
-    debtFreeClientsCount: asFiniteNumber(
-      data.debtFreeClientsCount,
-      "debtFreeClientsCount",
-    ),
-    totalTransactions: asFiniteNumber(
-      data.totalTransactions,
-      "totalTransactions",
-    ),
-    paymentEfficiencyPercent: asFiniteNumber(
-      data.paymentEfficiencyPercent,
-      "paymentEfficiencyPercent",
-    ),
-    currentMonthDebt: asFiniteNumber(
-      data.currentMonthDebt,
-      "currentMonthDebt",
-    ),
-    currentMonthPayment: asFiniteNumber(
+    totalDebt,
+    totalPayment,
+    remainingBalance,
+    totalClients: asFiniteNumberOrDefault(data.totalClients, 0),
+    activeDebtorsCount: asFiniteNumberOrDefault(data.activeDebtorsCount, 0),
+    debtFreeClientsCount: asFiniteNumberOrDefault(data.debtFreeClientsCount, 0),
+    totalTransactions: asFiniteNumberOrDefault(data.totalTransactions, 0),
+    paymentEfficiencyPercent,
+    currentMonthDebt: asFiniteNumberOrDefault(data.currentMonthDebt, totalDebt),
+    currentMonthPayment: asFiniteNumberOrDefault(
       data.currentMonthPayment,
-      "currentMonthPayment",
+      totalPayment,
     ),
-    currentMonthBalance: asFiniteNumber(
+    currentMonthBalance: asFiniteNumberOrDefault(
       data.currentMonthBalance,
-      "currentMonthBalance",
+      remainingBalance,
     ),
     topDebtors: topDebtors.map(parseTopDebtor),
-    monthlyStatistics: monthlyStatistics.map(parseMonthlyStatistic),
+    monthlyStatistics: Array.isArray(monthlyStatistics)
+      ? monthlyStatistics.map(parseMonthlyStatistic)
+      : [],
   };
 }
 

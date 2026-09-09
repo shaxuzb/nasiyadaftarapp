@@ -4,6 +4,8 @@ import type {
   SmsHistoryItem,
   SmsRecipient,
   SmsSendResult,
+  SmsTemplate,
+  SmsTemplateValues,
 } from "../types";
 
 type RecordValue = Record<string, unknown>;
@@ -21,6 +23,42 @@ const positiveId = (value: unknown) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 };
+
+export function parseSmsTemplate(input: unknown): SmsTemplate {
+  const outer = record(input);
+  const value = Object.keys(record(outer.data)).length
+    ? record(outer.data)
+    : Object.keys(record(outer.result)).length
+      ? record(outer.result)
+      : outer;
+  const template = text(value.template);
+  if (!template) throw new Error("SMS shabloni noto'g'ri formatda qaytdi");
+
+  const placeholders = Array.isArray(value.placeholders)
+    ? value.placeholders.filter(
+        (placeholder): placeholder is string =>
+          typeof placeholder === "string" && placeholder.trim().length > 0,
+      )
+    : [];
+
+  return {
+    template,
+    placeholders: [...new Set(placeholders.map((item) => item.trim()))],
+  };
+}
+
+export function renderSmsTemplate(
+  template: string,
+  values: SmsTemplateValues,
+): string {
+  return template.replace(
+    /\{([a-zA-Z][a-zA-Z0-9_]*)\}/g,
+    (placeholder, key) => {
+      const value = values[key];
+      return value === undefined ? placeholder : value;
+    },
+  );
+}
 
 function extractPage(input: unknown): { count: number; items: unknown[] } {
   if (Array.isArray(input)) return { count: input.length, items: input };

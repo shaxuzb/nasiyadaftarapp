@@ -8,6 +8,7 @@ import { useAuth } from "../../../context/AuthContext";
 import { queryKeys } from "../../../core/query/queryKeys";
 import {
   getDebtSmsHistory,
+  getDebtSmsTemplate,
   getSmsRecipients,
   sendBulkDebtSms,
   sendDebtSms,
@@ -43,6 +44,20 @@ export function useSmsHistory(filters: SmsHistoryFilters) {
     enabled: Boolean(user && capabilities.canViewHistory),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+  });
+}
+
+export function useSmsTemplate() {
+  const { user, scope, capabilities } = useSmsScope();
+  return useQuery({
+    queryKey: queryKeys.clientSmsTemplate(scope),
+    queryFn: ({ signal }) => getDebtSmsTemplate(signal),
+    enabled: Boolean(
+      user &&
+      capabilities.canView &&
+      (capabilities.canSendOne || capabilities.canSendBulk),
+    ),
+    staleTime: 5 * 60_000,
   });
 }
 

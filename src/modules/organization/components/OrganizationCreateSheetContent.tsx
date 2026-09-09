@@ -115,7 +115,7 @@ export function OrganizationCreateSheetContent({
           placeholder="Masalan: Nasiya Savdo"
           iconName="business-outline"
           autoCapitalize="words"
-          autoFocus
+          // autoFocus
           returnKeyType="next"
           error={nameError}
         />
@@ -176,7 +176,7 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: 16,
       paddingTop: 4,
       paddingBottom: 28,
-      gap: 8,
+      gap: 0,
     },
     header: {
       flexDirection: "row",

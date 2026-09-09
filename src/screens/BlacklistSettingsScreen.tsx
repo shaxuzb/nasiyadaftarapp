@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -18,14 +17,18 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
-import { useUpdateBlacklistSettings } from "../modules/organization/hooks/useBlacklistSettings";
 import {
-  DEFAULT_BLACKLIST_AFTER_DAYS,
-  parseBlacklistDays,
-} from "../modules/organization/utils/blacklistSettings";
+  useCurrentOrganization,
+  useUpdateBlacklistSettings,
+} from "../modules/organization/hooks/useBlacklistSettings";
+import { parseBlacklistDays } from "../modules/organization/utils/blacklistSettings";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
+import {
+  KeyboardAwareScrollView,
+  KeyboardAvoidingView,
+} from "react-native-keyboard-controller";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function BlacklistSettingsScreen() {
@@ -34,12 +37,21 @@ export function BlacklistSettingsScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
-  const [value, setValue] = useState(String(DEFAULT_BLACKLIST_AFTER_DAYS));
-  const [savedValue, setSavedValue] = useState(DEFAULT_BLACKLIST_AFTER_DAYS);
+  const currentOrganization = useCurrentOrganization();
+  const [value, setValue] = useState("");
+  const [savedValue, setSavedValue] = useState<number | null>(null);
   const update = useUpdateBlacklistSettings();
+  const serverDays = currentOrganization.data?.blacklistAfterDays;
+  useEffect(() => {
+    if (typeof serverDays !== "number") return;
+    setValue(String(serverDays));
+    setSavedValue(serverDays);
+  }, [serverDays]);
   const parsed = parseBlacklistDays(value);
   const valid = parsed !== null;
-  const changed = parsed !== savedValue;
+  const changed = savedValue !== null && parsed !== savedValue;
+  const isLoadingOrganization =
+    currentOrganization.isPending && !currentOrganization.data;
   const save = async () => {
     if (!valid || !changed || update.isPending) return;
     try {
@@ -55,10 +67,7 @@ export function BlacklistSettingsScreen() {
   };
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
@@ -71,61 +80,84 @@ export function BlacklistSettingsScreen() {
           <Text style={styles.title}>Qora ro'yxat</Text>
           <View style={styles.headerButton} />
         </View>
-        <View style={styles.content}>
-          <View style={styles.hero}>
-            <View style={styles.heroIcon}>
+        <KeyboardAwareScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          bottomOffset={16}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.content}>
+            <View style={styles.hero}>
+              <View style={styles.heroIcon}>
+                <Ionicons
+                  name="shield-checkmark-outline"
+                  size={27}
+                  color={theme.warningColor}
+                />
+              </View>
+              <View style={styles.heroCopy}>
+                <Text style={styles.heroTitle}>Avtomatik nazorat</Text>
+                <Text style={styles.description}>
+                  Belgilangan muddatdan oshgan qarzdorlar tashkilot qora
+                  ro'yxatida ko'rsatiladi.
+                </Text>
+              </View>
+            </View>
+            <View style={styles.card}>
+              <Text style={styles.label}>Necha kundan keyin</Text>
+              {isLoadingOrganization ? (
+                <View style={styles.loadingField}>
+                  <ActivityIndicator size="small" color={theme.primary} />
+                  <Text style={styles.help}>Joriy sozlama yuklanmoqda...</Text>
+                </View>
+              ) : (
+                <>
+                  <View style={[styles.field, !valid && styles.fieldError]}>
+                    <TextInput
+                      value={value}
+                      onChangeText={(text) =>
+                        setValue(text.replace(/\D/g, "").slice(0, 4))
+                      }
+                      keyboardType="number-pad"
+                      returnKeyType="none"
+                      selectionColor={theme.primary}
+                      style={styles.input}
+                      accessibilityLabel="Qora ro'yxatga tushish kunlari"
+                    />
+                    <Text style={styles.suffix}>kun</Text>
+                  </View>
+                  {!valid ? (
+                    <Text style={styles.error}>
+                      1 dan 3650 gacha butun kun kiriting.
+                    </Text>
+                  ) : (
+                    <Text style={styles.help}>
+                      Qiymat current organization sozlamasidan olindi.
+                    </Text>
+                  )}
+                </>
+              )}
+              {currentOrganization.isError ? (
+                <Text style={styles.error}>
+                  Joriy sozlamani yuklab bo'lmadi. Qayta urinib ko'ring.
+                </Text>
+              ) : null}
+            </View>
+            <View style={styles.warning}>
               <Ionicons
-                name="shield-checkmark-outline"
-                size={27}
+                name="information-circle-outline"
+                size={20}
                 color={theme.warningColor}
               />
-            </View>
-            <View style={styles.heroCopy}>
-              <Text style={styles.heroTitle}>Avtomatik nazorat</Text>
-              <Text style={styles.description}>
-                Belgilangan muddatdan oshgan qarzdorlar tashkilot qora
-                ro'yxatida ko'rsatiladi.
+              <Text style={styles.warningText}>
+                Muddatni o'zgartirish kechikkan mijozlarning tasnifiga ta'sir
+                qiladi.
               </Text>
             </View>
           </View>
-          <View style={styles.card}>
-            <Text style={styles.label}>Necha kundan keyin</Text>
-            <View style={[styles.field, !valid && styles.fieldError]}>
-              <TextInput
-                value={value}
-                onChangeText={(text) =>
-                  setValue(text.replace(/\D/g, "").slice(0, 4))
-                }
-                keyboardType="number-pad"
-                returnKeyType="done"
-                selectionColor={theme.primary}
-                style={styles.input}
-                accessibilityLabel="Qora ro'yxatga tushish kunlari"
-              />
-              <Text style={styles.suffix}>kun</Text>
-            </View>
-            {!valid ? (
-              <Text style={styles.error}>
-                1 dan 3650 gacha butun kun kiriting.
-              </Text>
-            ) : (
-              <Text style={styles.help}>
-                Hozircha frontend standart qiymati: 30 kun.
-              </Text>
-            )}
-          </View>
-          <View style={styles.warning}>
-            <Ionicons
-              name="information-circle-outline"
-              size={20}
-              color={theme.warningColor}
-            />
-            <Text style={styles.warningText}>
-              Muddatni o'zgartirish kechikkan mijozlarning tasnifiga ta'sir
-              qiladi.
-            </Text>
-          </View>
-        </View>
+        </KeyboardAwareScrollView>
         <View
           style={[
             styles.footer,
@@ -135,7 +167,7 @@ export function BlacklistSettingsScreen() {
           <PrimaryButton
             label="Saqlash"
             loading={update.isPending}
-            disabled={!valid || !changed}
+            disabled={isLoadingOrganization || !valid || !changed}
             onPress={() => void save()}
           />
         </View>
@@ -165,7 +197,9 @@ const createStyles = (theme: AppTheme) =>
       ...typography.headingLarge,
       color: theme.text,
     },
-    content: { flex: 1, padding: spacing.md, gap: spacing.md },
+    scroll: { flex: 1 },
+    scrollContent: { flexGrow: 1 },
+    content: { padding: spacing.md, gap: spacing.md },
     hero: {
       flexDirection: "row",
       gap: 12,
@@ -205,6 +239,17 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.inputBackground,
     },
     fieldError: { borderColor: theme.dangerColor },
+    loadingField: {
+      minHeight: 58,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
+      paddingHorizontal: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: radius.md,
+      backgroundColor: theme.inputBackground,
+    },
     input: {
       flex: 1,
       paddingHorizontal: 14,

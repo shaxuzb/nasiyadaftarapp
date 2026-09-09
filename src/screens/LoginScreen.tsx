@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import {
   ActivityIndicator,
@@ -51,11 +51,14 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
     [password, userName],
   );
 
-  const handleIdentifierChange = (value: string) => {
-    setUserName((currentValue) =>
+  const handleIdentifierChange = useCallback((value: string) => {
+    setUserName(value);
+  }, []);
+  const transformIdentifier = useCallback(
+    (value: string, currentValue: string) =>
       formatLoginIdentifierInput(value, currentValue),
-    );
-  };
+    [],
+  );
 
   const handleLogin = async () => {
     if (!canSubmit) {
@@ -134,8 +137,10 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
 
             <AppInput
               label="Login yoki telefon raqami"
-              value={userName}
+              uncontrolled
+              defaultValue={userName}
               onChangeText={handleIdentifierChange}
+              transformText={transformIdentifier}
               autoCapitalize="none"
               autoCorrect={false}
               iconName={isPhoneIdentifier ? "call-outline" : "person-outline"}

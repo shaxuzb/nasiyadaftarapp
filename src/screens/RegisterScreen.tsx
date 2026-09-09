@@ -86,10 +86,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
         expiresInSeconds: smsResult.expiresInSeconds,
       });
     } catch (error) {
-      showToast(
-        getApiErrorMessage(error, "SMS yuborishda xatolik"),
-        "error",
-      );
+      showToast(getApiErrorMessage(error, "SMS yuborishda xatolik"), "error");
     } finally {
       setLoading(false);
     }
@@ -113,10 +110,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
 
   return (
     <ScreenContainer contentContainerStyle={styles.scrollContent}>
-      <KeyboardAvoidingView
-        style={styles.keyboardWrap}
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={styles.keyboardWrap} behavior="padding">
         <View style={styles.wrapper}>
           <View
             style={[
@@ -160,7 +154,8 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
             />
             <AppInput
               label="Telefon raqam"
-              value={phoneNumber}
+              uncontrolled
+              defaultValue={phoneNumber}
               onChangeText={setPhoneNumber}
               keyboardType="phone-pad"
               iconName="call-outline"

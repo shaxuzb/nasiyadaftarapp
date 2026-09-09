@@ -101,6 +101,7 @@ export function CustomersScreen() {
   const [debtorOnly, setDebtorOnly] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("+998 ");
+  const [phoneInputKey, setPhoneInputKey] = useState(0);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [errors, setErrors] = useState<{ phone?: string }>({});
 
@@ -117,6 +118,16 @@ export function CustomersScreen() {
     if (!value.trim()) {
       setDebouncedQuery("");
     }
+  }, []);
+
+  const handleAddPhoneChange = useCallback((value: string) => {
+    setPhone(formatUzPhoneFromDigits(value));
+    setErrors((current) =>
+      current.phone ? { ...current, phone: undefined } : current,
+    );
+  }, []);
+  const handleAddPhoneSubmit = useCallback(() => {
+    void KeyboardController.dismiss();
   }, []);
 
   const scope = user?.organizationId ?? user?.id ?? "anonymous";
@@ -209,6 +220,7 @@ export function CustomersScreen() {
   function resetCustomerForm() {
     setFullName("");
     setPhone("+998 ");
+    setPhoneInputKey((key) => key + 1);
     setErrors({});
     setIsCreatingCustomer(false);
   }
@@ -288,6 +300,7 @@ export function CustomersScreen() {
 
       setFullName(contactFullName.replace(/\s+/g, " "));
       setPhone(formatUzPhoneFromDigits(phoneValue));
+      setPhoneInputKey((key) => key + 1);
       setErrors({});
       showToast("Kontaktdan ma'lumot to'ldirildi", "success");
     } catch {
@@ -549,20 +562,18 @@ export function CustomersScreen() {
               variant="sheet"
               compact
               inputRef={phoneInputRef}
+              key={phoneInputKey}
               label="Telefon *"
-              value={phone}
-              onChangeText={(value) => {
-                setPhone(formatUzPhoneFromDigits(value));
-                if (errors.phone) {
-                  setErrors((current) => ({ ...current, phone: undefined }));
-                }
-              }}
+              uncontrolled
+              defaultValue={phone}
+              transformText={formatUzPhoneFromDigits}
+              onChangeText={handleAddPhoneChange}
               placeholder="+998 XX XXX XX XX"
               editable={!isCreatingCustomer}
               autoComplete="tel"
               keyboardType="phone-pad"
               returnKeyType="done"
-              onSubmitEditing={() => void KeyboardController.dismiss()}
+              onSubmitEditing={handleAddPhoneSubmit}
               error={errors.phone}
               trailingAccessory={
                 <TouchableOpacity

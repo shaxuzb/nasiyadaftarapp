@@ -41,8 +41,12 @@ export async function createOrganization(
   return extractOrganization(data);
 }
 
-export async function getCurrentOrganization(): Promise<OrganizationResponse | null> {
-  const { data } = await apiClient.get<unknown>("/organizations/current");
+export async function getCurrentOrganization(
+  signal?: AbortSignal,
+): Promise<OrganizationResponse | null> {
+  const { data } = await apiClient.get<unknown>("/organizations/current", {
+    signal,
+  });
   return extractOrganization(data);
 }
 

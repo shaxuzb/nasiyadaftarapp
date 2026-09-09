@@ -36,11 +36,13 @@ import {
   useSendBulkDebtSms,
   useSendDebtSms,
   useSmsRecipients,
+  useSmsTemplate,
 } from "../modules/client-sms/hooks/useClientSms";
 import type {
   BulkSmsResponse,
   SmsRecipient,
   SmsRecipientFilters,
+  SmsTemplate,
 } from "../modules/client-sms/types";
 import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 import {
@@ -50,6 +52,8 @@ import {
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
+import { formatCurrency } from "../utils";
+import { renderSmsTemplate } from "../modules/client-sms/utils/smsParsing";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const PAGE_SIZE = 20;
@@ -94,6 +98,7 @@ function ClientSmsContent({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { confirm } = useConfirmDialog();
+  const { user, currentOrganization } = useAuth();
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -126,6 +131,7 @@ function ClientSmsContent({
     [debouncedSearch, filters, pageNumber],
   );
   const recipients = useSmsRecipients(queryFilters);
+  const smsTemplate = useSmsTemplate();
   const sendOne = useSendDebtSms();
   const sendBulk = useSendBulkDebtSms();
   const rows = recipients.data?.results ?? [];
@@ -142,15 +148,42 @@ function ClientSmsContent({
       setSelected((current) => toggleRecipientSelection(current, id)),
     [],
   );
+  const getTemplateForConfirmation = useCallback(async () => {
+    const template = smsTemplate.data ?? (await smsTemplate.refetch()).data;
+    if (!template) throw new Error("SMS shabloni yuklanmadi");
+    return template;
+  }, [smsTemplate.data, smsTemplate.refetch]);
+  const organizationName =
+    currentOrganization?.name ?? user?.organizationName ?? "Tashkilot";
+  const getPreviewMessage = useCallback(
+    (template: SmsTemplate, recipient?: SmsRecipient) => {
+      const values = recipient
+        ? {
+            organizationName,
+            balance: formatCurrency(Math.abs(recipient.currentBalance)),
+            fullName: recipient.fullName,
+            phoneNumber: recipient.phone,
+          }
+        : {
+            organizationName,
+            balance: "{balance}",
+            fullName: "{fullName}",
+            phoneNumber: "{phoneNumber}",
+          };
+      return renderSmsTemplate(template.template, values);
+    },
+    [organizationName],
+  );
   const sendToOne = useCallback(
     async (recipient: SmsRecipient) => {
       if (submitting.current || !capabilities.canSendOne || !recipient.canSend)
         return;
       submitting.current = true;
       try {
+        const template = await getTemplateForConfirmation();
         const accepted = await confirm({
           title: "SMS yuborish",
-          message: `${recipient.fullName}ga qarzdorlik SMS'i yuborilsinmi?`,
+          message: `${getPreviewMessage(template, recipient)}\n\n${recipient.fullName}ga yuborilsinmi?`,
           confirmText: "Yuborish",
           cancelText: "Bekor qilish",
         });
@@ -163,16 +196,24 @@ function ClientSmsContent({
         submitting.current = false;
       }
     },
-    [capabilities.canSendOne, confirm, sendOne, showToast],
+    [
+      capabilities.canSendOne,
+      confirm,
+      getPreviewMessage,
+      getTemplateForConfirmation,
+      sendOne,
+      showToast,
+    ],
   );
   const submitBulk = async () => {
     if (submitting.current || !capabilities.canSendBulk || !selected.size)
       return;
     submitting.current = true;
     try {
+      const template = await getTemplateForConfirmation();
       const accepted = await confirm({
-        title: "Ommaviy SMS",
-        message: `${selected.size} ta mijozga qarzdorlik SMS'i yuborilsinmi?`,
+        title: "SMS shablon",
+        message: `${getPreviewMessage(template)}\n\n${selected.size} ta mijozga yuborilsinmi?`,
         confirmText: "Yuborish",
         cancelText: "Bekor qilish",
       });

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   View,
   TextInput,
@@ -22,9 +22,122 @@ interface Props extends TextInputProps {
   variant?: "default" | "sheet";
   passwordToggle?: boolean;
   compact?: boolean;
+  /** Keeps high-frequency formatted input state inside the native input. */
+  uncontrolled?: boolean;
+  /** Optional formatter used by the local input before notifying the parent. */
+  transformText?: (value: string, previousValue: string) => string;
   trailingAccessory?: React.ReactNode;
   inputRef?: React.Ref<TextInput>;
 }
+
+interface LocalTextInputProps extends Omit<
+  TextInputProps,
+  "value" | "defaultValue" | "onChangeText"
+> {
+  InputComponent: React.ElementType;
+  initialValue: string;
+  inputRef: React.Ref<TextInput>;
+  onChangeText?: (value: string) => void;
+  transformText?: (value: string, previousValue: string) => string;
+}
+
+const LocalTextInput = React.memo(
+  function LocalTextInput({
+    InputComponent,
+    initialValue,
+    inputRef,
+    onChangeText,
+    transformText,
+    ...rest
+  }: LocalTextInputProps) {
+    const [value, setValue] = useState(initialValue);
+    const valueRef = useRef(initialValue);
+
+    const handleChangeText = useCallback(
+      (nextValue: string) => {
+        const formattedValue = transformText
+          ? transformText(nextValue, valueRef.current)
+          : nextValue;
+        valueRef.current = formattedValue;
+        setValue(formattedValue);
+        onChangeText?.(formattedValue);
+      },
+      [onChangeText, transformText],
+    );
+
+    return (
+      <InputComponent
+        {...rest}
+        ref={inputRef}
+        value={value}
+        onChangeText={handleChangeText}
+      />
+    );
+  },
+  (previous, next) => {
+    // `initialValue` is intentionally ignored after mount. A parent state
+    // update must never overwrite the value currently being edited.
+    const { initialValue: _previousInitial, ...previousRest } = previous;
+    const { initialValue: _nextInitial, ...nextRest } = next;
+    return Object.keys(previousRest).every(
+      (key) =>
+        previousRest[key as keyof typeof previousRest] ===
+        nextRest[key as keyof typeof nextRest],
+    );
+  },
+);
+
+interface LocalMaskInputProps extends Omit<
+  React.ComponentProps<typeof MaskInput>,
+  "value" | "defaultValue" | "onChangeText" | "mask"
+> {
+  initialValue: string;
+  inputRef: React.Ref<TextInput>;
+  mask: Mask;
+  onChangeText?: (value: string) => void;
+  onChangeRawText?: (raw: string) => void;
+}
+
+const LocalMaskInput = React.memo(
+  function LocalMaskInput({
+    initialValue,
+    inputRef,
+    mask,
+    onChangeText,
+    onChangeRawText,
+    ...rest
+  }: LocalMaskInputProps) {
+    const [value, setValue] = useState(initialValue);
+
+    const handleChangeText = useCallback(
+      (masked: string, raw: string) => {
+        setValue(masked);
+        onChangeText?.(masked);
+        onChangeRawText?.(raw);
+      },
+      [onChangeRawText, onChangeText],
+    );
+
+    return (
+      <MaskInput
+        {...rest}
+        ref={inputRef}
+        mask={mask}
+        value={value}
+        onChangeText={handleChangeText}
+      />
+    );
+  },
+  (previous, next) => {
+    const { initialValue: _previousInitial, ...previousRest } = previous;
+    const { initialValue: _nextInitial, ...nextRest } = next;
+    return Object.keys(previousRest).every(
+      (key) =>
+        previousRest[key as keyof typeof previousRest] ===
+        nextRest[key as keyof typeof nextRest],
+    );
+  },
+);
 
 export function AppInput({
   label,
@@ -37,16 +150,23 @@ export function AppInput({
   variant = "default",
   passwordToggle = false,
   compact = false,
+  uncontrolled = false,
+  transformText,
   trailingAccessory,
   inputRef,
   secureTextEntry,
+  value,
+  defaultValue,
   ...rest
 }: Props) {
   const theme = useTheme();
-  const setInputRef = useCallback((instance: TextInput | null | undefined) => {
-    if (typeof inputRef === "function") return inputRef(instance ?? null);
-    if (inputRef) inputRef.current = instance ?? null;
-  }, [inputRef]);
+  const setInputRef = useCallback(
+    (instance: TextInput | null | undefined) => {
+      if (typeof inputRef === "function") return inputRef(instance ?? null);
+      if (inputRef) inputRef.current = instance ?? null;
+    },
+    [inputRef],
+  );
   const [focused, setFocused] = useState(false);
   const [passwordVisible, setPasswordVisible] = useState(false);
   const isSheet = variant === "sheet";
@@ -54,6 +174,14 @@ export function AppInput({
   const shouldHidePassword = hasPasswordToggle
     ? !passwordVisible
     : secureTextEntry;
+  const handleFocus = useCallback(() => setFocused(true), []);
+  const handleBlur = useCallback(() => setFocused(false), []);
+  const initialValue =
+    typeof value === "string"
+      ? value
+      : typeof defaultValue === "string"
+        ? defaultValue
+        : "";
 
   const borderColor = error
     ? theme.dangerColor
@@ -64,14 +192,24 @@ export function AppInput({
       : isSheet
         ? theme.border
         : theme.border;
-  const inputStyle = [
-    typography.bodyMedium,
-    styles.input,
-    process.env.EXPO_OS === "ios" ? styles.inputIOS : null,
-    isSheet ? styles.sheetInput : null,
-    { color: theme.text },
-    style,
-  ];
+  const inputStyle = useMemo(
+    () => [
+      typography.bodyMedium,
+      styles.input,
+      process.env.EXPO_OS === "ios" ? styles.inputIOS : null,
+      isSheet ? styles.sheetInput : null,
+      { color: theme.text },
+      style,
+    ],
+    [
+      isSheet,
+      style,
+      styles.input,
+      styles.inputIOS,
+      styles.sheetInput,
+      theme.text,
+    ],
+  );
 
   return (
     <View style={[styles.wrapper, compact && styles.compactWrapper]}>
@@ -117,19 +255,49 @@ export function AppInput({
           />
         ) : null}
 
-        {mask ? (
+        {mask && uncontrolled ? (
+          <LocalMaskInput
+            initialValue={initialValue}
+            inputRef={setInputRef}
+            mask={mask}
+            style={inputStyle}
+            placeholderTextColor={theme.textMuted}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onChangeText={onChangeText}
+            onChangeRawText={onChangeRawText}
+            secureTextEntry={shouldHidePassword}
+            {...rest}
+          />
+        ) : !mask && uncontrolled ? (
+          <LocalTextInput
+            InputComponent={isSheet ? BottomSheetTextInput : TextInput}
+            initialValue={initialValue}
+            inputRef={setInputRef}
+            style={inputStyle}
+            placeholderTextColor={theme.textMuted}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onChangeText={onChangeText}
+            transformText={transformText}
+            secureTextEntry={shouldHidePassword}
+            {...rest}
+          />
+        ) : mask ? (
           <MaskInput
             ref={setInputRef}
             style={inputStyle}
             mask={mask}
             placeholderTextColor={theme.textMuted}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             onChangeText={(masked, raw) => {
               onChangeText?.(masked);
               onChangeRawText?.(raw);
             }}
             secureTextEntry={shouldHidePassword}
+            value={value}
+            defaultValue={defaultValue}
             {...rest}
           />
         ) : isSheet ? (
@@ -137,10 +305,12 @@ export function AppInput({
             ref={setInputRef}
             style={inputStyle}
             placeholderTextColor={theme.textMuted}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             onChangeText={onChangeText}
             secureTextEntry={shouldHidePassword}
+            value={value}
+            defaultValue={defaultValue}
             {...rest}
           />
         ) : (
@@ -148,10 +318,12 @@ export function AppInput({
             ref={setInputRef}
             style={inputStyle}
             placeholderTextColor={theme.textMuted}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
             onChangeText={onChangeText}
             secureTextEntry={shouldHidePassword}
+            value={value}
+            defaultValue={defaultValue}
             {...rest}
           />
         )}

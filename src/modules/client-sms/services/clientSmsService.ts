@@ -1,10 +1,15 @@
 import { apiClient } from "../../../services/axiosService";
-import type { SmsHistoryFilters, SmsRecipientFilters } from "../types";
+import type {
+  SmsHistoryFilters,
+  SmsRecipientFilters,
+  SmsTemplate,
+} from "../types";
 import {
   parseBulkSmsResponse,
   parseSmsHistory,
   parseSmsRecipients,
   parseSmsSendResult,
+  parseSmsTemplate,
 } from "../utils/smsParsing";
 
 const params = (input: Record<string, unknown>) =>
@@ -13,6 +18,15 @@ const params = (input: Record<string, unknown>) =>
       ([, value]) => value !== undefined && value !== "",
     ),
   );
+
+export async function getDebtSmsTemplate(
+  signal?: AbortSignal,
+): Promise<SmsTemplate> {
+  const { data } = await apiClient.get<unknown>("/clients/debt-sms/template", {
+    signal,
+  });
+  return parseSmsTemplate(data);
+}
 
 export async function getSmsRecipients(
   filters: SmsRecipientFilters,
