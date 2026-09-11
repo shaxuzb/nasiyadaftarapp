@@ -24,7 +24,6 @@ import {
 import { parseBlacklistDays } from "../modules/organization/utils/blacklistSettings";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
-import { getApiErrorMessage } from "../utils/apiError";
 import { EmptyState } from "../components/EmptyState";
 import { useAuth } from "../context/AuthContext";
 import { useCurrentSubscription } from "../modules/subscription/hooks/useSubscription";
@@ -32,11 +31,13 @@ import {
   KeyboardAwareScrollView,
   KeyboardAvoidingView,
 } from "react-native-keyboard-controller";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 export function BlacklistSettingsScreen() {
   const navigation = useNavigation<Nav>();
   const theme = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
@@ -66,19 +67,19 @@ export function BlacklistSettingsScreen() {
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Orqaga qaytish"
+            accessibilityLabel={t("common.back")}
             onPress={() => navigation.goBack()}
             style={styles.headerButton}
           >
             <Ionicons name="arrow-back" size={24} color={theme.text} />
           </Pressable>
-          <Text style={styles.title}>Qora ro'yxat</Text>
+          <Text style={styles.title}>{t("organization.blacklistTitle")}</Text>
           <View style={styles.headerButton} />
         </View>
         <EmptyState
           iconName="lock-closed-outline"
-          title="Bu imkoniyat tarifingizda yo'q"
-          description="Qora ro'yxat funksiyasidan foydalanish uchun PRO tarifini faollashtiring."
+          title={t("organization.blacklistDisabledTitle")}
+          description={t("organization.blacklistDisabledDescription")}
         />
       </SafeAreaView>
     );
@@ -88,10 +89,10 @@ export function BlacklistSettingsScreen() {
     try {
       await update.mutateAsync({ blacklistAfterDays: parsed });
       setSavedValue(parsed);
-      showToast("Qora ro'yxat sozlamasi saqlandi", "success");
+      showToast(t("organization.blacklistSaved"), "success");
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Sozlamani saqlab bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "organization.blacklistSaveError", t),
         "error",
       );
     }
@@ -102,13 +103,13 @@ export function BlacklistSettingsScreen() {
         <View style={styles.header}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Orqaga qaytish"
+            accessibilityLabel={t("common.back")}
             onPress={() => navigation.goBack()}
             style={styles.headerButton}
           >
             <Ionicons name="arrow-back" size={24} color={theme.text} />
           </Pressable>
-          <Text style={styles.title}>Qora ro'yxat</Text>
+          <Text style={styles.title}>{t("organization.blacklistTitle")}</Text>
           <View style={styles.headerButton} />
         </View>
         <KeyboardAwareScrollView
@@ -129,19 +130,18 @@ export function BlacklistSettingsScreen() {
                 />
               </View>
               <View style={styles.heroCopy}>
-                <Text style={styles.heroTitle}>Avtomatik nazorat</Text>
+                <Text style={styles.heroTitle}>{t("organization.blacklistHeroTitle")}</Text>
                 <Text style={styles.description}>
-                  Belgilangan muddatdan oshgan qarzdorlar tashkilot qora
-                  ro'yxatida ko'rsatiladi.
+                  {t("organization.blacklistHeroDescription")}
                 </Text>
               </View>
             </View>
             <View style={styles.card}>
-              <Text style={styles.label}>Necha kundan keyin</Text>
+              <Text style={styles.label}>{t("organization.blacklistDaysLabel")}</Text>
               {isLoadingOrganization ? (
                 <View style={styles.loadingField}>
                   <ActivityIndicator size="small" color={theme.primary} />
-                  <Text style={styles.help}>Joriy sozlama yuklanmoqda...</Text>
+                  <Text style={styles.help}>{t("organization.blacklistLoading")}</Text>
                 </View>
               ) : (
                 <>
@@ -165,24 +165,24 @@ export function BlacklistSettingsScreen() {
                       style={styles.input}
                       onFocus={() => setFocused(true)}
                       onBlur={() => setFocused(false)}
-                      accessibilityLabel="Qora ro'yxatga tushish kunlari"
+                      accessibilityLabel={t("organization.blacklistInputLabel")}
                     />
-                    <Text style={styles.suffix}>kun</Text>
+                    <Text style={styles.suffix}>{t("organization.days")}</Text>
                   </Pressable>
                   {!valid ? (
                     <Text style={styles.error}>
-                      1 dan 3650 gacha butun kun kiriting.
+                      {t("organization.blacklistValidation")}
                     </Text>
                   ) : (
                     <Text style={styles.help}>
-                      Qiymat current organization sozlamasidan olindi.
+                      {t("organization.blacklistServerHelp")}
                     </Text>
                   )}
                 </>
               )}
               {currentOrganization.isError ? (
                 <Text style={styles.error}>
-                  Joriy sozlamani yuklab bo'lmadi. Qayta urinib ko'ring.
+                  {t("organization.blacklistLoadError")}
                 </Text>
               ) : null}
             </View>
@@ -193,8 +193,7 @@ export function BlacklistSettingsScreen() {
                 color={theme.warningColor}
               />
               <Text style={styles.warningText}>
-                Muddatni o'zgartirish kechikkan mijozlarning tasnifiga ta'sir
-                qiladi.
+                {t("organization.blacklistWarning")}
               </Text>
             </View>
           </View>
@@ -206,7 +205,7 @@ export function BlacklistSettingsScreen() {
           ]}
         >
           <PrimaryButton
-            label="Saqlash"
+            label={t("common.save")}
             loading={update.isPending}
             disabled={isLoadingOrganization || !valid || !changed}
             onPress={() => void save()}

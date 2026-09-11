@@ -11,7 +11,8 @@ import { useToast } from "../context/ToastContext";
 import { APP_NAME } from "../constants";
 import { toStoredUzPhone, uzPhoneMask, isValidUzPhone } from "../utils/masks";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { getApiErrorMessage } from "../utils/apiError";
+import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
+import { useTranslation } from "../i18n";
 
 interface Props {
   onGoBackToLogin: () => void;
@@ -23,6 +24,7 @@ export function PasswordResetRequestScreen({
   onGoToConfirm,
 }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { showToast } = useToast();
 
   const [phone, setPhone] = useState("+998 ");
@@ -32,7 +34,7 @@ export function PasswordResetRequestScreen({
 
   const handleRequest = async () => {
     if (!canSubmit) {
-      showToast("Telefon raqamni to'g'ri kiriting", "error");
+      showToast(t("auth.passwordReset.phoneError"), "error");
       return;
     }
 
@@ -40,10 +42,13 @@ export function PasswordResetRequestScreen({
     setLoading(true);
     try {
       await requestPasswordReset({ phone: normalizedPhone });
-      showToast("SMS kod yuborildi", "success");
+      showToast(t("auth.register.smsSent"), "success");
       onGoToConfirm(normalizedPhone);
     } catch (error) {
-      showToast(getApiErrorMessage(error, "Foydalanuvchi topilmadi"), "error");
+      showToast(
+        getLocalizedApiErrorMessage(error, "auth.passwordReset.userNotFound", t),
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -73,7 +78,7 @@ export function PasswordResetRequestScreen({
                 />
               </View>
               <Text style={[typography.headingLarge, { color: theme.text }]}>
-                Parolni tiklash
+                {t("auth.passwordReset.title")}
               </Text>
               <Text
                 style={[
@@ -82,24 +87,23 @@ export function PasswordResetRequestScreen({
                   { color: theme.textSecondary },
                 ]}
               >
-                {APP_NAME} uchun telefon raqamingizni kiriting, SMS kod
-                yuboramiz
+                {t("auth.passwordReset.description", { appName: APP_NAME })}
               </Text>
             </View>
 
             <AppInput
-              label="Telefon raqam"
+              label={t("auth.passwordReset.phoneLabel")}
               uncontrolled
               defaultValue={phone}
               onChangeText={setPhone}
-              placeholder="+998 XX XXX XX XX"
+              placeholder={t("auth.register.phonePlaceholder")}
               iconName="call-outline"
               keyboardType="phone-pad"
               mask={uzPhoneMask}
             />
 
             <PrimaryButton
-              label="Kod yuborish"
+              label={t("auth.passwordReset.sendCode")}
               onPress={handleRequest}
               loading={loading}
               disabled={!canSubmit}
@@ -111,7 +115,7 @@ export function PasswordResetRequestScreen({
               style={styles.footerBtn}
             >
               <Text style={[typography.label, { color: theme.primary }]}>
-                Loginga qaytish
+                {t("auth.passwordReset.backToLogin")}
               </Text>
             </TouchableOpacity>
           </View>

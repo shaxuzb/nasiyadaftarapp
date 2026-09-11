@@ -15,13 +15,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useReports } from "../modules/reports/hooks/useReports";
 import { ReportsResponse } from "../modules/reports/types";
-import { formatCurrency, formatDisplayedBalance } from "../utils";
 import { AppTheme, RootStackParamList } from "../types";
 import { useTheme } from "../hooks/useTheme";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useToast } from "../context/ToastContext";
-import { getApiErrorMessage } from "../utils/apiError";
+import {
+  getLocalizedApiErrorMessage,
+  useTranslation,
+  formatLocalizedCurrency,
+  formatLocalizedDisplayedBalance,
+} from "../i18n";
 import { exportClientsReport } from "../modules/reports/services/reportsService";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -34,21 +38,6 @@ interface MetricCardProps {
   color: string;
   backgroundColor: string;
 }
-
-const MONTHS = [
-  "Yanvar",
-  "Fevral",
-  "Mart",
-  "Aprel",
-  "May",
-  "Iyun",
-  "Iyul",
-  "Avgust",
-  "Sentabr",
-  "Oktabr",
-  "Noyabr",
-  "Dekabr",
-] as const;
 
 const EMPTY_REPORT: ReportsResponse = {
   totalDebt: 0,
@@ -96,17 +85,6 @@ const MetricCard = React.memo(function MetricCard({
   );
 });
 
-function formatMonth(monthKey: string) {
-  const [year, month] = monthKey.split("-");
-  const monthIndex = Number(month) - 1;
-  return `${MONTHS[monthIndex] ?? month} ${year}`;
-}
-
-function getBarWidth(value: number, max: number): `${number}%` {
-  if (value <= 0 || max <= 0) return "0%";
-  return `${Math.max(4, Math.round((value / max) * 100))}%`;
-}
-
 function getNameInitials(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "M";
@@ -118,6 +96,7 @@ export function ReportsScreen() {
   const theme = useTheme();
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
+  const { locale, t } = useTranslation();
   const { showToast } = useToast();
   const [isExporting, setIsExporting] = React.useState(false);
   const {
@@ -129,82 +108,61 @@ export function ReportsScreen() {
   } = useReports();
   const data = report ?? EMPTY_REPORT;
   const { topDebtors } = data;
-  const monthlyMap = React.useMemo(
-    () =>
-      data.monthlyStatistics.map(
-        (item) =>
-          [item.month, { debt: item.debt, payment: item.payment }] as const,
-      ),
-    [data.monthlyStatistics],
-  );
 
   const remainingBalance = data.remainingBalance;
   const hasDebt = remainingBalance > 0;
   const hasOverpayment = remainingBalance < 0;
   const heroAccentColor = hasDebt ? theme.debtColor : theme.paymentColor;
   const heroLabel = hasDebt
-    ? "Qoldiq qarz"
+    ? t("reports.heroDebt")
     : hasOverpayment
-      ? "Ortiqcha to'lov"
-      : "Qarz yo'q";
+      ? t("reports.heroOverpayment")
+      : t("reports.heroNoDebt");
   const heroCaption = hasDebt
-    ? "To'lash kerak bo'lgan summa"
+    ? t("reports.heroDebtCaption")
     : hasOverpayment
-      ? "Mijozda ortiqcha to'lov mavjud"
-      : "Barcha qarzlar yopilgan";
+      ? t("reports.heroOverpaymentCaption")
+      : t("reports.heroSettledCaption");
   const heroCardTone = hasDebt
     ? styles.heroDebtCard
     : styles.heroSuccessCard;
-  // const settledCustomers = Math.max(data.debtFreeClientsCount, 0);
-  const paymentPercent = Math.min(
-    100,
-    Math.max(0, Math.round(data.paymentEfficiencyPercent)),
-  );
-  const currentMonth = {
-    debt: data.currentMonthDebt,
-    payment: data.currentMonthPayment,
-  };
-  const monthlyMax = monthlyMap.reduce(
-    (max, [, data]) => Math.max(max, data.debt, data.payment),
-    0,
-  );
   const isInitialLoading = isLoading && !report;
   const handleRefresh = React.useCallback(async () => {
     const result = await refetch();
     if (result.error) {
       showToast(
-        getApiErrorMessage(result.error, "Hisobotni yangilab bo'lmadi"),
+        getLocalizedApiErrorMessage(result.error, "reports.loadErrorTitle", t),
         "error",
       );
     }
-  }, [refetch, showToast]);
+  }, [refetch, showToast, t]);
 
   const handleExport = React.useCallback(async () => {
     if (isExporting) return;
 
     setIsExporting(true);
     try {
-      await exportClientsReport();
-      showToast("Excel hisobot tayyor", "success");
+      await exportClientsReport(t("reports.exportDialogTitle"));
+      showToast(t("reports.exportReady"), "success");
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Excel hisobotini yuklab bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "reports.exportError", t),
         "error",
       );
     } finally {
       setIsExporting(false);
     }
-  }, [isExporting, showToast]);
+  }, [isExporting, showToast, t]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
         <View style={styles.headerCopy}>
-          <Text style={styles.screenTitle}>Hisobot</Text>
+          <Text style={styles.screenTitle}>{t("reports.screenTitle")}</Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Mijozlar hisobotini Excel formatida yuklash"
+          accessibilityLabel={t("reports.exportA11y")}
           accessibilityState={{ disabled: isExporting, busy: isExporting }}
           disabled={isExporting}
           onPress={() => {
@@ -225,7 +183,7 @@ export function ReportsScreen() {
               color={theme.primary}
             />
           )}
-          <Text style={styles.headerExportText}>Excel</Text>
+          <Text style={styles.headerExportText}>{t("reports.export")}</Text>
         </Pressable>
       </View>
 
@@ -245,14 +203,15 @@ export function ReportsScreen() {
         {dataError && !report ? (
           <EmptyState
             iconName="cloud-offline-outline"
-            title="Hisobotni yuklab bo'lmadi"
-            description={getApiErrorMessage(
+            title={t("reports.loadErrorTitle")}
+            description={getLocalizedApiErrorMessage(
               dataError,
-              "Internetni tekshiring va qayta urinib ko'ring",
+              "reports.loadErrorDescription",
+              t,
             )}
             action={
               <PrimaryButton
-                label="Qayta urinish"
+                label={t("reports.retry")}
                 onPress={() => void handleRefresh()}
               />
             }
@@ -260,7 +219,7 @@ export function ReportsScreen() {
         ) : isInitialLoading ? (
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="large" color={theme.primary} />
-            <Text style={styles.loadingText}>Hisobot tayyorlanmoqda...</Text>
+            <Text style={styles.loadingText}>{t("reports.loading")}</Text>
           </View>
         ) : (
           <>
@@ -285,7 +244,7 @@ export function ReportsScreen() {
                 minimumFontScale={0.68}
                 style={[styles.heroValue, { color: heroAccentColor }]}
               >
-                {formatDisplayedBalance(remainingBalance)}
+                {formatLocalizedDisplayedBalance(remainingBalance, locale)}
               </Text>
               <Text style={styles.heroCaption}>{heroCaption}</Text>
 
@@ -311,15 +270,15 @@ export function ReportsScreen() {
               <View style={styles.metricRow}>
                 <MetricCard
                   icon="arrow-down"
-                  label="Jami qarz berildi"
-                  value={formatCurrency(data.totalDebt)}
+                  label={t("reports.totalDebt")}
+                  value={formatLocalizedCurrency(data.totalDebt, locale)}
                   color={theme.debtColor}
                   backgroundColor={theme.debtBg}
                 />
                 <MetricCard
                   icon="arrow-up"
-                  label="Jami to'lov olindi"
-                  value={formatCurrency(data.totalPayment)}
+                  label={t("reports.totalPayment")}
+                  value={formatLocalizedCurrency(data.totalPayment, locale)}
                   color={theme.paymentColor}
                   backgroundColor={theme.paymentBg}
                 />
@@ -413,9 +372,9 @@ export function ReportsScreen() {
 
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>Eng ko'p qarzdorlar</Text>
+                <Text style={styles.sectionTitle}>{t("reports.topDebtors")}</Text>
                 <Text style={styles.sectionSubtitle}>
-                  E'tibor talab qiladigan mijozlar
+                  {t("reports.topDebtorsSubtitle")}
                 </Text>
               </View>
               <View style={styles.countBadge}>
@@ -435,9 +394,9 @@ export function ReportsScreen() {
                       color={theme.paymentColor}
                     />
                   </View>
-                  <Text style={styles.emptyTitle}>Faol qarzdor yo'q</Text>
+                  <Text style={styles.emptyTitle}>{t("reports.activeDebtorsEmpty")}</Text>
                   <Text style={styles.emptyDescription}>
-                    Barcha mijozlarning hisobi yopilgan
+                    {t("reports.allSettled")}
                   </Text>
                 </View>
               ) : (
@@ -445,7 +404,7 @@ export function ReportsScreen() {
                   <Pressable
                     key={entry.clientId}
                     accessibilityRole="button"
-                    accessibilityLabel={`${entry.fullName}, ${formatCurrency(entry.balance)} qarz`}
+                    accessibilityLabel={`${entry.fullName}, ${formatLocalizedCurrency(entry.balance, locale)} ${t("reports.debtCaption")}`}
                     onPress={() =>
                       navigation.navigate("CustomerDetail", {
                         customerId: entry.clientId,
@@ -485,9 +444,9 @@ export function ReportsScreen() {
                         minimumFontScale={0.72}
                         style={styles.debtorAmount}
                       >
-                        {formatCurrency(entry.balance)}
+                        {formatLocalizedCurrency(entry.balance, locale)}
                       </Text>
-                      <Text style={styles.debtorCaption}>qarz</Text>
+                      <Text style={styles.debtorCaption}>{t("reports.debtCaption")}</Text>
                     </View>
                     <Ionicons
                       name="chevron-forward"

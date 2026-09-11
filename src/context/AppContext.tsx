@@ -52,11 +52,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     loadCustomerDetail,
     error: clientsError,
   } = clientState;
-  const clientIds = useMemo(
-    () => clientCustomers.map((customer) => customer.id),
+  const clientIdsWithMissingBalance = useMemo(
+    () =>
+      clientCustomers
+        .filter((customer) => customer.currentBalance == null)
+        .map((customer) => customer.id),
     [clientCustomers],
   );
-  const transactionState = useTransactionQueries(scope, clientIds, enabled);
+  const transactionState = useTransactionQueries(
+    scope,
+    clientIdsWithMissingBalance,
+    enabled,
+  );
   const {
     transactions: transactionItems,
     isLoading: isLoadingTransactions,

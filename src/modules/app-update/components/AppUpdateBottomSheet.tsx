@@ -17,9 +17,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { PrimaryButton } from "../../../components/PrimaryButton";
 import { useTheme } from "../../../hooks/useTheme";
+import { useTranslation } from "../../../i18n";
 import { palette, radius, spacing, typography } from "../../../theme";
 import { AppTheme } from "../../../types";
-import { APP_UPDATE_COPY } from "../constants/appUpdate.constants";
 import { AvailableAppUpdate } from "../types/appUpdate.types";
 
 interface AppUpdateBottomSheetProps {
@@ -36,6 +36,7 @@ export function AppUpdateBottomSheet({
   onDismiss,
 }: AppUpdateBottomSheetProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const modalRef = useRef<BottomSheetModal>(null);
@@ -89,15 +90,15 @@ export function AppUpdateBottomSheet({
 
   const iconName = isIOS ? "logo-apple" : "logo-google-playstore";
   const primaryAction = isIOS
-    ? APP_UPDATE_COPY.iosUpdateAction
-    : APP_UPDATE_COPY.androidUpdateAction;
+    ? t("common.update.iosAction")
+    : t("common.update.androidAction");
 
   const intro = (
     <>
       <View
         accessible
         accessibilityRole="image"
-        accessibilityLabel="Ilovani yangilash belgisi"
+        accessibilityLabel={t("common.appUpdateIcon")}
         style={styles.iconContainer}
       >
         <Ionicons
@@ -122,8 +123,8 @@ export function AppUpdateBottomSheet({
             ]}
           >
             {update.isForced
-              ? APP_UPDATE_COPY.requiredBadge
-              : APP_UPDATE_COPY.optionalBadge}
+              ? t("common.update.requiredBadge")
+              : t("common.update.optionalBadge")}
           </Text>
         </View>
         <Text accessibilityRole="header" style={styles.title}>
@@ -160,7 +161,7 @@ export function AppUpdateBottomSheet({
       >
         <View
           accessibilityViewIsModal
-          accessibilityLabel="Ilova yangilanishi"
+          accessibilityLabel={t("common.appUpdateModal")}
           style={isIOS ? styles.iosIntro : styles.androidIntro}
         >
           {intro}
@@ -169,7 +170,7 @@ export function AppUpdateBottomSheet({
         <View style={styles.versionCard}>
           <View style={styles.versionItem}>
             <Text style={styles.versionLabel}>
-              {APP_UPDATE_COPY.currentVersion}
+              {t("common.update.currentVersion")}
             </Text>
             <Text selectable style={styles.currentVersion}>
               {update.currentVersion}
@@ -178,7 +179,7 @@ export function AppUpdateBottomSheet({
           <Ionicons name="arrow-forward" size={19} color={theme.textMuted} />
           <View style={[styles.versionItem, styles.latestVersionItem]}>
             <Text style={styles.versionLabel}>
-              {APP_UPDATE_COPY.latestVersion}
+              {t("common.update.latestVersion")}
             </Text>
             <Text selectable style={styles.latestVersion}>
               {update.config.latestVersion}
@@ -196,7 +197,7 @@ export function AppUpdateBottomSheet({
           />
           {!update.isForced ? (
             <PrimaryButton
-              label={APP_UPDATE_COPY.laterAction}
+              label={t("common.update.laterAction")}
               onPress={dismissOptionalUpdate}
               disabled={isOpeningStore}
               variant="outline"

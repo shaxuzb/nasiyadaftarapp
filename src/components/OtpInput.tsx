@@ -18,6 +18,7 @@ import * as Clipboard from "expo-clipboard";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
 import { extractOtpCode } from "../modules/auth/utils/otp";
+import { useTranslation } from "../i18n";
 
 interface Props {
   value: string;
@@ -35,6 +36,7 @@ export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
   forwardedRef,
 ) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const inputRef = useRef<TextInput>(null);
   const [clipboardError, setClipboardError] = useState(false);
 
@@ -75,7 +77,7 @@ export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
     <View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="SMS tasdiqlash kodini kiritish"
+        accessibilityLabel={t("common.otpInput")}
         onPress={() => inputRef.current?.focus()}
       >
         <TextInput
@@ -116,19 +118,19 @@ export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
       {Platform.OS === "ios" ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Buferdagi SMS kodni joylash"
+          accessibilityLabel={t("common.pasteOtp")}
           onPress={() => void handlePasteFromClipboard()}
           style={styles.clipboardButton}
         >
           <Text style={[typography.label, { color: theme.primary }]}>
-            Buferdan joylash
+            {t("common.pasteFromClipboard")}
           </Text>
         </Pressable>
       ) : null}
 
       {clipboardError ? (
         <Text style={[styles.clipboardError, { color: theme.dangerColor }]}>
-          Buferda 6 xonali SMS kodi topilmadi
+          {t("common.otpClipboardMissing")}
         </Text>
       ) : null}
     </View>

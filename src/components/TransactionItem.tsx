@@ -3,9 +3,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { Transaction } from "../modules/transactions/types";
-import { formatCurrency, formatDate } from "../utils";
 import { useTheme } from "../hooks/useTheme";
 import { AppTheme } from "../types";
+import { useTranslation } from "../i18n";
+import { formatLocalizedCurrency, formatLocalizedDate } from "../i18n";
 
 interface Props {
   transaction: Transaction;
@@ -19,6 +20,7 @@ export function TransactionItem({
   onPress,
 }: Props) {
   const theme = useTheme();
+  const { locale, t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const isDebt = transaction.type === "debt";
   const color = isDebt ? theme.debtColor : theme.paymentColor;
@@ -29,7 +31,7 @@ export function TransactionItem({
       accessibilityRole={onPress ? "button" : undefined}
       accessibilityLabel={
         onPress
-          ? `${isDebt ? "Qarz" : "To'lov"}, ${formatCurrency(transaction.amount)}`
+          ? `${isDebt ? t("common.debt") : t("common.payment")}, ${formatLocalizedCurrency(transaction.amount, locale)}`
           : undefined
       }
       onPress={onPress}
@@ -49,10 +51,10 @@ export function TransactionItem({
 
       <View style={styles.content}>
         <Text style={styles.title} numberOfLines={1}>
-          {isDebt ? "Qarz berildi" : "To'lov qabul qilindi"}
+          {isDebt ? t("common.debtGiven") : t("common.paymentReceived")}
         </Text>
         <Text style={styles.note} numberOfLines={1}>
-          {transaction.note || (isDebt ? "Nasiya berildi" : "To'lov olindi")}
+          {transaction.note || (isDebt ? t("common.debtRecorded") : t("common.paymentTaken"))}
         </Text>
       </View>
 
@@ -64,10 +66,10 @@ export function TransactionItem({
           minimumFontScale={0.72}
           style={[styles.amount, { color }]}
         >
-          {isDebt ? "−" : "+"} {formatCurrency(transaction.amount)}
+          {isDebt ? "−" : "+"} {formatLocalizedCurrency(transaction.amount, locale)}
         </Text>
         <Text selectable style={styles.date}>
-          {formatDate(transaction.date)}
+          {formatLocalizedDate(transaction.date, locale)}
         </Text>
       </View>
 

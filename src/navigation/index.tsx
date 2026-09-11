@@ -42,6 +42,7 @@ import { BottomSheetBackHandler } from "../bottom-sheet";
 import { PinGateScreen } from "../modules/pin-auth/screens/PinGateScreen";
 import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
 import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
+import { useTranslation } from "../i18n";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -100,6 +101,7 @@ function TabNavigator({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const canViewClientSms = getClientSmsCapabilities(user?.permissions).canView;
   const resolvedInitialRouteName =
@@ -156,24 +158,24 @@ function TabNavigator({
       <Tab.Screen
         name="Customers"
         component={CustomersScreen}
-        options={{ title: "Mijozlar" }}
+        options={{ title: t("customers.screenTitle") }}
       />
       <Tab.Screen
         name="Reports"
         component={ReportsScreen}
-        options={{ title: "Hisobot" }}
+        options={{ title: t("reports.screenTitle") }}
       />
       {canViewClientSms ? (
         <Tab.Screen
           name="ClientSms"
           component={ClientSmsScreen}
-          options={{ title: "SMS" }}
+          options={{ title: t("sms.screenTitle") }}
         />
       ) : null}
       <Tab.Screen
         name="Settings"
         component={SettingsScreen}
-        options={{ title: "Profil" }}
+        options={{ title: t("profile.screenTitle") }}
       />
     </Tab.Navigator>
   );

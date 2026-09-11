@@ -1,5 +1,6 @@
 import type { PinStorage } from "./pinStorageFactory";
 import type { PinValidationResult } from "../utils/pinValidation";
+import type { PinErrorCode } from "../utils/pinErrors";
 
 export type PinCheckResult = {
   success: boolean;
@@ -10,6 +11,7 @@ export type PinCheckResult = {
 export type SecurityActionResult = {
   success: boolean;
   message?: string;
+  code?: PinErrorCode;
 };
 
 type Authenticate = () => Promise<boolean>;
@@ -55,11 +57,20 @@ export function createPinSecurity(
     const validation = validatePin(nextPin);
     if (!validation.valid) throw new Error(validation.message);
     if (!(await storage.verifyPin(userId, currentPin))) {
-      return { success: false, message: "Amaldagi PIN-kod noto'g'ri" };
+      return {
+        success: false,
+        code: "currentPinInvalid",
+        message: "Amaldagi PIN-kod noto'g'ri",
+      };
     }
 
     const record = await storage.getPinRecord(userId);
-    if (!record) return { success: false, message: "PIN-kod topilmadi" };
+    if (!record)
+      return {
+        success: false,
+        code: "pinNotFound",
+        message: "PIN-kod topilmadi",
+      };
 
     await storage.setPin({
       userId,
@@ -77,15 +88,23 @@ export function createPinSecurity(
     enabled: boolean,
   ): Promise<SecurityActionResult> {
     if (!(await storage.verifyPin(userId, currentPin))) {
-      return { success: false, message: "PIN-kod tasdiqlanmadi" };
+      return {
+        success: false,
+        code: "pinNotVerified",
+        message: "PIN-kod tasdiqlanmadi",
+      };
     }
     if (enabled && !(await authenticate())) {
-      return { success: false, message: "Biometrik tasdiqlash bekor qilindi" };
+      return {
+        success: false,
+        code: "biometricCancelled",
+        message: "Biometrik tasdiqlash bekor qilindi",
+      };
     }
     const record = await storage.setBiometricEnabled(userId, enabled);
     return record
       ? { success: true }
-      : { success: false, message: "PIN-kod topilmadi" };
+      : { success: false, code: "pinNotFound", message: "PIN-kod topilmadi" };
   }
 
   async function unlockBiometric(userId: number): Promise<boolean> {

@@ -82,6 +82,11 @@ function createHarness({
     },
     "../../utils": { getInitials: () => "AL" },
     "../../utils/haptics": { hapticError() {}, hapticSuccess() {} },
+    "../../i18n": {
+      formatLocalizedDisplayedBalance: () => "0 so'm",
+      getLocalizedApiErrorMessage: () => "Saqlanmadi",
+      useTranslation: () => ({ locale: "uz", t: (key) => key }),
+    },
     "../../modules/transactions/services/transactionsService": {
       createClientTransaction: async (...args) => {
         calls.push(args);

@@ -22,7 +22,7 @@ import {
 } from "../modules/account/services/accountService";
 import { PasswordDelivery } from "../modules/account/types";
 import {
-  getGoogleSignInErrorMessage,
+  getGoogleSignInErrorKey,
   getGoogleEmailFromIdToken,
   requestGoogleIdToken,
 } from "../modules/auth/services/googleSignInService";
@@ -31,8 +31,9 @@ import { useToast } from "../context/ToastContext";
 import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { useTheme } from "../hooks/useTheme";
 import { AppTheme, RootStackParamList } from "../types";
-import { getApiErrorMessage } from "../utils/apiError";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
+import { translatePinError } from "../modules/pin-auth/utils/pinErrors";
 import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AccountSecurity">;
@@ -163,6 +164,7 @@ function ToggleRow({
 export function AccountSecurityScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
   const { user, updateUserProfile } = useAuth();
   const {
     pinEnabled,
@@ -196,19 +198,21 @@ export function AccountSecurityScreen({ navigation }: Props) {
 
   const handlePinRemove = useCallback(async () => {
     const accepted = await confirm({
-      title: "PIN-kodni o‘chirish",
-      message: "PIN login va biometrik kirish o‘chiriladi. Keyin istalgan vaqtda yangi PIN o‘rnatishingiz mumkin.",
-      confirmText: "O‘chirish",
-      cancelText: "Bekor qilish",
+      title: t("security.pinDeleteTitle"),
+      message: t("security.pinDeleteMessage"),
+      confirmText: t("common.delete"),
+      cancelText: t("common.cancel"),
       variant: "danger",
     });
     if (!accepted) return;
     const result = await removePin();
     showToast(
-      result.success ? "PIN-kod o‘chirildi" : result.message ?? "PIN-kodni o‘chirib bo‘lmadi",
+      result.success
+        ? t("security.deletedPin")
+        : translatePinError(t, result.code, "security.deletePinError"),
       result.success ? "success" : "error",
     );
-  }, [confirm, removePin, showToast]);
+  }, [confirm, removePin, showToast, t]);
 
   const resetPasswordChange = useCallback(() => {
     setPasswordStep("idle");
@@ -218,7 +222,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
 
   const handlePasswordRequest = useCallback(async () => {
     if (!canUseSms && !canUseEmail) {
-      showToast("Avval telefon raqami yoki emailni biriktiring", "error");
+      showToast(t("security.linkAccountFirst"), "error");
       return;
     }
 
@@ -228,21 +232,24 @@ export function AccountSecurityScreen({ navigation }: Props) {
       await requestPasswordChange({ delivery });
       setPasswordDelivery(delivery);
       setPasswordStep("confirm");
-      showToast("Tasdiqlash kodi yuborildi", "success");
+      showToast(t("security.codeSent"), "success");
     } catch (error) {
-      showToast(getApiErrorMessage(error, "Kod yuborib bo'lmadi"), "error");
+      showToast(
+        getLocalizedApiErrorMessage(error, "security.codeSendError", t),
+        "error",
+      );
     } finally {
       setPasswordLoading(false);
     }
-  }, [canUseEmail, canUseSms, passwordDelivery, showToast]);
+  }, [canUseEmail, canUseSms, passwordDelivery, showToast, t]);
 
   const handlePasswordConfirm = useCallback(async () => {
     if (passwordCode.length !== OTP_LENGTH) {
-      showToast("6 xonali tasdiqlash kodini kiriting", "error");
+      showToast(t("security.otpRequired"), "error");
       return;
     }
     if (newPassword.trim().length < 8) {
-      showToast("Yangi parol kamida 8 ta belgidan iborat bo'lsin", "error");
+      showToast(t("security.passwordMinLength"), "error");
       return;
     }
 
@@ -254,16 +261,16 @@ export function AccountSecurityScreen({ navigation }: Props) {
         newPassword,
       });
       resetPasswordChange();
-      showToast("Parol muvaffaqiyatli yangilandi", "success");
+      showToast(t("security.passwordUpdated"), "success");
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Parolni yangilab bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "security.passwordUpdateError", t),
         "error",
       );
     } finally {
       setPasswordLoading(false);
     }
-  }, [newPassword, passwordCode, passwordDelivery, resetPasswordChange, showToast]);
+  }, [newPassword, passwordCode, passwordDelivery, resetPasswordChange, showToast, t]);
 
   const resetGoogleChange = useCallback(() => {
     setGoogleStep("idle");
@@ -278,20 +285,20 @@ export function AccountSecurityScreen({ navigation }: Props) {
       await requestGoogleChange({ idToken });
       setGoogleIdToken(idToken);
       setGoogleStep("confirm");
-      showToast("Yangi Google akkauntiga tasdiqlash kodi yuborildi", "success");
+      showToast(t("security.googleCodeSent"), "success");
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, getGoogleSignInErrorMessage(error)),
+        getLocalizedApiErrorMessage(error, getGoogleSignInErrorKey(error), t),
         "error",
       );
     } finally {
       setGoogleLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   const handleGoogleConfirm = useCallback(async () => {
     if (googleCode.length !== OTP_LENGTH) {
-      showToast("6 xonali tasdiqlash kodini kiriting", "error");
+      showToast(t("security.otpRequired"), "error");
       return;
     }
 
@@ -307,10 +314,10 @@ export function AccountSecurityScreen({ navigation }: Props) {
         getGoogleEmailFromIdToken(googleIdToken);
       await updateUserProfile({ email: confirmedEmail ?? user?.email ?? null });
       resetGoogleChange();
-      showToast("Google akkaunti yangilandi", "success");
+      showToast(t("security.googleUpdated"), "success");
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Google akkauntni yangilab bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "security.googleUpdateError", t),
         "error",
       );
     } finally {
@@ -321,6 +328,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
     googleIdToken,
     resetGoogleChange,
     showToast,
+    t,
     updateUserProfile,
     user?.email,
   ]);
@@ -330,16 +338,16 @@ export function AccountSecurityScreen({ navigation }: Props) {
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Orqaga qaytish"
+          accessibilityLabel={t("common.back")}
           onPress={() => navigation.goBack()}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
         >
           <Ionicons name="arrow-back" size={23} color={theme.text} />
         </Pressable>
         <View style={styles.headerCopy}>
-          <Text style={styles.screenTitle}>Kirish va xavfsizlik</Text>
+          <Text style={styles.screenTitle}>{t("security.screenTitle")}</Text>
           <Text style={styles.screenSubtitle}>
-            Parol va bog'langan akkauntingizni boshqaring
+            {t("security.screenSubtitle")}
           </Text>
         </View>
       </View>
@@ -354,14 +362,14 @@ export function AccountSecurityScreen({ navigation }: Props) {
             <Ionicons name="shield-checkmark-outline" size={22} color={theme.primary} />
           </View>
           <View style={styles.summaryCopy}>
-            <Text style={styles.summaryTitle}>Kirish ma'lumotlaringiz</Text>
+            <Text style={styles.summaryTitle}>{t("security.summaryTitle")}</Text>
             <Text style={styles.summaryDescription}>
-              O'zgarishlar SMS yoki email kodi orqali xavfsiz tasdiqlanadi.
+              {t("security.summaryDescription")}
             </Text>
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>PIN-kod va biometrika</Text>
+        <Text style={styles.sectionTitle}>{t("security.pinSection")}</Text>
         <View style={styles.card}>
           {pinEnabled ? (
             <>
@@ -369,11 +377,15 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 icon={biometric?.icon ?? "finger-print-outline"}
                 iconColor={theme.primary}
                 iconBackground={theme.primaryLight}
-                title={biometric?.label ?? "Biometrik kirish"}
+                title={
+                  biometric?.label === "Barmoq izi"
+                    ? t("security.fingerprint")
+                    : biometric?.label ?? t("security.biometric")
+                }
                 description={
                   biometric?.available
-                    ? "Ilovaga Face ID, Touch ID yoki barmoq izi bilan kiring"
-                    : "Bu qurilmada biometrik kirish mavjud emas"
+                    ? t("security.biometricDescription")
+                    : t("security.biometricUnavailable")
                 }
                 value={biometricEnabled}
                 disabled={!biometric?.available || biometricLoading}
@@ -381,8 +393,22 @@ export function AccountSecurityScreen({ navigation }: Props) {
                   setBiometricLoading(true);
                   void setBiometricEnabled(!biometricEnabled)
                     .then((result) => {
-                      if (!result.success) showToast(result.message ?? "Biometrikani o‘zgartirib bo‘lmadi", "error");
-                      else showToast(biometricEnabled ? "Biometrik kirish o‘chirildi" : "Biometrik kirish yoqildi", "success");
+                      if (!result.success)
+                        showToast(
+                          translatePinError(
+                            t,
+                            result.code,
+                            "security.biometricChangeError",
+                          ),
+                          "error",
+                        );
+                      else
+                        showToast(
+                          biometricEnabled
+                            ? t("security.biometricDisabled")
+                            : t("security.biometricEnabled"),
+                          "success",
+                        );
                     })
                     .finally(() => setBiometricLoading(false));
                 }}
@@ -391,16 +417,16 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 icon="create-outline"
                 iconColor={theme.primary}
                 iconBackground={theme.inputBackground}
-                title="PIN-kodni o'zgartirish"
-                description="Amaldagi PIN-kodni tasdiqlab, yangisini o'rnating"
+                title={t("security.pinChange")}
+                description={t("security.pinChangeDescription")}
                 onPress={() => navigation.navigate("PinChange")}
               />
               <ActionRow
                 icon="trash-outline"
                 iconColor={theme.dangerColor}
                 iconBackground={theme.debtBg}
-                title="PIN-kodni o‘chirish"
-                description="PIN login va biometrik kirishni o‘chiradi"
+                title={t("security.pinDelete")}
+                description={t("security.pinDeleteDescription")}
                 onPress={handlePinRemove}
                 isLast
               />
@@ -410,22 +436,22 @@ export function AccountSecurityScreen({ navigation }: Props) {
               icon="key-outline"
               iconColor={theme.primary}
               iconBackground={theme.primaryLight}
-              title="PIN-kodni o‘rnatish"
-              description="Ilovaga tez va xavfsiz kirish uchun 4 xonali PIN yarating"
+              title={t("security.pinSetup")}
+              description={t("security.pinSetupDescription")}
               onPress={startPinSetup}
               isLast
             />
           )}
         </View>
 
-        <Text style={styles.sectionTitle}>Parol va akkauntlar</Text>
+        <Text style={styles.sectionTitle}>{t("security.passwordSection")}</Text>
         <View style={styles.card}>
           <ActionRow
             icon="lock-closed-outline"
             iconColor={theme.warningColor}
             iconBackground={theme.inputBackground}
-            title="Parolni o'zgartirish"
-            description="SMS yoki emaildagi kod bilan tasdiqlanadi"
+            title={t("security.passwordChange")}
+            description={t("security.passwordDescription")}
             onPress={() => {
               setPasswordStep("request");
             }}
@@ -435,11 +461,11 @@ export function AccountSecurityScreen({ navigation }: Props) {
             icon="logo-google"
             iconColor={theme.dangerColor}
             iconBackground={theme.debtBg}
-            title="Google akkaunt va email"
+            title={t("security.googleAccount")}
             description={
               hasEmail
-                ? user?.email ?? "Bog'langan Google akkaunt"
-                : "Google akkauntini tanlab, emailni biriktiring"
+                ? user?.email ?? t("security.googleLinked")
+                : t("security.googleLink")
             }
             onPress={() => {
               void handleGoogleRequest();
@@ -450,8 +476,8 @@ export function AccountSecurityScreen({ navigation }: Props) {
             icon="lock-closed-outline"
             iconColor={theme.primary}
             iconBackground={theme.primaryLight}
-            title="Ilovani qulflash"
-            description="PIN yoki biometrika bilan qayta ochiladi"
+            title={t("security.appLock")}
+            description={t("security.appLockDescription")}
             onPress={lockNow}
             isLast
           />
@@ -464,14 +490,14 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 <Ionicons name="lock-closed-outline" size={19} color={theme.primary} />
               </View>
               <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>Tasdiqlash usulini tanlang</Text>
+                <Text style={styles.formTitle}>{t("security.chooseDelivery")}</Text>
                 <Text style={styles.formDescription}>
-                  Kod yangi parolni saqlashdan oldin yuboriladi.
+                  {t("security.deliveryDescription")}
                 </Text>
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Parolni o'zgartirishni bekor qilish"
+                accessibilityLabel={t("security.cancelPasswordChange")}
                 onPress={resetPasswordChange}
                 style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
               >
@@ -499,11 +525,13 @@ export function AccountSecurityScreen({ navigation }: Props) {
               </View>
             ) : (
               <Text style={styles.formDescription}>
-                Kod {canUseSms ? "SMS" : "email"} orqali yuboriladi.
+                {t("security.codeDelivery", {
+                  channel: canUseSms ? "SMS" : t("profile.email"),
+                })}
               </Text>
             )}
             <PrimaryButton
-              label="Kod yuborish"
+              label={t("security.sendCode")}
               onPress={() => {
                 void handlePasswordRequest();
               }}
@@ -520,14 +548,16 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 <Ionicons name="key-outline" size={19} color={theme.primary} />
               </View>
               <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>Yangi parol</Text>
+                <Text style={styles.formTitle}>{t("security.newPassword")}</Text>
                 <Text style={styles.formDescription}>
-                  Kod {passwordDelivery === "SMS" ? "SMS" : "email"} orqali yuborildi.
+                  {t("security.codeDelivery", {
+                    channel: passwordDelivery === "SMS" ? "SMS" : "email",
+                  })}
                 </Text>
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Parolni o'zgartirishni bekor qilish"
+                accessibilityLabel={t("security.cancelPasswordChange")}
                 onPress={resetPasswordChange}
                 style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
               >
@@ -535,16 +565,16 @@ export function AccountSecurityScreen({ navigation }: Props) {
               </Pressable>
             </View>
             <AppInput
-              label="Yangi parol"
+              label={t("security.newPassword")}
               value={newPassword}
               onChangeText={setNewPassword}
-              placeholder="Kamida 8 ta belgi"
+              placeholder={t("security.passwordPlaceholder")}
               iconName="lock-closed-outline"
               secureTextEntry
               passwordToggle
               autoComplete="new-password"
             />
-            <Text style={styles.codeLabel}>Tasdiqlash kodi</Text>
+            <Text style={styles.codeLabel}>{t("security.verificationCode")}</Text>
             {passwordDelivery === "SMS" ? (
               <PasswordSmsAutoFill onCodeReceived={setPasswordCode} />
             ) : null}
@@ -555,7 +585,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
               autoFocus={passwordDelivery === "SMS"}
             />
             <PrimaryButton
-              label="Parolni yangilash"
+              label={t("security.updatePassword")}
               onPress={() => {
                 void handlePasswordConfirm();
               }}
@@ -572,14 +602,14 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 <Ionicons name="logo-google" size={19} color={theme.dangerColor} />
               </View>
               <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>Google akkauntni tasdiqlang</Text>
+                <Text style={styles.formTitle}>{t("security.confirmGoogle")}</Text>
                 <Text style={styles.formDescription}>
-                  Tanlangan Google akkauntiga yuborilgan kodni kiriting.
+                  {t("security.googleCodeDescription")}
                 </Text>
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="Google akkauntni o'zgartirishni bekor qilish"
+                accessibilityLabel={t("security.cancelGoogleChange")}
                 onPress={resetGoogleChange}
                 style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
               >
@@ -588,7 +618,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
             </View>
             <OtpInput value={googleCode} onChange={setGoogleCode} length={OTP_LENGTH} autoFocus />
             <PrimaryButton
-              label="Google akkauntni tasdiqlash"
+              label={t("security.confirmGoogle")}
               onPress={() => {
                 void handleGoogleConfirm();
               }}

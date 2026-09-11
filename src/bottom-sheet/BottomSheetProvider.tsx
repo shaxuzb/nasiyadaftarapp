@@ -79,7 +79,7 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
 
       // Dismiss any search keyboard before mounting the sheet's keyboard listeners.
       const request = ++openRequestRef.current;
-      void KeyboardController.dismiss().then(() => {
+      const activateSheet = () => {
         if (request !== openRequestRef.current) return;
         setDismissLocked(false);
         afterDismissRef.current = undefined;
@@ -88,7 +88,14 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
           type,
           props: props as SheetPropsMap[SheetType],
         });
-      });
+      };
+
+      if (sheetRegistry[type].dismissKeyboardOnOpen === false) {
+        requestAnimationFrame(activateSheet);
+        return;
+      }
+
+      void KeyboardController.dismiss().then(activateSheet);
     },
     [activeEntry, isOpen],
   );

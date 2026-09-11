@@ -19,6 +19,7 @@ import { PrimaryButton } from "../../../components/PrimaryButton";
 import { useTheme } from "../../../hooks/useTheme";
 import { OrganizationRequest } from "../types";
 import { AppTheme } from "../../../types";
+import { useTranslation } from "../../../i18n";
 
 const KeyboardBottomSheetScrollView =
   BottomSheetScrollView as unknown as React.ComponentType<ScrollViewProps>;
@@ -33,6 +34,7 @@ export function OrganizationCreateSheetContent({
   onSubmit,
 }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState("");
@@ -44,7 +46,7 @@ export function OrganizationCreateSheetContent({
   async function handleCreate() {
     const normalizedName = name.trim();
     if (!normalizedName) {
-      setNameError("Tashkilot nomini kiriting");
+      setNameError(t("organization.nameError"));
       return;
     }
 
@@ -87,14 +89,14 @@ export function OrganizationCreateSheetContent({
             <Ionicons name="business-outline" size={22} color={theme.primary} />
           </View>
           <View style={styles.headerCopy}>
-            <Text style={styles.title}>Yangi tashkilot</Text>
+            <Text style={styles.title}>{t("organization.createSheetTitle")}</Text>
             <Text style={styles.description}>
-              Nomini kiriting, qolgan ma'lumotlar ixtiyoriy.
+              {t("organization.createSheetDescription")}
             </Text>
           </View>
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Tashkilot yaratish formasini yopish"
+            accessibilityLabel={t("organization.closeLabel")}
             activeOpacity={0.72}
             disabled={saving}
             onPress={closeSheet}
@@ -106,13 +108,13 @@ export function OrganizationCreateSheetContent({
 
         <AppInput
           variant="sheet"
-          label="Nomi *"
+          label={t("organization.nameLabel")}
           value={name}
           onChangeText={(value) => {
             setName(value);
             if (nameError) setNameError(undefined);
           }}
-          placeholder="Masalan: Nasiya Savdo"
+          placeholder={t("organization.namePlaceholder")}
           iconName="business-outline"
           autoCapitalize="words"
           // autoFocus
@@ -121,20 +123,20 @@ export function OrganizationCreateSheetContent({
         />
         <AppInput
           variant="sheet"
-          label="Manzil"
+          label={t("organization.addressLabel")}
           value={address}
           onChangeText={setAddress}
-          placeholder="Shahar, ko'cha"
+          placeholder={t("organization.addressPlaceholder")}
           iconName="location-outline"
           autoCapitalize="sentences"
           returnKeyType="next"
         />
         <AppInput
           variant="sheet"
-          label="Izoh"
+          label={t("organization.noteLabel")}
           value={note}
           onChangeText={setNote}
-          placeholder="Ixtiyoriy"
+          placeholder={t("organization.notePlaceholder")}
           iconName="chatbubble-ellipses-outline"
           multiline
           numberOfLines={3}
@@ -143,9 +145,9 @@ export function OrganizationCreateSheetContent({
         />
 
         <View style={styles.actions}>
-          <Text style={styles.requiredHint}>* Majburiy maydon</Text>
+          <Text style={styles.requiredHint}>{t("organization.requiredHint")}</Text>
           <PrimaryButton
-            label="Tashkilotni yaratish"
+            label={t("organization.createAction")}
             onPress={() => {
               void handleCreate();
             }}
@@ -154,13 +156,13 @@ export function OrganizationCreateSheetContent({
           />
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Bekor qilish"
+            accessibilityLabel={t("organization.cancel")}
             activeOpacity={0.72}
             disabled={saving}
             onPress={closeSheet}
             style={styles.cancelButton}
           >
-            <Text style={styles.cancelText}>Bekor qilish</Text>
+            <Text style={styles.cancelText}>{t("organization.cancel")}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAwareScrollView>

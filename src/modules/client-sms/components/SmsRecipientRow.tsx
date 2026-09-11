@@ -4,7 +4,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import type { AppTheme } from "../../../types";
 import type { SmsRecipient } from "../types";
-import { formatCurrency, formatDisplayedBalance } from "../../../utils";
+import {
+  formatLocalizedCurrency,
+  formatLocalizedDisplayedBalance,
+  useTranslation,
+} from "../../../i18n";
 
 interface Props {
   recipient: SmsRecipient;
@@ -26,15 +30,17 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
   onSend,
 }: Props) {
   const theme = useTheme();
+  const { locale, t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const displayName = recipient.fullName.trim() || t("sms.clientFallback");
   const initials =
-    recipient.fullName
+    displayName
       .trim()
       .split(/\s+/)
       .map((part) => part[0])
       .join("")
       .slice(0, 2)
-      .toUpperCase() || "M";
+      .toUpperCase() || t("sms.clientFallback").slice(0, 1);
   return (
     <Pressable
       accessibilityRole={selectable ? "checkbox" : "button"}
@@ -42,7 +48,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
         checked: selectable ? selected : undefined,
         disabled: selectable && !recipient.canSend,
       }}
-      accessibilityLabel={`${recipient.fullName}, ${formatDisplayedBalance(recipient.currentBalance)}`}
+      accessibilityLabel={`${displayName}, ${formatLocalizedDisplayedBalance(recipient.currentBalance, locale)}`}
       disabled={selectable && !recipient.canSend}
       onPress={() =>
         selectable
@@ -72,20 +78,20 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
       <View style={styles.copy}>
         <View style={styles.titleLine}>
           <Text numberOfLines={1} style={styles.name}>
-            {recipient.fullName}
+            {displayName}
           </Text>
           {recipient.isBlacklisted ? (
             <View style={styles.blacklistBadge}>
-              <Text style={styles.blacklistText}>Qora ro'yxat</Text>
+              <Text style={styles.blacklistText}>{t("sms.blacklistBadge")}</Text>
             </View>
           ) : null}
         </View>
         <Text numberOfLines={1} style={styles.phone}>
-          {recipient.phone || "Telefon mavjud emas"}
+          {recipient.phone || t("sms.recipientPhoneMissing")}
         </Text>
         {!recipient.canSend ? (
           <Text numberOfLines={1} style={styles.reason}>
-            {recipient.cannotSendReason || "SMS yuborib bo'lmaydi"}
+            {recipient.cannotSendReason || t("sms.cannotSend")}
           </Text>
         ) : null}
       </View>
@@ -101,11 +107,13 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
             },
           ]}
         >
-          {formatDisplayedBalance(recipient.currentBalance)}
+          {formatLocalizedDisplayedBalance(recipient.currentBalance, locale)}
         </Text>
         {recipient.overdueBalance > 0 ? (
           <Text style={styles.overdue}>
-            Kechikkan: {formatCurrency(recipient.overdueBalance)}
+            {t("sms.overdue", {
+              amount: formatLocalizedCurrency(recipient.overdueBalance, locale),
+            })}
           </Text>
         ) : null}
         {!selectable && recipient.canSend ? (
@@ -113,8 +121,8 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
             accessibilityRole="button"
             accessibilityLabel={
               canSendOne
-                ? `${recipient.fullName}ga SMS yuborish`
-                : "SMS limitini oshirish"
+                ? t("sms.sendToClient", { name: displayName })
+                : t("sms.increaseLimit")
             }
             hitSlop={8}
             onPress={(event) => {

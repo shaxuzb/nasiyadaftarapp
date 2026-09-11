@@ -10,8 +10,9 @@ import { radius, spacing, typography } from "../theme";
 import { confirmPasswordReset } from "../services/authApi";
 import { useToast } from "../context/ToastContext";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { getApiErrorMessage } from "../utils/apiError";
+import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
+import { useTranslation } from "../i18n";
 
 interface Props {
   phone: string;
@@ -20,6 +21,7 @@ interface Props {
 
 export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { showToast } = useToast();
 
   const [code, setCode] = useState("");
@@ -35,7 +37,7 @@ export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
 
   const handleConfirm = async () => {
     if (!canSubmit) {
-      showToast("Kod va yangi parolni to'g'ri kiriting", "error");
+      showToast(t("auth.passwordReset.invalidForm"), "error");
       return;
     }
 
@@ -46,11 +48,15 @@ export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
         code: code.trim(),
         newPassword,
       });
-      showToast("Parol muvaffaqiyatli yangilandi", "success");
+      showToast(t("auth.passwordReset.success"), "success");
       onGoBackToLogin();
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Kod yoki parol noto'g'ri"),
+        getLocalizedApiErrorMessage(
+          error,
+          "auth.passwordReset.confirmError",
+          t,
+        ),
         "error",
       );
     } finally {
@@ -70,19 +76,21 @@ export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
               <View style={[styles.logoWrap, { backgroundColor: theme.primaryLight }]}>
                 <Ionicons name="key-outline" size={28} color={theme.primary} />
               </View>
-              <Text style={[typography.headingLarge, { color: theme.text }]}>Yangi parol</Text>
+              <Text style={[typography.headingLarge, { color: theme.text }]}>
+                {t("auth.passwordReset.confirmTitle")}
+              </Text>
               <Text style={[typography.bodySmall, styles.desc, { color: theme.textSecondary }]}>
-                SMS orqali kelgan kodni kiriting va yangi parol o'rnating
+                {t("auth.passwordReset.confirmDescription")}
               </Text>
             </View>
 
             <Text style={[typography.label, { color: theme.textSecondary, marginBottom: spacing.xs }]}>
-              SMS kod
+              {t("auth.smsVerify.codeLabel")}
             </Text>
             <OtpInput value={code} onChange={setCode} autoFocus />
 
             <AppInput
-              label="Yangi parol"
+              label={t("auth.passwordReset.newPasswordLabel")}
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
@@ -91,7 +99,7 @@ export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
             />
 
             <PrimaryButton
-              label="Saqlash"
+              label={t("common.save")}
               onPress={handleConfirm}
               loading={loading}
               disabled={!canSubmit}
@@ -99,7 +107,9 @@ export function PasswordResetConfirmScreen({ phone, onGoBackToLogin }: Props) {
             />
 
             <TouchableOpacity onPress={onGoBackToLogin} style={styles.footerBtn}>
-              <Text style={[typography.label, { color: theme.primary }]}>Loginga qaytish</Text>
+              <Text style={[typography.label, { color: theme.primary }]}>
+                {t("auth.passwordReset.backToLogin")}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

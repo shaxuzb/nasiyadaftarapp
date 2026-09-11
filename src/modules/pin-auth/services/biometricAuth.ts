@@ -22,10 +22,13 @@ export async function getBiometricCapability(): Promise<BiometricCapability> {
   );
 }
 
-export async function authenticateWithBiometrics(): Promise<boolean> {
+export async function authenticateWithBiometrics(
+  promptMessage = "Qarz Daftar ilovasini oching",
+  promptDescription = "Hisobingizni biometrika bilan tasdiqlang",
+): Promise<boolean> {
   const result = await LocalAuthentication.authenticateAsync({
-    promptMessage: "Qarz Daftar ilovasini oching",
-    promptDescription: "Hisobingizni biometrika bilan tasdiqlang",
+    promptMessage,
+    promptDescription,
     biometricsSecurityLevel: "strong",
     disableDeviceFallback: true,
     fallbackLabel: "",

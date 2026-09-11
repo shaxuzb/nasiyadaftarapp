@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../hooks/useTheme';
 import { radius, spacing, typography } from '../theme';
 import { APP_NAME } from '../constants';
+import { useTranslation } from '../i18n';
 
 interface Props {
   onFinish: () => void;
@@ -12,24 +13,25 @@ interface Props {
 
 const STEPS = [
   {
-    title: "1-qadam: Mijoz qo'shish",
-    desc: "Avval mijozni kiriting. Telefon raqami bilan topish oson bo'ladi.",
+    titleKey: "auth.onboarding.step1Title",
+    descKey: "auth.onboarding.step1Description",
     icon: 'person-add-outline',
   },
   {
-    title: '2-qadam: Qarz yozish',
-    desc: "Kartadagi '+ Qarz' ni bosing va summani kiriting.",
+    titleKey: "auth.onboarding.step2Title",
+    descKey: "auth.onboarding.step2Description",
     icon: 'add-circle-outline',
   },
   {
-    title: "3-qadam: To'lov oldim",
-    desc: "Mijoz to'laganda '+ To'lov' tugmasi bilan qayd qiling.",
+    titleKey: "auth.onboarding.step3Title",
+    descKey: "auth.onboarding.step3Description",
     icon: 'checkmark-done-circle-outline',
   },
 ] as const;
 
 export function OnboardingScreen({ onFinish }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const step = STEPS[index];
   const isLast = index === STEPS.length - 1;
@@ -39,9 +41,11 @@ export function OnboardingScreen({ onFinish }: Props) {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top','bottom']}>
       <View style={styles.wrap}>
-        <Text style={[typography.headingLarge, { color: theme.text }]}>Xush kelibsiz</Text>
+        <Text style={[typography.headingLarge, { color: theme.text }]}>
+          {t("auth.onboarding.title")}
+        </Text>
         <Text style={[typography.bodyMedium, { color: theme.textSecondary, marginTop: 6 }]}>
-          {APP_NAME} ni 1 daqiqada o'rganib olamiz
+          {t("auth.onboarding.description", { appName: APP_NAME })}
         </Text>
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
@@ -49,16 +53,18 @@ export function OnboardingScreen({ onFinish }: Props) {
             <Ionicons name={step.icon} size={28} color={theme.primary} />
           </View>
           <Text style={[typography.headingMedium, { color: theme.text, marginTop: spacing.md }]}>
-            {step.title}
+            {t(step.titleKey)}
           </Text>
           <Text style={[typography.bodyMedium, { color: theme.textSecondary, marginTop: spacing.sm }]}>
-            {step.desc}
+            {t(step.descKey)}
           </Text>
 
           <View style={[styles.demoBox, { backgroundColor: theme.inputBackground }]}>
-            <Text style={[typography.label, { color: theme.text }]}>Demo misol</Text>
+            <Text style={[typography.label, { color: theme.text }]}>
+              {t("auth.onboarding.demoTitle")}
+            </Text>
             <Text style={[typography.bodySmall, { color: theme.textSecondary, marginTop: 4 }]}>
-              Ali Valiyev, 200 000 so'm qarz, 50 000 so'm to'lov
+              {t("auth.onboarding.demoText")}
             </Text>
           </View>
         </View>
@@ -69,7 +75,9 @@ export function OnboardingScreen({ onFinish }: Props) {
 
         <View style={styles.actions}>
           <TouchableOpacity onPress={onFinish} style={styles.linkBtn}>
-            <Text style={[typography.label, { color: theme.textMuted }]}>O'tkazib yuborish</Text>
+            <Text style={[typography.label, { color: theme.textMuted }]}>
+              {t("auth.onboarding.skip")}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -77,7 +85,9 @@ export function OnboardingScreen({ onFinish }: Props) {
             style={[styles.mainBtn, { backgroundColor: theme.primary }]}
           >
             <Text style={[typography.label, { color: '#fff' }]}>
-              {isLast ? 'Boshlash' : 'Davom etish'}
+              {isLast
+                ? t("auth.onboarding.start")
+                : t("auth.onboarding.continue")}
             </Text>
           </TouchableOpacity>
         </View>
@@ -136,4 +146,3 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
   },
 });
-

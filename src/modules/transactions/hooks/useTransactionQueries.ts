@@ -12,19 +12,20 @@ const HISTORY_STALE_TIME = 30_000;
 
 export function useTransactionQueries(
   scope: QueryScope,
-  clientIds: number[],
+  clientIdsWithMissingBalance: number[],
   enabled: boolean,
 ) {
   const queryClient = useQueryClient();
   const historyQueryKey = useMemo(
-    () => [...queryKeys.transactions(scope), "all", clientIds] as const,
-    [clientIds, scope],
+    () =>
+      [...queryKeys.transactions(scope), "missing-balances", clientIdsWithMissingBalance] as const,
+    [clientIdsWithMissingBalance, scope],
   );
 
   const historyQuery = useQuery({
     queryKey: historyQueryKey,
     queryFn: async () => {
-      const transactions = await getClientHistories(clientIds);
+      const transactions = await getClientHistories(clientIdsWithMissingBalance);
 
       // Seed detail caches so opening a customer does not repeat a request
       // that was already part of the dashboard load.
@@ -44,7 +45,7 @@ export function useTransactionQueries(
 
       return transactions;
     },
-    enabled: enabled && clientIds.length > 0,
+    enabled: enabled && clientIdsWithMissingBalance.length > 0,
     staleTime: HISTORY_STALE_TIME,
   });
 
@@ -61,7 +62,7 @@ export function useTransactionQueries(
   return {
     transactions: historyQuery.data ?? EMPTY_TRANSACTIONS,
     isLoading:
-      clientIds.length > 0 &&
+      clientIdsWithMissingBalance.length > 0 &&
       (historyQuery.isPending || historyQuery.isFetching),
     error: historyQuery.error,
     loadCustomerHistory,

@@ -27,7 +27,6 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../hooks/useTheme";
 import type { AppTheme, OrganizationStackParamList } from "../types";
-import { getApiErrorMessage } from "../utils/apiError";
 import { useToast } from "../context/ToastContext";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { OrganizationCreateSheetContent } from "../modules/organization/components/OrganizationCreateSheetContent";
@@ -38,6 +37,7 @@ import {
 } from "../modules/subscription/utils/entitlements";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 import { useBottomSheetBackHandler } from "../bottom-sheet";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 
 type Navigation = NativeStackNavigationProp<OrganizationStackParamList>;
 
@@ -55,6 +55,7 @@ export function OrganizationSelectScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const {
     user,
@@ -84,16 +85,16 @@ export function OrganizationSelectScreen() {
     async (payload: OrganizationRequest) => {
       try {
         await createOrganizationForCurrentUser(payload);
-        showToast("Yangi tashkilot yaratildi", "success");
+        showToast(t("organization.createSuccess"), "success");
       } catch (error) {
         showToast(
-          getApiErrorMessage(error, "Tashkilot yaratishda xatolik"),
+          getLocalizedApiErrorMessage(error, "organization.createError", t),
           "error",
         );
         throw error;
       }
     },
-    [createOrganizationForCurrentUser, showToast],
+    [createOrganizationForCurrentUser, showToast, t],
   );
 
   const closeCreateSheet = useCallback(() => {
@@ -148,7 +149,7 @@ export function OrganizationSelectScreen() {
       await selectOrganization(organizationId);
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Tashkilotni tanlab bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "organization.selectError", t),
         "error",
       );
     } finally {
@@ -161,7 +162,7 @@ export function OrganizationSelectScreen() {
       await refreshOrganizations();
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Tashkilotlarni yangilab bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "organization.refreshError", t),
         "error",
       );
     }
@@ -172,7 +173,7 @@ export function OrganizationSelectScreen() {
       <View style={styles.topBar}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Orqaga qaytish"
+          accessibilityLabel={t("organization.back")}
           hitSlop={8}
           onPress={handleBack}
           style={({ pressed }) => [
@@ -181,7 +182,7 @@ export function OrganizationSelectScreen() {
           ]}
         >
           <Ionicons name="chevron-back" size={24} color={theme.text} />
-          <Text style={styles.backButtonText}>Orqaga</Text>
+          <Text style={styles.backButtonText}>{t("organization.back")}</Text>
         </Pressable>
       </View>
       <ScrollView
@@ -193,9 +194,9 @@ export function OrganizationSelectScreen() {
           <View style={styles.headerIcon}>
             <Ionicons name="business-outline" size={27} color={theme.primary} />
           </View>
-          <Text style={styles.title}>Tashkilotni tanlang</Text>
+          <Text style={styles.title}>{t("organization.selectTitle")}</Text>
           <Text style={styles.description}>
-            Davom etish uchun ishlamoqchi bo'lgan tashkilotingizni tanlang.
+            {t("organization.selectDescription")}
           </Text>
         </View>
 
@@ -206,7 +207,7 @@ export function OrganizationSelectScreen() {
               <Pressable
                 key={organization.id}
                 accessibilityRole="button"
-                accessibilityLabel={`${organization.name} tashkilotini tanlash`}
+                accessibilityLabel={t("organization.selectOrganization", { name: organization.name })}
                 accessibilityState={{ disabled: selectingId !== null }}
                 disabled={selectingId !== null}
                 onPress={() => {
@@ -246,7 +247,7 @@ export function OrganizationSelectScreen() {
 
         {canCreate ? (
           <PrimaryButton
-            label="Yangi tashkilot yaratish"
+            label={t("organization.create")}
             onPress={() => {
               setIsCreateSheetOpen(true);
               createSheetRef.current?.present();
@@ -256,7 +257,7 @@ export function OrganizationSelectScreen() {
         ) : (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="PRO tarifini ko'rish"
+            accessibilityLabel={t("subscription.upgrade.viewPlans")}
             onPress={() => setIsUpgradeModalOpen(true)}
             style={({ pressed }) => [
               styles.upgradeButton,
@@ -272,21 +273,21 @@ export function OrganizationSelectScreen() {
             </View>
             <View style={styles.upgradeButtonCopy}>
               <Text style={styles.upgradeButtonTitle}>
-                Tashkilotlar limiti tugadi
+                {t("organization.limitTitle")}
               </Text>
               <Text style={styles.upgradeButtonSubtitle}>
-                Yana yaratish uchun PRO tarifiga o'ting
+                {t("organization.limitDescription")}
               </Text>
             </View>
-            <Text style={styles.proBadge}>PRO</Text>
+            <Text style={styles.proBadge}>{t("subscription.standardPlan")}</Text>
           </Pressable>
         )}
         <Text style={styles.limitHint}>
-          Joriy tarif limiti: {organizationLimitLabel} ta tashkilot.
+          {t("organization.limitHint", { limit: organizationLimitLabel })}
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Tashkilotlar ro'yxatini yangilash"
+          accessibilityLabel={t("organization.refresh")}
           onPress={() => {
             void handleRefresh();
           }}
@@ -304,11 +305,11 @@ export function OrganizationSelectScreen() {
               color={theme.textSecondary}
             />
           )}
-          <Text style={styles.refreshText}>Ro'yxatni yangilash</Text>
+          <Text style={styles.refreshText}>{t("organization.refresh")}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Hisobdan chiqish"
+          accessibilityLabel={t("organization.logout")}
           onPress={() => {
             void logout();
           }}
@@ -317,7 +318,7 @@ export function OrganizationSelectScreen() {
             pressed && styles.rowPressed,
           ]}
         >
-          <Text style={styles.logoutText}>Hisobdan chiqish</Text>
+          <Text style={styles.logoutText}>{t("organization.logout")}</Text>
         </Pressable>
       </ScrollView>
       <BottomSheetModal

@@ -33,13 +33,17 @@ import { AndroidSheetKeyboardBridge } from "../AndroidSheetKeyboardBridge";
 import { useToast } from "../../context/ToastContext";
 import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
-import { formatDisplayedBalance, getInitials } from "../../utils";
+import { getInitials } from "../../utils";
 import { hapticError, hapticSuccess } from "../../utils/haptics";
 import { createClientTransaction } from "../../modules/transactions/services/transactionsService";
 import { queryKeys } from "../../core/query/queryKeys";
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme, TransactionType } from "../../types";
-import { getApiErrorMessage } from "../../utils/apiError";
+import {
+  formatLocalizedDisplayedBalance,
+  getLocalizedApiErrorMessage,
+  useTranslation,
+} from "../../i18n";
 
 function getLocalDateOnly(): string {
   const now = new Date();
@@ -112,6 +116,7 @@ function useTransactionController({
   const customer = getCustomerById(props.customerId);
   const scope = user?.organizationId ?? user?.id ?? "anonymous";
   const { showToast } = useToast();
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -127,7 +132,10 @@ function useTransactionController({
     currentBalance +
     (validAmount ? (previewType === "debt" ? parsedAmount : -parsedAmount) : 0);
   const name =
-    customer?.fullName || props.customerName || props.customerPhone || "Mijoz";
+    customer?.fullName ||
+    props.customerName ||
+    props.customerPhone ||
+    t("transactions.customerFallback");
   const phone = customer?.phone ?? props.customerPhone ?? "";
   const initials = getInitials({ id: props.customerId, fullName: name, phone });
 
@@ -135,7 +143,7 @@ function useTransactionController({
     if (submitting.current) return;
     if (!validAmount) {
       hapticError();
-      showToast("Summa 0 dan katta bo'lishi kerak", "error");
+      showToast(t("transactions.amountError"), "error");
       return;
     }
     submitting.current = true;
@@ -149,7 +157,11 @@ function useTransactionController({
         type,
         amount: parsedAmount,
         date: getLocalDateOnly(),
-        note: note.trim() || (type === "debt" ? "Qarz" : "To'lov"),
+        note:
+          note.trim() ||
+          (type === "debt"
+            ? t("transactions.debtNote")
+            : t("transactions.paymentNote")),
       });
       // A completed POST must not be retried just because a background refresh failed.
       void queryClient.invalidateQueries({
@@ -164,14 +176,19 @@ function useTransactionController({
       void queryClient.invalidateQueries({ queryKey: ["reports", scope] });
       hapticSuccess();
       showToast(
-        type === "debt" ? "Qarz yozildi" : "To'lov qo'shildi",
+        type === "debt"
+          ? t("transactions.debtSaved")
+          : t("transactions.paymentSaved"),
         "success",
       );
       setDismissLocked(false);
       closeSheet();
     } catch (error) {
       hapticError();
-      showToast(getApiErrorMessage(error, "Tranzaksiya saqlanmadi"), "error");
+      showToast(
+        getLocalizedApiErrorMessage(error, "transactions.saveError", t),
+        "error",
+      );
       submitting.current = false;
       setSaving(null);
       setDismissLocked(false);
@@ -264,6 +281,7 @@ export function TransactionSheetProvider({
 
 function TransactionFooter(footerProps: BottomSheetFooterProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { saving, validAmount, save, setPreviewType } = useTransaction();
@@ -275,7 +293,7 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
             key={type}
             accessibilityRole="button"
             accessibilityLabel={
-              type === "debt" ? "Qarz qo'shish" : "To'lov olish"
+              type === "debt" ? t("transactions.addDebt") : t("transactions.takePayment")
             }
             accessibilityState={{
               disabled: !!saving || !validAmount,
@@ -303,7 +321,7 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
               />
             )}
             <Text style={styles.actionText}>
-              {type === "debt" ? "Qarz qo'shish" : "To'lov olish"}
+              {type === "debt" ? t("transactions.addDebt") : t("transactions.takePayment")}
             </Text>
           </Pressable>
         ))}
@@ -314,6 +332,7 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
 
 export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const theme = useTheme();
+  const { locale, t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const tx = useTransaction();
@@ -341,10 +360,10 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
     >
       <AndroidSheetKeyboardBridge />
       <View style={styles.header}>
-        <Text style={styles.title}>Operatsiya</Text>
+        <Text style={styles.title}>{t("transactions.operation")}</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Yopish"
+          accessibilityLabel={t("transactions.close")}
           disabled={!!tx.saving}
           onPress={() => tx.closeSheet()}
           style={styles.close}
@@ -376,19 +395,19 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {formatDisplayedBalance(tx.currentBalance)}
+            {formatLocalizedDisplayedBalance(tx.currentBalance, locale)}
           </Text>
         </View>
         {tx.props.onOpenProfile && (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Mijoz profilini ochish"
+            accessibilityLabel={t("transactions.customerProfile")}
             disabled={!!tx.saving}
             onPress={() => tx.closeSheet(tx.props.onOpenProfile)}
             style={styles.profile}
           >
             <Ionicons name="person-outline" size={19} color={theme.primary} />
-            <Text style={styles.profileText}>Profil</Text>
+            <Text style={styles.profileText}>{t("transactions.profile")}</Text>
             <Ionicons name="chevron-forward" size={16} color={theme.primary} />
           </Pressable>
         )}
@@ -398,7 +417,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
         style={[styles.amountField, focused === "amount" && styles.focused]}
       >
         <View style={styles.amountCopy}>
-          <Text style={styles.label}>Summa</Text>
+          <Text style={styles.label}>{t("transactions.amount")}</Text>
           <TransactionAmountInput
             inputRef={amountRef}
             initialValue=""
@@ -408,28 +427,28 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
             returnKeyType="none"
             submitBehavior="blurAndSubmit"
             onSubmitEditing={dismissKeyboard}
-            placeholder="0"
+            placeholder={t("transactions.amountPlaceholder")}
             placeholderTextColor={theme.textMuted}
             selectionColor={theme.primary}
             onFocus={handleAmountFocus}
             onBlur={handleFieldBlur}
             style={styles.amountInput}
-            accessibilityLabel="Operatsiya summasi"
+            accessibilityLabel={t("transactions.amountA11y")}
           />
         </View>
-        <Text style={styles.currency}>so'm</Text>
+        <Text style={styles.currency}>{t("transactions.currency")}</Text>
       </Pressable>
       <Pressable
         onPress={() => noteRef.current?.focus()}
         style={[styles.noteField, focused === "note" && styles.focused]}
       >
-        <Text style={styles.label}>Izoh</Text>
+        <Text style={styles.label}>{t("transactions.note")}</Text>
         <BottomSheetTextInput
           ref={noteRef}
           value={tx.note}
           onChangeText={tx.setNote}
           editable={!tx.saving}
-          placeholder="Qo'shimcha ma'lumot"
+          placeholder={t("transactions.notePlaceholder")}
           placeholderTextColor={theme.textMuted}
           selectionColor={theme.primary}
           multiline
@@ -440,12 +459,12 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           onFocus={handleNoteFocus}
           onBlur={handleFieldBlur}
           style={styles.noteInput}
-          accessibilityLabel="Operatsiya izohi"
+          accessibilityLabel={t("transactions.noteA11y")}
         />
       </Pressable>
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>
-          Keyingi balans{tx.previewType === "payment" ? " (to'lov)" : " (qarz)"}
+          {t("transactions.nextBalance")} {tx.previewType === "payment" ? `(${t("transactions.paymentPreview")})` : `(${t("transactions.debtPreview")})`}
           :
         </Text>
         <Text
@@ -458,7 +477,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
             },
           ]}
         >
-          {formatDisplayedBalance(tx.nextBalance)}
+          {formatLocalizedDisplayedBalance(tx.nextBalance, locale)}
         </Text>
       </View>
     </BottomSheetScrollView>

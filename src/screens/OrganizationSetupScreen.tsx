@@ -15,8 +15,8 @@ import { useTheme } from "../hooks/useTheme";
 import { OrganizationCreateSheetContent } from "../modules/organization/components/OrganizationCreateSheetContent";
 import { OrganizationRequest } from "../modules/organization/types";
 import { radius, spacing, typography } from "../theme";
-import { getApiErrorMessage } from "../utils/apiError";
 import { useBottomSheetBackHandler } from "../bottom-sheet";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 
 const SHEET_SPRING = {
   damping: 80,
@@ -30,6 +30,7 @@ const SHEET_SPRING = {
 export function OrganizationSetupScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const { user, logout, createOrganizationForCurrentUser } = useAuth();
   const { showToast } = useToast();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
@@ -60,16 +61,16 @@ export function OrganizationSetupScreen() {
     async (payload: OrganizationRequest) => {
       try {
         await createOrganizationForCurrentUser(payload);
-        showToast("Tashkilot yaratildi", "success");
+        showToast(t("organization.created"), "success");
       } catch (error) {
         showToast(
-          getApiErrorMessage(error, "Tashkilot yaratishda xatolik"),
+          getLocalizedApiErrorMessage(error, "organization.createError", t),
           "error",
         );
         throw error;
       }
     },
-    [createOrganizationForCurrentUser, showToast],
+    [createOrganizationForCurrentUser, showToast, t],
   );
 
   return (
@@ -85,7 +86,7 @@ export function OrganizationSetupScreen() {
             <Ionicons name="business-outline" size={30} color={theme.primary} />
           </View>
           <Text style={[typography.headingLarge, { color: theme.text }]}>
-            Tashkilotni yarating
+            {t("organization.setupTitle")}
           </Text>
           <Text
             style={[
@@ -94,11 +95,12 @@ export function OrganizationSetupScreen() {
               { color: theme.textSecondary },
             ]}
           >
-            Assalomu alaykum {user?.fullName ?? ""}, boshlash uchun birinchi
-            tashkilotingizni yarating.
+            {t("organization.setupDescription", {
+              name: user?.fullName ?? "",
+            })}
           </Text>
           <PrimaryButton
-            label="Tashkilot yaratish"
+            label={t("organization.createAction")}
             onPress={() => {
               setIsCreateSheetOpen(true);
               bottomSheetRef.current?.present();
@@ -106,7 +108,7 @@ export function OrganizationSetupScreen() {
             style={styles.createButton}
           />
           <PrimaryButton
-            label="Chiqish"
+            label={t("organization.logout")}
             onPress={() => {
               void logout();
             }}

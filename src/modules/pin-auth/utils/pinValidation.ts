@@ -29,18 +29,27 @@ const BLOCKED_PINS = new Set([
 
 export type PinValidationResult =
   | { valid: true }
-  | { valid: false; message: string };
+  | {
+      valid: false;
+      code: "length" | "weak";
+      message: string;
+    };
 
 export function validatePin(pin: string): PinValidationResult {
   if (!new RegExp(`^\\d{${PIN_LENGTH}}$`).test(pin)) {
     return {
       valid: false,
+      code: "length",
       message: "PIN 4 ta raqamdan iborat bo‘lishi kerak",
     };
   }
 
   if (BLOCKED_PINS.has(pin)) {
-    return { valid: false, message: "Murakkabroq PIN-kod tanlang" };
+    return {
+      valid: false,
+      code: "weak",
+      message: "Murakkabroq PIN-kod tanlang",
+    };
   }
 
   return { valid: true };

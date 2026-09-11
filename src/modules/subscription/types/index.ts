@@ -23,6 +23,8 @@ export interface CurrentSubscription {
   unlimitedClients: boolean;
   telegramBotEnabled: boolean;
   blacklistEnabled: boolean;
+  transactionSmsEnabled: boolean;
+  prioritySupportEnabled: boolean;
   sms: SubscriptionSmsQuota;
 }
 
@@ -38,6 +40,8 @@ export interface SubscriptionPlan {
   monthlySmsLimit: number | null;
   telegramBotEnabled: boolean;
   blacklistEnabled: boolean;
+  transactionSmsEnabled: boolean;
+  prioritySupportEnabled: boolean;
   stateId: number;
   createdDate: string;
   updatedDate: string | null;

@@ -20,33 +20,35 @@ import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { CustomerEditSheet } from "../modules/clients/components/CustomerEditSheet";
 import { useClientDetail } from "../modules/clients/hooks/useClientDetail";
-import {
-  formatCurrency,
-  formatDate,
-  formatDisplayedBalance,
-  getFullName,
-  getInitials,
-} from "../utils";
+import { getInitials } from "../utils";
 import { APP_NAME } from "../constants";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
-import { getApiErrorMessage } from "../utils/apiError";
+import {
+  formatLocalizedCurrency,
+  formatLocalizedDate,
+  formatLocalizedDisplayedBalance,
+  getLocalizedApiErrorMessage,
+  useTranslation,
+  type TranslateKey,
+} from "../i18n";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, "CustomerDetail">;
 type TxDateFilter = "all" | "today" | "7d" | "30d";
-const filters: { key: TxDateFilter; label: string }[] = [
-  { key: "all", label: "Hammasi" },
-  { key: "today", label: "Bugun" },
-  { key: "7d", label: "7 kun" },
-  { key: "30d", label: "30 kun" },
+const filters: { key: TxDateFilter; labelKey: TranslateKey }[] = [
+  { key: "all", labelKey: "transactions.dateFilterAll" },
+  { key: "today", labelKey: "transactions.dateFilterToday" },
+  { key: "7d", labelKey: "transactions.dateFilter7d" },
+  { key: "30d", labelKey: "transactions.dateFilter30d" },
 ];
 
 export function CustomerDetailScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
+  const { locale, t } = useTranslation();
   const {
     params: { customerId },
   } = useRoute<Route>();
@@ -99,11 +101,13 @@ export function CustomerDetailScreen() {
 
   async function openContact(whatsApp = false) {
     if (!customer) return;
+    const customerName =
+      customer.fullName.trim() || customer.phone || t("transactions.customerFallback");
     const message =
-      `Assalomu alaykum, ${getFullName(customer)}!\n${APP_NAME} hisoboti` +
+      `${t("customers.sheetTitle")}, ${customerName}!\n${APP_NAME}` +
       (balance === undefined
         ? ""
-        : `\nQarz qoldig'i: ${formatCurrency(Math.max(balance, 0))}`);
+        : `\n${t("transactions.balance")}: ${formatLocalizedCurrency(Math.max(balance, 0), locale)}`);
     const url = whatsApp
       ? `https://wa.me/${customer.phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`
       : `tel:${customer.phone}`;
@@ -111,7 +115,7 @@ export function CustomerDetailScreen() {
       await Linking.openURL(url);
     } catch {
       showToast(
-        whatsApp ? "WhatsApp ochib bo'lmadi" : "Qo'ng'iroq qilib bo'lmadi",
+        whatsApp ? t("transactions.whatsappError") : t("transactions.callError"),
         "error",
       );
     }
@@ -119,21 +123,23 @@ export function CustomerDetailScreen() {
 
   async function share() {
     if (!customer) return;
+    const customerName =
+      customer.fullName.trim() || customer.phone || t("transactions.customerFallback");
     const totals = history.data
-      ? `\nJami qarz: ${formatCurrency(totalDebt)}\nJami to'lov: ${formatCurrency(totalPaid)}`
+      ? `\n${t("transactions.totalDebt")}: ${formatLocalizedCurrency(totalDebt, locale)}\n${t("transactions.totalPayment")}: ${formatLocalizedCurrency(totalPaid, locale)}`
       : "";
     try {
       await Share.share({
         message:
-          `${APP_NAME} — HISOBOT\nMijoz: ${getFullName(customer)}\nTelefon: ${customer.phone}${totals}` +
+          `${APP_NAME}\n${t("transactions.customer")}: ${customerName}\n${t("transactions.phone")}: ${customer.phone}${totals}` +
           (balance === undefined
             ? ""
-            : `\nBalans: ${formatDisplayedBalance(balance)}`) +
-          `\nSana: ${formatDate(new Date().toISOString())}`,
+            : `\n${t("transactions.balance")}: ${formatLocalizedDisplayedBalance(balance, locale)}`) +
+          `\n${t("transactions.date")}: ${formatLocalizedDate(new Date(), locale)}`,
       });
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Hisobotni ulashib bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "transactions.shareError", t),
         "error",
       );
     }
@@ -144,21 +150,20 @@ export function CustomerDetailScreen() {
     deletePending.current = true;
     try {
       const accepted = await confirm({
-        title: "Mijozni o'chirish",
-        message:
-          "Mijoz va barcha tranzaksiyalar o'chiriladi. Bu amalni qaytarib bo'lmaydi.",
-        confirmText: "O'chirish",
-        cancelText: "Bekor qilish",
+        title: t("transactions.deleteTitle"),
+        message: t("transactions.deleteMessage"),
+        confirmText: t("transactions.delete"),
+        cancelText: t("common.cancel"),
         variant: "danger",
       });
       if (!accepted) return;
       setDeleting(true);
       await deleteCustomer(customerId);
-      showToast("Mijoz o'chirildi", "success");
+      showToast(t("transactions.deleted"), "success");
       goBack();
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Mijozni o'chirib bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "transactions.deleteError", t),
         "error",
       );
     } finally {
@@ -171,16 +176,16 @@ export function CustomerDetailScreen() {
     <View style={styles.header}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Orqaga qaytish"
+        accessibilityLabel={t("common.back")}
         onPress={goBack}
         style={styles.headerButton}
       >
         <Ionicons name="arrow-back" size={24} color={theme.text} />
       </Pressable>
-      <Text style={styles.headerCaption}>Mijoz ma'lumotlari</Text>
+      <Text style={styles.headerCaption}>{t("transactions.customerData")}</Text>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Qarz, to'lov va sana filtrlari"
+        accessibilityLabel={t("transactions.addTransaction")}
         accessibilityState={{ expanded: showActions }}
         onPress={() => setShowActions((value) => !value)}
         disabled={!customer || deleting}
@@ -205,14 +210,15 @@ export function CustomerDetailScreen() {
           ) : (
             <EmptyState
               iconName="cloud-offline-outline"
-              title="Mijoz ma'lumotlari yuklanmadi"
-              description={getApiErrorMessage(
+              title={t("transactions.dataLoadError")}
+              description={getLocalizedApiErrorMessage(
                 detail.error,
-                "Qayta urinib ko'ring",
+                "customers.fetchErrorDescription",
+                t,
               )}
               action={
                 <PrimaryButton
-                  label="Qayta urinish"
+                  label={t("customers.retry")}
                   onPress={() => void detail.refetch()}
                 />
               }
@@ -241,6 +247,9 @@ export function CustomerDetailScreen() {
   );
   const showBlacklistBadge =
     customer.isBlacklisted === true || blacklistedOrganizationCount > 0;
+  const displayName =
+    customer.fullName.trim() || customer.phone || t("transactions.customerFallback");
+  const deleteLabel = t("transactions.delete");
   const footerActions: {
     label: string;
     icon: React.ComponentProps<typeof Ionicons>["name"];
@@ -248,31 +257,31 @@ export function CustomerDetailScreen() {
     onPress: () => void;
   }[] = [
     {
-      label: "Qo'ng'iroq",
+      label: t("transactions.call"),
       icon: "call",
       color: theme.primary,
       onPress: () => void openContact(),
     },
     {
-      label: "WhatsApp",
+      label: t("transactions.whatsapp"),
       icon: "logo-whatsapp",
       color: theme.paymentColor,
       onPress: () => void openContact(true),
     },
     {
-      label: "Ulashish",
+      label: t("transactions.share"),
       icon: "share-social-outline",
       color: theme.primary,
       onPress: () => void share(),
     },
     {
-      label: "Tahrirlash",
+      label: t("transactions.edit"),
       icon: "create-outline",
       color: theme.textSecondary,
       onPress: () => setEditing(true),
     },
     {
-      label: "O'chirish",
+      label: deleteLabel,
       icon: "trash-outline",
       color: theme.dangerColor,
       onPress: () => void remove(),
@@ -301,7 +310,7 @@ export function CustomerDetailScreen() {
               </View>
               <View style={styles.identityText}>
                 <Text style={styles.name} numberOfLines={2}>
-                  {getFullName(customer)}
+                  {displayName}
                 </Text>
                 <Text selectable style={styles.phone}>
                   {customer.phone}
@@ -309,9 +318,11 @@ export function CustomerDetailScreen() {
                 {showBlacklistBadge ? (
                   <View
                     accessible
-                    accessibilityLabel={`Boshqa tashkilotlarda qora ro'yxatda${
+                    accessibilityLabel={`${t("transactions.otherOrganizationsBlacklist")}${
                       blacklistedOrganizationCount > 0
-                        ? `, ${blacklistedOrganizationCount} ta tashkilot`
+                        ? t("transactions.organizationsCount", {
+                            count: blacklistedOrganizationCount,
+                          })
                         : ""
                     }`}
                     style={styles.blacklistBadge}
@@ -326,7 +337,7 @@ export function CustomerDetailScreen() {
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      Boshqa tashkilotlarda qora ro'yxatda
+                      {t("transactions.otherOrganizationsBlacklist")}
                     </Text>
                   </View>
                 ) : null}
@@ -342,7 +353,9 @@ export function CustomerDetailScreen() {
                   ]}
                 >
                   <Text style={[styles.badgeText, { color: balanceColor }]}>
-                    {balance > 0 ? "Qarzdor" : "Qarz yo'q"}
+                    {balance > 0
+                      ? t("transactions.debtStatus")
+                      : t("transactions.noDebtStatus")}
                   </Text>
                 </View>
               )}
@@ -355,21 +368,25 @@ export function CustomerDetailScreen() {
             <View style={styles.stats}>
               {[
                 {
-                  label: "Jami qarz",
-                  value: history.data ? formatCurrency(totalDebt) : "—",
+                  label: t("transactions.totalDebt"),
+                  value: history.data
+                    ? formatLocalizedCurrency(totalDebt, locale)
+                    : "—",
                   color: theme.debtColor,
                 },
                 {
-                  label: "Jami to'lov",
-                  value: history.data ? formatCurrency(totalPaid) : "—",
+                  label: t("transactions.totalPayment"),
+                  value: history.data
+                    ? formatLocalizedCurrency(totalPaid, locale)
+                    : "—",
                   color: theme.paymentColor,
                 },
                 {
-                  label: "Balans",
+                  label: t("transactions.balance"),
                   value:
                     balance === undefined
                       ? "—"
-                      : formatDisplayedBalance(balance),
+                      : formatLocalizedDisplayedBalance(balance, locale),
                   color: balanceColor,
                 },
               ].map((stat, index) => (
@@ -397,7 +414,7 @@ export function CustomerDetailScreen() {
                 style={styles.error}
               >
                 <Text style={styles.errorText}>
-                  Ma'lumotni yangilab bo'lmadi. Qayta urinish
+                  {t("transactions.dataRefreshError")}
                 </Text>
               </Pressable>
             )}
@@ -414,7 +431,7 @@ export function CustomerDetailScreen() {
                         openSheet("transaction", {
                           customerId,
                           type,
-                          customerName: getFullName(customer),
+                          customerName: displayName,
                           customerPhone: customer.phone,
                           onOpenProfile: () =>
                             navigation.navigate("CustomerDetail", {
@@ -455,7 +472,9 @@ export function CustomerDetailScreen() {
                           },
                         ]}
                       >
-                        {type === "debt" ? "Qarz qo'shish" : "To'lov olish"}
+                        {type === "debt"
+                          ? t("transactions.addDebt")
+                          : t("transactions.takePayment")}
                       </Text>
                     </Pressable>
                   ))}
@@ -482,7 +501,7 @@ export function CustomerDetailScreen() {
                           },
                         ]}
                       >
-                        {filter.label}
+                        {t(filter.labelKey)}
                       </Text>
                     </Pressable>
                   ))}
@@ -495,11 +514,11 @@ export function CustomerDetailScreen() {
                 size={22}
                 color={theme.textSecondary}
               />
-              <Text style={styles.sectionTitle}>Tranzaksiyalar tarixi</Text>
+              <Text style={styles.sectionTitle}>{t("transactions.history")}</Text>
               {txDateFilter !== "all" && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel="Sana filtrini tozalash"
+                  accessibilityLabel={t("transactions.clearDateFilter")}
                   onPress={() => setTxDateFilter("all")}
                   style={styles.clearFilter}
                 >
@@ -518,7 +537,7 @@ export function CustomerDetailScreen() {
                 style={styles.error}
               >
                 <Text style={styles.errorText}>
-                  Tarixni yuklab bo'lmadi. Qayta urinish
+                  {t("transactions.historyLoadError")}
                 </Text>
               </Pressable>
             )}
@@ -527,17 +546,17 @@ export function CustomerDetailScreen() {
         renderItem={({ item: tx }) => (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${formatDate(tx.date)}, ${tx.type === "debt" ? "Qarz berildi" : "To'lov olindi"}, ${formatCurrency(tx.amount)}`}
+            accessibilityLabel={`${formatLocalizedDate(tx.date, locale)}, ${tx.type === "debt" ? t("transactions.detailDebt") : t("transactions.detailPayment")}, ${formatLocalizedCurrency(tx.amount, locale)}`}
             onPress={() =>
               openSheet("transactionDetail", {
                 transaction: tx,
-                customerName: getFullName(customer),
+                customerName: displayName,
               })
             }
             style={({ pressed }) => [styles.txRow, pressed && styles.pressed]}
           >
             <View style={styles.txCopy}>
-              <Text style={styles.txDate}>{formatDate(tx.date)}</Text>
+              <Text style={styles.txDate}>{formatLocalizedDate(tx.date, locale)}</Text>
               <Text style={styles.txLabel}>{tx.note}</Text>
             </View>
             <Text
@@ -553,7 +572,7 @@ export function CustomerDetailScreen() {
               ]}
             >
               {tx.type === "debt" ? "−" : "+"}
-              {formatCurrency(tx.amount)}
+              {formatLocalizedCurrency(tx.amount, locale)}
             </Text>
             <Ionicons
               name="chevron-forward"
@@ -568,11 +587,11 @@ export function CustomerDetailScreen() {
           ) : history.isError ? null : (
             <EmptyState
               iconName="receipt-outline"
-              title="Tranzaksiyalar yo'q"
+              title={t("transactions.noTransactions")}
               description={
                 txDateFilter === "all"
-                  ? "Qarz yoki to'lov qo'shish uchun yuqoridagi menyuni oching."
-                  : "Tanlangan davrda tranzaksiya topilmadi."
+                  ? t("transactions.noTransactionsDescription")
+                  : t("transactions.noFilteredTransactions")
               }
             />
           )
@@ -592,7 +611,7 @@ export function CustomerDetailScreen() {
               pressed && styles.pressed,
             ]}
           >
-            {deleting && action.label === "O'chirish" ? (
+            {deleting && action.label === deleteLabel ? (
               <ActivityIndicator color={action.color} />
             ) : (
               <Ionicons name={action.icon} size={25} color={action.color} />
@@ -600,7 +619,7 @@ export function CustomerDetailScreen() {
             <Text
               style={[
                 styles.footerLabel,
-                action.label === "O'chirish" && { color: theme.dangerColor },
+                action.label === deleteLabel && { color: theme.dangerColor },
               ]}
             >
               {action.label}

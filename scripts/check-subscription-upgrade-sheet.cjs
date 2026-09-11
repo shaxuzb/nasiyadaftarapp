@@ -39,4 +39,14 @@ assert.match(
 assert.match(modal, /enablePanDownToClose/);
 assert.match(modal, /onDismiss=\{handleDismiss\}/);
 assert.match(modal, /styles\.stickyAction/);
+assert.match(modal, /const planCatalog = useMemo/);
+assert.match(modal, /isPaidPlanCode/);
+assert.match(modal, /options\.showPlans/);
+assert.match(modal, /selectedPlanCode/);
+assert.match(modal, /planSelector/);
+assert.match(modal, /comparison/);
+assert.match(modal, /transactionSmsEnabled/);
+assert.match(modal, /prioritySupportEnabled/);
+assert.doesNotMatch(modal, /function proPlan/);
+assert.doesNotMatch(modal, /showPro/);
 console.log("Subscription upgrade bottom sheet checks passed");

@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetTextInput } from "@gorhom/bottom-sheet";
 import MaskInput, { Mask } from "react-native-mask-input";
 import { useTheme } from "../hooks/useTheme";
+import { useTranslation } from "../i18n";
 import { spacing, radius, typography } from "../theme";
 
 interface Props extends TextInputProps {
@@ -160,6 +161,7 @@ export function AppInput({
   ...rest
 }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const nativeInputRef = useRef<TextInput>(null);
   const setInputRef = useCallback(
     (instance: TextInput | null | undefined) => {
@@ -339,7 +341,9 @@ export function AppInput({
             hitSlop={4}
             accessibilityRole="button"
             accessibilityLabel={
-              passwordVisible ? "Parolni yashirish" : "Parolni ko‘rsatish"
+              passwordVisible
+                ? t("common.passwordHide")
+                : t("common.passwordShow")
             }
             accessibilityState={{ expanded: passwordVisible }}
           >

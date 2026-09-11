@@ -51,8 +51,11 @@ import {
 } from "../modules/client-sms/utils/recipientSelection";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
-import { getApiErrorMessage } from "../utils/apiError";
-import { formatCurrency } from "../utils";
+import {
+  formatLocalizedCurrency,
+  getLocalizedApiErrorMessage,
+  useTranslation,
+} from "../i18n";
 import { renderSmsTemplate } from "../modules/client-sms/utils/smsParsing";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 
@@ -68,6 +71,7 @@ export function ClientSmsScreen() {
   const navigation = useNavigation<Nav>();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
   const { user } = useAuth();
   const capabilities = getClientSmsCapabilities(
     user?.permissions,
@@ -78,13 +82,13 @@ export function ClientSmsScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <Header
-          title="Mijozlarga SMS"
+          title={t("sms.screenTitle")}
           onBack={isBottomTab ? undefined : () => navigation.goBack()}
         />
         <EmptyState
           iconName="lock-closed-outline"
-          title="Ruxsat mavjud emas"
-          description="SMS mijozlar ro'yxatini ko'rish uchun ruxsat kerak."
+          title={t("sms.permissionTitle")}
+          description={t("sms.permissionDescription")}
         />
       </SafeAreaView>
     );
@@ -100,6 +104,7 @@ function ClientSmsContent({
   const navigation = useNavigation<Nav>();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { locale, t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { confirm } = useConfirmDialog();
   const { user, currentOrganization } = useAuth();
@@ -158,17 +163,20 @@ function ClientSmsContent({
   );
   const getTemplateForConfirmation = useCallback(async () => {
     const template = smsTemplate.data ?? (await smsTemplate.refetch()).data;
-    if (!template) throw new Error("SMS shabloni yuklanmadi");
+    if (!template) throw new Error(t("sms.templateLoadError"));
     return template;
-  }, [smsTemplate.data, smsTemplate.refetch]);
+  }, [smsTemplate.data, smsTemplate.refetch, t]);
   const organizationName =
-    currentOrganization?.name ?? user?.organizationName ?? "Tashkilot";
+    currentOrganization?.name ?? user?.organizationName ?? t("sms.organizationFallback");
   const getPreviewMessage = useCallback(
     (template: SmsTemplate, recipient?: SmsRecipient) => {
       const values = recipient
         ? {
             organizationName,
-            balance: formatCurrency(Math.abs(recipient.currentBalance)),
+            balance: formatLocalizedCurrency(
+              Math.abs(recipient.currentBalance),
+              locale,
+            ),
             fullName: recipient.fullName,
             phoneNumber: recipient.phone,
           }
@@ -180,7 +188,7 @@ function ClientSmsContent({
           };
       return renderSmsTemplate(template.template, values);
     },
-    [organizationName],
+    [locale, organizationName],
   );
   const sendToOne = useCallback(
     async (recipient: SmsRecipient) => {
@@ -194,16 +202,16 @@ function ClientSmsContent({
       try {
         const template = await getTemplateForConfirmation();
         const accepted = await confirm({
-          title: "SMS yuborish",
-          message: `${getPreviewMessage(template, recipient)}\n\n${recipient.fullName}ga yuborilsinmi?`,
-          confirmText: "Yuborish",
-          cancelText: "Bekor qilish",
+          title: t("sms.sendTitle"),
+          message: `${getPreviewMessage(template, recipient)}\n\n${t("sms.recipientConfirmation", { name: recipient.fullName })}`,
+          confirmText: t("sms.sendAction"),
+          cancelText: t("common.cancel"),
         });
         if (!accepted) return;
         await sendOne.mutateAsync(recipient.id);
-        showToast("SMS yuborish uchun qabul qilindi", "success");
+        showToast(t("sms.sendAccepted"), "success");
       } catch (error) {
-        showToast(getApiErrorMessage(error, "SMS yuborilmadi"), "error");
+        showToast(getLocalizedApiErrorMessage(error, "sms.sendError", t), "error");
       } finally {
         submitting.current = false;
       }
@@ -216,6 +224,8 @@ function ClientSmsContent({
       sendOne,
       showToast,
       smsLimitReached,
+      t,
+      locale,
     ],
   );
   const submitBulk = async () => {
@@ -229,21 +239,25 @@ function ClientSmsContent({
     try {
       const template = await getTemplateForConfirmation();
       const accepted = await confirm({
-        title: "SMS shablon",
-        message: `${getPreviewMessage(template)}\n\n${selected.size} ta mijozga yuborilsinmi?`,
-        confirmText: "Yuborish",
-        cancelText: "Bekor qilish",
+        title: t("sms.templateTitle"),
+        message: `${getPreviewMessage(template)}\n\n${t("sms.bulkConfirmation", { count: selected.size })}`,
+        confirmText: t("sms.sendAction"),
+        cancelText: t("common.cancel"),
       });
       if (!accepted) return;
       const result = await sendBulk.mutateAsync([...selected]);
       setBulkSummary(result);
       showToast(
-        `${result.sentCount} yuborildi · ${result.failedCount} xato · ${result.skippedCount} o'tkazildi`,
+        t("sms.sentSummary", {
+          sent: result.sentCount,
+          failed: result.failedCount,
+          skipped: result.skippedCount,
+        }),
         result.failedCount ? "error" : "success",
       );
       setSelected(new Set());
     } catch (error) {
-      showToast(getApiErrorMessage(error, "Ommaviy SMS yuborilmadi"), "error");
+      showToast(getLocalizedApiErrorMessage(error, "sms.bulkSendError", t), "error");
     } finally {
       submitting.current = false;
     }
@@ -256,7 +270,7 @@ function ClientSmsContent({
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <Header
-          title="Mijozlarga SMS"
+          title={t("sms.screenTitle")}
           onBack={
             isBottomTabNavigation(navigation)
               ? undefined
@@ -266,12 +280,12 @@ function ClientSmsContent({
             capabilities.canViewHistory ? (
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel="SMS tarixi"
+                accessibilityLabel={t("sms.history")}
                 onPress={() => navigation.navigate("ClientSmsHistory")}
                 style={styles.headerAction}
               >
                 <Ionicons name="time-outline" size={21} color={theme.primary} />
-                <Text style={styles.headerActionText}>Tarix</Text>
+                <Text style={styles.headerActionText}>{t("sms.historyAction")}</Text>
               </Pressable>
             ) : null
           }
@@ -280,7 +294,7 @@ function ClientSmsContent({
           <SearchBar
             value={search}
             onChangeText={setSearch}
-            placeholder="Ism yoki telefon bo'yicha qidirish"
+            placeholder={t("sms.searchPlaceholder")}
           />
         </View>
         {smsQuota ? (
@@ -288,7 +302,7 @@ function ClientSmsContent({
             accessibilityRole={smsLimitReached ? "button" : undefined}
             accessibilityLabel={
               smsLimitReached
-                ? "SMS paket yoki PRO tarifini tanlash"
+                ? t("sms.quotaChoose")
                 : undefined
             }
             disabled={!smsLimitReached}
@@ -306,11 +320,11 @@ function ClientSmsContent({
             />
             <Text style={styles.quotaText}>
               {smsQuota.totalRemaining === null
-                ? "Cheksiz SMS"
-                : `${smsQuota.totalRemaining} ta SMS qoldi`}
+                ? t("sms.quotaUnlimited")
+                : t("sms.quotaRemaining", { count: smsQuota.totalRemaining })}
             </Text>
             {smsQuota.totalRemaining === 0 ? (
-              <Text style={styles.quotaWarning}>Limit tugagan</Text>
+              <Text style={styles.quotaWarning}>{t("sms.limitReached")}</Text>
             ) : null}
           </Pressable>
         ) : null}
@@ -325,13 +339,13 @@ function ClientSmsContent({
               [
                 {
                   key: "blacklisted",
-                  label: "Qora ro'yxat",
+                  label: t("sms.filterBlacklist"),
                   icon: "warning-outline",
                 },
-                { key: "hasDebt", label: "Qarzdor", icon: "wallet-outline" },
+                { key: "hasDebt", label: t("sms.filterDebtor"), icon: "wallet-outline" },
                 {
                   key: "canSend",
-                  label: "SMS mumkin",
+                  label: t("sms.filterCanSend"),
                   icon: "checkmark-circle-outline",
                 },
               ] as const
@@ -365,7 +379,7 @@ function ClientSmsContent({
           </ScrollView>
         </View>
         <View style={styles.summary}>
-          <Text style={styles.summaryText}>{count} ta mijoz</Text>
+          <Text style={styles.summaryText}>{t("sms.count", { count })}</Text>
           {capabilities.canSendBulk && rows.some((item) => item.canSend) ? (
             <Pressable
               onPress={() =>
@@ -375,7 +389,7 @@ function ClientSmsContent({
               }
             >
               <Text style={styles.selectAll}>
-                {selected.size ? "Bekor qilish" : "Sahifadagini tanlash"}
+                {selected.size ? t("sms.cancelSelection") : t("sms.selectPage")}
               </Text>
             </Pressable>
           ) : null}
@@ -389,14 +403,17 @@ function ClientSmsContent({
             />
             <View style={styles.resultCopy}>
               <Text style={styles.resultTitle}>
-                {bulkSummary.sentCount} yuborildi · {bulkSummary.failedCount}{" "}
-                xato · {bulkSummary.skippedCount} o'tkazildi
+                {t("sms.sentSummary", {
+                  sent: bulkSummary.sentCount,
+                  failed: bulkSummary.failedCount,
+                  skipped: bulkSummary.skippedCount,
+                })}
               </Text>
               {bulkSummary.results.find((item) => item.errorMessage)
                 ?.errorMessage ? (
                 <Text style={styles.resultError} numberOfLines={2}>
                   {bulkSummary.results.find((item) => item.errorMessage)
-                    ?.fullName ?? "Mijoz"}
+                    ?.fullName ?? t("sms.clientFallback")}
                   :{" "}
                   {
                     bulkSummary.results.find((item) => item.errorMessage)
@@ -407,7 +424,7 @@ function ClientSmsContent({
             </View>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Natijani yopish"
+              accessibilityLabel={t("sms.resultClose")}
               hitSlop={8}
               onPress={() => setBulkSummary(null)}
             >
@@ -422,14 +439,15 @@ function ClientSmsContent({
         ) : recipients.isError ? (
           <EmptyState
             iconName="cloud-offline-outline"
-            title="Ro'yxat yuklanmadi"
-            description={getApiErrorMessage(
+            title={t("sms.listLoadError")}
+            description={getLocalizedApiErrorMessage(
               recipients.error,
-              "Internet aloqasini tekshiring",
+              "customers.fetchErrorDescription",
+              t,
             )}
             action={
               <PrimaryButton
-                label="Qayta urinish"
+                label={t("customers.retry")}
                 onPress={() => void recipients.refetch()}
               />
             }
@@ -466,8 +484,8 @@ function ClientSmsContent({
             ListEmptyComponent={
               <EmptyState
                 iconName="chatbubble-ellipses-outline"
-                title="Mijoz topilmadi"
-                description="Qidiruv yoki filterlarni o'zgartirib ko'ring."
+                title={t("sms.searchEmptyTitle")}
+                description={t("sms.searchEmptyDescription")}
               />
             }
             refreshControl={
@@ -523,14 +541,14 @@ function ClientSmsContent({
           <View style={[styles.footer, { paddingBottom: 10 }]}>
             <View>
               <Text style={styles.footerCount}>
-                {selected.size} ta tanlandi
+                {t("sms.selectedCount", { count: selected.size })}
               </Text>
               <Text style={styles.footerHint}>
-                Faqat SMS mumkin bo'lgan mijozlar
+                {t("sms.selectedHint")}
               </Text>
             </View>
             <PrimaryButton
-              label="SMS yuborish"
+              label={t("sms.sendBulk")}
               loading={sendBulk.isPending}
               onPress={() => void submitBulk()}
               style={styles.footerButton}
@@ -564,7 +582,7 @@ function Header({
       {/* {onBack ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Orqaga qaytish"
+          accessibilityLabel={t("common.back")}
           onPress={onBack}
           style={styles.headerButton}
         >

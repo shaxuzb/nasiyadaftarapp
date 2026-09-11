@@ -19,6 +19,8 @@ import { createPinSecurity } from "../services/pinSecurity";
 import type { BiometricCapability } from "../types";
 import { validatePin } from "../utils/pinValidation";
 import { shouldLockAfterInactivity } from "../utils/appInactivity";
+import type { PinErrorCode } from "../utils/pinErrors";
+import { useTranslation } from "../../../i18n";
 
 type UnlockResult = {
   status: "unlocked" | "invalid" | "logged-out";
@@ -39,11 +41,11 @@ interface AppLockValue {
   changePin(
     currentPin: string,
     nextPin: string,
-  ): Promise<{ success: boolean; message?: string }>;
+  ): Promise<{ success: boolean; message?: string; code?: PinErrorCode }>;
   setBiometricEnabled(
     enabled: boolean,
-  ): Promise<{ success: boolean; message?: string }>;
-  removePin(): Promise<{ success: boolean; message?: string }>;
+  ): Promise<{ success: boolean; message?: string; code?: PinErrorCode }>;
+  removePin(): Promise<{ success: boolean; message?: string; code?: PinErrorCode }>;
   resetPinAndLogout(): Promise<void>;
   startPinSetup(): void;
   lockNow(): void;
@@ -59,6 +61,7 @@ const wait = (duration: number) =>
 
 export function AppLockProvider({ children }: { children: ReactNode }) {
   const { user, isBootstrapping, logout } = useAuth();
+  const { t } = useTranslation();
   const [isResolving, setResolving] = useState(true);
   const [resolvedUserId, setResolvedUserId] = useState<number | null>(null);
   const [setupRequired, setSetupRequired] = useState(false);
@@ -69,10 +72,17 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const userIdRef = useRef<number | null>(null);
   const appStateRef = useRef(AppState.currentState);
   const inactiveSinceRef = useRef<number | null>(null);
-  const security = useMemo(
+  const authenticate = useCallback(
     () =>
-      createPinSecurity(pinStorage, validatePin, authenticateWithBiometrics),
-    [],
+      authenticateWithBiometrics(
+        t("security.biometricPrompt"),
+        t("security.biometricPromptDescription"),
+      ),
+    [t],
+  );
+  const security = useMemo(
+    () => createPinSecurity(pinStorage, validatePin, authenticate),
+    [authenticate],
   );
   useEffect(() => {
     let active = true;
@@ -153,7 +163,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     async (pin: string) => {
       if (!user) throw new Error("Foydalanuvchi topilmadi");
       const validation = validatePin(pin);
-      if (!validation.valid) throw new Error(validation.message);
+      if (!validation.valid) throw new Error(validation.code);
       await pinStorage.setPin({
         userId: user.id,
         pin,
@@ -163,7 +173,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       let enabled = false;
       if (biometric?.available) {
         try {
-          enabled = await authenticateWithBiometrics();
+          enabled = await authenticate();
           if (enabled) await pinStorage.setBiometricEnabled(user.id, true);
         } catch {
           // Biometric setup is optional; PIN login remains available if it is cancelled.
@@ -174,7 +184,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       setLocked(false);
       setBiometricEnabledState(enabled);
     },
-    [biometric, user],
+    [authenticate, biometric, user],
   );
   const submitUnlockPin = useCallback(
     async (pin: string): Promise<UnlockResult> => {
@@ -217,6 +227,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       if (!user)
         return Promise.resolve({
           success: false,
+          code: "noUser" as const,
           message: "Foydalanuvchi topilmadi",
         });
       return security.changePin(user.id, currentPin, nextPin);
@@ -225,28 +236,40 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   );
   const setBiometricEnabled = useCallback(
     async (enabled: boolean) => {
-      if (!user) return { success: false, message: "Foydalanuvchi topilmadi" };
+      if (!user)
+        return {
+          success: false,
+          code: "noUser" as const,
+          message: "Foydalanuvchi topilmadi",
+        };
       if (!biometric?.available)
         return {
           success: false,
+          code: "biometricUnavailable" as const,
           message: "Bu qurilmada biometrika mavjud emas",
         };
-      if (enabled && !(await authenticateWithBiometrics())) {
+      if (enabled && !(await authenticate())) {
         return {
           success: false,
+          code: "biometricCancelled" as const,
           message: "Biometrik tasdiqlash bekor qilindi",
         };
       }
       const record = await pinStorage.setBiometricEnabled(user.id, enabled);
       if (!record)
-        return { success: false, message: "Avval PIN-kod o'rnating" };
+        return { success: false, code: "pinNotFound" as const, message: "PIN-kod topilmadi" };
       setBiometricEnabledState(enabled);
       return { success: true };
     },
-    [biometric, user],
+    [authenticate, biometric, user],
   );
   const removePin = useCallback(async () => {
-    if (!user) return { success: false, message: "Foydalanuvchi topilmadi" };
+    if (!user)
+      return {
+        success: false,
+        code: "noUser" as const,
+        message: "Foydalanuvchi topilmadi",
+      };
     await pinStorage.clearPin(user.id);
     await pinStorage.markPinSetupComplete(user.id);
     setBiometricEnabledState(false);

@@ -44,7 +44,6 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { AppInput } from "../components/AppInput";
 import { createBalanceMap } from "../modules/clients/utils/clientCalculations";
 import { useClientSearch } from "../modules/clients/hooks/useClientSearch";
-import { getCustomerCountLabel } from "../modules/clients/utils/clientList";
 import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet, useBottomSheetBackHandler } from "../bottom-sheet";
@@ -54,7 +53,7 @@ import {
   isValidUzPhone,
   toStoredUzPhone,
 } from "../utils/masks";
-import { getApiErrorMessage } from "../utils/apiError";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -81,6 +80,7 @@ export function CustomersScreen() {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const navigation = useNavigation<Nav>();
+  const { t } = useTranslation();
   const {
     customers,
     transactions,
@@ -172,12 +172,13 @@ export function CustomersScreen() {
 
   const customerCountLabel = useMemo(
     () =>
-      getCustomerCountLabel({
-        visibleCount: listData.length,
-        serverCount: isSearchActive ? searchResult.count : customers.length,
-        query: debouncedQuery,
-        debtorOnly,
-      }),
+      debtorOnly
+        ? t("customers.countDebtors", { count: listData.length })
+        : debouncedQuery
+          ? t("customers.countResults", {
+              count: isSearchActive ? searchResult.count : customers.length,
+            })
+          : t("customers.countCustomers", { count: listData.length }),
     [
       customers.length,
       debouncedQuery,
@@ -185,6 +186,7 @@ export function CustomersScreen() {
       isSearchActive,
       listData.length,
       searchResult.count,
+      t,
     ],
   );
 
@@ -229,7 +231,7 @@ export function CustomersScreen() {
     const e: { phone?: string } = {};
 
     if (!isValidUzPhone(phone))
-      e.phone = "Telefon raqami noto'g'ri (+998 XX XXX XX XX)";
+      e.phone = t("customers.phoneInvalid");
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -239,7 +241,7 @@ export function CustomersScreen() {
     if (isCreatingCustomer) return;
     if (!validateForm()) {
       hapticError();
-      showToast("Formani tekshiring", "error");
+      showToast(t("customers.formCheck"), "error");
       return;
     }
 
@@ -256,10 +258,13 @@ export function CustomersScreen() {
       resetCustomerForm();
       closeAddCustomerSheet();
       hapticSuccess();
-      showToast("Mijoz qo'shildi", "success");
+      showToast(t("customers.added"), "success");
     } catch (error) {
       hapticError();
-      showToast(getApiErrorMessage(error, "Mijoz qo'shishda xatolik"), "error");
+      showToast(
+        getLocalizedApiErrorMessage(error, "customers.addError", t),
+        "error",
+      );
     } finally {
       setIsCreatingCustomer(false);
     }
@@ -277,10 +282,10 @@ export function CustomersScreen() {
       if (permission.status !== "granted") {
         hapticError();
         if (permission.canAskAgain === false) {
-          showToast("Kontakt ruxsati bloklangan. Sozlamadan yoqing", "error");
+          showToast(t("customers.contactsPermissionBlocked"), "error");
           Linking.openSettings();
         } else {
-          showToast("Kontaktlar ruxsati berilmadi", "error");
+          showToast(t("customers.contactsPermissionDenied"), "error");
         }
         return;
       }
@@ -294,7 +299,7 @@ export function CustomersScreen() {
       const phoneValue = contact.phoneNumbers?.[0]?.number ?? "";
 
       if (!contactFullName && !phoneValue) {
-        showToast("Kontakt ma'lumotlari topilmadi", "error");
+        showToast(t("customers.contactsMissing"), "error");
         return;
       }
 
@@ -302,10 +307,10 @@ export function CustomersScreen() {
       setPhone(formatUzPhoneFromDigits(phoneValue));
       setPhoneInputKey((key) => key + 1);
       setErrors({});
-      showToast("Kontaktdan ma'lumot to'ldirildi", "success");
+      showToast(t("customers.contactsFilled"), "success");
     } catch {
       hapticError();
-      showToast("Kontaktlarni ochib bo'lmadi", "error");
+      showToast(t("customers.contactsOpenError"), "error");
     }
   }
 
@@ -352,14 +357,14 @@ export function CustomersScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.titleBlock}>
-              <Text style={styles.screenTitle}>Mijozlar</Text>
+              <Text style={styles.screenTitle}>{t("customers.screenTitle")}</Text>
               {/* <Text style={styles.screenSubtitle}>
                 Qarz va to'lovlarni boshqaring
               </Text> */}
             </View>
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel="Yangi mijoz qo'shish"
+              accessibilityLabel={t("customers.addCustomer")}
               onPress={openAddCustomerSheet}
               activeOpacity={0.82}
               style={styles.addBtn}
@@ -371,14 +376,14 @@ export function CustomersScreen() {
             <SearchBar
               value={query}
               onChangeText={handleSearchChange}
-              placeholder="Ism, telefon yoki mijoz ID"
+              placeholder={t("customers.searchPlaceholder")}
             />
           </View>
           <View style={styles.searchMeta}>
             <Text style={styles.customerCount}>{customerCountLabel}</Text>
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel="Faqat qarzdor mijozlarni ko'rsatish"
+              accessibilityLabel={t("customers.debtorFilterA11y")}
               accessibilityState={{ selected: debtorOnly }}
               activeOpacity={0.76}
               onPress={() => {
@@ -401,7 +406,7 @@ export function CustomersScreen() {
                   debtorOnly && styles.debtorFilterLabelActive,
                 ]}
               >
-                Qarzdorlar
+                {t("customers.debtorFilter")}
               </Text>
             </TouchableOpacity>
           </View>
@@ -425,21 +430,22 @@ export function CustomersScreen() {
             listError && listData.length === 0 ? (
               <EmptyState
                 iconName="cloud-offline-outline"
-                title="Ma'lumotni yuklab bo'lmadi"
-                description={getApiErrorMessage(
+                title={t("customers.fetchErrorTitle")}
+                description={getLocalizedApiErrorMessage(
                   listError,
-                  "Internetni tekshiring va qayta urinib ko'ring",
+                  "customers.fetchErrorDescription",
+                  t,
                 )}
                 action={
                   <PrimaryButton
-                    label="Qayta urinish"
+                    label={t("customers.retry")}
                     onPress={() => {
                       const refresh = isSearchActive
                         ? refetchSearch
                         : refreshCustomers;
                       void refresh().catch((error) =>
                         showToast(
-                          getApiErrorMessage(error, "Qayta yuklashda xatolik"),
+                          getLocalizedApiErrorMessage(error, "customers.retryLoadError", t),
                           "error",
                         ),
                       );
@@ -458,22 +464,22 @@ export function CustomersScreen() {
                 iconName="people-outline"
                 title={
                   isSearchActive
-                    ? "Topilmadi"
+                    ? t("customers.emptySearchTitle")
                     : debtorOnly
-                      ? "Qarzdor mijoz yo'q"
-                      : "Hali mijoz yo'q"
+                      ? t("customers.emptyDebtorsTitle")
+                      : t("customers.emptyTitle")
                 }
                 description={
                   isSearchActive
-                    ? `"${debouncedQuery}" bo'yicha natija topilmadi`
+                    ? t("customers.emptySearchDescription", { query: debouncedQuery })
                     : debtorOnly
-                      ? "Hozir barcha mijozlarning qarzi yopilgan"
-                      : "Boshlash uchun avval mijoz qo'shing"
+                      ? t("customers.emptyDebtorsDescription")
+                      : t("customers.emptyDescription")
                 }
                 action={
                   !isSearchActive && !debtorOnly ? (
                     <PrimaryButton
-                      label="Mijoz qo'shish"
+                      label={t("customers.addAction")}
                       onPress={openAddCustomerSheet}
                     />
                   ) : undefined
@@ -490,7 +496,7 @@ export function CustomersScreen() {
                   : refreshCustomers;
                 void refresh().catch((error) =>
                   showToast(
-                    getApiErrorMessage(error, "Yangilashda xatolik"),
+                    getLocalizedApiErrorMessage(error, "customers.retryLoadError", t),
                     "error",
                   ),
                 );
@@ -532,10 +538,10 @@ export function CustomersScreen() {
         >
           <AndroidSheetKeyboardBridge />
           <View style={styles.sheetHeader}>
-            <Text style={styles.sheetTitle}>Mijoz qo'shish</Text>
+            <Text style={styles.sheetTitle}>{t("customers.sheetTitle")}</Text>
             <TouchableOpacity
               accessibilityRole="button"
-              accessibilityLabel="Yopish"
+              accessibilityLabel={t("customers.close")}
               activeOpacity={0.72}
               onPress={closeAddCustomerSheet}
               style={styles.sheetCloseButton}
@@ -548,10 +554,10 @@ export function CustomersScreen() {
             <AppInput
               variant="sheet"
               compact
-              label="Ism"
+              label={t("customers.name")}
               value={fullName}
               onChangeText={setFullName}
-              placeholder="Mijoz ismini kiriting"
+              placeholder={t("customers.namePlaceholder")}
               editable={!isCreatingCustomer}
               autoCapitalize="words"
               returnKeyType="next"
@@ -563,12 +569,12 @@ export function CustomersScreen() {
               compact
               inputRef={phoneInputRef}
               key={phoneInputKey}
-              label="Telefon *"
+              label={t("customers.phoneRequired")}
               uncontrolled
               defaultValue={phone}
               transformText={formatUzPhoneFromDigits}
               onChangeText={handleAddPhoneChange}
-              placeholder="+998 XX XXX XX XX"
+              placeholder={t("customers.phonePlaceholder")}
               editable={!isCreatingCustomer}
               autoComplete="tel"
               keyboardType="phone-pad"
@@ -578,8 +584,8 @@ export function CustomersScreen() {
               trailingAccessory={
                 <TouchableOpacity
                   accessibilityRole="button"
-                  accessibilityLabel="Kontaktdan tanlash"
-                  accessibilityHint="Mijoz ismi va telefonini kontaktlardan to'ldirish"
+                  accessibilityLabel={t("customers.contactPicker")}
+                  accessibilityHint={t("customers.contactPickerHint")}
                   disabled={isCreatingCustomer}
                   activeOpacity={0.7}
                   onPress={handlePickFromContacts}
@@ -596,7 +602,7 @@ export function CustomersScreen() {
           </View>
 
           <PrimaryButton
-            label="Mijoz qo'shish"
+            label={t("customers.addAction")}
             onPress={handleCreateCustomer}
             loading={isCreatingCustomer}
             disabled={!isValidUzPhone(phone)}

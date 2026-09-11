@@ -2,6 +2,7 @@ import React, { type ErrorInfo, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { type AppTheme } from "../types";
 import { radius, spacing, typography } from "../theme";
+import { useTranslation } from "../i18n";
 
 interface Props {
   children: ReactNode;
@@ -12,7 +13,31 @@ interface State {
   hasError: boolean;
 }
 
-export class AppErrorBoundary extends React.Component<Props, State> {
+interface LocalizedCopy {
+  title: string;
+  description: string;
+  retryLabel: string;
+}
+
+interface BoundaryProps extends Props {
+  copy: LocalizedCopy;
+}
+
+export function AppErrorBoundary(props: Props) {
+  const { t } = useTranslation();
+  return (
+    <AppErrorBoundaryView
+      {...props}
+      copy={{
+        title: t("common.unexpectedError"),
+        description: t("common.retryDescription"),
+        retryLabel: t("common.retry"),
+      }}
+    />
+  );
+}
+
+class AppErrorBoundaryView extends React.Component<BoundaryProps, State> {
   state: State = { hasError: false };
 
   static getDerivedStateFromError(): State {
@@ -34,14 +59,14 @@ export class AppErrorBoundary extends React.Component<Props, State> {
       return this.props.children;
     }
 
-    const { theme } = this.props;
+    const { theme, copy } = this.props;
 
     return (
       <View style={[styles.container, { backgroundColor: theme.background }]}>
         <Text
           style={[typography.headingMedium, { color: theme.text }]}
         >
-          Kutilmagan xatolik yuz berdi
+          {copy.title}
         </Text>
         <Text
           style={[
@@ -50,18 +75,18 @@ export class AppErrorBoundary extends React.Component<Props, State> {
             { color: theme.textSecondary },
           ]}
         >
-          Ilovani qayta urinib ko'ring. Muammo takrorlansa, qo'llab-quvvatlash xizmatiga murojaat qiling.
+          {copy.description}
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Qayta urinish"
+          accessibilityLabel={copy.retryLabel}
           onPress={this.handleRetry}
           style={({ pressed }) => [
             styles.button,
             { backgroundColor: theme.primary, opacity: pressed ? 0.75 : 1 },
           ]}
         >
-          <Text style={styles.buttonText}>Qayta urinish</Text>
+          <Text style={styles.buttonText}>{copy.retryLabel}</Text>
         </Pressable>
       </View>
     );

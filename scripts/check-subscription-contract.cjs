@@ -35,6 +35,8 @@ const subscription = parser.parseCurrentSubscription({
   unlimitedClients: true,
   telegramBotEnabled: false,
   blacklistEnabled: false,
+  transactionSmsEnabled: false,
+  prioritySupportEnabled: false,
   sms: {
     periodMonth: "2026-09-01",
     monthlyLimit: 3,
@@ -51,15 +53,17 @@ assert.equal(subscription.unlimitedClients, true);
 assert.equal(subscription.sms.periodMonth, "2026-09-01");
 assert.equal(subscription.sms.totalRemaining, 3);
 
-const pro = parser.parseCurrentSubscription({
-  planCode: "PRO",
-  planName: "Pro",
+const premium = parser.parseCurrentSubscription({
+  planCode: "PREMIUM",
+  planName: "Premium",
   maxOrganizations: null,
   maxClients: null,
   unlimitedOrganizations: false,
   unlimitedClients: false,
   telegramBotEnabled: true,
   blacklistEnabled: true,
+  transactionSmsEnabled: true,
+  prioritySupportEnabled: true,
   sms: {
     monthlyLimit: 100,
     monthlyRemaining: 0,
@@ -67,9 +71,11 @@ const pro = parser.parseCurrentSubscription({
     totalRemaining: 12,
   },
 });
-assert.equal(pro.unlimitedOrganizations, true);
-assert.equal(pro.unlimitedClients, true);
-assert.equal(pro.sms.totalRemaining, 12);
+assert.equal(premium.unlimitedOrganizations, true);
+assert.equal(premium.unlimitedClients, true);
+assert.equal(premium.transactionSmsEnabled, true);
+assert.equal(premium.prioritySupportEnabled, true);
+assert.equal(premium.sms.totalRemaining, 12);
 
 const plans = parser.parseSubscriptionPlans([
   {
@@ -90,8 +96,8 @@ const plans = parser.parseSubscriptionPlans([
   },
   {
     id: 2,
-    code: "PRO",
-    name: "Pro",
+    code: "STANDARD",
+    name: "Standard",
     description: "paid",
     price: 0,
     durationDays: 30,
@@ -100,14 +106,38 @@ const plans = parser.parseSubscriptionPlans([
     monthlySmsLimit: 100,
     telegramBotEnabled: true,
     blacklistEnabled: true,
+    transactionSmsEnabled: false,
+    prioritySupportEnabled: false,
+    stateId: 1,
+    createdDate: "x",
+    updatedDate: null,
+  },
+  {
+    id: 4,
+    code: "PREMIUM",
+    name: "Premium",
+    description: "premium",
+    price: 49900,
+    durationDays: 30,
+    maxOrganizations: null,
+    maxClients: null,
+    monthlySmsLimit: 200,
+    telegramBotEnabled: true,
+    blacklistEnabled: true,
+    transactionSmsEnabled: true,
+    prioritySupportEnabled: true,
     stateId: 1,
     createdDate: "x",
     updatedDate: null,
   },
 ]);
-assert.equal(plans.length, 2);
+assert.equal(plans.length, 3);
 assert.equal(plans[0].durationDays, null);
-assert.equal(plans[1].maxOrganizations, null);
+assert.equal(plans[1].code, "STANDARD");
+assert.equal(plans[1].transactionSmsEnabled, false);
+assert.equal(plans[2].code, "PREMIUM");
+assert.equal(plans[2].transactionSmsEnabled, true);
+assert.equal(plans[2].prioritySupportEnabled, true);
 
 const packages = parser.parseSmsPackages([
   {

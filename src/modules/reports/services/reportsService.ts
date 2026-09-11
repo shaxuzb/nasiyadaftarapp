@@ -150,7 +150,9 @@ function createExportFileName(): string {
 }
 
 /** Downloads the currently selected organization's client report and opens the native save/share sheet. */
-export async function exportClientsReport(): Promise<string> {
+export async function exportClientsReport(
+  dialogTitle = "Mijozlar hisoboti",
+): Promise<string> {
   // `apiClient` retains the application's token refresh/error behavior.
   const { data } = await apiClient.get<ArrayBuffer>("/reports/export/clients", {
     responseType: "arraybuffer",
@@ -165,7 +167,7 @@ export async function exportClientsReport(): Promise<string> {
   }
 
   await Sharing.shareAsync(file.uri, {
-    dialogTitle: "Mijozlar hisoboti",
+    dialogTitle,
     mimeType: EXCEL_MIME_TYPE,
     UTI: "org.openxmlformats.spreadsheetml.sheet",
   });

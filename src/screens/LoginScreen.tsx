@@ -18,7 +18,7 @@ import { useToast } from "../context/ToastContext";
 import { APP_NAME } from "../constants";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import {
-  getGoogleSignInErrorMessage,
+  getGoogleSignInErrorKey,
   requestGoogleIdToken,
 } from "../modules/auth/services/googleSignInService";
 import {
@@ -27,8 +27,10 @@ import {
   isValidLoginIdentifier,
   normalizeLoginIdentifier,
 } from "../modules/auth/utils/loginIdentifier";
-import { getApiErrorMessage } from "../utils/apiError";
+import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
+import { LanguageSelectorButton } from "../components/LanguageSelectorButton";
+import { useTranslation } from "../i18n";
 
 interface Props {
   onGoToRegister: () => void;
@@ -37,6 +39,7 @@ interface Props {
 
 export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const { login, loginWithGoogleIdToken } = useAuth();
 
@@ -63,7 +66,7 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
   const handleLogin = async () => {
     if (!canSubmit) {
       showToast(
-        "Username yoki telefon raqami va parolni to'g'ri kiriting",
+        t("auth.login.invalidForm"),
         "error",
       );
       return;
@@ -75,9 +78,12 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
         userName: normalizeLoginIdentifier(userName),
         password,
       });
-      showToast("Muvaffaqiyatli kirildi", "success");
+      showToast(t("auth.login.success"), "success");
     } catch (error) {
-      showToast(getApiErrorMessage(error, "Login yoki parol xato"), "error");
+      showToast(
+        getLocalizedApiErrorMessage(error, "auth.login.error", t),
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -88,10 +94,10 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
       setGoogleLoading(true);
       const idToken = await requestGoogleIdToken();
       await loginWithGoogleIdToken(idToken);
-      showToast("Google orqali tizimga kirildi", "success");
+      showToast(t("auth.login.googleSuccess"), "success");
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, getGoogleSignInErrorMessage(error)),
+        t(getGoogleSignInErrorKey(error)),
         "error",
       );
     } finally {
@@ -109,6 +115,9 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
               { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
           >
+            <View style={styles.topBar}>
+              <LanguageSelectorButton />
+            </View>
             <View style={styles.headerWrap}>
               <View
                 style={[
@@ -122,7 +131,7 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
                 />
               </View>
               <Text style={[typography.headingLarge, { color: theme.text }]}>
-                Xush kelibsiz
+                {t("auth.login.title")}
               </Text>
               <Text
                 style={[
@@ -131,12 +140,12 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
                   { color: theme.textSecondary },
                 ]}
               >
-                {APP_NAME} ga kirib, mijozlar va qarzlarni tez boshqaring
+                {t("auth.login.description", { appName: APP_NAME })}
               </Text>
             </View>
 
             <AppInput
-              label="Login yoki telefon raqami"
+              label={t("auth.login.identifierLabel")}
               uncontrolled
               defaultValue={userName}
               onChangeText={handleIdentifierChange}
@@ -144,7 +153,7 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
               iconName={isPhoneIdentifier ? "call-outline" : "person-outline"}
-              placeholder="Login yoki telefon raqamini kiriting"
+              placeholder={t("auth.login.identifierPlaceholder")}
               keyboardType={isPhoneIdentifier ? "phone-pad" : "default"}
               textContentType={
                 isPhoneIdentifier ? "telephoneNumber" : "username"
@@ -154,7 +163,7 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
               returnKeyType="next"
             />
             <AppInput
-              label="Parol"
+              label={t("auth.login.passwordLabel")}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -164,7 +173,7 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
             />
 
             <PrimaryButton
-              label="Kirish"
+              label={t("auth.login.loginAction")}
               onPress={handleLogin}
               loading={loading}
               disabled={!canSubmit}
@@ -176,7 +185,7 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
               style={styles.forgotBtn}
             >
               <Text style={[typography.label, { color: theme.primary }]}>
-                Parolni unutdingizmi?
+                {t("auth.login.forgotPassword")}
               </Text>
             </TouchableOpacity>
 
@@ -204,18 +213,18 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
               )}
               <Text style={[typography.label, { color: theme.text }]}>
                 {googleLoading
-                  ? "Google orqali kirilmoqda..."
-                  : "Google bilan kirish"}
+                  ? t("auth.login.googleSigningIn")
+                  : t("auth.login.googleSignIn")}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.footerRow}>
               <Text style={[typography.bodySmall, { color: theme.textMuted }]}>
-                Akkauntingiz yo'qmi?
+                {t("auth.login.noAccount")}
               </Text>
               <TouchableOpacity onPress={onGoToRegister}>
                 <Text style={[typography.label, { color: theme.primary }]}>
-                  Ro'yxatdan o'tish
+                  {t("auth.login.registerAction")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -246,6 +255,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     padding: spacing.lg,
+  },
+  topBar: {
+    alignItems: "flex-end",
+    marginBottom: spacing.xs,
   },
   headerWrap: {
     alignItems: "center",

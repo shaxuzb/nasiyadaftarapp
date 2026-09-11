@@ -16,7 +16,9 @@ import { useToast } from "../context/ToastContext";
 import { useAuth } from "../context/AuthContext";
 import { sendSmsCode, verifySmsCode } from "../services/authApi";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { getApiErrorMessage, getApiErrorStatus } from "../utils/apiError";
+import { getApiErrorStatus } from "../utils/apiError";
+import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
+import { useTranslation } from "../i18n";
 import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
 
 const OTP_LENGTH = 6;
@@ -44,6 +46,7 @@ export function RegisterSmsVerifyScreen({
   onGoToLogin,
 }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const { register } = useAuth();
   const otpInputRef = useRef<OtpInputHandle>(null);
@@ -93,7 +96,7 @@ export function RegisterSmsVerifyScreen({
       const normalizedCode = (submittedCode ?? code).trim();
 
       if (normalizedCode.length !== OTP_LENGTH) {
-        showToast("SMS kodni to'g'ri kiriting", "error");
+        showToast(t("auth.smsVerify.invalidCode"), "error");
         return;
       }
       if (verifyingRef.current || resending) return;
@@ -108,7 +111,7 @@ export function RegisterSmsVerifyScreen({
         });
 
         if (!verifyResult.success) {
-          showToast("Kod noto'g'ri yoki muddati o'tgan", "error");
+          showToast(t("auth.smsVerify.expiredCode"), "error");
           resetOtpInput();
           return;
         }
@@ -117,9 +120,10 @@ export function RegisterSmsVerifyScreen({
           await register(registerPayload);
         } catch (registrationError) {
           showToast(
-            getApiErrorMessage(
+            getLocalizedApiErrorMessage(
               registrationError,
-              "Ro'yxatdan o'tishda xatolik",
+              "auth.smsVerify.registrationError",
+              t,
             ),
             "error",
           );
@@ -130,10 +134,10 @@ export function RegisterSmsVerifyScreen({
           return;
         }
 
-        showToast("Ro'yxatdan o'tish muvaffaqiyatli", "success");
+        showToast(t("auth.smsVerify.success"), "success");
       } catch (error) {
         showToast(
-          getApiErrorMessage(error, "Kod noto'g'ri yoki muddati o'tgan"),
+          getLocalizedApiErrorMessage(error, "auth.smsVerify.expiredCode", t),
           "error",
         );
         resetOtpInput();
@@ -150,6 +154,7 @@ export function RegisterSmsVerifyScreen({
       resending,
       resetOtpInput,
       showToast,
+      t,
     ],
   );
 
@@ -181,9 +186,12 @@ export function RegisterSmsVerifyScreen({
       setSecondsLeft(response.expiresInSeconds ?? 180);
       restartListening();
       focusOtpInput();
-      showToast("Kod qayta yuborildi", "success");
+      showToast(t("auth.smsVerify.resendSuccess"), "success");
     } catch (error) {
-      showToast(getApiErrorMessage(error, "Kod yuborishda xatolik"), "error");
+      showToast(
+        getLocalizedApiErrorMessage(error, "auth.smsVerify.resendError", t),
+        "error",
+      );
     } finally {
       setResending(false);
     }
@@ -213,7 +221,7 @@ export function RegisterSmsVerifyScreen({
                 />
               </View>
               <Text style={[typography.headingLarge, { color: theme.text }]}>
-                SMS tasdiqlash
+                {t("auth.smsVerify.title")}
               </Text>
               <Text
                 style={[
@@ -222,7 +230,7 @@ export function RegisterSmsVerifyScreen({
                   { color: theme.textSecondary },
                 ]}
               >
-                Kod {phoneMasked} raqamiga yuborildi
+                {t("auth.smsVerify.sentTo", { phone: phoneMasked })}
               </Text>
             </View>
 
@@ -232,7 +240,7 @@ export function RegisterSmsVerifyScreen({
                 { color: theme.textSecondary, marginBottom: spacing.xs },
               ]}
             >
-              SMS kod
+              {t("auth.smsVerify.codeLabel")}
             </Text>
             <OtpInput
               ref={otpInputRef}
@@ -243,7 +251,7 @@ export function RegisterSmsVerifyScreen({
             />
 
             <PrimaryButton
-              label="Tasdiqlash"
+              label={t("auth.smsVerify.verifyAction")}
               onPress={() => {
                 void handleVerify();
               }}
@@ -265,9 +273,11 @@ export function RegisterSmsVerifyScreen({
               >
                 {canResend
                   ? resending
-                    ? "Yuborilmoqda..."
-                    : "Kod qayta yuborish"
-                  : `Qayta yuborish ${secondsLeft}s`}
+                    ? t("auth.smsVerify.resending")
+                    : t("auth.smsVerify.resend")
+                  : t("auth.smsVerify.resendCountdown", {
+                      seconds: secondsLeft,
+                    })}
               </Text>
             </TouchableOpacity>
 
@@ -276,7 +286,7 @@ export function RegisterSmsVerifyScreen({
               style={styles.footerBtn}
             >
               <Text style={[typography.label, { color: theme.textMuted }]}>
-                Orqaga
+                {t("auth.smsVerify.back")}
               </Text>
             </TouchableOpacity>
           </View>

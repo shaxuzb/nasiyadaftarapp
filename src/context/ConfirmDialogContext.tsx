@@ -10,6 +10,7 @@ import React, {
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
+import { useTranslation } from "../i18n";
 
 type ConfirmVariant = "default" | "danger";
 
@@ -35,13 +36,14 @@ const ConfirmDialogContext = createContext<ConfirmDialogContextValue | undefined
 
 export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const resolverRef = useRef<((value: boolean) => void) | null>(null);
   const [dialog, setDialog] = useState<ConfirmState>({
     visible: false,
     title: "",
     message: "",
-    confirmText: "Tasdiqlash",
-    cancelText: "Bekor qilish",
+    confirmText: "",
+    cancelText: "",
     variant: "default",
   });
 
@@ -58,8 +60,8 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
         visible: true,
         title: options.title,
         message: options.message,
-        confirmText: options.confirmText ?? "Tasdiqlash",
-        cancelText: options.cancelText ?? "Bekor qilish",
+        confirmText: options.confirmText ?? t("common.confirm"),
+        cancelText: options.cancelText ?? t("common.cancel"),
         variant: options.variant ?? "default",
       });
     });
@@ -67,7 +69,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<ConfirmDialogContextValue>(
     () => ({ confirm }),
-    [confirm],
+    [confirm, t],
   );
 
   const confirmColor =

@@ -22,23 +22,29 @@ import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
 import { AppTheme, RootStackParamList } from "../types";
-import { getApiErrorMessage } from "../utils/apiError";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import { useCurrentSubscription } from "../modules/subscription/hooks/useSubscription";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
-import type { SubscriptionUpgradeReason } from "../modules/subscription/utils/upgradeOptions";
+import {
+  isPaidPlanCode,
+  normalizePlanCode,
+  type SubscriptionUpgradeReason,
+} from "../modules/subscription/utils/upgradeOptions";
+import { useBottomSheet } from "../bottom-sheet";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
+import type { TranslateKey } from "../i18n";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 const THEME_OPTIONS: ReadonlyArray<{
   mode: ThemeMode;
-  label: string;
+  labelKey: TranslateKey;
   icon: IconName;
 }> = [
-  { mode: "system", label: "Tizim", icon: "phone-portrait-outline" },
-  { mode: "light", label: "Yorug'", icon: "sunny-outline" },
-  { mode: "dark", label: "Qorong'u", icon: "moon-outline" },
+  { mode: "system", labelKey: "profile.themeSystem", icon: "phone-portrait-outline" },
+  { mode: "light", labelKey: "profile.themeLight", icon: "sunny-outline" },
+  { mode: "dark", labelKey: "profile.themeDark", icon: "moon-outline" },
 ];
 
 interface SectionTitleProps {
@@ -125,6 +131,8 @@ export function SettingsScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Navigation>();
   const { mode, setMode } = useThemeContext();
+  const { locale, t } = useTranslation();
+  const { openSheet } = useBottomSheet();
   const { user, currentOrganization, logout, openOrganizationSelector } =
     useAuth();
   const { openPhoneVerification, requireVerifiedPhone } = useAccountSecurity();
@@ -135,8 +143,17 @@ export function SettingsScreen() {
     useState<SubscriptionUpgradeReason | null>(null);
   const subscriptionQuery = useCurrentSubscription();
   const subscription = subscriptionQuery.data ?? user?.subscription;
-  const isProSubscription = subscription?.planCode?.toUpperCase() === "PRO";
+  const isPaidSubscription = isPaidPlanCode(subscription?.planCode);
   const telegramEnabled = subscription?.telegramBotEnabled !== false;
+  const subscriptionName = subscription
+    ? normalizePlanCode(subscription.planCode) === "FREE"
+      ? t("subscription.freePlan")
+      : normalizePlanCode(subscription.planCode) === "STANDARD"
+        ? t("subscription.standardPlan")
+        : normalizePlanCode(subscription.planCode) === "PREMIUM"
+          ? t("subscription.premiumPlan")
+        : subscription.planName
+    : null;
 
   const phoneVerified = hasVerifiedPhone(user);
   const initials = useMemo(
@@ -156,11 +173,11 @@ export function SettingsScreen() {
       await openOrganizationSelector();
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "Tashkilotni almashtirib bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "profile.switchOrganizationError", t),
         "error",
       );
     }
-  }, [openOrganizationSelector, showToast]);
+  }, [openOrganizationSelector, showToast, t]);
 
   const handleOpenBot = useCallback(() => {
     if (isOpeningBot) return;
@@ -170,45 +187,45 @@ export function SettingsScreen() {
       void openTelegramBot()
         .catch((error: unknown) => {
           showToast(
-            getApiErrorMessage(error, "Telegram botni ochib bo'lmadi"),
+            getLocalizedApiErrorMessage(error, "profile.botOpenError", t),
             "error",
           );
         })
         .finally(() => setIsOpeningBot(false));
     });
-  }, [isOpeningBot, requireVerifiedPhone, showToast]);
+  }, [isOpeningBot, requireVerifiedPhone, showToast, t]);
 
   const handleOpenBlacklist = useCallback(() => {
-    if (isProSubscription) {
+    if (isPaidSubscription) {
       navigation.navigate("BlacklistSettings");
       return;
     }
 
     setUpgradeReason("blacklist");
-  }, [isProSubscription, navigation]);
+  }, [isPaidSubscription, navigation]);
 
   const handleLogout = useCallback(async () => {
     const accepted = await confirm({
-      title: "Hisobdan chiqish",
-      message: "Rostdan ham tizimdan chiqmoqchimisiz?",
-      confirmText: "Chiqish",
-      cancelText: "Bekor qilish",
+      title: t("profile.logoutTitle"),
+      message: t("profile.logoutMessage"),
+      confirmText: t("profile.logout"),
+      cancelText: t("common.cancel"),
       variant: "danger",
     });
     if (!accepted) return;
 
     try {
       await logout();
-      showToast("Tizimdan chiqildi", "success");
+      showToast(t("profile.logoutSuccess"), "success");
     } catch (error) {
-      showToast(getApiErrorMessage(error, "Hisobdan chiqib bo'lmadi"), "error");
+      showToast(getLocalizedApiErrorMessage(error, "profile.logoutError", t), "error");
     }
-  }, [confirm, logout, showToast]);
+  }, [confirm, logout, showToast, t]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
-        <Text style={styles.screenTitle}>Profil</Text>
+        <Text style={styles.screenTitle}>{t("profile.screenTitle")}</Text>
       </View>
 
       <ScrollView
@@ -219,7 +236,7 @@ export function SettingsScreen() {
         {subscription ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Joriy tarif va limitlar"
+            accessibilityLabel={t("profile.planLimits")}
             onPress={() => navigation.navigate("Subscription")}
             style={({ pressed }) => [
               styles.subscriptionCard,
@@ -234,17 +251,17 @@ export function SettingsScreen() {
               />
             </View>
             <View style={styles.subscriptionCopy}>
-              <Text style={styles.subscriptionEyebrow}>JORIY TARIF</Text>
+              <Text style={styles.subscriptionEyebrow}>{t("profile.currentPlan")}</Text>
               <Text style={styles.subscriptionName}>
-                {subscription.planName}
+                {subscriptionName}
               </Text>
               <Text style={styles.subscriptionMeta} numberOfLines={1}>
                 {subscription.sms.totalRemaining === null
-                  ? "Cheksiz SMS"
-                  : `${subscription.sms.totalRemaining} ta SMS qoldi`}
+                  ? t("profile.unlimitedSms")
+                  : t("profile.smsRemaining", { count: subscription.sms.totalRemaining })}
                 {subscription.unlimitedOrganizations
-                  ? " · Cheksiz tashkilot"
-                  : ` · ${subscription.maxOrganizations ?? 0} ta tashkilot`}
+                  ? ` · ${t("profile.unlimitedOrganizations")}`
+                  : ` · ${t("profile.organizationsCount", { count: subscription.maxOrganizations ?? 0 })}`}
               </Text>
             </View>
             <Ionicons
@@ -256,15 +273,15 @@ export function SettingsScreen() {
         ) : null}
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
-            <View style={styles.avatar} accessibilityLabel="Profil rasmi">
+            <View style={styles.avatar} accessibilityLabel={t("profile.avatarLabel")}>
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
             <View style={styles.identityCopy}>
               <Text style={styles.profileName} numberOfLines={1}>
-                {user?.fullName || "Foydalanuvchi"}
+                {user?.fullName || t("profile.userFallback")}
               </Text>
               <Text selectable style={styles.username} numberOfLines={1}>
-                {user?.userName ? `@${user.userName}` : "Username mavjud emas"}
+                {user?.userName ? `@${user.userName}` : t("profile.usernameMissing")}
               </Text>
             </View>
             <View
@@ -290,7 +307,7 @@ export function SettingsScreen() {
                   },
                 ]}
               >
-                {phoneVerified ? "Tasdiqlangan" : "Tasdiqlanmagan"}
+                {phoneVerified ? t("profile.verified") : t("profile.unverified")}
               </Text>
             </View>
           </View>
@@ -299,9 +316,9 @@ export function SettingsScreen() {
             <View style={styles.profileDetailRow}>
               <Ionicons name="call-outline" size={18} color={theme.primary} />
               <View style={styles.profileDetailCopy}>
-                <Text style={styles.profileDetailLabel}>Telefon raqami</Text>
+                <Text style={styles.profileDetailLabel}>{t("profile.phone")}</Text>
                 <Text selectable style={styles.profileDetailValue}>
-                  {user?.phoneNumber || "Biriktirilmagan"}
+                  {user?.phoneNumber || t("profile.notLinked")}
                 </Text>
               </View>
             </View>
@@ -309,20 +326,20 @@ export function SettingsScreen() {
             <View style={styles.profileDetailRow}>
               <Ionicons name="mail-outline" size={18} color={theme.primary} />
               <View style={styles.profileDetailCopy}>
-                <Text style={styles.profileDetailLabel}>Email</Text>
+                <Text style={styles.profileDetailLabel}>{t("profile.email")}</Text>
                 <Text
                   selectable
                   style={styles.profileDetailValue}
                   numberOfLines={1}
                 >
-                  {user?.email || "Biriktirilmagan"}
+                  {user?.email || t("profile.notLinked")}
                 </Text>
               </View>
             </View>
           </View>
         </View>
 
-        <SectionTitle title="Hisob" />
+        <SectionTitle title={t("profile.accountSection")} />
         <View style={styles.card}>
           <ProfileMenuRow
             icon="call-outline"
@@ -330,11 +347,11 @@ export function SettingsScreen() {
             iconBackground={theme.primaryLight}
             title={
               user?.phoneNumber
-                ? "Telefon raqamini o'zgartirish"
-                : "Telefon raqamini biriktirish"
+                ? t("profile.changePhone")
+                : t("profile.linkPhone")
             }
             description={
-              user?.phoneNumber || "SMS kod orqali xavfsiz biriktiriladi"
+              user?.phoneNumber || t("profile.phoneSecurityHint")
             }
             onPress={() => openPhoneVerification()}
           />
@@ -342,51 +359,53 @@ export function SettingsScreen() {
             icon="shield-checkmark-outline"
             iconColor={theme.warningColor}
             iconBackground={theme.inputBackground}
-            title="Kirish va xavfsizlik"
-            description="PIN, biometrika, parol va Google akkaunt"
+            title={t("profile.security")}
+            description={t("profile.securityDescription")}
             onPress={() => navigation.navigate("AccountSecurity")}
           />
           <ProfileMenuRow
             icon="pricetags-outline"
             iconColor={theme.primary}
             iconBackground={theme.primaryLight}
-            title="Tariflar va limitlar"
-            description="Tarif, SMS va imkoniyatlarni ko'rish"
+            title={t("profile.planLimits")}
+            description={t("profile.planLimitsDescription")}
             onPress={() => navigation.navigate("Subscription")}
             isLast
           />
         </View>
 
-        <SectionTitle title="Tashkilot" />
+        <SectionTitle title={t("profile.organizationSection")} />
         <View style={styles.card}>
           <ProfileMenuRow
             icon="business-outline"
             iconColor={theme.primary}
             iconBackground={theme.primaryLight}
-            title={currentOrganization?.name || "Tashkilot tanlanmagan"}
+            title={currentOrganization?.name || t("profile.organizationNotSelected")}
             onPress={() => {
               void handleOrganizationSwitch();
             }}
           />
           <ProfileMenuRow
-            icon={isProSubscription ? "warning-outline" : "lock-closed-outline"}
+            icon={isPaidSubscription ? "warning-outline" : "lock-closed-outline"}
             iconColor={
-              isProSubscription ? theme.warningColor : theme.textSecondary
+              isPaidSubscription ? theme.warningColor : theme.textSecondary
             }
             iconBackground={theme.inputBackground}
-            title="Qora ro'yxat sozlamasi"
+            title={t("profile.blacklistSettings")}
             description={
-              isProSubscription
-                ? "Kechikish muddatini boshqarish"
-                : "PRO tarifida mavjud"
+              isPaidSubscription
+                ? t("profile.blacklistDescription")
+                : t("profile.paidPlanAvailable")
             }
             onPress={handleOpenBlacklist}
-            badge={isProSubscription ? undefined : "PRO"}
+            badge={
+              isPaidSubscription ? undefined : t("subscription.standardPlan")
+            }
             isLast
           />
         </View>
 
-        <SectionTitle title="Yordam va aloqa" />
+        <SectionTitle title={t("profile.helpSection")} />
         <View style={styles.card}>
           <ProfileMenuRow
             icon={telegramEnabled ? "send-outline" : "lock-closed-outline"}
@@ -394,13 +413,13 @@ export function SettingsScreen() {
             iconBackground={
               telegramEnabled ? theme.primaryLight : theme.inputBackground
             }
-            title="Telegram bot"
+            title={t("profile.telegramBot")}
             description={
               telegramEnabled
                 ? phoneVerified
-                  ? "Bot orqali qarzlarni kuzatish"
-                  : "Avval telefon raqamini tasdiqlang"
-                : "PRO tarifida mavjud"
+                  ? t("profile.telegramDescription")
+                  : t("profile.verifyPhoneFirst")
+                : t("profile.paidPlanAvailable")
             }
             onPress={
               telegramEnabled
@@ -408,14 +427,27 @@ export function SettingsScreen() {
                 : () => setUpgradeReason("telegram")
             }
             loading={telegramEnabled && isOpeningBot}
-            badge={telegramEnabled ? undefined : "PRO"}
+            badge={
+              telegramEnabled ? undefined : t("subscription.standardPlan")
+            }
             isLast
           />
         </View>
 
         <AdminContactButton variant="card" />
 
-        <SectionTitle title="Ko'rinish" />
+        <SectionTitle title={t("profile.appearanceSection")} />
+        <View style={styles.card}>
+          <ProfileMenuRow
+            icon="language-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title={t("auth.language")}
+            description={locale === "ru" ? t("auth.russian") : t("auth.uzbek")}
+            onPress={() => openSheet("language", {})}
+            isLast
+          />
+        </View>
         <View style={styles.themeSelector}>
           {THEME_OPTIONS.map((option) => {
             const active = mode === option.mode;
@@ -423,7 +455,7 @@ export function SettingsScreen() {
               <Pressable
                 key={option.mode}
                 accessibilityRole="button"
-                accessibilityLabel={`${option.label} mavzu`}
+                accessibilityLabel={t("profile.themeAccessibility", { theme: t(option.labelKey) })}
                 accessibilityState={{ selected: active }}
                 onPress={() => setMode(option.mode)}
                 style={({ pressed }) => [
@@ -443,7 +475,7 @@ export function SettingsScreen() {
                     active && styles.themeOptionTextActive,
                   ]}
                 >
-                  {option.label}
+                  {t(option.labelKey)}
                 </Text>
               </Pressable>
             );
@@ -452,7 +484,7 @@ export function SettingsScreen() {
 
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Hisobdan chiqish"
+          accessibilityLabel={t("profile.logout")}
           onPress={() => {
             void handleLogout();
           }}
@@ -466,7 +498,7 @@ export function SettingsScreen() {
             size={20}
             color={theme.dangerColor}
           />
-          <Text style={styles.logoutText}>Hisobdan chiqish</Text>
+          <Text style={styles.logoutText}>{t("profile.logout")}</Text>
         </Pressable>
       </ScrollView>
       <SubscriptionUpgradeModal

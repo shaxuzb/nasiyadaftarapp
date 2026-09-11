@@ -33,10 +33,10 @@ import {
   isValidUzPhone,
   toStoredUzPhone,
 } from "../../../utils/masks";
-import { getApiErrorMessage } from "../../../utils/apiError";
 import { hapticSuccess } from "../../../utils/haptics";
 import type { ClientUpdateRequest, Customer } from "../types";
 import type { AppTheme } from "../../../types";
+import { getLocalizedApiErrorMessage, useTranslation } from "../../../i18n";
 
 interface Props {
   customer: Customer;
@@ -47,6 +47,7 @@ interface Props {
 export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const { showToast } = useToast();
@@ -93,7 +94,7 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
   async function save() {
     if (submitting.current) return;
     if (!isValidUzPhone(phone)) {
-      setPhoneError("Telefon raqamini to'liq kiriting");
+      setPhoneError(t("transactions.phoneIncomplete"));
       return;
     }
     submitting.current = true;
@@ -106,11 +107,11 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
       });
       void KeyboardController.dismiss();
       hapticSuccess();
-      showToast("Mijoz ma'lumotlari yangilandi", "success");
+      showToast(t("transactions.updated"), "success");
       sheet.current?.dismiss();
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, "O'zgarishlarni saqlab bo'lmadi"),
+        getLocalizedApiErrorMessage(error, "transactions.updateError", t),
         "error",
       );
     } finally {
@@ -150,10 +151,10 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
       >
         <AndroidSheetKeyboardBridge />
         <View style={styles.header}>
-          <Text style={styles.title}>Mijozni tahrirlash</Text>
+          <Text style={styles.title}>{t("transactions.editTitle")}</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Yopish"
+            accessibilityLabel={t("transactions.close")}
             disabled={saving}
             onPress={close}
             style={styles.close}
@@ -164,7 +165,7 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
         <AppInput
           variant="sheet"
           compact
-          label="Ism"
+          label={t("customers.name")}
           value={name}
           onChangeText={setName}
           editable={!saving}
@@ -177,7 +178,7 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
           variant="sheet"
           compact
           inputRef={phoneRef}
-          label="Telefon *"
+          label={t("customers.phoneRequired")}
           uncontrolled
           defaultValue={phone}
           transformText={formatUzPhoneFromDigits}
@@ -190,16 +191,16 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
         <AppInput
           variant="sheet"
           compact
-          label="Izoh"
+          label={t("transactions.note")}
           value={note}
           onChangeText={setNote}
           editable={!saving}
-          placeholder="Qo'shimcha ma'lumot (ixtiyoriy)"
+          placeholder={t("transactions.editNotePlaceholder")}
           multiline
           style={styles.note}
         />
         <PrimaryButton
-          label="Saqlash"
+          label={t("common.save")}
           onPress={save}
           loading={saving}
           disabled={!changed || !isValidUzPhone(phone)}

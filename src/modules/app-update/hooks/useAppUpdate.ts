@@ -4,10 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Linking } from "react-native";
 
 import { useToast } from "../../../context/ToastContext";
-import {
-  APP_UPDATE_CHECK_INTERVAL_MS,
-  APP_UPDATE_COPY,
-} from "../constants/appUpdate.constants";
+import { useTranslation } from "../../../i18n";
+import { APP_UPDATE_CHECK_INTERVAL_MS } from "../constants/appUpdate.constants";
 import {
   fetchPlatformUpdateConfig,
   getAppUpdatePlatform,
@@ -39,6 +37,7 @@ function getCurrentVersion(): string | null {
 
 export function useAppUpdate(): AppUpdateController {
   const { showToast } = useToast();
+  const { t } = useTranslation();
   const [availableUpdate, setAvailableUpdate] =
     useState<AvailableAppUpdate | null>(null);
   const [isChecking, setIsChecking] = useState(false);
@@ -182,12 +181,12 @@ export function useAppUpdate(): AppUpdateController {
       await Linking.openURL(availableUpdate.config.storeUrl);
     } catch (error) {
       logDevelopmentError("Store URL ochilmadi", error);
-      showToast(APP_UPDATE_COPY.storeOpenError, "error");
+      showToast(t("common.update.storeOpenError"), "error");
     } finally {
       openingStoreRef.current = false;
       if (mountedRef.current) setIsOpeningStore(false);
     }
-  }, [availableUpdate, showToast]);
+  }, [availableUpdate, showToast, t]);
 
   return {
     availableUpdate,

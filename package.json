@@ -8,6 +8,8 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
+    "check:i18n": "node scripts/check-i18n.cjs",
+    "check:language-sheet": "node scripts/check-language-sheet-opening.cjs",
     "check:sheet-keyboard": "node scripts/check-bottom-sheet-keyboard.cjs",
     "doctor": "expo-doctor",
     "audit:production": "npm audit --omit=dev --audit-level=moderate"

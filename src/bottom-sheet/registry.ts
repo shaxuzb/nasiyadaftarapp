@@ -4,6 +4,7 @@ import {
   TransactionSheetProvider,
 } from "./sheets/TransactionSheet";
 import { TransactionDetailSheet } from "./sheets/TransactionDetailSheet";
+import { LanguageSheet } from "./sheets/LanguageSheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
@@ -16,5 +17,11 @@ export const sheetRegistry: SheetRegistry = {
     component: TransactionDetailSheet,
     snapPoints: ["88%"],
     enablePanDownToClose: true,
+  },
+  language: {
+    component: LanguageSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+    dismissKeyboardOnOpen: false,
   },
 };

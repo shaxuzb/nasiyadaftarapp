@@ -14,6 +14,7 @@ import { useTheme } from "../../../hooks/useTheme";
 import { radius, spacing, typography } from "../../../theme";
 import { AppTheme } from "../../../types";
 import { useAdminContact } from "../hooks/useAdminContact";
+import { useTranslation } from "../../../i18n";
 
 interface AdminContactButtonProps {
   variant?: "compact" | "card";
@@ -25,6 +26,7 @@ export const AdminContactButton = React.memo(function AdminContactButton({
   style,
 }: AdminContactButtonProps) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { isOpening, openAdminContact } = useAdminContact();
   const isCard = variant === "card";
@@ -32,8 +34,8 @@ export const AdminContactButton = React.memo(function AdminContactButton({
   return (
     <Pressable
       accessibilityRole="link"
-      accessibilityLabel="Administrator bilan Telegram orqali bog'lanish"
-      accessibilityHint="Administratorning Telegram profilini ochadi"
+      accessibilityLabel={t("common.adminContact")}
+      accessibilityHint={t("common.adminContactHint")}
       accessibilityState={{ disabled: isOpening, busy: isOpening }}
       disabled={isOpening}
       onPress={() => {
@@ -64,11 +66,11 @@ export const AdminContactButton = React.memo(function AdminContactButton({
           style={[styles.title, !isCard && styles.compactTitle]}
           numberOfLines={1}
         >
-          Admin bilan aloqa
+          {t("common.adminContactTitle")}
         </Text>
         {isCard ? (
           <Text style={styles.description} numberOfLines={1}>
-            Telegram orqali yozish
+            {t("common.adminContactDescription")}
           </Text>
         ) : null}
       </View>

@@ -24,21 +24,22 @@ import type { SmsHistoryFilters } from "../modules/client-sms/types";
 import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
-import { getApiErrorMessage } from "../utils/apiError";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const PAGE_SIZE = 20;
 const statuses = [
-  { label: "Hammasi", value: undefined },
-  { label: "Yuborildi", value: "sent" },
-  { label: "Xato", value: "failed" },
-  { label: "O'tkazildi", value: "skipped" },
+  { labelKey: "sms.statusAll", value: undefined },
+  { labelKey: "sms.statusSent", value: "sent" },
+  { labelKey: "sms.statusFailed", value: "failed" },
+  { labelKey: "sms.statusSkipped", value: "skipped" },
 ] as const;
 
 export function ClientSmsHistoryScreen() {
   const navigation = useNavigation<Nav>();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
   const { user } = useAuth();
   const capabilities = getClientSmsCapabilities(user?.permissions);
   if (!capabilities.canViewHistory)
@@ -47,8 +48,8 @@ export function ClientSmsHistoryScreen() {
         <Header onBack={() => navigation.goBack()} />
         <EmptyState
           iconName="lock-closed-outline"
-          title="Ruxsat mavjud emas"
-          description="SMS tarixini ko'rish uchun ruxsat kerak."
+          title={t("sms.historyPermissionTitle")}
+          description={t("sms.historyPermissionDescription")}
         />
       </SafeAreaView>
     );
@@ -59,6 +60,7 @@ function HistoryContent() {
   const navigation = useNavigation<Nav>();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [status, setStatus] = useState<string>();
@@ -87,7 +89,7 @@ function HistoryContent() {
         <SearchBar
           value={search}
           onChangeText={setSearch}
-          placeholder="Mijoz yoki telefon bo'yicha qidirish"
+          placeholder={t("sms.historySearchPlaceholder")}
         />
       </View>
       <View>
@@ -98,7 +100,7 @@ function HistoryContent() {
         >
           {statuses.map((item) => (
             <Pressable
-              key={item.label}
+              key={item.labelKey}
               accessibilityRole="button"
               accessibilityState={{ selected: status === item.value }}
               onPress={() => setStatus(item.value)}
@@ -110,13 +112,13 @@ function HistoryContent() {
                   status === item.value && styles.chipTextActive,
                 ]}
               >
-                {item.label}
+                {t(item.labelKey)}
               </Text>
             </Pressable>
           ))}
         </ScrollView>
       </View>
-      <Text style={styles.count}>{count} ta SMS yozuvi</Text>
+      <Text style={styles.count}>{t("sms.historyCount", { count })}</Text>
       {history.isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={theme.primary} />
@@ -124,14 +126,15 @@ function HistoryContent() {
       ) : history.isError ? (
         <EmptyState
           iconName="cloud-offline-outline"
-          title="SMS tarixi yuklanmadi"
-          description={getApiErrorMessage(
+          title={t("sms.historyLoadError")}
+          description={getLocalizedApiErrorMessage(
             history.error,
-            "Internet aloqasini tekshiring",
+            "customers.fetchErrorDescription",
+            t,
           )}
           action={
             <PrimaryButton
-              label="Qayta urinish"
+              label={t("customers.retry")}
               onPress={() => void history.refetch()}
             />
           }
@@ -149,8 +152,8 @@ function HistoryContent() {
           ListEmptyComponent={
             <EmptyState
               iconName="time-outline"
-              title="SMS tarixi bo'sh"
-              description="Yuborilgan SMS'lar shu yerda ko'rinadi."
+              title={t("sms.historyEmpty")}
+              description={t("sms.historyEmptyDescription")}
             />
           }
           refreshControl={
@@ -199,17 +202,18 @@ function HistoryContent() {
 function Header({ onBack }: { onBack: () => void }) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
   return (
     <View style={styles.header}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Orqaga qaytish"
+        accessibilityLabel={t("common.back")}
         onPress={onBack}
         style={styles.headerButton}
       >
         <Ionicons name="arrow-back" size={24} color={theme.text} />
       </Pressable>
-      <Text style={styles.title}>SMS tarixi</Text>
+      <Text style={styles.title}>{t("sms.historyTitle")}</Text>
       <View style={styles.headerButton} />
     </View>
   );

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../hooks/useTheme";
 import { typography } from "../theme";
 import { AppTheme } from "../types";
+import { useTranslation } from "../i18n";
 
 interface Props {
   value: string;
@@ -21,6 +22,7 @@ export function SearchBar({
   filterActive = false,
 }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
@@ -45,7 +47,7 @@ export function SearchBar({
           ref={inputRef}
           value={value}
           onChangeText={onChangeText}
-          placeholder={placeholder ?? "Qidirish..."}
+          placeholder={placeholder ?? t("common.search")}
           placeholderTextColor={theme.textMuted}
           style={[typography.bodyMedium, styles.input, { color: theme.text }]}
           clearButtonMode="while-editing"
@@ -57,7 +59,7 @@ export function SearchBar({
       {value.length > 0 ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Qidiruvni tozalash"
+          accessibilityLabel={t("common.clearSearch")}
           onPress={() => onChangeText("")}
           hitSlop={8}
           style={styles.iconButton}
@@ -68,7 +70,7 @@ export function SearchBar({
       {onFilterPress ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Qarzdor mijozlarni filtrlash"
+          accessibilityLabel={t("common.filterDebtors")}
           accessibilityState={{ selected: filterActive }}
           onPress={onFilterPress}
           hitSlop={8}

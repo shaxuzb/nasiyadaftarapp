@@ -112,7 +112,7 @@ export function parseSmsRecipients(input: unknown): PagedResult<SmsRecipient> {
       return [
         {
           id,
-          fullName: text(item.fullName, item.clientName) || "Mijoz",
+          fullName: text(item.fullName, item.clientName),
           phone: text(item.phoneNumber, item.phone),
           currentBalance: number(item.currentBalance),
           overdueBalance: number(item.overdueBalance),
@@ -178,7 +178,7 @@ export function parseSmsHistory(input: unknown): PagedResult<SmsHistoryItem> {
       return {
         id: positiveId(item.id) ?? -(index + 1),
         clientId: positiveId(item.clientId),
-        fullName: text(item.fullName, item.clientName) || "Mijoz",
+        fullName: text(item.fullName, item.clientName),
         phone: text(item.phoneNumber, item.phone),
         status,
         normalizedStatus: status.toLocaleLowerCase(),

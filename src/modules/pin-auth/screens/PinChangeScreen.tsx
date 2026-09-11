@@ -9,6 +9,8 @@ import { useTheme } from "../../../hooks/useTheme";
 import { AppTheme, RootStackParamList } from "../../../types";
 import { radius, spacing, typography } from "../../../theme";
 import { useAppLock } from "../context/AppLockContext";
+import { useTranslation } from "../../../i18n";
+import { translatePinError } from "../utils/pinErrors";
 import { PIN_LENGTH, validatePin } from "../utils/pinValidation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "PinChange">;
@@ -17,6 +19,7 @@ const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 export function PinChangeScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
   const { changePin, verifyCurrentPin } = useAppLock();
   const [step, setStep] = useState<"current" | "new" | "confirm">("current");
   const [value, setValue] = useState("");
@@ -65,7 +68,7 @@ export function PinChangeScreen({ navigation }: Props) {
       setBusy(true);
       try {
         if (!(await verifyCurrentPin(pin))) {
-          animateError("Amaldagi PIN-kod noto‘g‘ri. Qayta kiriting.");
+          animateError(t("security.currentPinInvalid"));
           return;
         }
         setCurrentPin(pin);
@@ -80,7 +83,11 @@ export function PinChangeScreen({ navigation }: Props) {
     if (step === "new") {
       const validation = validatePin(pin);
       if (!validation.valid) {
-        animateError(validation.message);
+        animateError(
+          validation.code === "length"
+            ? t("security.pinLengthError")
+            : t("security.pinWeakError"),
+        );
         return;
       }
       setNewPin(pin);
@@ -92,7 +99,7 @@ export function PinChangeScreen({ navigation }: Props) {
     if (pin !== newPin) {
       setStep("new");
       setNewPin("");
-      animateError("Yangi PIN-kodlar mos kelmadi. Qayta kiriting.");
+      animateError(t("security.pinMismatch"));
       return;
     }
 
@@ -103,7 +110,9 @@ export function PinChangeScreen({ navigation }: Props) {
         setStep("current");
         setCurrentPin("");
         setNewPin("");
-        animateError(result.message ?? "PIN-kodni almashtirib bo'lmadi");
+        animateError(
+          translatePinError(t, result.code, "security.pinSaveError"),
+        );
         return;
       }
       Animated.spring(success, {
@@ -114,14 +123,10 @@ export function PinChangeScreen({ navigation }: Props) {
       }).start();
       setPassed(true);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setMessage("PIN-kod muvaffaqiyatli yangilandi");
+      setMessage(t("security.pinUpdated"));
       setTimeout(() => navigation.goBack(), 420);
-    } catch (error) {
-      animateError(
-        error instanceof Error
-          ? error.message
-          : "PIN-kodni almashtirib bo'lmadi",
-      );
+    } catch {
+      animateError(t("security.pinSaveError"));
     } finally {
       setBusy(false);
     }
@@ -142,29 +147,29 @@ export function PinChangeScreen({ navigation }: Props) {
 
   const title =
     step === "current"
-      ? "Amaldagi PIN-kod"
+      ? t("security.currentPin")
       : step === "new"
-        ? "Yangi PIN-kod"
-        : "PIN-kodni tasdiqlang";
+        ? t("security.newPin")
+        : t("security.confirmPin");
   const description =
     step === "current"
-      ? "Xavfsizlik uchun avval amaldagi PIN-kodingizni kiriting."
+      ? t("security.currentPinDescription")
       : step === "new"
-        ? "4 xonali, taxmin qilish qiyin bo‘lgan PIN tanlang."
-        : "Yangi PIN-kodingizni yana bir marta kiriting.";
+        ? t("security.newPinDescription")
+        : t("security.confirmPinDescription");
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Orqaga qaytish"
+          accessibilityLabel={t("common.back")}
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={23} color={theme.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>PIN-kodni o‘zgartirish</Text>
+        <Text style={styles.headerTitle}>{t("security.pinChange")}</Text>
       </View>
       <View style={styles.content}>
         <Animated.View
@@ -234,7 +239,7 @@ export function PinChangeScreen({ navigation }: Props) {
               <Pressable
                 key={digit}
                 accessibilityRole="button"
-                accessibilityLabel={digit === "back" ? "O‘chirish" : digit}
+                accessibilityLabel={digit === "back" ? t("security.deleteDigit") : digit}
                 onPress={() => press(digit)}
                 style={({ pressed }) => [
                   styles.key,

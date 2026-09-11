@@ -19,27 +19,42 @@ import {
 } from "../modules/subscription/hooks/useSubscription";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import { useAdminContact } from "../modules/support/hooks/useAdminContact";
-import { formatCurrency } from "../utils";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
+import { formatLocalizedCurrency, useTranslation } from "../i18n";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
-function limitLabel(value: number | null, unlimited: boolean, unit: string) {
-  return unlimited || value === null ? `Cheksiz ${unit}` : `${value} ${unit}`;
+function limitLabel(
+  value: number | null,
+  unlimited: boolean,
+  unit: string,
+  unlimitedLabel: string,
+) {
+  return unlimited || value === null
+    ? `${unlimitedLabel} ${unit}`
+    : `${value} ${unit}`;
 }
 
-function priceLabel(price: number, durationDays: number | null) {
-  if (price === 0) return "Hozircha bepul";
+function priceLabel(
+  price: number,
+  durationDays: number | null,
+  locale: "uz" | "ru",
+  freeLabel: string,
+  durationLabel: (params: { price: string; days: number }) => string,
+) {
+  if (price === 0) return freeLabel;
+  const formattedPrice = formatLocalizedCurrency(price, locale);
   return durationDays
-    ? `${formatCurrency(price)} so'm / ${durationDays} kun`
-    : `${formatCurrency(price)} so'm`;
+    ? durationLabel({ price: formattedPrice, days: durationDays })
+    : formattedPrice;
 }
 
 export function SubscriptionScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Navigation>();
+  const { locale, t } = useTranslation();
   const currentQuery = useCurrentSubscription();
   const plansQuery = useSubscriptionPlans();
   const packagesQuery = useSmsPackages();
@@ -48,19 +63,37 @@ export function SubscriptionScreen() {
   const plans = plansQuery.data ?? [];
   const packages = packagesQuery.data ?? [];
   const isLoading = plansQuery.isPending && !plans.length;
+  const getPlanName = (code: string, fallback: string) => {
+    const normalized = code.toUpperCase();
+    if (normalized === "FREE") return t("subscription.freePlan");
+    if (normalized === "STANDARD") return t("subscription.standardPlan");
+    if (normalized === "PREMIUM") return t("subscription.premiumPlan");
+    return fallback;
+  };
+  const getPlanDescription = (code: string, fallback: string) => {
+    const normalized = code.toUpperCase();
+    if (normalized === "FREE") return t("subscription.freePlanDescription");
+    if (normalized === "STANDARD") {
+      return t("subscription.standardPlanDescription");
+    }
+    if (normalized === "PREMIUM") {
+      return t("subscription.premiumPlanDescription");
+    }
+    return fallback;
+  };
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Orqaga qaytish"
+          accessibilityLabel={t("common.back")}
           onPress={() => navigation.goBack()}
           style={styles.backButton}
         >
           <Ionicons name="arrow-back" size={23} color={theme.text} />
         </Pressable>
-        <Text style={styles.title}>Tariflar va limitlar</Text>
+        <Text style={styles.title}>{t("subscription.screenTitle")}</Text>
         <View style={styles.backButton} />
       </View>
       <ScrollView
@@ -78,11 +111,13 @@ export function SubscriptionScreen() {
                 />
               </View>
               <View style={styles.flexCopy}>
-                <Text style={styles.eyebrow}>JORIY TARIF</Text>
-                <Text style={styles.currentName}>{current.planName}</Text>
+                <Text style={styles.eyebrow}>{t("subscription.currentPlan")}</Text>
+                <Text style={styles.currentName}>
+                  {getPlanName(current.planCode, current.planName)}
+                </Text>
               </View>
               <View style={styles.activeBadge}>
-                <Text style={styles.activeBadgeText}>Faol</Text>
+                <Text style={styles.activeBadgeText}>{t("subscription.active")}</Text>
               </View>
             </View>
             <View style={styles.quotaRow}>
@@ -92,7 +127,7 @@ export function SubscriptionScreen() {
                     ? "∞"
                     : current.sms.totalRemaining}
                 </Text>
-                <Text style={styles.quotaLabel}>qolgan SMS</Text>
+                <Text style={styles.quotaLabel}>{t("subscription.remainingSms")}</Text>
               </View>
               <View style={styles.quotaDivider} />
               <View style={styles.quotaItem}>
@@ -101,33 +136,34 @@ export function SubscriptionScreen() {
                     ? "∞"
                     : current.maxOrganizations ?? 0}
                 </Text>
-                <Text style={styles.quotaLabel}>tashkilot</Text>
+                <Text style={styles.quotaLabel}>{t("subscription.organizations")}</Text>
               </View>
               <View style={styles.quotaDivider} />
               <View style={styles.quotaItem}>
                 <Text style={styles.quotaValue}>
                   {current.blacklistEnabled ? "✓" : "—"}
                 </Text>
-                <Text style={styles.quotaLabel}>qora ro'yxat</Text>
+                <Text style={styles.quotaLabel}>{t("subscription.blacklist")}</Text>
               </View>
             </View>
           </View>
         ) : currentQuery.isPending ? (
           <View style={styles.loadingCard}>
             <ActivityIndicator color={theme.primary} />
-            <Text style={styles.muted}>Joriy tarif yuklanmoqda...</Text>
+            <Text style={styles.muted}>{t("subscription.loadingCurrent")}</Text>
           </View>
         ) : null}
 
-        <SectionTitle title="Mavjud tariflar" theme={theme} />
+        <SectionTitle title={t("subscription.availablePlans")} theme={theme} />
         {isLoading ? (
           <View style={styles.loadingCard}>
             <ActivityIndicator color={theme.primary} />
-            <Text style={styles.muted}>Tariflar yuklanmoqda...</Text>
+            <Text style={styles.muted}>{t("subscription.loadingPlans")}</Text>
           </View>
         ) : plans.length ? (
           plans.map((plan) => {
-            const isCurrent = plan.code === current?.planCode;
+            const isCurrent =
+              plan.code.toUpperCase() === current?.planCode.toUpperCase();
             return (
               <View
                 key={plan.id}
@@ -135,24 +171,33 @@ export function SubscriptionScreen() {
               >
                 <View style={styles.planHeader}>
                   <View style={styles.flexCopy}>
-                    <Text style={styles.planName}>{plan.name}</Text>
+                    <Text style={styles.planName}>
+                      {getPlanName(plan.code, plan.name)}
+                    </Text>
                     <Text style={styles.planDescription}>
-                      {plan.description}
+                      {getPlanDescription(plan.code, plan.description)}
                     </Text>
                   </View>
                   {isCurrent ? (
-                    <Text style={styles.currentLabel}>Joriy</Text>
+                    <Text style={styles.currentLabel}>{t("subscription.current")}</Text>
                   ) : null}
                 </View>
                 <Text style={styles.price}>
-                  {priceLabel(plan.price, plan.durationDays)}
+                  {priceLabel(
+                    plan.price,
+                    plan.durationDays,
+                    locale,
+                    t("subscription.freePrice"),
+                    (params) => t("subscription.priceForDays", params),
+                  )}
                 </Text>
                 <View style={styles.featureList}>
                   <FeatureRow
                     text={limitLabel(
                       plan.maxOrganizations,
                       plan.maxOrganizations === null,
-                      "tashkilot",
+                      t("subscription.organizations"),
+                      t("subscription.unlimited"),
                     )}
                     theme={theme}
                     styles={styles}
@@ -160,8 +205,8 @@ export function SubscriptionScreen() {
                   <FeatureRow
                     text={
                       plan.monthlySmsLimit === null
-                        ? "Cheksiz SMS"
-                        : `${plan.monthlySmsLimit} SMS / oy`
+                        ? `${t("subscription.unlimited")} SMS`
+                        : t("subscription.smsPerMonth", { count: plan.monthlySmsLimit })
                     }
                     theme={theme}
                     styles={styles}
@@ -169,8 +214,8 @@ export function SubscriptionScreen() {
                   <FeatureRow
                     text={
                       plan.blacklistEnabled
-                        ? "Qora ro'yxat mavjud"
-                        : "Qora ro'yxat mavjud emas"
+                        ? t("subscription.blacklistAvailable")
+                        : t("subscription.blacklistUnavailable")
                     }
                     enabled={plan.blacklistEnabled}
                     theme={theme}
@@ -179,10 +224,30 @@ export function SubscriptionScreen() {
                   <FeatureRow
                     text={
                       plan.telegramBotEnabled
-                        ? "Telegram bot mavjud"
-                        : "Telegram bot mavjud emas"
+                        ? t("subscription.telegramAvailable")
+                        : t("subscription.telegramUnavailable")
                     }
                     enabled={plan.telegramBotEnabled}
+                    theme={theme}
+                    styles={styles}
+                  />
+                  <FeatureRow
+                    text={
+                      plan.transactionSmsEnabled
+                        ? t("subscription.transactionSmsAvailable")
+                        : t("subscription.transactionSmsUnavailable")
+                    }
+                    enabled={plan.transactionSmsEnabled}
+                    theme={theme}
+                    styles={styles}
+                  />
+                  <FeatureRow
+                    text={
+                      plan.prioritySupportEnabled
+                        ? t("subscription.prioritySupportAvailable")
+                        : t("subscription.prioritySupportUnavailable")
+                    }
+                    enabled={plan.prioritySupportEnabled}
                     theme={theme}
                     styles={styles}
                   />
@@ -190,7 +255,7 @@ export function SubscriptionScreen() {
                 {!isCurrent ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`${plan.name} tarifini faollashtirish`}
+                    accessibilityLabel={`${getPlanName(plan.code, plan.name)} ${t("subscription.adminActivate")}`}
                     accessibilityState={{
                       disabled: isOpening,
                       busy: isOpening,
@@ -206,7 +271,7 @@ export function SubscriptionScreen() {
                       <ActivityIndicator size="small" color={theme.primary} />
                     ) : null}
                     <Text style={styles.planActionText}>
-                      Admin orqali faollashtirish
+                      {t("subscription.adminActivate")}
                     </Text>
                     <Ionicons
                       name="arrow-forward"
@@ -220,11 +285,11 @@ export function SubscriptionScreen() {
           })
         ) : (
           <View style={styles.loadingCard}>
-            <Text style={styles.muted}>Tariflar topilmadi.</Text>
+            <Text style={styles.muted}>{t("subscription.plansNotFound")}</Text>
           </View>
         )}
 
-        <SectionTitle title="SMS paketlar" theme={theme} />
+        <SectionTitle title={t("subscription.packages")} theme={theme} />
         <View style={styles.packageGrid}>
           {packages.map((item) => (
             <View key={item.id} style={styles.packageCard}>
@@ -237,9 +302,15 @@ export function SubscriptionScreen() {
               </View>
               <Text style={styles.packageName}>{item.name}</Text>
               <Text style={styles.packagePrice}>
-                {priceLabel(item.price, null)}
+                {priceLabel(
+                  item.price,
+                  null,
+                  locale,
+                  t("subscription.freePrice"),
+                  (params) => t("subscription.priceForDays", params),
+                )}
               </Text>
-              <Text style={styles.packageHint}>Admin orqali ulash</Text>
+              <Text style={styles.packageHint}>{t("subscription.packageHint")}</Text>
             </View>
           ))}
         </View>
@@ -250,8 +321,7 @@ export function SubscriptionScreen() {
             color={theme.primary}
           />
           <Text style={styles.infoText}>
-            Tarif va SMS paketlarini faollashtirish uchun administrator bilan
-            bog'laning.
+            {t("subscription.info")}
           </Text>
         </View>
         <AdminContactButton variant="card" />

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import type { AppTheme } from "../../../types";
-import { formatDate } from "../../../utils";
+import { formatLocalizedDate, useTranslation } from "../../../i18n";
 import type { SmsHistoryItem } from "../types";
 
 export const SmsHistoryRow = memo(function SmsHistoryRow({
@@ -13,6 +13,8 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
 }) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { locale, t } = useTranslation();
+  const displayName = item.fullName.trim() || t("sms.clientFallback");
   const sent =
     item.normalizedStatus === "sent" || item.normalizedStatus === "success";
   const failed =
@@ -23,12 +25,12 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
       ? theme.dangerColor
       : theme.warningColor;
   const label = sent
-    ? "Yuborildi"
+    ? t("sms.statusSent")
     : failed
-      ? "Xato"
+      ? t("sms.statusFailed")
       : item.normalizedStatus === "skipped"
-        ? "O'tkazildi"
-        : item.status;
+        ? t("sms.statusSkipped")
+        : item.status || t("common.unexpectedError");
   return (
     <View style={styles.card}>
       <View
@@ -51,10 +53,10 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
       </View>
       <View style={styles.copy}>
         <Text numberOfLines={1} style={styles.name}>
-          {item.fullName}
+          {displayName}
         </Text>
         <Text numberOfLines={1} style={styles.phone}>
-          {item.phone || "Telefon mavjud emas"}
+          {item.phone || t("sms.recipientPhoneMissing")}
         </Text>
         {item.errorMessage || item.message ? (
           <Text
@@ -81,7 +83,7 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
           <Text style={[styles.status, { color }]}>{label}</Text>
         </View>
         {item.sentAt ? (
-          <Text style={styles.date}>{formatDate(item.sentAt)}</Text>
+          <Text style={styles.date}>{formatLocalizedDate(item.sentAt, locale)}</Text>
         ) : null}
       </View>
     </View>

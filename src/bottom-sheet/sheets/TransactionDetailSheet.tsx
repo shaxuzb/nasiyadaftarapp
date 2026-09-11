@@ -5,8 +5,12 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { SheetRenderProps } from "../types";
 import { AppTheme } from "../../types";
-import { formatCurrency, formatDate } from "../../utils";
 import { useTheme } from "../../hooks/useTheme";
+import {
+  formatLocalizedCurrency,
+  formatLocalizedDate,
+  useTranslation,
+} from "../../i18n";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -39,13 +43,17 @@ export function TransactionDetailSheet({
 }: SheetRenderProps<"transactionDetail">) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { locale, t } = useTranslation();
   const { transaction } = props;
   const isDebt = transaction.type === "debt";
   const accentColor = isDebt ? theme.debtColor : theme.paymentColor;
   const accentBackground = isDebt ? theme.debtBg : theme.paymentBg;
-  const title = isDebt ? "Qarz berildi" : "To'lov qabul qilindi";
+  const title = isDebt
+    ? t("transactions.detailDebt")
+    : t("transactions.detailPayment");
   const note =
-    transaction.note?.trim() || (isDebt ? "Nasiya berildi" : "To'lov olindi");
+    transaction.note?.trim() ||
+    (isDebt ? t("transactions.noteEmptyDebt") : t("transactions.noteEmptyPayment"));
 
   return (
     <BottomSheetScrollView
@@ -76,51 +84,51 @@ export function TransactionDetailSheet({
         ]}
       >
         <Text style={styles.amountLabel}>
-          {isDebt ? "Qarz summasi" : "To'lov summasi"}
+          {isDebt ? t("transactions.debtAmount") : t("transactions.paymentAmount")}
         </Text>
         <Text selectable style={[styles.amount, { color: accentColor }]}>
-          {isDebt ? "−" : "+"} {formatCurrency(transaction.amount)}
+          {isDebt ? "−" : "+"} {formatLocalizedCurrency(transaction.amount, locale)}
         </Text>
         <Text selectable style={styles.amountDate}>
-          {formatDate(transaction.date)}
+          {formatLocalizedDate(transaction.date, locale)}
         </Text>
       </View>
 
       <View style={styles.detailsCard}>
         <DetailRow
           icon="person-outline"
-          label="Mijoz"
+          label={t("transactions.customer")}
           value={props.customerName}
         />
         <View style={styles.rowDivider} />
         <DetailRow
           icon="swap-vertical-outline"
-          label="Tranzaksiya turi"
-          value={isDebt ? "Qarz" : "To'lov"}
+          label={t("transactions.type")}
+          value={isDebt ? t("common.debt") : t("common.payment")}
         />
         <View style={styles.rowDivider} />
         <DetailRow
           icon="calendar-outline"
-          label="Sana"
-          value={formatDate(transaction.date)}
+          label={t("transactions.date")}
+          value={formatLocalizedDate(transaction.date, locale)}
         />
         <View style={styles.rowDivider} />
-        <DetailRow icon="document-text-outline" label="Izoh" value={note} />
+        <DetailRow icon="document-text-outline" label={t("transactions.note")} value={note} />
         <View style={styles.rowDivider} />
         <DetailRow
           icon="key-outline"
-          label="Tranzaksiya ID"
+          label={t("transactions.transactionId")}
           value={String(transaction.id)}
         />
       </View>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Yopish"
+        accessibilityLabel={t("transactions.close")}
         onPress={() => closeSheet()}
         style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
       >
-        <Text style={styles.closeButtonText}>Yopish</Text>
+        <Text style={styles.closeButtonText}>{t("transactions.close")}</Text>
       </Pressable>
     </BottomSheetScrollView>
   );

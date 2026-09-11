@@ -2,7 +2,7 @@ import { BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
 import { ComponentType, ReactElement, ReactNode } from "react";
 import { Transaction } from "../modules/transactions/types";
 
-export type SheetType = "transaction" | "transactionDetail";
+export type SheetType = "transaction" | "transactionDetail" | "language";
 
 export interface TransactionSheetProps {
   customerId: number;
@@ -18,9 +18,12 @@ export interface TransactionDetailSheetProps {
   customerName: string;
 }
 
+export type LanguageSheetProps = Record<never, never>;
+
 export interface SheetPropsMap {
   transaction: TransactionSheetProps;
   transactionDetail: TransactionDetailSheetProps;
+  language: LanguageSheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {
@@ -35,6 +38,8 @@ export interface SheetDefinition<T extends SheetType> {
   provider?: ComponentType<SheetRenderProps<T> & { children: ReactNode }>;
   enableDynamicSizing?: boolean;
   enablePanDownToClose?: boolean;
+  /** Keyboard dismissal is needed only for sheets that can open from text input flows. */
+  dismissKeyboardOnOpen?: boolean;
 }
 
 export type SheetRegistry = {

@@ -20,11 +20,13 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { sendSmsCode } from "../services/authApi";
 import { isValidUzPhone, toStoredUzPhone, uzPhoneMask } from "../utils/masks";
 import {
-  getGoogleSignInErrorMessage,
+  getGoogleSignInErrorKey,
   requestGoogleIdToken,
 } from "../modules/auth/services/googleSignInService";
-import { getApiErrorMessage } from "../utils/apiError";
+import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
+import { LanguageSelectorButton } from "../components/LanguageSelectorButton";
+import { useTranslation } from "../i18n";
 
 interface Props {
   onGoToLogin: () => void;
@@ -42,6 +44,7 @@ interface Props {
 
 export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const { showToast } = useToast();
   const { loginWithGoogleIdToken } = useAuth();
 
@@ -61,7 +64,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
 
   const handleRegister = async () => {
     if (!canSubmit) {
-      showToast("Ma'lumotlarni to'g'ri kiriting", "error");
+      showToast(t("auth.register.invalidForm"), "error");
       return;
     }
 
@@ -78,7 +81,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
       };
 
       const smsResult = await sendSmsCode({ phone: safePhone });
-      showToast("SMS kod yuborildi", "success");
+      showToast(t("auth.register.smsSent"), "success");
 
       onGoToSmsVerify({
         registerPayload,
@@ -86,7 +89,10 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
         expiresInSeconds: smsResult.expiresInSeconds,
       });
     } catch (error) {
-      showToast(getApiErrorMessage(error, "SMS yuborishda xatolik"), "error");
+      showToast(
+        getLocalizedApiErrorMessage(error, "auth.register.smsError", t),
+        "error",
+      );
     } finally {
       setLoading(false);
     }
@@ -97,10 +103,10 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
       setGoogleLoading(true);
       const idToken = await requestGoogleIdToken();
       await loginWithGoogleIdToken(idToken);
-      showToast("Google orqali tizimga kirildi", "success");
+      showToast(t("auth.register.googleSuccess"), "success");
     } catch (error) {
       showToast(
-        getApiErrorMessage(error, getGoogleSignInErrorMessage(error)),
+        t(getGoogleSignInErrorKey(error)),
         "error",
       );
     } finally {
@@ -118,6 +124,9 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
               { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
           >
+            <View style={styles.topBar}>
+              <LanguageSelectorButton />
+            </View>
             <View style={styles.headerWrap}>
               <View
                 style={[
@@ -131,7 +140,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
                 />
               </View>
               <Text style={[typography.headingLarge, { color: theme.text }]}>
-                Hisob ochish
+                {t("auth.register.title")}
               </Text>
               <Text
                 style={[
@@ -140,30 +149,29 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
                   { color: theme.textSecondary },
                 ]}
               >
-                {APP_NAME} bilan 1 daqiqada ro'yxatdan o'ting va darhol ishni
-                boshlang
+                {t("auth.register.description", { appName: APP_NAME })}
               </Text>
             </View>
 
             <AppInput
-              label="F.I.SH"
+              label={t("auth.register.fullNameLabel")}
               value={fullName}
               onChangeText={setFullName}
               iconName="person-outline"
-              placeholder="Ism Familiya"
+              placeholder={t("auth.register.fullNamePlaceholder")}
             />
             <AppInput
-              label="Telefon raqam"
+              label={t("auth.register.phoneLabel")}
               uncontrolled
               defaultValue={phoneNumber}
               onChangeText={setPhoneNumber}
               keyboardType="phone-pad"
               iconName="call-outline"
-              placeholder="+998 XX XXX XX XX"
+              placeholder={t("auth.register.phonePlaceholder")}
               mask={uzPhoneMask}
             />
             <AppInput
-              label="Parol"
+              label={t("auth.register.passwordLabel")}
               value={password}
               onChangeText={setPassword}
               secureTextEntry
@@ -173,7 +181,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
             />
 
             <PrimaryButton
-              label="Ro'yxatdan o'tish"
+              label={t("auth.register.action")}
               onPress={handleRegister}
               loading={loading}
               disabled={!canSubmit}
@@ -204,18 +212,18 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
               )}
               <Text style={[typography.label, { color: theme.text }]}>
                 {googleLoading
-                  ? "Google orqali kirilmoqda..."
-                  : "Google bilan kirish"}
+                  ? t("auth.login.googleSigningIn")
+                  : t("auth.login.googleSignIn")}
               </Text>
             </TouchableOpacity>
 
             <View style={styles.footerRow}>
               <Text style={[typography.bodySmall, { color: theme.textMuted }]}>
-                Akkauntingiz bormi?
+                {t("auth.register.hasAccount")}
               </Text>
               <TouchableOpacity onPress={onGoToLogin}>
                 <Text style={[typography.label, { color: theme.primary }]}>
-                  Kirish
+                  {t("auth.register.loginAction")}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -246,6 +254,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     borderWidth: 1,
     padding: spacing.lg,
+  },
+  topBar: {
+    alignItems: "flex-end",
+    marginBottom: spacing.xs,
   },
   headerWrap: {
     alignItems: "center",

@@ -68,7 +68,7 @@ export function parseCurrentSubscription(input: unknown): CurrentSubscription {
     subscriptionId: Math.max(0, integer(value.subscriptionId)),
     planId: Math.max(0, integer(value.planId)),
     planCode: text(value.planCode, "FREE"),
-    planName: text(value.planName, "Bepul"),
+    planName: text(value.planName),
     price: amount(value.price),
     startAt: text(value.startAt),
     endAt: nullableText(value.endAt),
@@ -81,6 +81,8 @@ export function parseCurrentSubscription(input: unknown): CurrentSubscription {
     unlimitedClients: bool(value.unlimitedClients) || maxClients === null,
     telegramBotEnabled: bool(value.telegramBotEnabled),
     blacklistEnabled: bool(value.blacklistEnabled),
+    transactionSmsEnabled: bool(value.transactionSmsEnabled),
+    prioritySupportEnabled: bool(value.prioritySupportEnabled),
     sms: parseQuota(value.sms),
   };
 }
@@ -100,7 +102,7 @@ export function parseSubscriptionPlans(input: unknown): SubscriptionPlan[] {
       {
         id,
         code: text(value.code, `PLAN_${id}`),
-        name: text(value.name, "Tarif"),
+        name: text(value.name),
         description: text(value.description),
         price: amount(value.price),
         durationDays: nullableInteger(value.durationDays),
@@ -109,6 +111,8 @@ export function parseSubscriptionPlans(input: unknown): SubscriptionPlan[] {
         monthlySmsLimit: nullableInteger(value.monthlySmsLimit),
         telegramBotEnabled: bool(value.telegramBotEnabled),
         blacklistEnabled: bool(value.blacklistEnabled),
+        transactionSmsEnabled: bool(value.transactionSmsEnabled),
+        prioritySupportEnabled: bool(value.prioritySupportEnabled),
         stateId: integer(value.stateId),
         createdDate: text(value.createdDate),
         updatedDate: nullableText(value.updatedDate),

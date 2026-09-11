@@ -16,6 +16,7 @@ import { AppTheme } from "../../../types";
 import { radius, spacing, typography } from "../../../theme";
 import { useAppLock } from "../context/AppLockContext";
 import { useConfirmDialog } from "../../../context/ConfirmDialogContext";
+import { useTranslation } from "../../../i18n";
 import { PIN_LENGTH, validatePin } from "../utils/pinValidation";
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
@@ -25,6 +26,7 @@ const wait = (duration: number) =>
 export function PinGateScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
   const {
     setupRequired,
     displayName,
@@ -44,6 +46,10 @@ export function PinGateScreen() {
   const autoPrompted = React.useRef(false);
   const shake = React.useRef(new Animated.Value(0)).current;
   const success = React.useRef(new Animated.Value(1)).current;
+  const biometricLabel =
+    biometric?.label === "Barmoq izi"
+      ? t("security.fingerprint")
+      : biometric?.label ?? t("security.biometric");
 
   const animateError = (text: string) => {
     success.stopAnimation();
@@ -84,7 +90,11 @@ export function PinGateScreen() {
         if (!firstPin) {
           const result = validatePin(pin);
           if (!result.valid) {
-            animateError(result.message);
+            animateError(
+              result.code === "length"
+                ? t("security.pinLengthError")
+                : t("security.pinWeakError"),
+            );
             return;
           }
           setFirstPin(pin);
@@ -93,7 +103,7 @@ export function PinGateScreen() {
         }
         if (pin !== firstPin) {
           setFirstPin(null);
-          animateError("PIN-kodlar mos kelmadi. Qayta urinib ko‘ring.");
+          animateError(t("security.pinMismatch"));
           return;
         }
         Animated.spring(success, {
@@ -103,7 +113,7 @@ export function PinGateScreen() {
           useNativeDriver: true,
         }).start();
         setPassed(true);
-        setMessage("PIN-kod saqlanmoqda…");
+        setMessage(t("security.pinSaving"));
         void Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         );
@@ -121,18 +131,20 @@ export function PinGateScreen() {
       setPassed(true);
       const result = await submitUnlockPin(pin);
       if (result.status === "invalid")
-        animateError(
-          `PIN noto‘g‘ri. ${result.attemptsRemaining} urinish qoldi.`,
-        );
+        animateError(t("security.pinInvalidAttempts", { count: result.attemptsRemaining }));
       else if (result.status === "logged-out")
-        animateError("Xavfsizlik uchun hisobdan chiqarildingiz.");
+        animateError(t("security.securityLoggedOut"));
       else
         void Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
         );
     } catch (error) {
       animateError(
-        error instanceof Error ? error.message : "PIN-kodni saqlab bo‘lmadi",
+        error instanceof Error && error.message === "length"
+          ? t("security.pinLengthError")
+          : error instanceof Error && error.message === "weak"
+            ? t("security.pinWeakError")
+            : t("security.pinSaveError"),
       );
     } finally {
       setBusy(false);
@@ -157,7 +169,7 @@ export function PinGateScreen() {
     if (busy || !biometricEnabled) return;
     setBusy(true);
     setPassed(true);
-    setMessage("Tasdiqlanmoqda…");
+    setMessage(t("security.pinConfirming"));
     Animated.spring(success, {
       toValue: 1.12,
       friction: 5,
@@ -167,12 +179,10 @@ export function PinGateScreen() {
     try {
       const unlocked = await unlockWithBiometrics();
       if (!unlocked)
-        animateError(`${biometric?.label ?? "Biometrika"} tasdiqlanmadi`);
-    } catch (error) {
+        animateError(t("security.biometricDeclined", { label: biometricLabel }));
+    } catch {
       animateError(
-        error instanceof Error
-          ? error.message
-          : `${biometric?.label ?? "Biometrika"} tasdiqlanmadi`,
+        t("security.biometricDeclined", { label: biometricLabel }),
       );
     } finally {
       setBusy(false);
@@ -182,11 +192,10 @@ export function PinGateScreen() {
   const onForgotPin = async () => {
     if (busy) return;
     const accepted = await confirm({
-      title: "PIN-kodni unutdingizmi?",
-      message:
-        "PIN ma’lumotlari o‘chiriladi va xavfsizlik uchun hisobdan chiqasiz. Qayta login qilgach, yangi PIN o‘rnatishingiz mumkin.",
-      confirmText: "Chiqish va o‘chirish",
-      cancelText: "Bekor qilish",
+      title: t("security.forgotPinTitle"),
+      message: t("security.forgotPinMessage"),
+      confirmText: t("security.forgotPinConfirm"),
+      cancelText: t("common.cancel"),
       variant: "danger",
     });
     if (!accepted) return;
@@ -206,7 +215,7 @@ export function PinGateScreen() {
     let active = true;
     setBusy(true);
     setPassed(true);
-    setMessage("Biometrika tekshirilmoqda…");
+    setMessage(t("security.pinChecking"));
     Animated.spring(success, {
       toValue: 1.12,
       friction: 5,
@@ -216,15 +225,12 @@ export function PinGateScreen() {
     void unlockWithBiometrics()
       .then((unlocked) => {
         if (!active) return;
-        if (!unlocked) animateError(`${biometric.label} tasdiqlanmadi`);
+        if (!unlocked)
+          animateError(t("security.biometricDeclined", { label: biometricLabel }));
       })
-      .catch((error) => {
+      .catch(() => {
         if (!active) return;
-        animateError(
-          error instanceof Error
-            ? error.message
-            : `${biometric.label} tasdiqlanmadi`,
-        );
+        animateError(t("security.biometricDeclined", { label: biometricLabel }));
       })
       .finally(() => {
         if (active) setBusy(false);
@@ -234,19 +240,19 @@ export function PinGateScreen() {
       success.stopAnimation();
       shake.stopAnimation();
     };
-  }, [biometric, biometricEnabled, setupRequired, unlockWithBiometrics]);
+  }, [biometric, biometricEnabled, biometricLabel, setupRequired, t, unlockWithBiometrics]);
 
   const confirming = setupRequired && firstPin !== null;
   const title = setupRequired
     ? confirming
-      ? "PIN-kodni takrorlang"
-      : "PIN-kod yarating"
-    : `Xush kelibsiz, ${displayName.split(" ")[0]}`;
+      ? t("security.pinRepeat")
+      : t("security.pinCreate")
+    : t("security.welcome", { name: displayName.split(" ")[0] });
   const description = setupRequired
     ? confirming
-      ? "Kiritgan PIN-kodingizni yana bir marta yozing."
-      : "Hisobingizga tez va xavfsiz kirish uchun 4 xonali PIN tanlang."
-    : "Davom etish uchun PIN-kodni kiriting.";
+      ? t("security.pinRepeatDescription")
+      : t("security.pinCreateDescription")
+    : t("security.pinEnterDescription");
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -321,7 +327,7 @@ export function PinGateScreen() {
           <View style={styles.loadingPanel}>
             <ActivityIndicator size="small" color={theme.primary} />
             <Text style={styles.loadingText}>
-              {passed ? "Tasdiqlanmoqda…" : "Tekshirilmoqda…"}
+              {passed ? t("security.pinConfirming") : t("security.pinChecking")}
             </Text>
           </View>
         ) : (
@@ -332,7 +338,7 @@ export function PinGateScreen() {
                   <Pressable
                     key="biometric"
                     accessibilityRole="button"
-                    accessibilityLabel={`${biometric?.label ?? "Biometrika"} bilan kirish`}
+                    accessibilityLabel={t("security.biometricLogin", { label: biometricLabel })}
                     onPress={() => void onBiometric()}
                     style={({ pressed }) => [
                       styles.key,
@@ -352,7 +358,7 @@ export function PinGateScreen() {
                 <Pressable
                   key={digit}
                   accessibilityRole="button"
-                  accessibilityLabel={digit === "back" ? "O‘chirish" : digit}
+                  accessibilityLabel={digit === "back" ? t("security.deleteDigit") : digit}
                   onPress={() => press(digit)}
                   style={({ pressed }) => [
                     styles.key,
@@ -376,7 +382,7 @@ export function PinGateScreen() {
         {!setupRequired && !busy ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="PIN-kodni unutdim"
+            accessibilityLabel={t("security.forgotPinTitle")}
             onPress={() => void onForgotPin()}
             style={({ pressed }) => [
               styles.forgotButton,
@@ -388,7 +394,7 @@ export function PinGateScreen() {
               size={16}
               color={theme.textSecondary}
             />
-            <Text style={styles.forgotText}>PIN-kodni unutdingizmi?</Text>
+            <Text style={styles.forgotText}>{t("security.forgotPinTitle")}</Text>
           </Pressable>
         ) : null}
       </View>

@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppTheme, Customer } from "../types";
 import { formatDisplayedBalance, getFullName, getInitials } from "../utils";
 import { useTheme } from "../hooks/useTheme";
+import { useTranslation } from "../i18n";
 
 interface Props {
   customer: Customer;
@@ -17,12 +18,13 @@ export const CustomerCard = memo(function CustomerCard({
   onPress,
 }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${getFullName(customer)}, ${formatDisplayedBalance(balance)}`}
-      accessibilityHint="Qarz yoki to'lov kiritish oynasini ochish"
+      accessibilityHint={t("common.openTransactionSheet")}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >

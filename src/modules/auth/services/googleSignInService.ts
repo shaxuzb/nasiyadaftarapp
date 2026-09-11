@@ -6,8 +6,26 @@ import {
   statusCodes,
 } from "react-native-nitro-google-signin";
 import { GOOGLE_AUTH_CONFIG } from "../../../config/env";
+import type { TranslateKey } from "../../../i18n";
 
 let isConfigured = false;
+
+type GoogleSignInReason =
+  | "configMissing"
+  | "wrongClient"
+  | "cancelled"
+  | "accountNotSelected"
+  | "tokenMissing";
+
+class GoogleSignInFlowError extends Error {
+  readonly reason: GoogleSignInReason;
+
+  constructor(reason: GoogleSignInReason) {
+    super(reason);
+    this.name = "GoogleSignInFlowError";
+    this.reason = reason;
+  }
+}
 
 function configureGoogleSignIn() {
   if (isConfigured) {
@@ -18,15 +36,11 @@ function configureGoogleSignIn() {
   const androidClientId = GOOGLE_AUTH_CONFIG.androidClientId?.trim();
 
   if (!webClientId) {
-    throw new Error(
-      "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID sozlanmagan. Google Cloud'dagi Web OAuth client ID kerak.",
-    );
+    throw new GoogleSignInFlowError("configMissing");
   }
 
   if (androidClientId && webClientId === androidClientId) {
-    throw new Error(
-      "Google Web client ID o'rniga Android client ID yozilgan. Google Cloud'da Web application turidagi OAuth client yarating.",
-    );
+    throw new GoogleSignInFlowError("wrongClient");
   }
 
   GoogleOneTapSignIn.configure({
@@ -46,18 +60,16 @@ export async function requestGoogleIdToken(): Promise<string> {
   const response = await GoogleOneTapSignIn.presentExplicitSignIn();
 
   if (isCancelledResponse(response)) {
-    throw new Error(
-      "Google kirish yakunlanmadi. Account tanlangandan keyin qaytsa Web client ID va Android signing SHA-1'ni tekshiring.",
-    );
+    throw new GoogleSignInFlowError("cancelled");
   }
 
   if (!isSuccessResponse(response)) {
-    throw new Error("Google akkaunt tanlanmadi");
+    throw new GoogleSignInFlowError("accountNotSelected");
   }
 
   const idToken = response.data.idToken?.trim();
   if (!idToken) {
-    throw new Error("Google ID token qaytarmadi");
+    throw new GoogleSignInFlowError("tokenMissing");
   }
 
   return idToken;
@@ -90,23 +102,30 @@ export function getGoogleEmailFromIdToken(idToken: string): string | null {
   }
 }
 
-export function getGoogleSignInErrorMessage(error: unknown): string {
+export function getGoogleSignInErrorKey(error: unknown): TranslateKey {
   if (isErrorWithCode(error)) {
     switch (error.code) {
       case statusCodes.PLAY_SERVICES_NOT_AVAILABLE:
-        return "Google Play Services mavjud emas yoki yangilanishi kerak";
+        return "auth.googleErrors.playServices";
       case statusCodes.DEVELOPER_ERROR:
-        return "Google OAuth sozlamasi noto'g'ri: package nomi, SHA-1 va client ID'ni tekshiring";
+        return "auth.googleErrors.developer";
       case statusCodes.IN_PROGRESS:
-        return "Google orqali kirish jarayoni allaqachon ochilgan";
+        return "auth.googleErrors.inProgress";
       case statusCodes.SIGN_IN_CANCELLED:
-        return "Google orqali kirish bekor qilindi";
+        return "auth.googleErrors.cancelled";
       default:
         break;
     }
   }
 
-  return error instanceof Error
-    ? error.message
-    : "Google orqali kirishda kutilmagan xatolik";
+  if (error instanceof GoogleSignInFlowError) {
+    return `auth.googleErrors.${error.reason}` as TranslateKey;
+  }
+
+  return "auth.googleErrors.unexpected";
+}
+
+/** @deprecated Use getGoogleSignInErrorKey with the active translator. */
+export function getGoogleSignInErrorMessage(error: unknown): string {
+  return getGoogleSignInErrorKey(error);
 }

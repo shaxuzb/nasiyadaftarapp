@@ -6,7 +6,6 @@ import React, {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   Modal,
   Pressable,
   StyleSheet,
@@ -26,12 +25,13 @@ import {
   toStoredUzPhone,
   uzPhoneMask,
 } from "../../../utils/masks";
-import { getApiErrorMessage } from "../../../utils/apiError";
 import {
   confirmPhoneChange,
   requestPhoneChange,
 } from "../services/accountService";
 import { useOtpAutoFill } from "../../auth/hooks/useOtpAutoFill";
+import { useTranslation } from "../../../i18n";
+import { getLocalizedApiErrorMessage } from "../../../i18n/apiErrors";
 
 interface Props {
   visible: boolean;
@@ -58,6 +58,7 @@ export function PhoneVerificationModal({
   onVerified,
 }: Props) {
   const theme = useTheme();
+  const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const otpRef = useRef<OtpInputHandle>(null);
   const [phoneNumber, setPhoneNumber] = useState(currentPhone || "+998 ");
@@ -90,7 +91,7 @@ export function PhoneVerificationModal({
 
   async function handleRequest() {
     if (!isValidUzPhone(phoneNumber)) {
-      setError("Telefon raqamini to'g'ri kiriting");
+      setError(t("errors.validation"));
       return;
     }
 
@@ -103,7 +104,9 @@ export function PhoneVerificationModal({
       setStage("code");
       requestAnimationFrame(() => otpRef.current?.focus());
     } catch (requestError) {
-      setError(getApiErrorMessage(requestError, "Kod yuborib bo'lmadi"));
+      setError(
+        getLocalizedApiErrorMessage(requestError, "errors.generic", t),
+      );
     } finally {
       setLoading(false);
     }
@@ -111,7 +114,7 @@ export function PhoneVerificationModal({
 
   async function handleConfirm() {
     if (code.trim().length !== OTP_LENGTH) {
-      setError("6 xonali tasdiqlash kodini kiriting");
+      setError(t("security.otpRequired"));
       return;
     }
 
@@ -126,7 +129,7 @@ export function PhoneVerificationModal({
       onDismiss();
     } catch (confirmError) {
       setError(
-        getApiErrorMessage(confirmError, "Kod noto'g'ri yoki muddati o'tgan"),
+        getLocalizedApiErrorMessage(confirmError, "security.otpExpired", t),
       );
       setCode("");
       requestAnimationFrame(() => otpRef.current?.focus());
@@ -159,18 +162,18 @@ export function PhoneVerificationModal({
           </View>
           <Text style={styles.title}>
             {isChange
-              ? "Telefon raqamini yangilang"
-              : "Telefon raqamini biriktiring"}
+              ? t("security.updatePhone")
+              : t("security.linkPhone")}
           </Text>
           <Text style={styles.description}>
             {stage === "phone"
-              ? "Xavfsizlik va Telegram botdan foydalanish uchun telefon raqamingizni tasdiqlang."
-              : `${requestedPhone} raqamiga yuborilgan kodni kiriting.`}
+              ? t("security.phoneVerificationDescription")
+              : t("security.enterCodeForPhone", { phone: requestedPhone })}
           </Text>
 
           {stage === "phone" ? (
             <AppInput
-              label="Telefon raqami"
+              label={t("security.phoneNumber")}
               uncontrolled
               defaultValue={phoneNumber}
               onChangeText={handlePhoneChange}
@@ -186,7 +189,7 @@ export function PhoneVerificationModal({
               {visible ? (
                 <PhoneOtpAutoFill onCodeReceived={handleAutoFilledCode} />
               ) : null}
-              <Text style={styles.codeLabel}>Tasdiqlash kodi</Text>
+              <Text style={styles.codeLabel}>{t("security.verificationCode")}</Text>
               <OtpInput
                 ref={otpRef}
                 value={code}
@@ -207,13 +210,17 @@ export function PhoneVerificationModal({
                 }}
                 style={styles.changePhoneButton}
               >
-                <Text style={styles.changePhoneText}>Raqamni o'zgartirish</Text>
+                <Text style={styles.changePhoneText}>{t("security.changePhone")}</Text>
               </Pressable>
             </View>
           )}
 
           <PrimaryButton
-            label={stage === "phone" ? "Kod yuborish" : "Tasdiqlash"}
+            label={
+              stage === "phone"
+                ? t("security.sendCode")
+                : t("common.confirm")
+            }
             onPress={() => {
               void (stage === "phone" ? handleRequest() : handleConfirm());
             }}
@@ -222,12 +229,12 @@ export function PhoneVerificationModal({
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Keyinroq"
+            accessibilityLabel={t("common.later")}
             disabled={loading}
             onPress={onDismiss}
             style={styles.laterButton}
           >
-            <Text style={styles.laterText}>Keyinroq</Text>
+            <Text style={styles.laterText}>{t("common.later")}</Text>
           </Pressable>
         </View>
       </KeyboardAwareScrollView>

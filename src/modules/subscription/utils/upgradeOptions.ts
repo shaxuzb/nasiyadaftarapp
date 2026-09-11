@@ -1,6 +1,8 @@
 export type SubscriptionUpgradeReason =
   "sms-limit" | "telegram" | "organization-limit" | "blacklist";
 
+export type PaidPlanCode = "STANDARD" | "PREMIUM";
+
 interface SubscriptionSnapshot {
   planCode?: string | null;
 }
@@ -14,19 +16,31 @@ export interface SubscriptionUpgradeOptions {
   icon: SubscriptionUpgradeIcon;
   steps: readonly string[];
   showQuota: boolean;
-  showPro: boolean;
+  showPlans: boolean;
   showPackages: boolean;
+  recommendedPlanCode: PaidPlanCode;
+}
+
+export function normalizePlanCode(planCode?: string | null) {
+  return planCode?.trim().toUpperCase() ?? "FREE";
+}
+
+export function isPaidPlanCode(planCode?: string | null) {
+  const normalized = normalizePlanCode(planCode);
+  return normalized === "STANDARD" || normalized === "PREMIUM";
 }
 
 export function getSubscriptionUpgradeOptions(
   subscription: SubscriptionSnapshot | null | undefined,
   reason: SubscriptionUpgradeReason,
 ): SubscriptionUpgradeOptions {
-  const isPro = subscription?.planCode?.toUpperCase() === "PRO";
+  const currentPlanCode = normalizePlanCode(subscription?.planCode);
+  const isPremium = currentPlanCode === "PREMIUM";
+  const recommendedPlanCode: PaidPlanCode = "PREMIUM";
 
   if (reason === "telegram") {
     return {
-      title: "Telegram bot PRO tarifida",
+      title: "Telegram bot pullik tarifda",
       description: "Kundalik mijozlar qarzi hisobotini Telegram orqali oling.",
       icon: "telegram",
       steps: [
@@ -35,8 +49,9 @@ export function getSubscriptionUpgradeOptions(
         "Kundalik Excel hisobot oling",
       ],
       showQuota: false,
-      showPro: !isPro,
+      showPlans: !isPremium && currentPlanCode !== "STANDARD",
       showPackages: false,
+      recommendedPlanCode,
     };
   }
 
@@ -44,18 +59,19 @@ export function getSubscriptionUpgradeOptions(
     return {
       title: "Tashkilot limiti tugadi",
       description:
-        "Yana tashkilot yaratish uchun cheksiz tashkilotlar beradigan PRO tarifiga o'ting.",
+        "Yana tashkilot yaratish uchun Standard yoki Premium tarifini tanlang.",
       icon: "organization",
       steps: ["Barcha do'konlaringizni bitta akkauntda boshqaring"],
       showQuota: false,
-      showPro: !isPro,
+      showPlans: !isPremium && currentPlanCode !== "STANDARD",
       showPackages: false,
+      recommendedPlanCode,
     };
   }
 
   if (reason === "blacklist") {
     return {
-      title: "Qora ro'yxat PRO tarifida",
+      title: "Qora ro'yxat pullik tarifda",
       description: "Muddati o'tgan qarzdorlarni avtomatik aniqlang.",
       icon: "blacklist",
       steps: [
@@ -64,20 +80,22 @@ export function getSubscriptionUpgradeOptions(
         "Boshqa do'konlardagi holatini ko'rish",
       ],
       showQuota: false,
-      showPro: !isPro,
+      showPlans: !isPremium && currentPlanCode !== "STANDARD",
       showPackages: false,
+      recommendedPlanCode,
     };
   }
 
   return {
     title: "SMS limitingiz tugadi",
-    description: isPro
+    description: isPremium
       ? "SMS yuborishni davom ettirish uchun mos variantni tanlang."
       : "Bu oy uchun bepul SMS limitingiz tugadi.",
     icon: "sms",
     steps: [],
     showQuota: true,
-    showPro: !isPro,
+    showPlans: !isPremium,
     showPackages: true,
+    recommendedPlanCode,
   };
 }
