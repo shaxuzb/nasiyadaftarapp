@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -25,6 +25,9 @@ import { parseBlacklistDays } from "../modules/organization/utils/blacklistSetti
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
+import { EmptyState } from "../components/EmptyState";
+import { useAuth } from "../context/AuthContext";
+import { useCurrentSubscription } from "../modules/subscription/hooks/useSubscription";
 import {
   KeyboardAwareScrollView,
   KeyboardAvoidingView,
@@ -37,9 +40,14 @@ export function BlacklistSettingsScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
+  const { user } = useAuth();
+  const subscriptionQuery = useCurrentSubscription();
+  const subscription = subscriptionQuery.data ?? user?.subscription;
   const currentOrganization = useCurrentOrganization();
   const [value, setValue] = useState("");
   const [savedValue, setSavedValue] = useState<number | null>(null);
+  const inputRef = useRef<TextInput>(null);
+  const [focused, setFocused] = useState(false);
   const update = useUpdateBlacklistSettings();
   const serverDays = currentOrganization.data?.blacklistAfterDays;
   useEffect(() => {
@@ -52,6 +60,29 @@ export function BlacklistSettingsScreen() {
   const changed = savedValue !== null && parsed !== savedValue;
   const isLoadingOrganization =
     currentOrganization.isPending && !currentOrganization.data;
+  if (subscription?.blacklistEnabled === false) {
+    return (
+      <SafeAreaView style={styles.safe} edges={["top"]}>
+        <View style={styles.header}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Orqaga qaytish"
+            onPress={() => navigation.goBack()}
+            style={styles.headerButton}
+          >
+            <Ionicons name="arrow-back" size={24} color={theme.text} />
+          </Pressable>
+          <Text style={styles.title}>Qora ro'yxat</Text>
+          <View style={styles.headerButton} />
+        </View>
+        <EmptyState
+          iconName="lock-closed-outline"
+          title="Bu imkoniyat tarifingizda yo'q"
+          description="Qora ro'yxat funksiyasidan foydalanish uchun PRO tarifini faollashtiring."
+        />
+      </SafeAreaView>
+    );
+  }
   const save = async () => {
     if (!valid || !changed || update.isPending) return;
     try {
@@ -114,8 +145,16 @@ export function BlacklistSettingsScreen() {
                 </View>
               ) : (
                 <>
-                  <View style={[styles.field, !valid && styles.fieldError]}>
+                  <Pressable
+                    onPress={() => inputRef.current?.focus()}
+                    style={[
+                      styles.field,
+                      !valid && styles.fieldError,
+                      focused && valid && styles.fieldFocused,
+                    ]}
+                  >
                     <TextInput
+                      ref={inputRef}
                       value={value}
                       onChangeText={(text) =>
                         setValue(text.replace(/\D/g, "").slice(0, 4))
@@ -124,10 +163,12 @@ export function BlacklistSettingsScreen() {
                       returnKeyType="none"
                       selectionColor={theme.primary}
                       style={styles.input}
+                      onFocus={() => setFocused(true)}
+                      onBlur={() => setFocused(false)}
                       accessibilityLabel="Qora ro'yxatga tushish kunlari"
                     />
                     <Text style={styles.suffix}>kun</Text>
-                  </View>
+                  </Pressable>
                   {!valid ? (
                     <Text style={styles.error}>
                       1 dan 3650 gacha butun kun kiriting.
@@ -239,6 +280,7 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.inputBackground,
     },
     fieldError: { borderColor: theme.dangerColor },
+    fieldFocused: { borderColor: theme.primary, borderWidth: 1.5 },
     loadingField: {
       minHeight: 58,
       flexDirection: "row",

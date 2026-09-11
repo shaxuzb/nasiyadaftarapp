@@ -1,4 +1,5 @@
 import { OrganizationMembership } from "../../organization/types";
+import type { CurrentSubscription } from "../../subscription/types";
 
 export interface AuthUser {
   id: number;
@@ -22,6 +23,7 @@ export interface AuthUser {
   isParent: boolean;
   modules: Array<number | string>;
   permissions: string[];
+  subscription?: CurrentSubscription;
 }
 
 export interface RegisterRequest {

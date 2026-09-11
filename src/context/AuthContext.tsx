@@ -38,15 +38,18 @@ import {
   getManualOrganizations,
 } from "../modules/organization/services/organizationService";
 import {
-  MAX_ORGANIZATIONS_PER_USER,
   OrganizationMembership,
   OrganizationRequest,
 } from "../modules/organization/types";
+import { getCurrentSubscription } from "../modules/subscription/services/subscriptionService";
+import { canCreateOrganization } from "../modules/subscription/utils/entitlements";
 import { isAuthResponse } from "../modules/auth/utils/authResponse";
 import {
   clearOrganizationQueries,
   invalidateAccountDependentQueries,
 } from "../core/query/queryInvalidation";
+import { queryClient } from "../core/query/queryClient";
+import { queryKeys } from "../core/query/queryKeys";
 import { getOrganizationSelectionBackAction } from "./organizationSelection";
 
 interface AuthContextValue {
@@ -62,6 +65,7 @@ interface AuthContextValue {
     payload: OrganizationRequest,
   ) => Promise<void>;
   refreshOrganizations: () => Promise<void>;
+  refreshSubscription: () => Promise<void>;
   selectOrganization: (organizationId: number) => Promise<void>;
   openOrganizationSelector: () => Promise<void>;
   cancelOrganizationSelection: () => Promise<void>;
@@ -104,18 +108,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(nextUser);
   }, []);
 
-  const updateUserProfile = useCallback(
-    async (patch: Partial<AuthUser>) => {
-      const updatedSession = await updateAuthUserInSession(patch);
-      if (updatedSession) {
-        setUser(updatedSession.user);
-      } else {
-        setUser((current) => (current ? { ...current, ...patch } : current));
-      }
+  const updateUserProfile = useCallback(async (patch: Partial<AuthUser>) => {
+    const updatedSession = await updateAuthUserInSession(patch);
+    if (updatedSession) {
+      setUser(updatedSession.user);
+    } else {
+      setUser((current) => (current ? { ...current, ...patch } : current));
+    }
 
-      await invalidateAccountDependentQueries();
+    await invalidateAccountDependentQueries();
+  }, []);
+
+  const syncSubscription = useCallback(
+    async (baseUser: AuthUser) => {
+      try {
+        const subscription = await getCurrentSubscription();
+        queryClient.setQueryData(
+          queryKeys.subscriptionCurrent(baseUser.id),
+          subscription,
+        );
+        await persistUser({ ...baseUser, subscription });
+      } catch (error) {
+        if (__DEV__) console.warn("Subscription refresh failed", error);
+      }
     },
-    [],
+    [persistUser],
   );
 
   const applyOrganizationSelection = useCallback(
@@ -239,14 +256,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOrganizations(authenticatedUser.organizations ?? []);
       setCurrentOrganization(null);
       await resolveOrganizations(authenticatedUser);
+      await syncSubscription(getAuthSessionSync()?.user ?? authenticatedUser);
     },
-    [resolveOrganizations],
+    [resolveOrganizations, syncSubscription],
   );
 
   const refreshOrganizations = useCallback(async () => {
     if (!user) return;
     await resolveOrganizations(user);
   }, [resolveOrganizations, user]);
+
+  const refreshSubscription = useCallback(async () => {
+    if (!user) return;
+    const subscription = await getCurrentSubscription();
+    queryClient.setQueryData(
+      queryKeys.subscriptionCurrent(user.id),
+      subscription,
+    );
+    await persistUser({ ...user, subscription });
+  }, [persistUser, user]);
 
   const selectOrganization = useCallback(
     async (organizationId: number) => {
@@ -259,7 +287,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           availableOrganizations = await getManualOrganizations();
           setOrganizations(availableOrganizations);
         }
-        await applyOrganizationSelection(user, availableOrganizations, organizationId);
+        await applyOrganizationSelection(
+          user,
+          availableOrganizations,
+          organizationId,
+        );
       } finally {
         setIsOrganizationLoading(false);
       }
@@ -280,9 +312,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!user) throw new Error("Tashkilot yaratish uchun tizimga kiring");
 
       const existingOrganizations = await getManualOrganizations();
-      if (existingOrganizations.length >= MAX_ORGANIZATIONS_PER_USER) {
+      if (
+        !canCreateOrganization(user.subscription, existingOrganizations.length)
+      ) {
+        const limit = user.subscription?.maxOrganizations ?? 0;
         throw new Error(
-          `Ko'pi bilan ${MAX_ORGANIZATIONS_PER_USER} ta tashkilot yaratish mumkin`,
+          `Joriy tarif bo'yicha ko'pi bilan ${limit} ta tashkilot yaratish mumkin`,
         );
       }
 
@@ -409,6 +444,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session.user);
           setOrganizations(session.user.organizations ?? []);
           await resolveOrganizations(session.user);
+          await syncSubscription(getAuthSessionSync()?.user ?? session.user);
         }
       } catch (error) {
         if (__DEV__) {
@@ -429,7 +465,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [resolveOrganizations]);
+  }, [resolveOrganizations, syncSubscription]);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -453,6 +489,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginWithGoogleIdToken,
       createOrganizationForCurrentUser,
       refreshOrganizations,
+      refreshSubscription,
       selectOrganization,
       openOrganizationSelector,
       cancelOrganizationSelection,
@@ -473,6 +510,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       organizationSelectionReturnTab,
       organizations,
       refreshOrganizations,
+      refreshSubscription,
       register,
       selectOrganization,
       updateUserProfile,

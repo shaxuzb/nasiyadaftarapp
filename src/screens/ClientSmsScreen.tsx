@@ -54,6 +54,7 @@ import type { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
 import { formatCurrency } from "../utils";
 import { renderSmsTemplate } from "../modules/client-sms/utils/smsParsing";
+import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const PAGE_SIZE = 20;
@@ -68,7 +69,10 @@ export function ClientSmsScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { user } = useAuth();
-  const capabilities = getClientSmsCapabilities(user?.permissions);
+  const capabilities = getClientSmsCapabilities(
+    user?.permissions,
+    user?.subscription,
+  );
   const isBottomTab = isBottomTabNavigation(navigation);
   if (!capabilities.canView) {
     return (
@@ -108,6 +112,7 @@ function ClientSmsContent({
   >({});
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkSummary, setBulkSummary] = useState<BulkSmsResponse | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const submitting = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -137,6 +142,9 @@ function ClientSmsContent({
   const rows = recipients.data?.results ?? [];
   const count = recipients.data?.count ?? 0;
   const pageCount = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const smsQuota = user?.subscription?.sms;
+  const smsLimitReached = smsQuota?.totalRemaining === 0;
+  const blacklistAvailable = user?.subscription?.blacklistEnabled !== false;
 
   const toggleFilter = (key: BooleanFilter) =>
     setFilters((current) => ({
@@ -176,6 +184,10 @@ function ClientSmsContent({
   );
   const sendToOne = useCallback(
     async (recipient: SmsRecipient) => {
+      if (smsLimitReached) {
+        setIsUpgradeModalOpen(true);
+        return;
+      }
       if (submitting.current || !capabilities.canSendOne || !recipient.canSend)
         return;
       submitting.current = true;
@@ -203,9 +215,14 @@ function ClientSmsContent({
       getTemplateForConfirmation,
       sendOne,
       showToast,
+      smsLimitReached,
     ],
   );
   const submitBulk = async () => {
+    if (smsLimitReached) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     if (submitting.current || !capabilities.canSendBulk || !selected.size)
       return;
     submitting.current = true;
@@ -266,6 +283,37 @@ function ClientSmsContent({
             placeholder="Ism yoki telefon bo'yicha qidirish"
           />
         </View>
+        {smsQuota ? (
+          <Pressable
+            accessibilityRole={smsLimitReached ? "button" : undefined}
+            accessibilityLabel={
+              smsLimitReached
+                ? "SMS paket yoki PRO tarifini tanlash"
+                : undefined
+            }
+            disabled={!smsLimitReached}
+            onPress={() => setIsUpgradeModalOpen(true)}
+            style={({ pressed }) => [
+              styles.quotaBanner,
+              smsLimitReached && styles.quotaBannerAction,
+              pressed && smsLimitReached && styles.pressed,
+            ]}
+          >
+            <Ionicons
+              name="chatbubble-ellipses-outline"
+              size={18}
+              color={theme.primary}
+            />
+            <Text style={styles.quotaText}>
+              {smsQuota.totalRemaining === null
+                ? "Cheksiz SMS"
+                : `${smsQuota.totalRemaining} ta SMS qoldi`}
+            </Text>
+            {smsQuota.totalRemaining === 0 ? (
+              <Text style={styles.quotaWarning}>Limit tugagan</Text>
+            ) : null}
+          </Pressable>
+        ) : null}
         <View>
           <ScrollView
             horizontal
@@ -287,29 +335,33 @@ function ClientSmsContent({
                   icon: "checkmark-circle-outline",
                 },
               ] as const
-            ).map((item) => {
-              const active = filters[item.key] === true;
-              return (
-                <Pressable
-                  key={item.key}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => toggleFilter(item.key)}
-                  style={[styles.chip, active && styles.chipActive]}
-                >
-                  <Ionicons
-                    name={item.icon}
-                    size={16}
-                    color={active ? theme.primary : theme.textSecondary}
-                  />
-                  <Text
-                    style={[styles.chipText, active && styles.chipTextActive]}
+            )
+              .filter(
+                (item) => item.key !== "blacklisted" || blacklistAvailable,
+              )
+              .map((item) => {
+                const active = filters[item.key] === true;
+                return (
+                  <Pressable
+                    key={item.key}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => toggleFilter(item.key)}
+                    style={[styles.chip, active && styles.chipActive]}
                   >
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
+                    <Ionicons
+                      name={item.icon}
+                      size={16}
+                      color={active ? theme.primary : theme.textSecondary}
+                    />
+                    <Text
+                      style={[styles.chipText, active && styles.chipTextActive]}
+                    >
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
           </ScrollView>
         </View>
         <View style={styles.summary}>
@@ -394,6 +446,11 @@ function ClientSmsContent({
                 canSendOne={capabilities.canSendOne}
                 onToggle={toggle}
                 onSend={(value) => void sendToOne(value)}
+                onQuotaReached={
+                  smsLimitReached
+                    ? () => setIsUpgradeModalOpen(true)
+                    : undefined
+                }
               />
             )}
             contentContainerStyle={[
@@ -480,6 +537,13 @@ function ClientSmsContent({
             />
           </View>
         ) : null}
+        <SubscriptionUpgradeModal
+          visible={isUpgradeModalOpen}
+          reason="sms-limit"
+          subscription={user?.subscription}
+          onClose={() => setIsUpgradeModalOpen(false)}
+          onViewSubscription={() => navigation.navigate("Subscription")}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -487,7 +551,6 @@ function ClientSmsContent({
 
 function Header({
   title,
-  onBack,
   action,
 }: {
   title: string;
@@ -532,7 +595,7 @@ const createStyles = (theme: AppTheme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    title: { flex: 1, ...typography.headingLarge, color: theme.text },
+    title: { flex: 1, ...typography.displayMedium, color: theme.text },
     headerAction: {
       minHeight: 38,
       flexDirection: "row",
@@ -544,6 +607,30 @@ const createStyles = (theme: AppTheme) =>
     },
     headerActionText: { ...typography.label, color: theme.primary },
     search: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+    quotaBanner: {
+      minHeight: 38,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginHorizontal: spacing.md,
+      marginBottom: spacing.xs,
+      paddingHorizontal: 11,
+      borderRadius: radius.md,
+      backgroundColor: theme.primaryLight,
+    },
+    quotaBannerAction: { borderWidth: 1, borderColor: `${theme.primary}55` },
+    quotaText: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      fontWeight: "700",
+    },
+    quotaWarning: {
+      marginLeft: "auto",
+      ...typography.caption,
+      color: theme.dangerColor,
+      fontWeight: "800",
+    },
+    pressed: { opacity: 0.72 },
     filters: {
       gap: spacing.sm,
       paddingHorizontal: spacing.md,

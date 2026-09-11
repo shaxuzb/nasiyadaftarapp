@@ -2,6 +2,7 @@ import { queryClient } from "./queryClient";
 import { queryKeys } from "./queryKeys";
 
 const organizationDependentQueryKeys = [
+  queryKeys.subscriptionRoot(),
   queryKeys.clientSmsRoot(),
   queryKeys.organizationsRoot(),
   queryKeys.clientsRoot(),

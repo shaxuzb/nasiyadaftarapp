@@ -60,12 +60,15 @@ type TransactionAmountInputProps = Omit<
 > & {
   initialValue: string;
   onValueChange: (value: string) => void;
+  inputRef?: React.Ref<TransactionInputRef>;
 };
+type TransactionInputRef = React.ComponentRef<typeof BottomSheetTextInput>;
 
 const TransactionAmountInput = React.memo(
   function TransactionAmountInput({
     initialValue,
     onValueChange,
+    inputRef,
     ...rest
   }: TransactionAmountInputProps) {
     const [value, setValue] = useState(initialValue);
@@ -82,6 +85,7 @@ const TransactionAmountInput = React.memo(
     return (
       <BottomSheetTextInput
         {...rest}
+        ref={inputRef}
         value={value}
         onChangeText={handleChangeText}
       />
@@ -314,6 +318,8 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const tx = useTransaction();
   const [focused, setFocused] = useState<"amount" | "note" | null>(null);
+  const amountRef = useRef<TransactionInputRef>(null);
+  const noteRef = useRef<TransactionInputRef>(null);
   const dismissKeyboard = React.useCallback(() => {
     Keyboard.dismiss();
     void KeyboardController.dismiss();
@@ -387,12 +393,14 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           </Pressable>
         )}
       </View>
-      <View
+      <Pressable
+        onPress={() => amountRef.current?.focus()}
         style={[styles.amountField, focused === "amount" && styles.focused]}
       >
         <View style={styles.amountCopy}>
           <Text style={styles.label}>Summa</Text>
           <TransactionAmountInput
+            inputRef={amountRef}
             initialValue=""
             onValueChange={tx.setAmount}
             editable={!tx.saving}
@@ -410,10 +418,14 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           />
         </View>
         <Text style={styles.currency}>so'm</Text>
-      </View>
-      <View style={[styles.noteField, focused === "note" && styles.focused]}>
+      </Pressable>
+      <Pressable
+        onPress={() => noteRef.current?.focus()}
+        style={[styles.noteField, focused === "note" && styles.focused]}
+      >
         <Text style={styles.label}>Izoh</Text>
         <BottomSheetTextInput
+          ref={noteRef}
           value={tx.note}
           onChangeText={tx.setNote}
           editable={!tx.saving}
@@ -430,7 +442,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           style={styles.noteInput}
           accessibilityLabel="Operatsiya izohi"
         />
-      </View>
+      </Pressable>
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>
           Keyingi balans{tx.previewType === "payment" ? " (to'lov)" : " (qarz)"}

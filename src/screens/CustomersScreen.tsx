@@ -353,9 +353,9 @@ export function CustomersScreen() {
           <View style={styles.headerTop}>
             <View style={styles.titleBlock}>
               <Text style={styles.screenTitle}>Mijozlar</Text>
-              <Text style={styles.screenSubtitle}>
+              {/* <Text style={styles.screenSubtitle}>
                 Qarz va to'lovlarni boshqaring
-              </Text>
+              </Text> */}
             </View>
             <TouchableOpacity
               accessibilityRole="button"
@@ -523,7 +523,7 @@ export function CustomersScreen() {
         <BottomSheetScrollView
           contentContainerStyle={[
             styles.sheetContent,
-            { paddingBottom: Math.max(insets.bottom, 12) + 8 },
+            { paddingBottom: Math.max(insets.bottom, 0) },
           ]}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
@@ -572,7 +572,7 @@ export function CustomersScreen() {
               editable={!isCreatingCustomer}
               autoComplete="tel"
               keyboardType="phone-pad"
-              returnKeyType="done"
+              returnKeyType="none"
               onSubmitEditing={handleAddPhoneSubmit}
               error={errors.phone}
               trailingAccessory={

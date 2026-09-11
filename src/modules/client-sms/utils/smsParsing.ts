@@ -4,6 +4,7 @@ import type {
   SmsHistoryItem,
   SmsRecipient,
   SmsSendResult,
+  SmsSendQuota,
   SmsTemplate,
   SmsTemplateValues,
 } from "../types";
@@ -23,6 +24,18 @@ const positiveId = (value: unknown) => {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
 };
+
+function parseSendQuota(input: unknown): SmsSendQuota | undefined {
+  const value = record(input);
+  if (!Object.keys(value).length) return undefined;
+  const nullable = (candidate: unknown) =>
+    candidate === null || candidate === undefined ? null : number(candidate);
+  return {
+    monthlyRemaining: nullable(value.monthlyRemaining),
+    purchasedRemaining: Math.max(0, number(value.purchasedRemaining)),
+    totalRemaining: nullable(value.totalRemaining),
+  };
+}
 
 export function parseSmsTemplate(input: unknown): SmsTemplate {
   const outer = record(input);
@@ -104,6 +117,10 @@ export function parseSmsRecipients(input: unknown): PagedResult<SmsRecipient> {
           currentBalance: number(item.currentBalance),
           overdueBalance: number(item.overdueBalance),
           isBlacklisted: item.isBlacklisted === true,
+          blacklistedOrganizationCount: Math.max(
+            0,
+            Math.trunc(number(item.blacklistedOrganizationCount)),
+          ),
           canSend: item.canSend === true,
           cannotSendReason:
             text(item.cannotSendReason, item.skipReason, item.reason) ||
@@ -128,6 +145,8 @@ export function parseSmsSendResult(value: unknown): SmsSendResult {
     status: text(item.status) || "unknown",
     message: text(item.message) || undefined,
     errorMessage: text(item.errorMessage, item.error) || undefined,
+    quotaSource: text(item.quotaSource) || undefined,
+    quota: parseSendQuota(item.quota),
   };
 }
 
@@ -144,6 +163,8 @@ export function parseBulkSmsResponse(input: unknown): BulkSmsResponse {
     failedCount: Math.max(0, Math.trunc(number(value.failedCount))),
     skippedCount: Math.max(0, Math.trunc(number(value.skippedCount))),
     results: rawResults.map(parseSmsSendResult),
+    quotaSource: text(value.quotaSource) || undefined,
+    quota: parseSendQuota(value.quota),
   };
 }
 

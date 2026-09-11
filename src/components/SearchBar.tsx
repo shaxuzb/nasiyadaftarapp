@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { View, TextInput, StyleSheet, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../hooks/useTheme";
@@ -22,6 +22,8 @@ export function SearchBar({
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const inputRef = useRef<TextInput>(null);
+  const [focused, setFocused] = useState(false);
 
   return (
     <View
@@ -29,20 +31,29 @@ export function SearchBar({
         styles.container,
         {
           backgroundColor: theme.surface,
-          borderColor: filterActive ? theme.primary : theme.border,
+          borderColor: filterActive || focused ? theme.primary : theme.border,
+          borderWidth: filterActive || focused ? 1.5 : 1,
         },
       ]}
     >
-      <Ionicons name="search-outline" size={24} color={theme.textSecondary} />
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder ?? "Qidirish..."}
-        placeholderTextColor={theme.textMuted}
-        style={[typography.bodyMedium, styles.input, { color: theme.text }]}
-        clearButtonMode="while-editing"
-        returnKeyType="search"
-      />
+      <Pressable
+        style={styles.inputArea}
+        onPress={() => inputRef.current?.focus()}
+      >
+        <Ionicons name="search-outline" size={24} color={theme.textSecondary} />
+        <TextInput
+          ref={inputRef}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder ?? "Qidirish..."}
+          placeholderTextColor={theme.textMuted}
+          style={[typography.bodyMedium, styles.input, { color: theme.text }]}
+          clearButtonMode="while-editing"
+          returnKeyType="search"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+        />
+      </Pressable>
       {value.length > 0 ? (
         <Pressable
           accessibilityRole="button"
@@ -82,12 +93,18 @@ const createStyles = (theme: AppTheme) =>
     container: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
       borderRadius: 18,
       paddingHorizontal: 16,
       height: 50,
       borderWidth: 1,
       boxShadow: theme.cardShadow,
+    },
+    inputArea: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      minHeight: 48,
     },
     input: {
       flex: 1,

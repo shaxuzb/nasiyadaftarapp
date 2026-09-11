@@ -59,7 +59,7 @@ async function refreshAccessToken(): Promise<string | null> {
         uniqueId: session.uniqueId,
       },
       {
-        timeout: 15000,
+        timeout: 50000,
         headers: { "Content-Type": "application/json" },
       },
     );

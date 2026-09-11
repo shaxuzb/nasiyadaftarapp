@@ -36,14 +36,14 @@ export function CustomerCardSkeleton() {
           />
         </View>
       </View>
-      <View style={[styles.footer, { borderTopColor: theme.border }]}>
+      {/* <View style={[styles.footer, { borderTopColor: theme.border }]}>
         <View
           style={[styles.btn, { backgroundColor: theme.inputBackground }]}
         />
         <View
           style={[styles.btn, { backgroundColor: theme.inputBackground }]}
         />
-      </View>
+      </View> */}
     </View>
   );
 }

@@ -612,7 +612,7 @@ const createStyles = (theme: AppTheme) =>
     headerCopy: { minWidth: 0, flex: 1, gap: 2 },
     screenTitle: {
       color: theme.text,
-      fontSize: 32,
+      fontSize: 28,
       lineHeight: 39,
       fontWeight: "800",
       letterSpacing: -0.8,

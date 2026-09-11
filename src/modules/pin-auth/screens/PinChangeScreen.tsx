@@ -32,10 +32,27 @@ export function PinChangeScreen({ navigation }: Props) {
     success.stopAnimation();
     success.setValue(1);
     Animated.sequence([
-      Animated.timing(shake, { toValue: -9, duration: 45, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: 9, duration: 45, useNativeDriver: true }),
-      Animated.timing(shake, { toValue: -5, duration: 40, useNativeDriver: true }),
-      Animated.spring(shake, { toValue: 0, friction: 7, tension: 120, useNativeDriver: true }),
+      Animated.timing(shake, {
+        toValue: -9,
+        duration: 45,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shake, {
+        toValue: 9,
+        duration: 45,
+        useNativeDriver: true,
+      }),
+      Animated.timing(shake, {
+        toValue: -5,
+        duration: 40,
+        useNativeDriver: true,
+      }),
+      Animated.spring(shake, {
+        toValue: 0,
+        friction: 7,
+        tension: 120,
+        useNativeDriver: true,
+      }),
     ]).start();
     setPassed(false);
     setMessage(text);
@@ -89,13 +106,22 @@ export function PinChangeScreen({ navigation }: Props) {
         animateError(result.message ?? "PIN-kodni almashtirib bo'lmadi");
         return;
       }
-      Animated.spring(success, { toValue: 1.12, friction: 5, tension: 100, useNativeDriver: true }).start();
+      Animated.spring(success, {
+        toValue: 1.12,
+        friction: 5,
+        tension: 100,
+        useNativeDriver: true,
+      }).start();
       setPassed(true);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setMessage("PIN-kod muvaffaqiyatli yangilandi");
       setTimeout(() => navigation.goBack(), 420);
     } catch (error) {
-      animateError(error instanceof Error ? error.message : "PIN-kodni almashtirib bo'lmadi");
+      animateError(
+        error instanceof Error
+          ? error.message
+          : "PIN-kodni almashtirib bo'lmadi",
+      );
     } finally {
       setBusy(false);
     }
@@ -114,66 +140,198 @@ export function PinChangeScreen({ navigation }: Props) {
     if (next.length === PIN_LENGTH) void complete(next);
   };
 
-  const title = step === "current" ? "Amaldagi PIN-kod" : step === "new" ? "Yangi PIN-kod" : "PIN-kodni tasdiqlang";
-  const description = step === "current"
-    ? "Xavfsizlik uchun avval amaldagi PIN-kodingizni kiriting."
-    : step === "new"
-      ? "4 xonali, taxmin qilish qiyin bo‘lgan PIN tanlang."
-      : "Yangi PIN-kodingizni yana bir marta kiriting.";
+  const title =
+    step === "current"
+      ? "Amaldagi PIN-kod"
+      : step === "new"
+        ? "Yangi PIN-kod"
+        : "PIN-kodni tasdiqlang";
+  const description =
+    step === "current"
+      ? "Xavfsizlik uchun avval amaldagi PIN-kodingizni kiriting."
+      : step === "new"
+        ? "4 xonali, taxmin qilish qiyin bo‘lgan PIN tanlang."
+        : "Yangi PIN-kodingizni yana bir marta kiriting.";
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Orqaga qaytish" onPress={() => navigation.goBack()} style={styles.backButton}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Orqaga qaytish"
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
           <Ionicons name="arrow-back" size={23} color={theme.text} />
         </Pressable>
         <Text style={styles.headerTitle}>PIN-kodni o‘zgartirish</Text>
       </View>
       <View style={styles.content}>
-        <Animated.View style={[styles.icon, { backgroundColor: theme.primaryLight }, { transform: [{ scale: success }] }]}>
+        <Animated.View
+          style={[
+            styles.icon,
+            { backgroundColor: theme.primaryLight },
+            { transform: [{ scale: success }] },
+          ]}
+        >
           <Ionicons name="key-outline" size={27} color={theme.primary} />
         </Animated.View>
         <Text style={styles.title}>{title}</Text>
         <Text style={styles.description}>{description}</Text>
         <View style={styles.progress}>
           {["current", "new", "confirm"].map((item) => (
-            <View key={item} style={[styles.progressBar, { backgroundColor: item === step || (["current", "new", "confirm"].indexOf(item) < ["current", "new", "confirm"].indexOf(step)) ? theme.primary : theme.border }]} />
+            <View
+              key={item}
+              style={[
+                styles.progressBar,
+                {
+                  backgroundColor:
+                    item === step ||
+                    ["current", "new", "confirm"].indexOf(item) <
+                      ["current", "new", "confirm"].indexOf(step)
+                      ? theme.primary
+                      : theme.border,
+                },
+              ]}
+            />
           ))}
         </View>
-        <Animated.View style={[styles.dots, { transform: [{ translateX: shake }] }]}>
+        <Animated.View
+          style={[styles.dots, { transform: [{ translateX: shake }] }]}
+        >
           {Array.from({ length: PIN_LENGTH }, (_, index) => (
-            <View key={index} style={[styles.dot, { borderColor: message && !passed ? theme.dangerColor : theme.primary }, index < value.length && { backgroundColor: message && !passed ? theme.dangerColor : theme.primary }]} />
+            <View
+              key={index}
+              style={[
+                styles.dot,
+                {
+                  borderColor:
+                    message && !passed ? theme.dangerColor : theme.primary,
+                },
+                index < value.length && {
+                  backgroundColor:
+                    message && !passed ? theme.dangerColor : theme.primary,
+                },
+              ]}
+            />
           ))}
         </Animated.View>
-        {message ? <Text style={[styles.message, { color: passed ? theme.successColor : theme.dangerColor }]}>{message}</Text> : <View style={styles.messageSpacer} />}
+        {message ? (
+          <Text
+            style={[
+              styles.message,
+              { color: passed ? theme.successColor : theme.dangerColor },
+            ]}
+          >
+            {message}
+          </Text>
+        ) : (
+          <View style={styles.messageSpacer} />
+        )}
         <View style={styles.keypad}>
-          {DIGITS.map((digit, index) => digit ? (
-            <Pressable key={digit} accessibilityRole="button" accessibilityLabel={digit === "back" ? "O‘chirish" : digit} onPress={() => press(digit)} style={({ pressed }) => [styles.key, pressed && { backgroundColor: theme.primaryLight }]}>
-              <Text style={styles.keyText}>{digit === "back" ? "⌫" : digit}</Text>
-            </Pressable>
-          ) : <View key={`empty-${index}`} style={styles.key} />)}
+          {DIGITS.map((digit, index) =>
+            digit ? (
+              <Pressable
+                key={digit}
+                accessibilityRole="button"
+                accessibilityLabel={digit === "back" ? "O‘chirish" : digit}
+                onPress={() => press(digit)}
+                style={({ pressed }) => [
+                  styles.key,
+                  pressed && { backgroundColor: theme.primaryLight },
+                ]}
+              >
+                <Text style={styles.keyText}>
+                  {digit === "back" ? "⌫" : digit}
+                </Text>
+              </Pressable>
+            ) : (
+              <View key={`empty-${index}`} style={styles.key} />
+            ),
+          )}
         </View>
       </View>
     </SafeAreaView>
   );
 }
 
-const createStyles = (theme: AppTheme) => StyleSheet.create({
-  safe: { flex: 1, backgroundColor: theme.background },
-  header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: spacing.md, paddingTop: 8 },
-  backButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: theme.border, borderRadius: radius.md, backgroundColor: theme.surface },
-  headerTitle: { color: theme.text, fontSize: 17, lineHeight: 23, fontWeight: "800" },
-  content: { flex: 1, alignItems: "center", paddingHorizontal: spacing.lg },
-  icon: { width: 64, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center", marginTop: spacing.xl },
-  title: { ...typography.headingLarge, color: theme.text, textAlign: "center", marginTop: spacing.md },
-  description: { ...typography.bodySmall, color: theme.textSecondary, textAlign: "center", maxWidth: 290, marginTop: spacing.xs },
-  progress: { flexDirection: "row", gap: 5, marginTop: spacing.lg },
-  progressBar: { width: 30, height: 4, borderRadius: 4 },
-  dots: { flexDirection: "row", gap: 14, marginTop: spacing.xl, minHeight: 18 },
-  dot: { width: 14, height: 14, borderRadius: 7, borderWidth: 1.5 },
-  message: { ...typography.caption, textAlign: "center", marginTop: spacing.md },
-  messageSpacer: { height: 28 },
-  keypad: { width: 250, marginTop: "auto", flexDirection: "row", flexWrap: "wrap", justifyContent: "center", paddingBottom: spacing.md },
-  key: { width: "33.33%", height: 56, alignItems: "center", justifyContent: "center", borderRadius: 16 },
-  keyText: { color: theme.text, fontSize: 23, fontWeight: "600" },
-});
+const createStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    safe: { flex: 1, backgroundColor: theme.background },
+    header: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: spacing.md,
+      paddingTop: 8,
+    },
+    backButton: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: radius.md,
+      backgroundColor: theme.surface,
+    },
+    headerTitle: {
+      color: theme.text,
+      fontSize: 17,
+      lineHeight: 23,
+      fontWeight: "800",
+    },
+    content: { flex: 1, alignItems: "center", paddingHorizontal: spacing.lg },
+    icon: {
+      width: 64,
+      height: 64,
+      borderRadius: 20,
+      alignItems: "center",
+      justifyContent: "center",
+      marginTop: spacing.xl,
+    },
+    title: {
+      ...typography.headingLarge,
+      color: theme.text,
+      textAlign: "center",
+      marginTop: spacing.md,
+    },
+    description: {
+      ...typography.bodySmall,
+      color: theme.textSecondary,
+      textAlign: "center",
+      maxWidth: 290,
+      marginTop: spacing.xs,
+    },
+    progress: { flexDirection: "row", gap: 5, marginTop: spacing.lg },
+    progressBar: { width: 30, height: 4, borderRadius: 4 },
+    dots: {
+      flexDirection: "row",
+      gap: 16,
+      marginTop: spacing.xl,
+      minHeight: 20,
+    },
+    dot: { width: 18, height: 18, borderRadius: 9, borderWidth: 1.75 },
+    message: {
+      ...typography.caption,
+      textAlign: "center",
+      marginTop: spacing.md,
+    },
+    messageSpacer: { height: 28 },
+    keypad: {
+      width: 250,
+      marginTop: "auto",
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "center",
+      paddingBottom: spacing.md,
+    },
+    key: {
+      width: "33.33%",
+      height: 56,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 16,
+    },
+    keyText: { color: theme.text, fontSize: 23, fontWeight: "600" },
+  });

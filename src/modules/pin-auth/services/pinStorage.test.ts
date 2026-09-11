@@ -37,6 +37,27 @@ assert(await storage.isPinSetupComplete(17), "PIN setup state must be remembered
 assert(!(await storage.hasPin(18)), "Other user must not see owner PIN");
 assert(await storage.verifyPin(17, "4826"), "Correct PIN must verify");
 assert(!(await storage.verifyPin(17, "4827")), "Incorrect PIN must fail");
+assert(
+  (await storage.setBiometricEnabled(17, true))?.biometricEnabled === true,
+  "Biometric preference must be enabled",
+);
+const rehydratedStorage = createPinStorage({
+  secureStore: {
+    getItemAsync: async (key: string) => values.get(key) ?? null,
+    setItemAsync: async (key: string, value: string) => {
+      values.set(key, value);
+    },
+    deleteItemAsync: async (key: string) => {
+      values.delete(key);
+    },
+  },
+  createSalt: async () => "test-salt",
+  digest: async (pin: string, salt: string) => `${salt}:${pin}`,
+});
+assert(
+  (await rehydratedStorage.getPinRecord(17))?.biometricEnabled === true,
+  "Biometric preference must survive storage rehydration",
+);
 await storage.clearPin(17);
 assert(!(await storage.hasPin(17)), "PIN record must be removable");
 assert(await storage.isPinSetupComplete(17), "Removing PIN must not reset setup state");

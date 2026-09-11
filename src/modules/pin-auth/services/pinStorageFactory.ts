@@ -22,6 +22,8 @@ export interface SetPinInput {
 
 export const pinStorageKey = (userId: number) => `pin_auth_v1_${userId}`;
 const pinSetupStateKey = (userId: number) => `pin_setup_v1_${userId}`;
+const biometricPreferenceKey = (userId: number) =>
+  `pin_biometric_v1_${userId}`;
 
 function isPinRecord(value: unknown): value is PinRecord {
   if (!value || typeof value !== "object") return false;
@@ -52,7 +54,18 @@ export function createPinStorage({
 
     try {
       const parsed: unknown = JSON.parse(raw);
-      if (isPinRecord(parsed)) return parsed;
+      if (isPinRecord(parsed)) {
+        const biometricPreference = await secureStore.getItemAsync(
+          biometricPreferenceKey(userId),
+        );
+        if (biometricPreference === "1") {
+          return { ...parsed, biometricEnabled: true };
+        }
+        if (biometricPreference === "0") {
+          return { ...parsed, biometricEnabled: false };
+        }
+        return parsed;
+      }
     } catch {
       // Invalid data is cleared below and treated as absent.
     }
@@ -62,7 +75,13 @@ export function createPinStorage({
   }
 
   async function savePinRecord(userId: number, record: PinRecord): Promise<void> {
-    await secureStore.setItemAsync(pinStorageKey(userId), JSON.stringify(record));
+    await Promise.all([
+      secureStore.setItemAsync(pinStorageKey(userId), JSON.stringify(record)),
+      secureStore.setItemAsync(
+        biometricPreferenceKey(userId),
+        record.biometricEnabled ? "1" : "0",
+      ),
+    ]);
   }
 
   return {
@@ -132,7 +151,10 @@ export function createPinStorage({
       return next;
     },
     clearPin(userId: number): Promise<void> {
-      return secureStore.deleteItemAsync(pinStorageKey(userId));
+      return Promise.all([
+        secureStore.deleteItemAsync(pinStorageKey(userId)),
+        secureStore.deleteItemAsync(biometricPreferenceKey(userId)),
+      ]).then(() => undefined);
     },
   };
 }

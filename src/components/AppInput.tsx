@@ -160,8 +160,10 @@ export function AppInput({
   ...rest
 }: Props) {
   const theme = useTheme();
+  const nativeInputRef = useRef<TextInput>(null);
   const setInputRef = useCallback(
     (instance: TextInput | null | undefined) => {
+      nativeInputRef.current = instance ?? null;
       if (typeof inputRef === "function") return inputRef(instance ?? null);
       if (inputRef) inputRef.current = instance ?? null;
     },
@@ -226,7 +228,8 @@ export function AppInput({
         </Text>
       ) : null}
 
-      <View
+      <Pressable
+        onPress={() => nativeInputRef.current?.focus()}
         style={[
           styles.inputRow,
           isSheet ? styles.sheetInputRow : null,
@@ -347,7 +350,7 @@ export function AppInput({
             />
           </Pressable>
         ) : null}
-      </View>
+      </Pressable>
 
       {error ? (
         <Text

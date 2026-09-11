@@ -12,17 +12,20 @@ import React, {
 import { useAuth } from "../../../context/AuthContext";
 import { hasVerifiedPhone } from "../utils/accountStatus";
 import { PhoneVerificationModal } from "../components/PhoneVerificationModal";
+import { useAppLock } from "../../pin-auth/context/AppLockContext";
 
 interface AccountSecurityContextValue {
   openPhoneVerification: (afterVerified?: () => void) => void;
   requireVerifiedPhone: (onVerified: () => void) => boolean;
 }
 
-const AccountSecurityContext =
-  createContext<AccountSecurityContextValue | undefined>(undefined);
+const AccountSecurityContext = createContext<
+  AccountSecurityContextValue | undefined
+>(undefined);
 
 export function AccountSecurityProvider({ children }: { children: ReactNode }) {
   const { user, currentOrganization, updateUserProfile } = useAuth();
+  const { isResolving, setupRequired, isLocked } = useAppLock();
   const [visible, setVisible] = useState(false);
   const afterVerifiedRef = useRef<(() => void) | undefined>(undefined);
   const promptedUserIdRef = useRef<number | null>(null);
@@ -50,12 +53,14 @@ export function AccountSecurityProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    const pinGateCleared = !isResolving && !setupRequired && !isLocked;
     const isGoogleUser = [
       user?.authProvider,
       user?.loginTypeCode,
       user?.loginType,
     ].some((value) => value?.toLocaleUpperCase().includes("GOOGLE"));
     if (
+      !pinGateCleared ||
       !currentOrganization ||
       !user ||
       !isGoogleUser ||
@@ -67,7 +72,20 @@ export function AccountSecurityProvider({ children }: { children: ReactNode }) {
 
     promptedUserIdRef.current = user.id;
     openPhoneVerification();
-  }, [currentOrganization, openPhoneVerification, user]);
+  }, [
+    currentOrganization,
+    isLocked,
+    isResolving,
+    openPhoneVerification,
+    setupRequired,
+    user,
+  ]);
+
+  useEffect(() => {
+    if (isResolving || setupRequired || isLocked) {
+      closePhoneVerification();
+    }
+  }, [closePhoneVerification, isLocked, isResolving, setupRequired]);
 
   const handleVerified = useCallback(
     async (phoneNumber: string) => {

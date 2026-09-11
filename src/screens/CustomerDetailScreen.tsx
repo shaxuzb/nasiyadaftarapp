@@ -638,7 +638,7 @@ const createStyles = (theme: AppTheme) =>
       flex: 1,
       color: theme.textMuted,
       textAlign: "center",
-      fontSize: 13,
+      fontSize: 16,
     },
     centered: { flex: 1, justifyContent: "center", alignItems: "center" },
     list: { paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 },

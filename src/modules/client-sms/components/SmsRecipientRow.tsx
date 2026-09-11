@@ -11,6 +11,7 @@ interface Props {
   selected: boolean;
   selectable: boolean;
   canSendOne: boolean;
+  onQuotaReached?: () => void;
   onToggle: (id: number) => void;
   onSend: (recipient: SmsRecipient) => void;
 }
@@ -20,6 +21,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
   selected,
   selectable,
   canSendOne,
+  onQuotaReached,
   onToggle,
   onSend,
 }: Props) {
@@ -45,7 +47,11 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
       onPress={() =>
         selectable
           ? onToggle(recipient.id)
-          : recipient.canSend && canSendOne && onSend(recipient)
+          : recipient.canSend
+            ? canSendOne
+              ? onSend(recipient)
+              : onQuotaReached?.()
+            : undefined
       }
       style={({ pressed }) => [
         styles.card,
@@ -102,19 +108,24 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
             Kechikkan: {formatCurrency(recipient.overdueBalance)}
           </Text>
         ) : null}
-        {!selectable && canSendOne && recipient.canSend ? (
+        {!selectable && recipient.canSend ? (
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={`${recipient.fullName}ga SMS yuborish`}
+            accessibilityLabel={
+              canSendOne
+                ? `${recipient.fullName}ga SMS yuborish`
+                : "SMS limitini oshirish"
+            }
             hitSlop={8}
             onPress={(event) => {
               event.stopPropagation();
-              onSend(recipient);
+              if (canSendOne) onSend(recipient);
+              else onQuotaReached?.();
             }}
             style={styles.sendButton}
           >
             <Ionicons
-              name="paper-plane-outline"
+              name={canSendOne ? "paper-plane-outline" : "lock-closed-outline"}
               size={18}
               color={theme.primary}
             />

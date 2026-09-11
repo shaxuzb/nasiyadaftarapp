@@ -16,22 +16,30 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { BottomSheetBackdrop, BottomSheetModal } from "@gorhom/bottom-sheet";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-} from "@gorhom/bottom-sheet";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../hooks/useTheme";
-import { AppTheme } from "../types";
+import type { AppTheme, OrganizationStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
 import { useToast } from "../context/ToastContext";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { OrganizationCreateSheetContent } from "../modules/organization/components/OrganizationCreateSheetContent";
-import { MAX_ORGANIZATIONS_PER_USER } from "../modules/organization/types";
 import { OrganizationRequest } from "../modules/organization/types";
+import {
+  canCreateOrganization,
+  getOrganizationLimitLabel,
+} from "../modules/subscription/utils/entitlements";
+import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 import { useBottomSheetBackHandler } from "../bottom-sheet";
+
+type Navigation = NativeStackNavigationProp<OrganizationStackParamList>;
 
 const SHEET_SPRING = {
   damping: 80,
@@ -45,9 +53,11 @@ const SHEET_SPRING = {
 export function OrganizationSelectScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   const { showToast } = useToast();
   const {
+    user,
     organizations,
     selectOrganization,
     createOrganizationForCurrentUser,
@@ -60,8 +70,15 @@ export function OrganizationSelectScreen() {
   const createSheetRef = useRef<BottomSheetModal>(null);
   const createSnapPoints = useMemo(() => ["68%", "100%"], []);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
-  const canCreateOrganization =
-    organizations.length < MAX_ORGANIZATIONS_PER_USER;
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const canCreate = canCreateOrganization(
+    user?.subscription,
+    organizations.length,
+  );
+  const organizationLimitLabel = getOrganizationLimitLabel(
+    user?.subscription,
+    organizations.length,
+  );
 
   const handleCreateOrganization = useCallback(
     async (payload: OrganizationRequest) => {
@@ -202,7 +219,11 @@ export function OrganizationSelectScreen() {
                 ]}
               >
                 <View style={styles.organizationIcon}>
-                  <Ionicons name="storefront-outline" size={20} color={theme.primary} />
+                  <Ionicons
+                    name="storefront-outline"
+                    size={20}
+                    color={theme.primary}
+                  />
                 </View>
                 <View style={styles.organizationContent}>
                   <Text style={styles.organizationName} numberOfLines={1}>
@@ -223,22 +244,45 @@ export function OrganizationSelectScreen() {
           })}
         </View>
 
-        <PrimaryButton
-          label={
-            canCreateOrganization
-              ? "Yangi tashkilot yaratish"
-              : `Tashkilotlar limiti: ${MAX_ORGANIZATIONS_PER_USER}/${MAX_ORGANIZATIONS_PER_USER}`
-          }
-          onPress={() => {
-            setIsCreateSheetOpen(true);
-            createSheetRef.current?.present();
-          }}
-          variant="outline"
-          disabled={!canCreateOrganization}
-        />
+        {canCreate ? (
+          <PrimaryButton
+            label="Yangi tashkilot yaratish"
+            onPress={() => {
+              setIsCreateSheetOpen(true);
+              createSheetRef.current?.present();
+            }}
+            variant="outline"
+          />
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="PRO tarifini ko'rish"
+            onPress={() => setIsUpgradeModalOpen(true)}
+            style={({ pressed }) => [
+              styles.upgradeButton,
+              pressed && styles.rowPressed,
+            ]}
+          >
+            <View style={styles.upgradeButtonIcon}>
+              <Ionicons
+                name="lock-closed-outline"
+                size={18}
+                color={theme.primary}
+              />
+            </View>
+            <View style={styles.upgradeButtonCopy}>
+              <Text style={styles.upgradeButtonTitle}>
+                Tashkilotlar limiti tugadi
+              </Text>
+              <Text style={styles.upgradeButtonSubtitle}>
+                Yana yaratish uchun PRO tarifiga o'ting
+              </Text>
+            </View>
+            <Text style={styles.proBadge}>PRO</Text>
+          </Pressable>
+        )}
         <Text style={styles.limitHint}>
-          Siz {MAX_ORGANIZATIONS_PER_USER} tagacha tashkilot yaratishingiz mumkin
-          ({organizations.length}/{MAX_ORGANIZATIONS_PER_USER}).
+          Joriy tarif limiti: {organizationLimitLabel} ta tashkilot.
         </Text>
         <Pressable
           accessibilityRole="button"
@@ -246,12 +290,19 @@ export function OrganizationSelectScreen() {
           onPress={() => {
             void handleRefresh();
           }}
-          style={({ pressed }) => [styles.refreshButton, pressed && styles.rowPressed]}
+          style={({ pressed }) => [
+            styles.refreshButton,
+            pressed && styles.rowPressed,
+          ]}
         >
           {isOrganizationLoading ? (
             <ActivityIndicator size="small" color={theme.textSecondary} />
           ) : (
-            <Ionicons name="refresh-outline" size={18} color={theme.textSecondary} />
+            <Ionicons
+              name="refresh-outline"
+              size={18}
+              color={theme.textSecondary}
+            />
           )}
           <Text style={styles.refreshText}>Ro'yxatni yangilash</Text>
         </Pressable>
@@ -261,7 +312,10 @@ export function OrganizationSelectScreen() {
           onPress={() => {
             void logout();
           }}
-          style={({ pressed }) => [styles.logoutButton, pressed && styles.rowPressed]}
+          style={({ pressed }) => [
+            styles.logoutButton,
+            pressed && styles.rowPressed,
+          ]}
         >
           <Text style={styles.logoutText}>Hisobdan chiqish</Text>
         </Pressable>
@@ -293,6 +347,13 @@ export function OrganizationSelectScreen() {
           onSubmit={handleCreateOrganization}
         />
       </BottomSheetModal>
+      <SubscriptionUpgradeModal
+        visible={isUpgradeModalOpen}
+        reason="organization-limit"
+        subscription={user?.subscription}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        onViewSubscription={() => navigation.navigate("Subscription")}
+      />
     </SafeAreaView>
   );
 }
@@ -391,6 +452,37 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 11,
       lineHeight: 16,
       textAlign: "center",
+    },
+    upgradeButton: {
+      minHeight: 62,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 13,
+      borderWidth: 1,
+      borderColor: theme.primary,
+      borderRadius: 14,
+      backgroundColor: theme.primaryLight,
+    },
+    upgradeButtonIcon: {
+      width: 36,
+      height: 36,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 11,
+      backgroundColor: theme.surface,
+    },
+    upgradeButtonCopy: { minWidth: 0, flex: 1, gap: 1 },
+    upgradeButtonTitle: { color: theme.text, fontSize: 14, fontWeight: "800" },
+    upgradeButtonSubtitle: { color: theme.textSecondary, fontSize: 11 },
+    proBadge: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 999,
+      color: theme.primary,
+      fontSize: 11,
+      fontWeight: "800",
+      backgroundColor: theme.surface,
     },
     refreshButton: {
       minHeight: 44,

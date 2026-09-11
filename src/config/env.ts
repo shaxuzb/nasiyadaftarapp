@@ -1,6 +1,6 @@
 const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 const DEFAULT_DEVELOPMENT_API_BASE_URL = "http://localhost:5024";
-const DEFAULT_PRODUCTION_API_BASE_URL = "https://nasiya-api.crmuz.uz/api";
+const DEFAULT_PRODUCTION_API_BASE_URL = "https://nasiya-test-api.crmuz.uz/api";
 
 function isHttpUrl(value: string | undefined): value is string {
   return Boolean(value?.startsWith("http://") || value?.startsWith("https://"));
@@ -11,7 +11,9 @@ const fallbackApiBaseUrl = __DEV__
   : DEFAULT_PRODUCTION_API_BASE_URL;
 
 export const API_BASE_URL = (
-  isHttpUrl(configuredApiBaseUrl) ? configuredApiBaseUrl : fallbackApiBaseUrl
+  isHttpUrl(configuredApiBaseUrl)
+    ? DEFAULT_PRODUCTION_API_BASE_URL
+    : DEFAULT_PRODUCTION_API_BASE_URL
 ).replace(/\/$/, "");
 
 export function assertPublicRuntimeConfig(): void {

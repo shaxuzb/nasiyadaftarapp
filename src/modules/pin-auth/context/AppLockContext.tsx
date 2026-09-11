@@ -36,8 +36,13 @@ interface AppLockValue {
   submitUnlockPin(pin: string): Promise<UnlockResult>;
   verifyCurrentPin(pin: string): Promise<boolean>;
   unlockWithBiometrics(): Promise<boolean>;
-  changePin(currentPin: string, nextPin: string): Promise<{ success: boolean; message?: string }>;
-  setBiometricEnabled(enabled: boolean): Promise<{ success: boolean; message?: string }>;
+  changePin(
+    currentPin: string,
+    nextPin: string,
+  ): Promise<{ success: boolean; message?: string }>;
+  setBiometricEnabled(
+    enabled: boolean,
+  ): Promise<{ success: boolean; message?: string }>;
   removePin(): Promise<{ success: boolean; message?: string }>;
   resetPinAndLogout(): Promise<void>;
   startPinSetup(): void;
@@ -49,7 +54,8 @@ function maskedContact(phone?: string | null, email?: string | null) {
     return phone.replace(/(\+\d{3}\s?\d{2})\d+(\d{2})$/, "$1 *** ** $2");
   return email ?? null;
 }
-const wait = (duration: number) => new Promise<void>((resolve) => setTimeout(resolve, duration));
+const wait = (duration: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, duration));
 
 export function AppLockProvider({ children }: { children: ReactNode }) {
   const { user, isBootstrapping, logout } = useAuth();
@@ -64,7 +70,8 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const appStateRef = useRef(AppState.currentState);
   const inactiveSinceRef = useRef<number | null>(null);
   const security = useMemo(
-    () => createPinSecurity(pinStorage, validatePin, authenticateWithBiometrics),
+    () =>
+      createPinSecurity(pinStorage, validatePin, authenticateWithBiometrics),
     [],
   );
   useEffect(() => {
@@ -102,7 +109,9 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         setPinEnabled(hasPin);
         setLocked(hasPin);
         setBiometric(capability);
-        setBiometricEnabled(updatedRecord?.biometricEnabled ?? record?.biometricEnabled ?? false);
+        setBiometricEnabled(
+          updatedRecord?.biometricEnabled ?? record?.biometricEnabled ?? false,
+        );
         setResolvedUserId(user.id);
         setResolving(false);
       }
@@ -174,7 +183,10 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       if (result.success) {
         await wait(220);
         setLocked(false);
-        return { status: "unlocked", attemptsRemaining: result.attemptsRemaining };
+        return {
+          status: "unlocked",
+          attemptsRemaining: result.attemptsRemaining,
+        };
       }
       if (result.mustLogout) {
         await logout();
@@ -202,7 +214,11 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   }, [biometric, biometricEnabled, security, user]);
   const changePin = useCallback(
     (currentPin: string, nextPin: string) => {
-      if (!user) return Promise.resolve({ success: false, message: "Foydalanuvchi topilmadi" });
+      if (!user)
+        return Promise.resolve({
+          success: false,
+          message: "Foydalanuvchi topilmadi",
+        });
       return security.changePin(user.id, currentPin, nextPin);
     },
     [security, user],
@@ -210,12 +226,20 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const setBiometricEnabled = useCallback(
     async (enabled: boolean) => {
       if (!user) return { success: false, message: "Foydalanuvchi topilmadi" };
-      if (!biometric?.available) return { success: false, message: "Bu qurilmada biometrika mavjud emas" };
+      if (!biometric?.available)
+        return {
+          success: false,
+          message: "Bu qurilmada biometrika mavjud emas",
+        };
       if (enabled && !(await authenticateWithBiometrics())) {
-        return { success: false, message: "Biometrik tasdiqlash bekor qilindi" };
+        return {
+          success: false,
+          message: "Biometrik tasdiqlash bekor qilindi",
+        };
       }
       const record = await pinStorage.setBiometricEnabled(user.id, enabled);
-      if (!record) return { success: false, message: "Avval PIN-kod o'rnating" };
+      if (!record)
+        return { success: false, message: "Avval PIN-kod o'rnating" };
       setBiometricEnabledState(enabled);
       return { success: true };
     },

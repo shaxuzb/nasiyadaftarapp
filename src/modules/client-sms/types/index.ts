@@ -33,6 +33,7 @@ export interface SmsRecipient {
   currentBalance: number;
   overdueBalance: number;
   isBlacklisted: boolean;
+  blacklistedOrganizationCount: number;
   canSend: boolean;
   cannotSendReason?: string;
 }
@@ -56,6 +57,14 @@ export interface SmsSendResult {
   status: string;
   message?: string;
   errorMessage?: string;
+  quotaSource?: string;
+  quota?: SmsSendQuota;
+}
+
+export interface SmsSendQuota {
+  monthlyRemaining: number | null;
+  purchasedRemaining: number;
+  totalRemaining: number | null;
 }
 
 export interface IndividualSmsResult extends SmsSendResult {}
@@ -65,4 +74,6 @@ export interface BulkSmsResponse {
   failedCount: number;
   skippedCount: number;
   results: SmsSendResult[];
+  quotaSource?: string;
+  quota?: SmsSendQuota;
 }

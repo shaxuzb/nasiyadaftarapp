@@ -21,7 +21,10 @@ function useSmsScope() {
   return {
     user,
     scope: user?.organizationId ?? user?.id ?? "anonymous",
-    capabilities: getClientSmsCapabilities(user?.permissions),
+    capabilities: getClientSmsCapabilities(
+      user?.permissions,
+      user?.subscription,
+    ),
   };
 }
 
@@ -64,13 +67,19 @@ export function useSmsTemplate() {
 function useSmsInvalidation() {
   const queryClient = useQueryClient();
   const { scope } = useSmsScope();
-  return () => {
+  const { refreshSubscription } = useAuth();
+  return async () => {
     void queryClient.invalidateQueries({
       queryKey: queryKeys.clientSmsRecipientsRoot(scope),
     });
     void queryClient.invalidateQueries({
       queryKey: queryKeys.clientSmsHistoryRoot(scope),
     });
+    try {
+      await refreshSubscription();
+    } catch {
+      // The send itself already succeeded; a quota refresh can retry on the next screen focus.
+    }
   };
 }
 

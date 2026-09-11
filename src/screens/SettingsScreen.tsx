@@ -24,6 +24,9 @@ import { radius, spacing, typography } from "../theme";
 import { AppTheme, RootStackParamList } from "../types";
 import { getApiErrorMessage } from "../utils/apiError";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
+import { useCurrentSubscription } from "../modules/subscription/hooks/useSubscription";
+import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
+import type { SubscriptionUpgradeReason } from "../modules/subscription/utils/upgradeOptions";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -62,6 +65,7 @@ interface ProfileMenuRowProps {
   onPress: () => void;
   isLast?: boolean;
   loading?: boolean;
+  badge?: string;
 }
 
 function ProfileMenuRow({
@@ -73,6 +77,7 @@ function ProfileMenuRow({
   onPress,
   isLast = false,
   loading = false,
+  badge,
 }: ProfileMenuRowProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -103,11 +108,14 @@ function ProfileMenuRow({
           </Text>
         ) : null}
       </View>
-      {loading ? (
-        <ActivityIndicator size="small" color={theme.primary} />
-      ) : (
-        <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
-      )}
+      <View style={styles.rowEnd}>
+        {badge ? <Text style={styles.proBadge}>{badge}</Text> : null}
+        {loading ? (
+          <ActivityIndicator size="small" color={theme.primary} />
+        ) : (
+          <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+        )}
+      </View>
     </Pressable>
   );
 }
@@ -123,6 +131,12 @@ export function SettingsScreen() {
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();
   const [isOpeningBot, setIsOpeningBot] = useState(false);
+  const [upgradeReason, setUpgradeReason] =
+    useState<SubscriptionUpgradeReason | null>(null);
+  const subscriptionQuery = useCurrentSubscription();
+  const subscription = subscriptionQuery.data ?? user?.subscription;
+  const isProSubscription = subscription?.planCode?.toUpperCase() === "PRO";
+  const telegramEnabled = subscription?.telegramBotEnabled !== false;
 
   const phoneVerified = hasVerifiedPhone(user);
   const initials = useMemo(
@@ -164,6 +178,15 @@ export function SettingsScreen() {
     });
   }, [isOpeningBot, requireVerifiedPhone, showToast]);
 
+  const handleOpenBlacklist = useCallback(() => {
+    if (isProSubscription) {
+      navigation.navigate("BlacklistSettings");
+      return;
+    }
+
+    setUpgradeReason("blacklist");
+  }, [isProSubscription, navigation]);
+
   const handleLogout = useCallback(async () => {
     const accepted = await confirm({
       title: "Hisobdan chiqish",
@@ -193,6 +216,44 @@ export function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
+        {subscription ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Joriy tarif va limitlar"
+            onPress={() => navigation.navigate("Subscription")}
+            style={({ pressed }) => [
+              styles.subscriptionCard,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.subscriptionIcon}>
+              <Ionicons
+                name="sparkles-outline"
+                size={22}
+                color={theme.primary}
+              />
+            </View>
+            <View style={styles.subscriptionCopy}>
+              <Text style={styles.subscriptionEyebrow}>JORIY TARIF</Text>
+              <Text style={styles.subscriptionName}>
+                {subscription.planName}
+              </Text>
+              <Text style={styles.subscriptionMeta} numberOfLines={1}>
+                {subscription.sms.totalRemaining === null
+                  ? "Cheksiz SMS"
+                  : `${subscription.sms.totalRemaining} ta SMS qoldi`}
+                {subscription.unlimitedOrganizations
+                  ? " · Cheksiz tashkilot"
+                  : ` · ${subscription.maxOrganizations ?? 0} ta tashkilot`}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.textMuted}
+            />
+          </Pressable>
+        ) : null}
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
             <View style={styles.avatar} accessibilityLabel="Profil rasmi">
@@ -284,6 +345,14 @@ export function SettingsScreen() {
             title="Kirish va xavfsizlik"
             description="PIN, biometrika, parol va Google akkaunt"
             onPress={() => navigation.navigate("AccountSecurity")}
+          />
+          <ProfileMenuRow
+            icon="pricetags-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title="Tariflar va limitlar"
+            description="Tarif, SMS va imkoniyatlarni ko'rish"
+            onPress={() => navigation.navigate("Subscription")}
             isLast
           />
         </View>
@@ -300,12 +369,19 @@ export function SettingsScreen() {
             }}
           />
           <ProfileMenuRow
-            icon="warning-outline"
-            iconColor={theme.warningColor}
+            icon={isProSubscription ? "warning-outline" : "lock-closed-outline"}
+            iconColor={
+              isProSubscription ? theme.warningColor : theme.textSecondary
+            }
             iconBackground={theme.inputBackground}
             title="Qora ro'yxat sozlamasi"
-            description="Kechikish muddatini boshqarish"
-            onPress={() => navigation.navigate("BlacklistSettings")}
+            description={
+              isProSubscription
+                ? "Kechikish muddatini boshqarish"
+                : "PRO tarifida mavjud"
+            }
+            onPress={handleOpenBlacklist}
+            badge={isProSubscription ? undefined : "PRO"}
             isLast
           />
         </View>
@@ -313,17 +389,26 @@ export function SettingsScreen() {
         <SectionTitle title="Yordam va aloqa" />
         <View style={styles.card}>
           <ProfileMenuRow
-            icon="send-outline"
-            iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
+            icon={telegramEnabled ? "send-outline" : "lock-closed-outline"}
+            iconColor={telegramEnabled ? theme.primary : theme.textSecondary}
+            iconBackground={
+              telegramEnabled ? theme.primaryLight : theme.inputBackground
+            }
             title="Telegram bot"
             description={
-              phoneVerified
-                ? "Bot orqali qarzlarni kuzatish"
-                : "Avval telefon raqamini tasdiqlang"
+              telegramEnabled
+                ? phoneVerified
+                  ? "Bot orqali qarzlarni kuzatish"
+                  : "Avval telefon raqamini tasdiqlang"
+                : "PRO tarifida mavjud"
             }
-            onPress={handleOpenBot}
-            loading={isOpeningBot}
+            onPress={
+              telegramEnabled
+                ? handleOpenBot
+                : () => setUpgradeReason("telegram")
+            }
+            loading={telegramEnabled && isOpeningBot}
+            badge={telegramEnabled ? undefined : "PRO"}
             isLast
           />
         </View>
@@ -384,6 +469,13 @@ export function SettingsScreen() {
           <Text style={styles.logoutText}>Hisobdan chiqish</Text>
         </Pressable>
       </ScrollView>
+      <SubscriptionUpgradeModal
+        visible={upgradeReason !== null}
+        reason={upgradeReason ?? "telegram"}
+        subscription={subscription}
+        onClose={() => setUpgradeReason(null)}
+        onViewSubscription={() => navigation.navigate("Subscription")}
+      />
     </SafeAreaView>
   );
 }
@@ -396,13 +488,42 @@ const createStyles = (theme: AppTheme) =>
       paddingTop: spacing.sm,
       paddingBottom: spacing.xs,
     },
-    screenTitle: { ...typography.displayLarge, color: theme.text },
+    screenTitle: { ...typography.displayMedium, color: theme.text },
     content: {
       paddingHorizontal: spacing.md,
       paddingTop: spacing.sm,
       paddingBottom: spacing.xl,
       gap: spacing.sm,
     },
+    subscriptionCard: {
+      minHeight: 78,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 11,
+      padding: 13,
+      borderWidth: 1,
+      borderColor: `${theme.primary}55`,
+      borderRadius: radius.xl,
+      borderCurve: "continuous",
+      backgroundColor: theme.primaryLight,
+    },
+    subscriptionIcon: {
+      width: 42,
+      height: 42,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 14,
+      backgroundColor: theme.surface,
+    },
+    subscriptionCopy: { minWidth: 0, flex: 1, gap: 1 },
+    subscriptionEyebrow: {
+      ...typography.caption,
+      color: theme.primary,
+      fontWeight: "800",
+      letterSpacing: 0.6,
+    },
+    subscriptionName: { ...typography.headingSmall, color: theme.text },
+    subscriptionMeta: { ...typography.caption, color: theme.textSecondary },
     profileCard: {
       overflow: "hidden",
       padding: 14,
@@ -507,6 +628,16 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "700",
     },
     menuDescription: { ...typography.caption, color: theme.textMuted },
+    rowEnd: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    proBadge: {
+      paddingHorizontal: 7,
+      paddingVertical: 3,
+      borderRadius: radius.full,
+      backgroundColor: theme.primaryLight,
+      ...typography.caption,
+      color: theme.primary,
+      fontWeight: "800",
+    },
     themeSelector: {
       flexDirection: "row",
       gap: spacing.sm,

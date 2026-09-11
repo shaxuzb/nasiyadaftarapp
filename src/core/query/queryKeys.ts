@@ -1,6 +1,11 @@
 export type QueryScope = string | number;
 
 export const queryKeys = {
+  subscriptionRoot: () => ["subscription"] as const,
+  subscriptionCurrent: (scope: QueryScope) =>
+    ["subscription", scope, "current"] as const,
+  subscriptionPlans: () => ["subscription", "plans"] as const,
+  subscriptionSmsPackages: () => ["subscription", "sms-packages"] as const,
   clientSmsRoot: () => ["client-sms"] as const,
   clientSmsTemplate: (scope: QueryScope) =>
     ["client-sms", scope, "template"] as const,

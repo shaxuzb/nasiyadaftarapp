@@ -29,6 +29,7 @@ import { PinChangeScreen } from "../modules/pin-auth/screens/PinChangeScreen";
 import { ClientSmsScreen } from "../screens/ClientSmsScreen";
 import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
 import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
+import { SubscriptionScreen } from "../screens/SubscriptionScreen";
 
 import {
   AuthStackParamList,
@@ -196,6 +197,7 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
         name="BlacklistSettings"
         component={BlacklistSettingsScreen}
       />
+      <Stack.Screen name="Subscription" component={SubscriptionScreen} />
     </Stack.Navigator>
   );
 }
@@ -280,6 +282,10 @@ function OrganizationNavigator({
       <OrganizationStack.Screen
         name="OrganizationSetup"
         component={OrganizationSetupScreen}
+      />
+      <OrganizationStack.Screen
+        name="Subscription"
+        component={SubscriptionScreen}
       />
     </OrganizationStack.Navigator>
   );

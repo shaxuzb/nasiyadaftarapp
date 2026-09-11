@@ -36,6 +36,7 @@ export type RootStackParamList = {
   ClientSms: undefined;
   ClientSmsHistory: undefined;
   BlacklistSettings: undefined;
+  Subscription: undefined;
 };
 
 export type MainTabParamList = {
@@ -65,4 +66,5 @@ export type AuthStackParamList = {
 export type OrganizationStackParamList = {
   OrganizationSetup: undefined;
   OrganizationSelect: undefined;
+  Subscription: undefined;
 };
