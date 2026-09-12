@@ -11,7 +11,9 @@ interface UseOtpAutoFillOptions {
 
 interface UseOtpAutoFillReturn {
   appHash: string;
-  restartListening: () => void;
+  restartListening: () => Promise<void>;
+  isReady: boolean;
+  hasError: boolean;
 }
 
 export function useOtpAutoFill({
@@ -32,9 +34,11 @@ export function useOtpAutoFill({
     [codeLength],
   );
 
-  const { appHash, reset, startListening } = useSMSRetriever({
-    onSuccess: handleSuccess,
-  });
+  const { appHash, reset, startListening, isReady, hasError } = useSMSRetriever(
+    {
+      onSuccess: handleSuccess,
+    },
+  );
 
   useEffect(() => {
     if (__DEV__ && Platform.OS === "android" && appHash) {
@@ -42,14 +46,14 @@ export function useOtpAutoFill({
     }
   }, [appHash]);
 
-  const restartListening = useCallback(() => {
+  const restartListening = useCallback(async () => {
     if (Platform.OS !== "android") return;
 
     reset();
-    void startListening().catch(() => {
+    await startListening().catch(() => {
       // SMS Retriever is an optional enhancement; manual entry remains available.
     });
   }, [reset, startListening]);
 
-  return { appHash, restartListening };
+  return { appHash, restartListening, isReady, hasError };
 }

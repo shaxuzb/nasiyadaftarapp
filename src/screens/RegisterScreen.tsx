@@ -17,13 +17,11 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { APP_NAME } from "../constants";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { sendSmsCode } from "../services/authApi";
 import { isValidUzPhone, toStoredUzPhone, uzPhoneMask } from "../utils/masks";
 import {
   getGoogleSignInErrorKey,
   requestGoogleIdToken,
 } from "../modules/auth/services/googleSignInService";
-import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import { LanguageSelectorButton } from "../components/LanguageSelectorButton";
 import { useTranslation } from "../i18n";
@@ -37,8 +35,6 @@ interface Props {
       fullName: string;
       phoneNumber: string;
     };
-    phoneMasked: string;
-    expiresInSeconds: number;
   }) => void;
 }
 
@@ -51,7 +47,6 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("+998 ");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   const canSubmit = useMemo(() => {
@@ -62,7 +57,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
     );
   }, [fullName, password, phoneNumber]);
 
-  const handleRegister = async () => {
+  const handleRegister = () => {
     if (!canSubmit) {
       showToast(t("auth.register.invalidForm"), "error");
       return;
@@ -71,31 +66,14 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
     const safePhone = toStoredUzPhone(phoneNumber);
     const userName = safePhone;
 
-    setLoading(true);
-    try {
-      const registerPayload = {
+    onGoToSmsVerify({
+      registerPayload: {
         userName,
         password,
         fullName: fullName.trim(),
         phoneNumber: safePhone,
-      };
-
-      const smsResult = await sendSmsCode({ phone: safePhone });
-      showToast(t("auth.register.smsSent"), "success");
-
-      onGoToSmsVerify({
-        registerPayload,
-        phoneMasked: smsResult.phoneMasked,
-        expiresInSeconds: smsResult.expiresInSeconds,
-      });
-    } catch (error) {
-      showToast(
-        getLocalizedApiErrorMessage(error, "auth.register.smsError", t),
-        "error",
-      );
-    } finally {
-      setLoading(false);
-    }
+      },
+    });
   };
 
   const handleGoogleLogin = async () => {
@@ -105,10 +83,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
       await loginWithGoogleIdToken(idToken);
       showToast(t("auth.register.googleSuccess"), "success");
     } catch (error) {
-      showToast(
-        t(getGoogleSignInErrorKey(error)),
-        "error",
-      );
+      showToast(t(getGoogleSignInErrorKey(error)), "error");
     } finally {
       setGoogleLoading(false);
     }
@@ -183,7 +158,6 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
             <PrimaryButton
               label={t("auth.register.action")}
               onPress={handleRegister}
-              loading={loading}
               disabled={!canSubmit}
               style={{ marginTop: spacing.xs }}
             />

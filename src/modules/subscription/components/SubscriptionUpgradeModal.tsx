@@ -43,7 +43,7 @@ import {
   getSubscriptionUpgradeOptions,
   isPaidPlanCode,
   normalizePlanCode,
-  type SubscriptionUpgradeIcon,
+  type PaidPlanCode,
   type SubscriptionUpgradeReason,
 } from "../utils/upgradeOptions";
 import { useAdminContact } from "../../support/hooks/useAdminContact";
@@ -51,37 +51,16 @@ import { useBottomSheetBackHandler } from "../../../bottom-sheet";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
-const UPGRADE_ICONS: Record<SubscriptionUpgradeIcon, IconName> = {
-  sms: "chatbubble-ellipses-outline",
-  telegram: "paper-plane-outline",
-  blacklist: "shield-checkmark-outline",
-  organization: "storefront-outline",
-};
-
-function stepIcon(icon: SubscriptionUpgradeIcon, index: number): IconName {
-  if (icon === "telegram") {
-    return ["call-outline", "business-outline", "document-text-outline"][
-      index
-    ] as IconName;
-  }
-
-  if (icon === "organization") return "sparkles-outline";
-  return "checkmark";
-}
-
 interface SubscriptionUpgradeModalProps {
   visible: boolean;
   reason: SubscriptionUpgradeReason;
   subscription?: CurrentSubscription;
   onClose: () => void;
-  onViewSubscription: () => void;
 }
 
 function priceLabel(price: number, locale: "uz" | "ru", freeLabel: string) {
   return price === 0 ? freeLabel : formatLocalizedCurrency(price, locale);
 }
-
-type CatalogPlanCode = "FREE" | "STANDARD" | "PREMIUM";
 
 interface PlanComparisonRow {
   label: string;
@@ -97,16 +76,6 @@ function localizedPlanName(plan: SubscriptionPlan, t: Translate) {
   if (code === "STANDARD") return t("subscription.standardPlan");
   if (code === "PREMIUM") return t("subscription.premiumPlan");
   return plan.name;
-}
-
-function localizedPlanDescription(plan: SubscriptionPlan, t: Translate) {
-  const code = normalizePlanCode(plan.code);
-  if (code === "FREE") return t("subscription.freePlanDescription");
-  if (code === "STANDARD") {
-    return t("subscription.standardPlanDescription");
-  }
-  if (code === "PREMIUM") return t("subscription.premiumPlanDescription");
-  return plan.description;
 }
 
 function planIcon(code: string): IconName {
@@ -174,7 +143,6 @@ export function SubscriptionUpgradeModal({
   reason,
   subscription,
   onClose,
-  onViewSubscription,
 }: SubscriptionUpgradeModalProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -184,7 +152,6 @@ export function SubscriptionUpgradeModal({
   const contentBottomInset = Math.max(insets.bottom, spacing.md) + 10;
   const sheet = useRef<BottomSheetModal>(null);
   const presentedRef = useRef(false);
-  const viewSubscriptionAfterDismissRef = useRef(false);
   const visibleRef = useRef(visible);
   visibleRef.current = visible;
   const plansQuery = useSubscriptionPlans();
@@ -194,83 +161,36 @@ export function SubscriptionUpgradeModal({
     null,
   );
   const [showPackageCatalog, setShowPackageCatalog] = useState(false);
-  const baseOptions = getSubscriptionUpgradeOptions(subscription, reason);
-  const isPremium = normalizePlanCode(subscription?.planCode) === "PREMIUM";
-  const options = useMemo(() => {
-    if (reason === "telegram") {
-      return {
-        ...baseOptions,
-        title: t("subscription.upgrade.telegramTitle"),
-        description: t("subscription.upgrade.telegramDescription"),
-        steps: [
-          t("subscription.upgrade.telegramStepPhone"),
-          t("subscription.upgrade.telegramStepOrganization"),
-          t("subscription.upgrade.telegramStepReport"),
-        ],
-      };
-    }
-    if (reason === "organization-limit") {
-      return {
-        ...baseOptions,
-        title: t("subscription.upgrade.organizationTitle"),
-        description: t("subscription.upgrade.organizationDescription"),
-        steps: [t("subscription.upgrade.organizationStep")],
-      };
-    }
-    if (reason === "blacklist") {
-      return {
-        ...baseOptions,
-        title: t("subscription.upgrade.blacklistTitle"),
-        description: t("subscription.upgrade.blacklistDescription"),
-        steps: [
-          t("subscription.upgrade.blacklistStepDeadline"),
-          t("subscription.upgrade.blacklistStepMark"),
-          t("subscription.upgrade.blacklistStepOther"),
-        ],
-      };
-    }
-    return {
-      ...baseOptions,
-      title: t("subscription.upgrade.smsTitle"),
-      description: t(
-        isPremium
-          ? "subscription.upgrade.smsDescriptionPaid"
-          : "subscription.upgrade.smsDescription",
-      ),
-      steps: [],
-    };
-  }, [baseOptions, isPremium, reason, t]);
-  const planCatalog = useMemo(() => {
-    const order: Record<CatalogPlanCode, number> = {
-      FREE: 0,
+  const options = getSubscriptionUpgradeOptions(subscription, reason);
+  const showingPackageCatalog = options.showPackages && showPackageCatalog;
+  const paidPlanCatalog = useMemo(() => {
+    const order: Record<PaidPlanCode, number> = {
       STANDARD: 1,
       PREMIUM: 2,
     };
     return [...(plansQuery.data ?? [])]
-      .filter((item) => {
-        const code = normalizePlanCode(item.code);
-        return code === "FREE" || isPaidPlanCode(code);
-      })
+      .filter((item) => isPaidPlanCode(item.code))
       .sort((left, right) => {
-        const leftCode = normalizePlanCode(left.code) as CatalogPlanCode;
-        const rightCode = normalizePlanCode(right.code) as CatalogPlanCode;
+        const leftCode = normalizePlanCode(left.code) as PaidPlanCode;
+        const rightCode = normalizePlanCode(right.code) as PaidPlanCode;
         return order[leftCode] - order[rightCode];
       });
   }, [plansQuery.data]);
   const [selectedPlanCode, setSelectedPlanCode] =
-    useState<CatalogPlanCode>("PREMIUM");
+    useState<PaidPlanCode>("PREMIUM");
   const freePlan = useMemo(
     () =>
-      planCatalog.find((item) => normalizePlanCode(item.code) === "FREE") ??
-      null,
-    [planCatalog],
+      (plansQuery.data ?? []).find(
+        (item) => normalizePlanCode(item.code) === "FREE",
+      ) ?? null,
+    [plansQuery.data],
   );
   const selectedPlan = useMemo(
     () =>
-      planCatalog.find(
+      paidPlanCatalog.find(
         (item) => normalizePlanCode(item.code) === selectedPlanCode,
       ) ?? null,
-    [planCatalog, selectedPlanCode],
+    [paidPlanCatalog, selectedPlanCode],
   );
   const packages = packagesQuery.data ?? [];
 
@@ -284,13 +204,8 @@ export function SubscriptionUpgradeModal({
 
   const handleDismiss = useCallback(() => {
     presentedRef.current = false;
-    const shouldNavigate = viewSubscriptionAfterDismissRef.current;
-    viewSubscriptionAfterDismissRef.current = false;
     onClose();
-    if (shouldNavigate) {
-      requestAnimationFrame(onViewSubscription);
-    }
-  }, [onClose, onViewSubscription]);
+  }, [onClose]);
 
   useBottomSheetBackHandler(visible, closeSheet);
 
@@ -317,16 +232,14 @@ export function SubscriptionUpgradeModal({
   }, [reason, visible]);
 
   useEffect(() => {
-    if (!visible || !planCatalog.length) return;
-    const preferred = planCatalog.some(
+    if (!visible || !paidPlanCatalog.length) return;
+    const preferred = paidPlanCatalog.some(
       (item) => normalizePlanCode(item.code) === "PREMIUM",
     )
       ? "PREMIUM"
-      : planCatalog.some((item) => normalizePlanCode(item.code) === "STANDARD")
-        ? "STANDARD"
-        : "FREE";
+      : "STANDARD";
     setSelectedPlanCode(preferred);
-  }, [planCatalog, visible]);
+  }, [paidPlanCatalog, visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -340,23 +253,12 @@ export function SubscriptionUpgradeModal({
     closeSheet();
   }, [closeSheet, openAdminContact]);
 
-  const openSubscription = useCallback(() => {
-    if (!presentedRef.current) {
-      onClose();
-      onViewSubscription();
-      return;
-    }
-
-    viewSubscriptionAfterDismissRef.current = true;
-    sheet.current?.dismiss();
-  }, [onClose, onViewSubscription]);
-
   const renderFooter = useCallback(
     (footerProps: BottomSheetFooterProps) => {
       if (!selectedPackage) return null;
 
       return (
-        <BottomSheetFooter {...footerProps} bottomInset={contentBottomInset}>
+        <BottomSheetFooter {...footerProps} bottomInset={0}>
           <View style={styles.stickyAction}>
             <Pressable
               accessibilityRole="button"
@@ -391,15 +293,7 @@ export function SubscriptionUpgradeModal({
         </BottomSheetFooter>
       );
     },
-    [
-      contentBottomInset,
-      isOpening,
-      openAdmin,
-      selectedPackage,
-      styles,
-      theme.primary,
-      t,
-    ],
+    [isOpening, openAdmin, selectedPackage, styles, theme.primary, t],
   );
 
   const renderBackdrop = useCallback(
@@ -420,8 +314,12 @@ export function SubscriptionUpgradeModal({
       ref={sheet}
       index={0}
       enableDynamicSizing
-      maxDynamicContentSize={Math.max(1, height - insets.top - spacing.md)}
+      maxDynamicContentSize={Math.max(
+        1,
+        height - insets.top - contentBottomInset,
+      )}
       topInset={insets.top}
+      // bottomInset={contentBottomInset}
       enablePanDownToClose
       enableOverDrag={false}
       backdropComponent={renderBackdrop}
@@ -434,283 +332,215 @@ export function SubscriptionUpgradeModal({
       <BottomSheetScrollView
         enableFooterMarginAdjustment
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.body,
-          {
-            paddingBottom: selectedPackage ? spacing.md : contentBottomInset,
-          },
-        ]}
+        contentContainerStyle={[styles.body]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <View style={styles.iconWrap}>
-            <Ionicons
-              name={UPGRADE_ICONS[options.icon]}
-              size={27}
-              color={theme.primary}
-            />
-          </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("subscription.close")}
-            onPress={closeSheet}
-            style={styles.closeButton}
-          >
-            <Ionicons name="close" size={21} color={theme.textSecondary} />
-          </Pressable>
-        </View>
-        <Text style={styles.title}>{options.title}</Text>
-        <Text style={styles.description}>{options.description}</Text>
-        {options.showQuota && subscription?.sms ? (
-          <View style={styles.quotaCard}>
-            <View style={styles.quotaItem}>
-              <Text style={styles.quotaLabel}>
-                {t("subscription.upgrade.quotaMonthly")}
-              </Text>
-              <Text style={styles.quotaValue}>
-                {subscription.sms.monthlyLimit === null
-                  ? "∞"
-                  : subscription.sms.monthlyLimit}
-              </Text>
-            </View>
-            <View style={styles.quotaDivider} />
-            <View style={styles.quotaItem}>
-              <Text style={styles.quotaLabel}>
-                {t("subscription.upgrade.quotaRemaining")}
-              </Text>
-              <Text style={styles.quotaValue}>
-                {subscription.sms.monthlyRemaining === null
-                  ? "∞"
-                  : subscription.sms.monthlyRemaining}
-              </Text>
-            </View>
-          </View>
-        ) : null}
-        {options.steps.length ? (
-          <View style={styles.steps}>
-            {options.steps.map((item, index) => (
-              <View key={item} style={styles.stepRow}>
-                <View style={styles.stepIcon}>
-                  <Ionicons
-                    name={stepIcon(options.icon, index)}
-                    size={21}
-                    color={theme.primary}
-                  />
-                </View>
-                {options.icon === "telegram" ? (
-                  <View style={styles.stepNumber}>
-                    <Text style={styles.stepNumberText}>{index + 1}</Text>
-                  </View>
-                ) : null}
-                <Text style={styles.stepText}>{item}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-        {options.showPlans ? (
-          planCatalog.length && freePlan && selectedPlan ? (
-            <View style={styles.plansSection}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.planSelector}
+        <View style={{ flex: 1, paddingBottom: contentBottomInset }}>
+          <View style={styles.header}>
+            {showingPackageCatalog ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("common.back")}
+                onPress={() => setShowPackageCatalog(false)}
+                style={styles.backButton}
               >
-                {planCatalog.map((item) => {
-                  const code = normalizePlanCode(item.code) as CatalogPlanCode;
-                  const selected = code === selectedPlanCode;
-                  const current =
-                    Boolean(subscription) &&
-                    code === normalizePlanCode(subscription?.planCode);
-                  return (
-                    <Pressable
-                      key={item.id}
-                      accessibilityRole="tab"
-                      accessibilityLabel={localizedPlanName(item, t)}
-                      accessibilityState={{ selected }}
-                      onPress={() => setSelectedPlanCode(code)}
-                      style={({ pressed }) => [
-                        styles.planTab,
-                        selected && styles.planTabSelected,
-                        pressed && styles.pressed,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.planTabText,
-                          selected && styles.planTabTextSelected,
-                        ]}
-                      >
-                        {localizedPlanName(item, t)}
-                      </Text>
-                      {current ? (
-                        <Text
-                          style={[
-                            styles.planTabCaption,
-                            selected && styles.planTabCaptionSelected,
-                          ]}
-                        >
-                          {t("subscription.current")}
-                        </Text>
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <PlanComparisonCard
-                selectedPlan={selectedPlan}
-                selectedIsCurrent={
-                  Boolean(subscription) &&
-                  normalizePlanCode(selectedPlan.code) ===
-                    normalizePlanCode(subscription?.planCode)
-                }
-                price={priceLabel(
-                  selectedPlan.price,
-                  locale,
-                  t("subscription.freePrice"),
-                )}
-                rows={planComparisonRows(freePlan, selectedPlan, t)}
-                planName={localizedPlanName(selectedPlan, t)}
-                planDescription={localizedPlanDescription(selectedPlan, t)}
-                recommended={
-                  normalizePlanCode(selectedPlan.code) ===
-                  options.recommendedPlanCode
-                }
-                actionLabel={t("subscription.adminActivate")}
-                onPress={() => void openAdmin()}
-                loading={isOpening}
-                theme={theme}
-                styles={styles}
-                t={t}
-              />
-            </View>
-          ) : plansQuery.isPending ? (
-            <View style={styles.loadingRow}>
-              <ActivityIndicator size="small" color={theme.primary} />
-              <Text style={styles.loadingText}>
-                {t("subscription.loadingPlans")}
-              </Text>
-            </View>
-          ) : null
-        ) : null}
-
-        {options.showPlans ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("subscription.upgrade.viewPlans")}
-            onPress={openSubscription}
-            style={({ pressed }) => [
-              styles.plansLink,
-              pressed && styles.pressed,
-            ]}
-          >
-            <Text style={styles.plansLinkText}>
-              {t("subscription.upgrade.viewPlans")}
+                <Ionicons
+                  name="arrow-back"
+                  size={20}
+                  color={theme.textSecondary}
+                />
+              </Pressable>
+            ) : null}
+            <Text style={styles.title}>
+              {showingPackageCatalog
+                ? t("subscription.packageSelect")
+                : t("subscription.choosePlan")}
             </Text>
-            <Ionicons name="arrow-forward" size={17} color={theme.primary} />
-          </Pressable>
-        ) : null}
-
-        {options.showPackages ? (
-          showPackageCatalog ? (
-            <View style={styles.packagesSection}>
-              <Text style={styles.sectionTitle}>
-                {t("subscription.packageSelect")}
-              </Text>
-              {packagesQuery.isPending ? (
-                <View style={styles.loadingRow}>
-                  <ActivityIndicator size="small" color={theme.primary} />
-                  <Text style={styles.loadingText}>
-                    {t("subscription.quotaLoading")}
-                  </Text>
-                </View>
-              ) : packages.length ? (
-                <View style={styles.packageGrid}>
-                  {packages.map((item) => {
-                    const selected = selectedPackage?.id === item.id;
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("subscription.close")}
+              onPress={closeSheet}
+              style={styles.closeButton}
+            >
+              <Ionicons name="close" size={21} color={theme.textSecondary} />
+            </Pressable>
+          </View>
+          {options.showPlans && !showingPackageCatalog ? (
+            paidPlanCatalog.length && freePlan && selectedPlan ? (
+              <View style={styles.plansSection}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.planSelector}
+                >
+                  {paidPlanCatalog.map((item) => {
+                    const code = normalizePlanCode(item.code) as PaidPlanCode;
+                    const selected = code === selectedPlanCode;
+                    const current =
+                      Boolean(subscription) &&
+                      code === normalizePlanCode(subscription?.planCode);
                     return (
                       <Pressable
                         key={item.id}
-                        accessibilityRole="button"
-                        accessibilityLabel={`${item.name} ${t("subscription.packageSelect")}`}
+                        accessibilityRole="tab"
+                        accessibilityLabel={localizedPlanName(item, t)}
                         accessibilityState={{ selected }}
-                        onPress={() => setSelectedPackage(item)}
+                        onPress={() => setSelectedPlanCode(code)}
                         style={({ pressed }) => [
-                          styles.packageCard,
-                          selected && styles.packageCardSelected,
+                          styles.planTab,
+                          selected && styles.planTabSelected,
                           pressed && styles.pressed,
                         ]}
                       >
-                        <View style={styles.packageIcon}>
-                          <Ionicons
-                            name="mail-outline"
-                            size={21}
-                            color={theme.primary}
-                          />
-                        </View>
                         <Text
                           style={[
-                            styles.packageCount,
-                            selected && styles.packageCountSelected,
+                            styles.planTabText,
+                            selected && styles.planTabTextSelected,
                           ]}
                         >
-                          {item.smsCount}
+                          {localizedPlanName(item, t)}
                         </Text>
-                        <Text style={styles.packageLabel}>SMS</Text>
-                        <Text style={styles.packagePrice}>
-                          {priceLabel(
-                            item.price,
-                            locale,
-                            t("subscription.freePrice"),
-                          )}
-                        </Text>
+                        {current ? (
+                          <Text
+                            style={[
+                              styles.planTabCaption,
+                              selected && styles.planTabCaptionSelected,
+                            ]}
+                          >
+                            {t("subscription.current")}
+                          </Text>
+                        ) : null}
                       </Pressable>
                     );
                   })}
-                </View>
-              ) : (
+                </ScrollView>
+
+                <PlanComparisonCard
+                  selectedPlan={selectedPlan}
+                  selectedIsCurrent={
+                    Boolean(subscription) &&
+                    normalizePlanCode(selectedPlan.code) ===
+                      normalizePlanCode(subscription?.planCode)
+                  }
+                  price={priceLabel(
+                    selectedPlan.price,
+                    locale,
+                    t("subscription.freePrice"),
+                  )}
+                  rows={planComparisonRows(freePlan, selectedPlan, t)}
+                  planName={localizedPlanName(selectedPlan, t)}
+                  recommended={
+                    normalizePlanCode(selectedPlan.code) ===
+                    options.recommendedPlanCode
+                  }
+                  actionLabel={t("subscription.adminActivate")}
+                  onPress={() => void openAdmin()}
+                  loading={isOpening}
+                  theme={theme}
+                  styles={styles}
+                  t={t}
+                />
+              </View>
+            ) : plansQuery.isPending ? (
+              <View style={styles.loadingRow}>
+                <ActivityIndicator size="small" color={theme.primary} />
                 <Text style={styles.loadingText}>
-                  {t("subscription.packageNotFound")}
+                  {t("subscription.loadingPlans")}
                 </Text>
-              )}
-            </View>
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("subscription.packageCatalog")}
-              onPress={() => setShowPackageCatalog(true)}
-              style={({ pressed }) => [
-                styles.secondaryAction,
-                pressed && styles.pressed,
-              ]}
-            >
-              <Ionicons name="mail-outline" size={21} color={theme.primary} />
-              <Text style={styles.secondaryActionText}>
-                {t("subscription.packageCatalog")}
-              </Text>
-              <Ionicons name="arrow-forward" size={18} color={theme.primary} />
-            </Pressable>
-          )
-        ) : null}
-        {showPackageCatalog && options.showPackages ? (
-          <Text style={styles.note}>{t("subscription.packageNote")}</Text>
-        ) : null}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("subscription.nowNot")}
-          onPress={closeSheet}
-          style={({ pressed }) => [
-            styles.dismissAction,
-            pressed && styles.pressed,
-            {
-              paddingBottom: selectedPackage ? spacing.md : contentBottomInset,
-            },
-          ]}
-        >
-          <Text style={styles.dismissActionText}>
-            {t("subscription.nowNot")}
-          </Text>
-        </Pressable>
+              </View>
+            ) : null
+          ) : null}
+
+          {options.showPackages ? (
+            showingPackageCatalog ? (
+              <View style={styles.packagesSection}>
+                <Text style={styles.sectionTitle}>
+                  {t("subscription.packageSelect")}
+                </Text>
+                {packagesQuery.isPending ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator size="small" color={theme.primary} />
+                    <Text style={styles.loadingText}>
+                      {t("subscription.quotaLoading")}
+                    </Text>
+                  </View>
+                ) : packages.length ? (
+                  <View style={styles.packageGrid}>
+                    {packages.map((item) => {
+                      const selected = selectedPackage?.id === item.id;
+                      return (
+                        <Pressable
+                          key={item.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={`${item.name} ${t("subscription.packageSelect")}`}
+                          accessibilityState={{ selected }}
+                          onPress={() => setSelectedPackage(item)}
+                          style={({ pressed }) => [
+                            styles.packageCard,
+                            selected && styles.packageCardSelected,
+                            pressed && styles.pressed,
+                          ]}
+                        >
+                          <View style={styles.packageIcon}>
+                            <Ionicons
+                              name="mail-outline"
+                              size={21}
+                              color={theme.primary}
+                            />
+                          </View>
+                          <Text
+                            style={[
+                              styles.packageCount,
+                              selected && styles.packageCountSelected,
+                            ]}
+                          >
+                            {item.smsCount}
+                          </Text>
+                          <Text style={styles.packageLabel}>SMS</Text>
+                          <Text style={styles.packagePrice}>
+                            {priceLabel(
+                              item.price,
+                              locale,
+                              t("subscription.freePrice"),
+                            )}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                ) : (
+                  <Text style={styles.loadingText}>
+                    {t("subscription.packageNotFound")}
+                  </Text>
+                )}
+              </View>
+            ) : (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("subscription.packageCatalog")}
+                onPress={() => setShowPackageCatalog(true)}
+                style={({ pressed }) => [
+                  styles.secondaryAction,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons name="mail-outline" size={21} color={theme.primary} />
+                <Text style={styles.secondaryActionText}>
+                  {t("subscription.packageCatalog")}
+                </Text>
+                <Ionicons
+                  name="arrow-forward"
+                  size={18}
+                  color={theme.primary}
+                />
+              </Pressable>
+            )
+          ) : null}
+          {showingPackageCatalog ? (
+            <Text style={styles.note}>{t("subscription.packageNote")}</Text>
+          ) : null}
+          {/* <View style={{ padding: contentBottomInset }}></View> */}
+        </View>
       </BottomSheetScrollView>
     </BottomSheetModal>
   );
@@ -720,7 +550,6 @@ function PlanComparisonCard({
   selectedPlan,
   rows,
   planName,
-  planDescription,
   price,
   selectedIsCurrent,
   recommended,
@@ -734,7 +563,6 @@ function PlanComparisonCard({
   selectedPlan: SubscriptionPlan;
   rows: ReadonlyArray<PlanComparisonRow>;
   planName: string;
-  planDescription: string;
   price: string;
   selectedIsCurrent: boolean;
   recommended: boolean;
@@ -770,7 +598,6 @@ function PlanComparisonCard({
               </Text>
             ) : null}
           </View>
-          <Text style={styles.planSubtitle}>{planDescription}</Text>
         </View>
       </View>
       <Text style={styles.planPrice}>{price}</Text>
@@ -890,99 +717,36 @@ const createStyles = (theme: AppTheme) =>
     },
     header: {
       flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.sm,
       justifyContent: "space-between",
     },
-    iconWrap: {
-      width: 58,
-      height: 58,
+    backButton: {
+      width: 36,
+      height: 36,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 18,
-      backgroundColor: theme.primaryLight,
+      borderRadius: radius.full,
+      backgroundColor: theme.inputBackground,
     },
     closeButton: {
-      width: 42,
-      height: 42,
+      width: 36,
+      height: 36,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radius.full,
       backgroundColor: theme.inputBackground,
     },
     title: {
+      flex: 1,
       ...typography.headingLarge,
       color: theme.text,
     },
-    description: {
-      ...typography.bodySmall,
-      color: theme.textSecondary,
-    },
     body: {
-      gap: spacing.md,
+      gap: spacing.sm,
       paddingHorizontal: spacing.md,
-      paddingTop: spacing.sm,
+      paddingTop: 2,
       paddingBottom: spacing.md,
-    },
-    steps: {
-      gap: spacing.sm,
-    },
-    stepRow: {
-      minHeight: 44,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-    },
-    stepIcon: {
-      width: 42,
-      height: 42,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 14,
-      backgroundColor: theme.primaryLight,
-    },
-    stepNumber: {
-      width: 28,
-      height: 28,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radius.full,
-      backgroundColor: theme.primaryLight,
-    },
-    stepNumberText: {
-      ...typography.label,
-      color: theme.primary,
-      fontWeight: "800",
-    },
-    stepText: {
-      flex: 1,
-      ...typography.bodySmall,
-      color: theme.text,
-    },
-    quotaCard: {
-      minHeight: 82,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-around",
-      borderRadius: radius.lg,
-      backgroundColor: theme.primaryLight,
-    },
-    quotaItem: {
-      flex: 1,
-      alignItems: "center",
-      gap: 2,
-    },
-    quotaLabel: {
-      ...typography.bodySmall,
-      color: theme.textSecondary,
-    },
-    quotaValue: {
-      ...typography.headingMedium,
-      color: theme.text,
-      fontWeight: "800",
-    },
-    quotaDivider: {
-      width: 1,
-      height: 42,
-      backgroundColor: `${theme.primary}33`,
     },
     planCard: {
       padding: 14,
@@ -1003,14 +767,15 @@ const createStyles = (theme: AppTheme) =>
     planSelector: {
       gap: spacing.xs,
       paddingHorizontal: 2,
-      paddingVertical: 2,
+      paddingVertical: 0,
     },
     planTab: {
-      minWidth: 100,
-      minHeight: 50,
+      minWidth: 88,
+      minHeight: 40,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 14,
+      paddingHorizontal: 12,
+      paddingVertical: 5,
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: radius.md,
@@ -1024,18 +789,6 @@ const createStyles = (theme: AppTheme) =>
     planTabTextSelected: { color: "#fff", fontWeight: "800" },
     planTabCaption: { ...typography.caption, color: theme.textMuted },
     planTabCaptionSelected: { color: "#fff" },
-    plansLink: {
-      minHeight: 42,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: spacing.xs,
-    },
-    plansLinkText: {
-      ...typography.label,
-      color: theme.primary,
-      fontWeight: "800",
-    },
     planTop: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
     planTitleRow: {
       flexDirection: "row",
@@ -1053,7 +806,6 @@ const createStyles = (theme: AppTheme) =>
     },
     planCopy: { minWidth: 0, flex: 1, gap: 2 },
     planTitle: { ...typography.headingSmall, color: theme.text },
-    planSubtitle: { ...typography.caption, color: theme.textSecondary },
     recommendedLabel: {
       ...typography.caption,
       color: theme.primary,
@@ -1241,19 +993,6 @@ const createStyles = (theme: AppTheme) =>
       textAlign: "center",
       ...typography.caption,
       color: theme.textMuted,
-    },
-    dismissAction: {
-      alignSelf: "center",
-      minHeight: 42,
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: spacing.lg,
-      paddingBottom: spacing.sm,
-    },
-    dismissActionText: {
-      ...typography.label,
-      color: theme.primary,
-      fontWeight: "800",
     },
     pressed: { opacity: 0.72 },
     disabled: { opacity: 0.56 },

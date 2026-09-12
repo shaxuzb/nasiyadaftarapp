@@ -560,7 +560,6 @@ function ClientSmsContent({
           reason="sms-limit"
           subscription={user?.subscription}
           onClose={() => setIsUpgradeModalOpen(false)}
-          onViewSubscription={() => navigation.navigate("Subscription")}
         />
       </KeyboardAvoidingView>
     </SafeAreaView>

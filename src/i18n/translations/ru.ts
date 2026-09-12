@@ -414,6 +414,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     premiumPlan: "Premium",
     premiumPlanDescription:
       "Возможности Standard, автоматические SMS и поддержка 24/7.",
+    choosePlan: "Выберите тариф",
     current: "Текущий",
     loadingCurrent: "Загрузка текущего тарифа...",
     loadingPlans: "Загрузка тарифов...",
@@ -441,7 +442,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     freePrice: "Пока бесплатно",
     priceForDays: "{price} / {days} дней",
     recommended: "Рекомендуем",
-    adminActivate: "Активировать через администратора",
+    adminActivate: "Связаться с администратором",
     packages: "SMS-пакеты",
     packageHint: "Подключается через администратора",
     info: "Для активации тарифа или SMS-пакета свяжитесь с администратором.",
@@ -450,36 +451,11 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     packageSelect: "Выберите SMS-пакет",
     packageContact: "Связаться с администратором по пакету «{name}»",
     packageCatalog: "Посмотреть SMS-пакеты",
-    nowNot: "Не сейчас",
     close: "Закрыть",
     moreSms: "Больше",
     packageNote:
       "Согласуйте выбор с администратором. После подключения оплаты покупка будет доступна прямо в этом окне.",
-    upgrade: {
-      telegramTitle: "Telegram-бот доступен в платном тарифе",
-      telegramDescription:
-        "Получайте ежедневный отчёт по долгам клиентов через Telegram.",
-      telegramStepPhone: "Подключите номер телефона",
-      telegramStepOrganization: "Выберите организацию",
-      telegramStepReport: "Получайте ежедневный Excel-отчёт",
-      organizationTitle: "Лимит организаций исчерпан",
-      organizationDescription:
-        "Выберите Standard или Premium, чтобы создать ещё одну организацию.",
-      organizationStep: "Управляйте всеми магазинами в одном аккаунте",
-      blacklistTitle: "Чёрный список доступен в платном тарифе",
-      blacklistDescription:
-        "Автоматически находите клиентов с просроченными долгами.",
-      blacklistStepDeadline: "Настройте срок для организации",
-      blacklistStepMark: "Автоматически отмечайте должников",
-      blacklistStepOther: "Смотрите статус в других магазинах",
-      smsTitle: "Лимит SMS исчерпан",
-      smsDescription: "Бесплатный лимит SMS на этот месяц исчерпан.",
-      smsDescriptionPaid:
-        "Выберите подходящий тариф, чтобы продолжить отправку SMS.",
-      viewPlans: "Посмотреть тарифы",
-      quotaMonthly: "Месячный лимит",
-      quotaRemaining: "Осталось",
-    },
+    upgrade: { viewPlans: "Посмотреть тарифы" },
   },
   organization: {
     back: "Назад",
@@ -497,9 +473,8 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     createError: "Ошибка создания организации",
     selectError: "Не удалось выбрать организацию",
     refreshError: "Не удалось обновить организации",
-    setupTitle: "Создайте организацию",
-    setupDescription:
-      "Здравствуйте, {name}! Создайте первую организацию, чтобы начать.",
+    setupTitle: "Начните работу",
+    setupDescription: "Введите название организации, чтобы начать работу.",
     createSheetTitle: "Новая организация",
     createSheetDescription: "Введите название, остальные данные необязательны.",
     nameLabel: "Название *",
@@ -510,6 +485,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     notePlaceholder: "Необязательно",
     requiredHint: "* Обязательное поле",
     createAction: "Создать организацию",
+    setupLogout: "Войти с другого аккаунта",
     cancel: "Отмена",
     closeLabel: "Закрыть форму создания организации",
     nameError: "Введите название организации",
@@ -646,6 +622,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     forbidden: "У вас нет разрешения на это действие",
     validation: "Проверьте введённые данные",
     notFound: "Данные не найдены",
+    conflict: "Такие данные уже существуют",
   },
 };
 

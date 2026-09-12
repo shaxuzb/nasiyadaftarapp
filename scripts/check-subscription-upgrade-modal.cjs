@@ -21,9 +21,11 @@ const freeSms = moduleExports.getSubscriptionUpgradeOptions(
 assert.equal(freeSms.showPlans, true);
 assert.equal(freeSms.recommendedPlanCode, "PREMIUM");
 assert.equal(freeSms.showPackages, true);
-assert.match(freeSms.title, /SMS/);
-assert.equal(freeSms.icon, "sms");
-assert.equal(freeSms.showQuota, true);
+assert.deepEqual(Object.keys(freeSms).sort(), [
+  "recommendedPlanCode",
+  "showPackages",
+  "showPlans",
+]);
 
 const standardSms = moduleExports.getSubscriptionUpgradeOptions(
   { planCode: "STANDARD" },
@@ -47,8 +49,6 @@ const freeTelegram = moduleExports.getSubscriptionUpgradeOptions(
 assert.equal(freeTelegram.showPlans, true);
 assert.equal(freeTelegram.recommendedPlanCode, "PREMIUM");
 assert.equal(freeTelegram.showPackages, false);
-assert.equal(freeTelegram.icon, "telegram");
-assert.equal(freeTelegram.steps.length, 3);
 
 const freeBlacklist = moduleExports.getSubscriptionUpgradeOptions(
   { planCode: "FREE" },
@@ -57,9 +57,6 @@ const freeBlacklist = moduleExports.getSubscriptionUpgradeOptions(
 assert.equal(freeBlacklist.showPlans, true);
 assert.equal(freeBlacklist.recommendedPlanCode, "PREMIUM");
 assert.equal(freeBlacklist.showPackages, false);
-assert.match(freeBlacklist.title, /Qora ro'yxat/);
-assert.equal(freeBlacklist.icon, "blacklist");
-assert.equal(freeBlacklist.steps.length, 3);
 
 const standardBlacklist = moduleExports.getSubscriptionUpgradeOptions(
   { planCode: "STANDARD" },
@@ -72,8 +69,7 @@ const freeOrganizations = moduleExports.getSubscriptionUpgradeOptions(
   { planCode: "FREE" },
   "organization-limit",
 );
-assert.equal(freeOrganizations.icon, "organization");
-assert.equal(freeOrganizations.steps.length, 1);
+assert.equal(freeOrganizations.recommendedPlanCode, "PREMIUM");
 
 const screen = fs.readFileSync("src/screens/ClientSmsScreen.tsx", "utf8");
 const settings = fs.readFileSync("src/screens/SettingsScreen.tsx", "utf8");
@@ -88,38 +84,32 @@ assert.match(settings, /title=\{t\("profile\.blacklistSettings"\)\}/);
 assert.match(settings, /setUpgradeReason\("blacklist"\)/);
 assert.doesNotMatch(settings, /planCode\?\.toUpperCase\(\) === "PRO"/);
 assert.doesNotMatch(settings, /\bPRO\b/);
-assert.match(
-  settings,
-  /onViewSubscription=\{\(\) => navigation\.navigate\("Subscription"\)\}/,
-);
-assert.match(
-  screen,
-  /onViewSubscription=\{\(\) => navigation\.navigate\("Subscription"\)\}/,
-);
-assert.match(
-  organizations,
-  /onViewSubscription=\{\(\) => navigation\.navigate\("Subscription"\)\}/,
-);
+assert.doesNotMatch(settings, /onViewSubscription/);
+assert.doesNotMatch(screen, /onViewSubscription/);
+assert.doesNotMatch(organizations, /onViewSubscription/);
 assert.doesNotMatch(organizations, />PRO</);
 
 const upgradeModal = fs.readFileSync(
   "src/modules/subscription/components/SubscriptionUpgradeModal.tsx",
   "utf8",
 );
-assert.match(upgradeModal, /onViewSubscription: \(\) => void/);
 assert.doesNotMatch(upgradeModal, /useNavigation/);
 assert.doesNotMatch(upgradeModal, /navigation\.navigate\("Subscription"\)/);
-assert.match(upgradeModal, /onViewSubscription\(\)/);
-assert.match(upgradeModal, /t\("subscription\.upgrade\.viewPlans"\)/);
 assert.match(upgradeModal, /t\("subscription\.standardPlan"\)/);
 assert.match(upgradeModal, /t\("subscription\.premiumPlan"\)/);
 assert.match(upgradeModal, /selectedPlanCode/);
 assert.match(upgradeModal, /comparison/);
 assert.match(upgradeModal, /setSelectedPlanCode/);
+assert.match(upgradeModal, /t\("subscription\.choosePlan"\)/);
+assert.doesNotMatch(upgradeModal, /options\.title/);
+assert.doesNotMatch(upgradeModal, /options\.description/);
+assert.doesNotMatch(upgradeModal, /options\.steps/);
+assert.doesNotMatch(upgradeModal, /options\.showQuota/);
+assert.doesNotMatch(upgradeModal, /onViewSubscription/);
+assert.doesNotMatch(upgradeModal, /subscription\.upgrade\.viewPlans/);
+assert.doesNotMatch(upgradeModal, /subscription\.nowNot/);
 assert.doesNotMatch(upgradeModal, /showPro/);
-assert.match(upgradeModal, /t\("subscription\.nowNot"\)/);
 assert.match(upgradeModal, /t\("subscription\.packageCatalog"\)/);
-assert.match(upgradeModal, /options\.steps/);
 
 const types = fs.readFileSync("src/types/index.ts", "utf8");
 const navigation = fs.readFileSync("src/navigation/index.tsx", "utf8");

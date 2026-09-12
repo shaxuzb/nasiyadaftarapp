@@ -234,8 +234,6 @@ function AuthNavigator() {
         {({ route, navigation }) => (
           <RegisterSmsVerifyScreen
             registerPayload={route.params.registerPayload}
-            phoneMasked={route.params.phoneMasked}
-            expiresInSeconds={route.params.expiresInSeconds}
             onGoBackToRegister={() => navigation.goBack()}
             onGoToLogin={() =>
               navigation.reset({ index: 0, routes: [{ name: "Login" }] })

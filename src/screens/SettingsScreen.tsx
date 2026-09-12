@@ -506,7 +506,6 @@ export function SettingsScreen() {
         reason={upgradeReason ?? "telegram"}
         subscription={subscription}
         onClose={() => setUpgradeReason(null)}
-        onViewSubscription={() => navigation.navigate("Subscription")}
       />
     </SafeAreaView>
   );

@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
-
-import { registerBackHandler } from "./backHandlerRegistry";
+import { BackHandler, Platform } from "react-native";
 
 export function useBottomSheetBackHandler(
   enabled: boolean,
@@ -10,13 +9,18 @@ export function useBottomSheetBackHandler(
   onBackRef.current = onBack;
 
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || Platform.OS !== "android") {
       return undefined;
     }
 
-    return registerBackHandler(() => {
-      onBackRef.current();
-      return true;
-    });
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        onBackRef.current();
+        return true;
+      },
+    );
+
+    return () => subscription.remove();
   }, [enabled]);
 }

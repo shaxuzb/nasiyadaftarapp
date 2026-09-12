@@ -353,7 +353,6 @@ export function OrganizationSelectScreen() {
         reason="organization-limit"
         subscription={user?.subscription}
         onClose={() => setIsUpgradeModalOpen(false)}
-        onViewSubscription={() => navigation.navigate("Subscription")}
       />
     </SafeAreaView>
   );

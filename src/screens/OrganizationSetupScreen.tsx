@@ -1,60 +1,45 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Keyboard, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useState } from "react";
+import { BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BottomSheetBackdrop,
-  BottomSheetModal,
-} from "@gorhom/bottom-sheet";
+import { useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  KeyboardAwareScrollView,
+  KeyboardAvoidingView,
+} from "react-native-keyboard-controller";
 
+import { AppInput } from "../components/AppInput";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { useTheme } from "../hooks/useTheme";
-import { OrganizationCreateSheetContent } from "../modules/organization/components/OrganizationCreateSheetContent";
-import { OrganizationRequest } from "../modules/organization/types";
-import { radius, spacing, typography } from "../theme";
-import { useBottomSheetBackHandler } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
-
-const SHEET_SPRING = {
-  damping: 80,
-  stiffness: 500,
-  mass: 0.8,
-  overshootClamping: true,
-  restDisplacementThreshold: 0.01,
-  restSpeedThreshold: 2,
-};
+import { useTheme } from "../hooks/useTheme";
+import { buildOrganizationSetupPayload } from "../modules/organization/utils/organizationSetup";
+import type { OrganizationRequest } from "../modules/organization/types";
+import { radius, spacing, typography } from "../theme";
+import type { AppTheme } from "../types";
 
 export function OrganizationSetupScreen() {
   const theme = useTheme();
+  const styles = useStyles(theme);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const { user, logout, createOrganizationForCurrentUser } = useAuth();
+  const { logout, createOrganizationForCurrentUser } = useAuth();
   const { showToast } = useToast();
-  const bottomSheetRef = useRef<BottomSheetModal>(null);
-  const snapPoints = useMemo(() => ["68%", "100%"], []);
-  const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [nameError, setNameError] = useState<string>();
+  const [isSaving, setIsSaving] = useState(false);
 
-  const closeSheet = useCallback(() => {
-    setIsCreateSheetOpen(false);
-    Keyboard.dismiss();
-    bottomSheetRef.current?.dismiss();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => true,
+      );
 
-  useBottomSheetBackHandler(isCreateSheetOpen, closeSheet);
-
-  const renderBackdrop = useCallback(
-    (props: React.ComponentProps<typeof BottomSheetBackdrop>) => (
-      <BottomSheetBackdrop
-        {...props}
-        appearsOnIndex={0}
-        disappearsOnIndex={-1}
-        opacity={0.35}
-      />
-    ),
-    [],
+      return () => subscription.remove();
+    }, []),
   );
 
   const handleCreateOrganization = useCallback(
@@ -73,106 +58,162 @@ export function OrganizationSetupScreen() {
     [createOrganizationForCurrentUser, showToast, t],
   );
 
-  return (
-    <ScreenContainer style={styles.screen} scrollable={false}>
-      <View style={styles.container}>
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
-          <View style={[styles.iconWrap, { backgroundColor: theme.primaryLight }]}>
-            <Ionicons name="business-outline" size={30} color={theme.primary} />
-          </View>
-          <Text style={[typography.headingLarge, { color: theme.text }]}>
-            {t("organization.setupTitle")}
-          </Text>
-          <Text
-            style={[
-              typography.bodySmall,
-              styles.description,
-              { color: theme.textSecondary },
-            ]}
-          >
-            {t("organization.setupDescription", {
-              name: user?.fullName ?? "",
-            })}
-          </Text>
-          <PrimaryButton
-            label={t("organization.createAction")}
-            onPress={() => {
-              setIsCreateSheetOpen(true);
-              bottomSheetRef.current?.present();
-            }}
-            style={styles.createButton}
-          />
-          <PrimaryButton
-            label={t("organization.logout")}
-            onPress={() => {
-              void logout();
-            }}
-            variant="outline"
-            style={styles.logoutButton}
-          />
-        </View>
-      </View>
+  const handleCreate = useCallback(async () => {
+    const payload = buildOrganizationSetupPayload(name);
 
-      <BottomSheetModal
-        ref={bottomSheetRef}
-        index={0}
-        snapPoints={snapPoints}
-        enableDynamicSizing={false}
-        enablePanDownToClose
-        enableOverDrag={false}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
-        android_keyboardInputMode="adjustPan"
-        enableBlurKeyboardOnGesture
-        topInset={insets.top}
-        backdropComponent={renderBackdrop}
-        animationConfigs={SHEET_SPRING}
-        onChange={(index) => setIsCreateSheetOpen(index >= 0)}
-        onDismiss={() => {
-          setIsCreateSheetOpen(false);
-          Keyboard.dismiss();
-        }}
-        backgroundStyle={{ backgroundColor: theme.surface }}
-        handleIndicatorStyle={{ backgroundColor: theme.textMuted }}
-      >
-        <OrganizationCreateSheetContent
-          closeSheet={closeSheet}
-          onSubmit={handleCreateOrganization}
-        />
-      </BottomSheetModal>
+    if (!payload) {
+      setNameError(t("organization.nameError"));
+      return;
+    }
+
+    setNameError(undefined);
+    setIsSaving(true);
+
+    try {
+      await handleCreateOrganization(payload);
+    } catch {
+      // The shared auth handler already presents the localized error toast.
+    } finally {
+      setIsSaving(false);
+    }
+  }, [handleCreateOrganization, name, t]);
+
+  return (
+    <ScreenContainer style={styles.screen} scrollable={false} padded={false}>
+      <KeyboardAvoidingView style={styles.flex} behavior="padding">
+        <KeyboardAwareScrollView
+          style={styles.flex}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: Math.max(insets.bottom, spacing.lg) },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="interactive"
+          bottomOffset={24}
+          extraKeyboardSpace={16}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.container}>
+            <View
+              style={[
+                styles.card,
+                { backgroundColor: theme.surface, borderColor: theme.border },
+              ]}
+            >
+              <View
+                style={[
+                  styles.iconWrap,
+                  { backgroundColor: theme.primaryLight },
+                ]}
+              >
+                <Ionicons
+                  name="business-outline"
+                  size={30}
+                  color={theme.primary}
+                />
+              </View>
+              <Text style={[styles.title, { color: theme.text }]}>
+                {t("organization.setupTitle")}
+              </Text>
+              <Text
+                style={[styles.description, { color: theme.textSecondary }]}
+              >
+                {t("organization.setupDescription")}
+              </Text>
+
+              <View style={styles.form}>
+                <AppInput
+                  label={t("organization.nameLabel")}
+                  value={name}
+                  onChangeText={(value) => {
+                    setName(value);
+                    if (nameError) setNameError(undefined);
+                  }}
+                  placeholder={t("organization.namePlaceholder")}
+                  iconName="business-outline"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={() => void handleCreate()}
+                  error={nameError}
+                />
+                <PrimaryButton
+                  label={t("organization.createAction")}
+                  onPress={() => void handleCreate()}
+                  loading={isSaving}
+                  disabled={!name.trim() || isSaving}
+                />
+              </View>
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("organization.setupLogout")}
+                accessibilityState={{ disabled: isSaving }}
+                onPress={() => void logout()}
+                disabled={isSaving}
+                hitSlop={8}
+                style={styles.switchAccount}
+              >
+                <Text
+                  style={[styles.switchAccountText, { color: theme.primary }]}
+                >
+                  {t("organization.setupLogout")}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAwareScrollView>
+      </KeyboardAvoidingView>
     </ScreenContainer>
   );
 }
 
-const styles = StyleSheet.create({
-  screen: { flexGrow: 1 },
-  container: {
-    flex: 1,
-    width: "100%",
-    maxWidth: 520,
-    alignSelf: "center",
-    justifyContent: "center",
-  },
-  card: {
-    alignItems: "center",
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderRadius: radius.xl,
-  },
-  iconWrap: {
-    width: 66,
-    height: 66,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: spacing.sm,
-    borderRadius: radius.full,
-  },
-  description: { marginTop: spacing.xs, textAlign: "center" },
-  createButton: { marginTop: spacing.md },
-  logoutButton: { marginTop: spacing.sm },
-});
+const useStyles = (theme: AppTheme) =>
+  StyleSheet.create({
+    screen: { flex: 1 },
+    flex: { flex: 1 },
+    scrollContent: {
+      flexGrow: 1,
+      justifyContent: "center",
+      padding: spacing.md,
+    },
+    container: {
+      width: "100%",
+      maxWidth: 520,
+      alignSelf: "center",
+    },
+    card: {
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderRadius: radius.xl,
+    },
+    iconWrap: {
+      width: 66,
+      height: 66,
+      alignItems: "center",
+      justifyContent: "center",
+      alignSelf: "center",
+      marginBottom: spacing.md,
+      borderRadius: radius.full,
+    },
+    title: {
+      ...typography.headingLarge,
+      textAlign: "center",
+    },
+    description: {
+      ...typography.bodySmall,
+      marginTop: spacing.xs,
+      textAlign: "center",
+    },
+    form: {
+      marginTop: spacing.lg,
+    },
+    switchAccount: {
+      alignSelf: "center",
+      marginTop: spacing.md,
+      paddingVertical: spacing.xs,
+    },
+    switchAccountText: {
+      ...typography.label,
+    },
+  });

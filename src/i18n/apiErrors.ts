@@ -1,7 +1,7 @@
 import axios from "axios";
 
 import type { Translate, TranslateKey } from "./translate";
-import { getApiErrorStatus } from "../utils/apiError";
+import { getApiErrorMessage, getApiErrorStatus } from "../utils/apiError";
 
 const ERROR_CODE_KEYS: Record<string, TranslateKey> = {
   UNAUTHORIZED: "errors.unauthorized",
@@ -43,6 +43,11 @@ export function getLocalizedApiErrorMessage(
   const codeKey = getResponseCode(error);
   const mappedKey = codeKey ? ERROR_CODE_KEYS[codeKey] : undefined;
   const statusKey = getApiErrorStatus(error);
+
+  if (statusKey === 409) {
+    const detail = getApiErrorMessage(error, "").trim();
+    return detail || t("errors.conflict");
+  }
 
   return t(mappedKey ?? ERROR_STATUS_KEYS[statusKey ?? -1] ?? fallbackKey);
 }

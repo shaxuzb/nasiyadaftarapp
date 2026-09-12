@@ -56,8 +56,6 @@ export type AuthStackParamList = {
       fullName: string;
       phoneNumber: string;
     };
-    phoneMasked: string;
-    expiresInSeconds: number;
   };
   PasswordResetRequest: undefined;
   PasswordResetConfirm: { phone: string };

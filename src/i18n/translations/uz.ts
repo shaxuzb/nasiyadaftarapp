@@ -410,6 +410,7 @@ export const uzTranslations = {
     premiumPlan: "Premium",
     premiumPlanDescription:
       "Standard imkoniyatlari, avtomatik SMS va 24/7 yordam.",
+    choosePlan: "Tarifni tanlang",
     current: "Joriy",
     loadingCurrent: "Joriy tarif yuklanmoqda...",
     loadingPlans: "Tariflar yuklanmoqda...",
@@ -437,7 +438,7 @@ export const uzTranslations = {
     freePrice: "Hozircha bepul",
     priceForDays: "{price} / {days} kun",
     recommended: "Tavsiya etiladi",
-    adminActivate: "Admin orqali faollashtirish",
+    adminActivate: "Administrator bilan bog'lanish",
     packages: "SMS paketlar",
     packageHint: "Admin orqali ulash",
     info: "Tarif va SMS paketlarini faollashtirish uchun administrator bilan bog'laning.",
@@ -446,35 +447,11 @@ export const uzTranslations = {
     packageSelect: "SMS paketini tanlang",
     packageContact: "{name} uchun admin bilan bog'lanish",
     packageCatalog: "SMS paketlarini ko'rish",
-    nowNot: "Hozir emas",
     close: "Yopish",
     moreSms: "Ko'proq",
     packageNote:
       "Tanlovni administrator bilan kelishasiz. To'lov API ulangach shu oynaning o'zidan xarid qilinadi.",
-    upgrade: {
-      telegramTitle: "Telegram bot pullik tarifda",
-      telegramDescription:
-        "Kundalik mijozlar qarzi hisobotini Telegram orqali oling.",
-      telegramStepPhone: "Telefon raqamingiz bilan ulang",
-      telegramStepOrganization: "Tashkilotni tanlang",
-      telegramStepReport: "Kundalik Excel hisobot oling",
-      organizationTitle: "Tashkilot limiti tugadi",
-      organizationDescription:
-        "Yana tashkilot yaratish uchun Standard yoki Premium tarifini tanlang.",
-      organizationStep: "Barcha do'konlaringizni bitta akkauntda boshqaring",
-      blacklistTitle: "Qora ro'yxat pullik tarifda",
-      blacklistDescription: "Muddati o'tgan qarzdorlarni avtomatik aniqlang.",
-      blacklistStepDeadline: "Muddatni tashkilot bo'yicha sozlash",
-      blacklistStepMark: "Qarzdorlarni avtomatik belgilash",
-      blacklistStepOther: "Boshqa do'konlardagi holatini ko'rish",
-      smsTitle: "SMS limitingiz tugadi",
-      smsDescription: "Bu oy uchun bepul SMS limitingiz tugadi.",
-      smsDescriptionPaid:
-        "SMS yuborishni davom ettirish uchun mos tarifni tanlang.",
-      viewPlans: "Tariflarni ko'rish",
-      quotaMonthly: "Oylik limit",
-      quotaRemaining: "Qoldi",
-    },
+    upgrade: { viewPlans: "Tariflarni ko'rish" },
   },
   organization: {
     back: "Orqaga",
@@ -492,9 +469,8 @@ export const uzTranslations = {
     createError: "Tashkilot yaratishda xatolik",
     selectError: "Tashkilotni tanlab bo'lmadi",
     refreshError: "Tashkilotlarni yangilab bo'lmadi",
-    setupTitle: "Tashkilotni yarating",
-    setupDescription:
-      "Assalomu alaykum {name}, boshlash uchun birinchi tashkilotingizni yarating.",
+    setupTitle: "Ishni boshlang",
+    setupDescription: "Ishni boshlash uchun tashkilot nomini kiriting.",
     createSheetTitle: "Yangi tashkilot",
     createSheetDescription: "Nomini kiriting, qolgan ma'lumotlar ixtiyoriy.",
     nameLabel: "Nomi *",
@@ -505,6 +481,7 @@ export const uzTranslations = {
     notePlaceholder: "Ixtiyoriy",
     requiredHint: "* Majburiy maydon",
     createAction: "Tashkilotni yaratish",
+    setupLogout: "Boshqa akkauntga kirish",
     cancel: "Bekor qilish",
     closeLabel: "Tashkilot yaratish formasini yopish",
     nameError: "Tashkilot nomini kiriting",
@@ -641,6 +618,7 @@ export const uzTranslations = {
     forbidden: "Bu amal uchun ruxsat mavjud emas",
     validation: "Kiritilgan ma’lumotlarni tekshiring",
     notFound: "Ma’lumot topilmadi",
+    conflict: "Bu ma’lumot avvaldan mavjud",
   },
 } as const;
 

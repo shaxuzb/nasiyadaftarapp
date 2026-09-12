@@ -5,7 +5,13 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { OtpInput, OtpInputHandle } from "../components/OtpInput";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -20,6 +26,7 @@ import { getApiErrorStatus } from "../utils/apiError";
 import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import { useTranslation } from "../i18n";
 import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
+import { maskUzPhoneForDisplay } from "../utils/masks";
 
 const OTP_LENGTH = 6;
 
@@ -32,16 +39,12 @@ interface RegisterPayload {
 
 interface Props {
   registerPayload: RegisterPayload;
-  phoneMasked: string;
-  expiresInSeconds: number;
   onGoBackToRegister: () => void;
   onGoToLogin: () => void;
 }
 
 export function RegisterSmsVerifyScreen({
   registerPayload,
-  phoneMasked,
-  expiresInSeconds,
   onGoBackToRegister,
   onGoToLogin,
 }: Props) {
@@ -51,10 +54,17 @@ export function RegisterSmsVerifyScreen({
   const { register } = useAuth();
   const otpInputRef = useRef<OtpInputHandle>(null);
   const verifyingRef = useRef(false);
+  const resendingRef = useRef(false);
+  const initialRequestRef = useRef(false);
   const lastSubmittedCodeRef = useRef<string | null>(null);
 
   const [code, setCode] = useState("");
-  const [secondsLeft, setSecondsLeft] = useState(expiresInSeconds);
+  const initialPhoneMasked = useMemo(
+    () => maskUzPhoneForDisplay(registerPayload.phoneNumber),
+    [registerPayload.phoneNumber],
+  );
+  const [phoneMasked, setPhoneMasked] = useState(initialPhoneMasked);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
 
@@ -78,9 +88,64 @@ export function RegisterSmsVerifyScreen({
     setCode(value);
   }, []);
 
-  const { restartListening } = useOtpAutoFill({
+  const { restartListening, isReady, hasError } = useOtpAutoFill({
     onCodeReceived: handleCodeChange,
   });
+
+  const requestCode = useCallback(
+    async (isResend: boolean) => {
+      if (resendingRef.current) return;
+
+      resendingRef.current = true;
+      setResending(true);
+      lastSubmittedCodeRef.current = null;
+      setCode("");
+
+      try {
+        await restartListening();
+        const response = await sendSmsCode({
+          phone: registerPayload.phoneNumber,
+        });
+        setPhoneMasked(response.phoneMasked || initialPhoneMasked);
+        setSecondsLeft(response.expiresInSeconds ?? 180);
+        focusOtpInput();
+        showToast(
+          t(
+            isResend ? "auth.smsVerify.resendSuccess" : "auth.register.smsSent",
+          ),
+          "success",
+        );
+      } catch (error) {
+        showToast(
+          getLocalizedApiErrorMessage(
+            error,
+            isResend ? "auth.smsVerify.resendError" : "auth.register.smsError",
+            t,
+          ),
+          "error",
+        );
+      } finally {
+        resendingRef.current = false;
+        setResending(false);
+      }
+    },
+    [
+      focusOtpInput,
+      initialPhoneMasked,
+      registerPayload.phoneNumber,
+      restartListening,
+      showToast,
+      t,
+    ],
+  );
+
+  useEffect(() => {
+    if (initialRequestRef.current) return;
+    if (Platform.OS === "android" && !isReady && !hasError) return;
+
+    initialRequestRef.current = true;
+    void requestCode(false);
+  }, [hasError, isReady, requestCode]);
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
@@ -173,29 +238,10 @@ export function RegisterSmsVerifyScreen({
     void handleVerify(normalizedCode);
   }, [code, handleVerify, resending, verifying]);
 
-  const handleResend = async () => {
-    if (!canResend || verifyingRef.current || resending) return;
-
-    setResending(true);
-    try {
-      const response = await sendSmsCode({
-        phone: registerPayload.phoneNumber,
-      });
-      lastSubmittedCodeRef.current = null;
-      setCode("");
-      setSecondsLeft(response.expiresInSeconds ?? 180);
-      restartListening();
-      focusOtpInput();
-      showToast(t("auth.smsVerify.resendSuccess"), "success");
-    } catch (error) {
-      showToast(
-        getLocalizedApiErrorMessage(error, "auth.smsVerify.resendError", t),
-        "error",
-      );
-    } finally {
-      setResending(false);
-    }
-  };
+  const handleResend = useCallback(() => {
+    if (!canResend || verifyingRef.current || resendingRef.current) return;
+    void requestCode(true);
+  }, [canResend, requestCode]);
 
   return (
     <ScreenContainer contentContainerStyle={styles.scrollContent}>
