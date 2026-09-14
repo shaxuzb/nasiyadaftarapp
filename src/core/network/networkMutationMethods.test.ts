@@ -1,4 +1,4 @@
-import { isServerMutationMethod } from './networkState.ts';
+import { isServerMutationMethod } from './networkState';
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
