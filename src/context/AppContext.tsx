@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Customer, Transaction } from "../types";
-import { queryKeys } from "../core/query/queryKeys";
+import { invalidateClientDomain } from "../core/query/clientInvalidation";
 import { getOrganizationQueryScope } from "../core/query/organizationScope";
 import { useClientQueries } from "../modules/clients/hooks/useClientQueries";
 import { createCustomerMap } from "../modules/clients/utils/clientCalculations";
@@ -79,37 +79,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const transactions = transactionItems as Transaction[];
   const customerMap = useMemo(() => createCustomerMap(customers), [customers]);
 
-  const invalidateClientRelatedQueries = useCallback(
-    async (clientId?: number) => {
-      const keys = [
-        queryClient.invalidateQueries({ queryKey: queryKeys.clients(scope) }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.transactions(scope),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["reports", scope],
-        }),
-      ];
-
-      if (typeof clientId === "number") {
-        keys.push(
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.client(scope, clientId),
-          }),
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.transactionHistory(scope, clientId),
-          }),
-        );
-      }
-
-      await Promise.all(keys);
-    },
-    [queryClient, scope],
-  );
-
   const refreshCustomers = useCallback(async () => {
-    await invalidateClientRelatedQueries();
-  }, [invalidateClientRelatedQueries]);
+    await invalidateClientDomain(queryClient, scope, "refresh");
+  }, [queryClient, scope]);
 
   const addCustomer = useCallback(
     async (data: Omit<Customer, "id" | "createdAt">) => addClient(data),
@@ -129,10 +101,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const seedDemoData = useCallback(
     async (onProgress?: (msg: string) => void) => {
       const result = await runSeedDemoData(onProgress);
-      await invalidateClientRelatedQueries();
+      await invalidateClientDomain(queryClient, scope, "refresh");
       return result;
     },
-    [invalidateClientRelatedQueries],
+    [queryClient, scope],
   );
 
   const value = useMemo<AppContextValue>(
