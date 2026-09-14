@@ -3,6 +3,24 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const ts = require("typescript");
 
+function load(file, dependencies = {}) {
+  const code = ts.transpileModule(fs.readFileSync(file, "utf8"), {
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+  const exports = {};
+  vm.runInNewContext(code, {
+    exports,
+    require: (name) => {
+      if (name in dependencies) return dependencies[name];
+      throw new Error(`Unexpected dependency: ${name}`);
+    },
+  }, { filename: file });
+  return exports;
+}
+
 const filename = "src/bottom-sheet/sheets/TransactionSheet.tsx";
 const code = ts.transpileModule(
   fs.readFileSync(filename, "utf8") +
@@ -15,14 +33,12 @@ const code = ts.transpileModule(
     },
   },
 ).outputText;
-const queryCode = ts.transpileModule(
-  fs.readFileSync("src/core/query/queryKeys.ts", "utf8"),
-  {
-    compilerOptions: { module: ts.ModuleKind.CommonJS },
-  },
-).outputText;
-const queryExports = {};
-vm.runInNewContext(queryCode, { exports: queryExports });
+
+const queryExports = load("src/core/query/queryKeys.ts");
+const organizationScope = load("src/core/query/organizationScope.ts");
+const clientInvalidation = load("src/core/query/clientInvalidation.ts", {
+  "./queryKeys": queryExports,
+});
 
 function createHarness({
   amount = "200 000",
@@ -78,7 +94,10 @@ function createHarness({
       }),
     },
     "../../context/AuthContext": {
-      useAuth: () => ({ user: { id: 9, organizationId: 7 } }),
+      useAuth: () => ({
+        user: { id: 9, organizationId: 7 },
+        currentOrganization: { id: 7, name: "Test organization" },
+      }),
     },
     "../../utils": { getInitials: () => "AL" },
     "../../utils/haptics": { hapticError() {}, hapticSuccess() {} },
@@ -94,7 +113,8 @@ function createHarness({
         if (failure) throw new Error("offline");
       },
     },
-    "../../core/query/queryKeys": queryExports,
+    "../../core/query/clientInvalidation": clientInvalidation,
+    "../../core/query/organizationScope": organizationScope,
     "../../hooks/useTheme": {},
     "../../utils/apiError": { getApiErrorMessage: () => "Saqlanmadi" },
   };
@@ -144,8 +164,20 @@ async function main() {
   assert.equal(debt.closed(), 1);
   assert.deepEqual(debt.locks, [true, false]);
   assert.ok(
-    debt.invalidations.every((key) => key[1] === 7),
+    debt.invalidations.length > 0 && debt.invalidations.every((key) => key[1] === 7),
     "Refresh only the active organization",
+  );
+  assert.ok(
+    debt.invalidations.some(
+      (key) => JSON.stringify(key) === JSON.stringify(["transactions", 7, "history", 82]),
+    ),
+    "Transaction must refresh the active client's history",
+  );
+  assert.ok(
+    debt.invalidations.some(
+      (key) => JSON.stringify(key) === JSON.stringify(["client-sms", 7, "recipients"]),
+    ),
+    "Transaction must refresh balance-dependent SMS recipients",
   );
 
   const payment = createHarness({ balance: 100000, type: "payment" });
@@ -175,7 +207,7 @@ async function main() {
   await failed.controller.save("debt");
   assert.equal(failed.calls.length, 2, "Allow a retry after failure");
   console.log(
-    "Transaction sheet: debt/payment payloads, duplicate submits, credit balances, validation and retry checks passed",
+    "Transaction sheet: debt/payment payloads, duplicate submits, active-organization invalidation, credit balances, validation and retry checks passed",
   );
 }
 main().catch((error) => {
