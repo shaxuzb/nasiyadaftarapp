@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../context/AuthContext";
+import { invalidateClientDomain } from "../../../core/query/clientInvalidation";
 import { getOrganizationQueryScope } from "../../../core/query/organizationScope";
 import { queryKeys } from "../../../core/query/queryKeys";
 import { getClientById, updateClient } from "../services/clientsService";
@@ -54,9 +55,7 @@ export function useClientDetail(id: number) {
           customer.id === id ? merge(customer) : customer,
         ),
       );
-      void queryClient.invalidateQueries({ queryKey: listKey });
-      void queryClient.invalidateQueries({ queryKey: detailKey });
-      void queryClient.invalidateQueries({ queryKey: ["reports", scope] });
+      void invalidateClientDomain(queryClient, scope, "updated", id);
     },
   });
   return { detail, history, update };
