@@ -44,6 +44,9 @@ async function main() {
 
   const { queryKeys } = load("src/core/query/queryKeys.ts");
   const organizationScope = load("src/core/query/organizationScope.ts");
+  const clientInvalidation = load("src/core/query/clientInvalidation.ts", {
+    "./queryKeys": { queryKeys },
+  });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const old = { id: 82, fullName: "Ali", phone: "+998909999999", note: "", currentBalance: 500000, createdAt: "2026-08-22" };
   const other = { ...old, id: 83, fullName: "Boshqa mijoz" };
@@ -68,6 +71,7 @@ async function main() {
         currentOrganization: { id: 7, name: "Test organization" },
       }),
     },
+    "../../../core/query/clientInvalidation": clientInvalidation,
     "../../../core/query/organizationScope": organizationScope,
     "../../../core/query/queryKeys": { queryKeys },
     "../services/clientsService": api,
