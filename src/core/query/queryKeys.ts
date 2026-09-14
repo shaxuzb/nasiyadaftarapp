@@ -6,6 +6,9 @@ export const queryKeys = {
     ["subscription", scope, "current"] as const,
   subscriptionPlans: () => ["subscription", "plans"] as const,
   subscriptionSmsPackages: () => ["subscription", "sms-packages"] as const,
+  paymentsRoot: () => ["payments"] as const,
+  paymentsHistory: (limit: number) => ["payments", "history", limit] as const,
+  payment: (orderId: number) => ["payments", "detail", orderId] as const,
   clientSmsRoot: () => ["client-sms"] as const,
   clientSmsTemplate: (scope: QueryScope) =>
     ["client-sms", scope, "template"] as const,
