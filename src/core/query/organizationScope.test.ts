@@ -1,4 +1,4 @@
-import { getOrganizationQueryScope } from "./organizationScope.ts";
+import { getOrganizationQueryScope } from "./organizationScope";
 
 function equal(actual: unknown, expected: unknown, message: string) {
   if (actual !== expected) {
