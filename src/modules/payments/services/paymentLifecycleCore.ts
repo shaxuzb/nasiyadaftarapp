@@ -142,11 +142,12 @@ export function createPaymentLifecycleCore({
     })();
     inFlightSyncs.set(key, request);
 
-    void request.finally(() => {
+    const cleanup = () => {
       if (inFlightSyncs.get(key) === request) {
         inFlightSyncs.delete(key);
       }
-    });
+    };
+    void request.then(cleanup, cleanup);
     return request;
   }
 
