@@ -196,7 +196,7 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.primary,
       marginTop: spacing.xs,
     },
-    confirmText: { ...typography.label, color: theme.onPrimary, fontWeight: "800" },
+    confirmText: { ...typography.label, color: "#FFFFFF", fontWeight: "800" },
     cancelButton: { minHeight: 44, alignItems: "center", justifyContent: "center" },
     cancelText: { ...typography.label, color: theme.textSecondary },
     pressed: { opacity: 0.72 },
