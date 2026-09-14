@@ -24,6 +24,7 @@ The approved product choices are:
 
 - Sensitive security actions use stronger re-authentication.
 - Offline mode is read-only. Cached data may be shown, but write mutations are blocked while offline.
+- Offline read support uses the in-memory React Query cache only in this phase; financial/business query data is not persisted to disk across an app process restart.
 - UI may receive professional polish for loading, error, empty, offline, disabled, and retry states, but this is not a visual redesign.
 - Existing mobile navigation remains mobile-native. No web-style navigation redesign is introduced.
 - No offline mutation queue is introduced.
@@ -90,7 +91,7 @@ This layer must:
 
 When offline:
 
-- cached read data remains visible where available;
+- in-memory cached read data remains visible where available;
 - navigation remains usable;
 - stale cached data must not be presented as freshly synchronized;
 - create/update/delete customer actions are blocked;
@@ -100,7 +101,9 @@ When offline:
 - account actions requiring the backend remain blocked;
 - the UI presents a clear but non-intrusive offline indicator.
 
-No mutation queue, replay engine, or background synchronization is added.
+No mutation queue, replay engine, background synchronization, or persistent business-query cache is added.
+
+If the process is restarted while offline, the app is not required to reconstruct Customers/Reports/transactions from a persisted React Query cache. This is intentional to avoid introducing additional local persistence of financial/business data in this hardening phase.
 
 ### 4.3 Reconnect behavior
 
@@ -257,13 +260,15 @@ Retain the current secure local PIN model:
 
 ### 7.2 Sensitive local actions require re-authentication
 
-The following actions require a fresh local re-authentication step:
+The following actions require a fresh local identity check:
 
 - remove PIN;
 - enable biometrics;
 - disable biometrics;
 - change PIN;
 - any future security-sensitive local credential action added to the same account-security surface.
+
+For PIN change, the existing required `currentPin` verification is itself the fresh re-authentication step. The implementation must not add a redundant second prompt before that flow. Other sensitive actions use the shared re-authentication contract below.
 
 ### 7.3 Re-auth contract
 
@@ -285,7 +290,8 @@ Behavior:
 - fall back to current PIN;
 - cancellation is not treated as an application error;
 - failed PIN attempts continue to follow existing attempt-count semantics;
-- successful re-auth authorizes only the current sensitive action, not an extended session unless explicitly designed later.
+- successful re-auth authorizes only the current sensitive action, not an extended session unless explicitly designed later;
+- the PIN-change flow may call the lower-level current-PIN verifier directly because its form already collects the current PIN.
 
 ### 7.4 PIN removal flow
 
@@ -527,7 +533,8 @@ Implement in this order to reduce regression risk:
 The work is complete only when all applicable conditions below are verified:
 
 - organization-owned API requests do not run without an active organization;
-- cached read-only data remains usable offline;
+- in-memory cached read-only data remains usable offline while the app process remains alive;
+- no persistent React Query business-data cache is introduced in this phase;
 - server write actions are blocked offline with clear feedback;
 - reconnect updates TanStack online state and permits normal refetch behavior;
 - no automatic replay of blocked mutations exists;
@@ -537,7 +544,7 @@ The work is complete only when all applicable conditions below are verified:
 - no all-client N+1 history regression is introduced;
 - PIN removal requires fresh local re-authentication;
 - biometric enable/disable requires fresh local re-authentication;
-- PIN change uses the same sensitive-action verification contract;
+- PIN change requires valid current-PIN verification without an unnecessary duplicate prompt;
 - PIN gate metadata reflects changed user name/contact data;
 - malformed transaction amount cannot propagate `NaN` into balances;
 - loading, refreshing, empty, error, retry, disabled, and offline states are consistent on touched screens;
@@ -554,6 +561,7 @@ This project does not include:
 
 - backend API redesign;
 - offline write queue/synchronization;
+- persisted React Query business-data caching across app process restarts;
 - a new navigation system;
 - a visual rebrand;
 - new subscription purchase APIs;
