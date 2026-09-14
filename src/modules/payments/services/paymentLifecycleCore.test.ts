@@ -31,7 +31,9 @@ const baseOrder = {
 
 const events: string[] = [];
 let createShouldFail = false;
-let syncResolver: ((value: typeof baseOrder) => void) | null = null;
+const syncControl: {
+  resolve?: (value: typeof baseOrder) => void;
+} = {};
 let syncCalls = 0;
 const attempt = {
   version: 1 as const,
@@ -68,7 +70,7 @@ const core = createPaymentLifecycleCore({
     syncCalls += 1;
     events.push("sync");
     return await new Promise<typeof baseOrder>((resolve) => {
-      syncResolver = resolve;
+      syncControl.resolve = resolve;
     });
   },
   cancelPayment: async () => {
@@ -115,7 +117,8 @@ createShouldFail = false;
 const syncOne = core.syncOrder(7, 15);
 const syncTwo = core.syncOrder(7, 15);
 assert(syncCalls === 1, "Concurrent manual/foreground sync must deduplicate");
-syncResolver?.({ ...baseOrder, status: "paid", isFulfilled: false });
+assert(typeof syncControl.resolve === "function", "Sync resolver must be registered before resolving");
+syncControl.resolve({ ...baseOrder, status: "paid", isFulfilled: false });
 const [syncedOne, syncedTwo] = await Promise.all([syncOne, syncTwo]);
 assert(syncedOne.status === "paid" && syncedTwo.status === "paid", "Both sync callers receive same canonical result");
 assert(!events.includes("fulfilled"), "Paid but unfulfilled must not refresh entitlement as success");
