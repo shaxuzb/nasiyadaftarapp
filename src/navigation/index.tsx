@@ -30,6 +30,7 @@ import { ClientSmsScreen } from "../screens/ClientSmsScreen";
 import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
 import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
 import { SubscriptionScreen } from "../screens/SubscriptionScreen";
+import { PaymentHistoryScreen } from "../screens/PaymentHistoryScreen";
 
 import {
   AuthStackParamList,
@@ -200,6 +201,7 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
         component={BlacklistSettingsScreen}
       />
       <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+      <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
     </Stack.Navigator>
   );
 }
