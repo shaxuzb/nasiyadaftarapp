@@ -5,6 +5,7 @@ import {
   isServerMutationMethod,
 } from "../core/network/networkState";
 import { AuthRefreshResponse } from "../modules/auth/types";
+import { isPublicAccountRoute } from "./accountRoute";
 import {
   clearAuthSession,
   getAuthSessionSync,
@@ -27,22 +28,6 @@ let unauthorizedHandler: (() => void) | undefined;
 
 export function setUnauthorizedHandler(handler?: () => void) {
   unauthorizedHandler = handler;
-}
-
-function isAccountRoute(url?: string): boolean {
-  if (!url) return false;
-  return (
-    url.includes("/account/login") ||
-    url.includes("/account/register") ||
-    url.includes("/account/google") ||
-    url.includes("/account/refresh") ||
-    url.includes("/account/logout") ||
-    url.includes("/api/account/login") ||
-    url.includes("/api/account/register") ||
-    url.includes("/api/account/google") ||
-    url.includes("/api/account/refresh") ||
-    url.includes("/api/account/logout")
-  );
 }
 
 async function refreshAccessToken(): Promise<string | null> {
@@ -106,7 +91,7 @@ apiClient.interceptors.response.use(
       !originalRequest ||
       status !== 401 ||
       originalRequest._retry ||
-      isAccountRoute(originalRequest.url)
+      isPublicAccountRoute(originalRequest.url)
     ) {
       return Promise.reject(error);
     }
