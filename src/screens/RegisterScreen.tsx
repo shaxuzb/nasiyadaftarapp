@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
+import * as AppleAuthentication from "expo-apple-authentication";
 import {
   ActivityIndicator,
   Text,
@@ -7,6 +8,7 @@ import {
   View,
   StyleSheet,
   Image,
+  Platform,
 } from "react-native";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
@@ -22,6 +24,12 @@ import {
   getGoogleSignInErrorKey,
   requestGoogleIdToken,
 } from "../modules/auth/services/googleSignInService";
+import {
+  AppleSignInFlowError,
+  isAppleSignInAvailable,
+  requestAppleCredential,
+} from "../modules/auth/services/appleSignInService";
+import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import { LanguageSelectorButton } from "../components/LanguageSelectorButton";
 import { useTranslation } from "../i18n";
@@ -42,12 +50,31 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { showToast } = useToast();
-  const { loginWithGoogleIdToken } = useAuth();
+  const { loginWithGoogleIdToken, loginWithAppleCredential } = useAuth();
 
   const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("+998 ");
   const [password, setPassword] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
+  const [appleAvailable, setAppleAvailable] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    if (Platform.OS !== "ios") return undefined;
+
+    void isAppleSignInAvailable()
+      .then((available) => {
+        if (active) setAppleAvailable(available);
+      })
+      .catch(() => {
+        if (active) setAppleAvailable(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const canSubmit = useMemo(() => {
     return (
@@ -86,6 +113,30 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
       showToast(t(getGoogleSignInErrorKey(error)), "error");
     } finally {
       setGoogleLoading(false);
+    }
+  };
+
+  const handleAppleLogin = async () => {
+    if (appleLoading) return;
+
+    setAppleLoading(true);
+    try {
+      const credential = await requestAppleCredential();
+      await loginWithAppleCredential(credential);
+      showToast(t("auth.login.success"), "success");
+    } catch (error) {
+      if (
+        error instanceof AppleSignInFlowError &&
+        error.reason === "cancelled"
+      ) {
+        return;
+      }
+      showToast(
+        getLocalizedApiErrorMessage(error, "common.unexpectedError", t),
+        "error",
+      );
+    } finally {
+      setAppleLoading(false);
     }
   };
 
@@ -161,6 +212,35 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
               disabled={!canSubmit}
               style={{ marginTop: spacing.xs }}
             />
+
+            {Platform.OS === "ios" && appleAvailable ? (
+              <View style={styles.appleWrap}>
+                {appleLoading ? (
+                  <View
+                    style={[
+                      styles.appleLoading,
+                      { borderColor: theme.border },
+                    ]}
+                  >
+                    <ActivityIndicator size="small" color={theme.primary} />
+                  </View>
+                ) : (
+                  <AppleAuthentication.AppleAuthenticationButton
+                    buttonType={
+                      AppleAuthentication.AppleAuthenticationButtonType.CONTINUE
+                    }
+                    buttonStyle={
+                      AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+                    }
+                    cornerRadius={radius.md}
+                    style={styles.appleButton}
+                    onPress={() => {
+                      void handleAppleLogin();
+                    }}
+                  />
+                )}
+              </View>
+            ) : null}
 
             <TouchableOpacity
               activeOpacity={0.85}
@@ -253,6 +333,20 @@ const styles = StyleSheet.create({
   desc: {
     textAlign: "center",
     marginTop: spacing.xs,
+  },
+  appleWrap: {
+    marginTop: spacing.sm,
+  },
+  appleButton: {
+    width: "100%",
+    height: 48,
+  },
+  appleLoading: {
+    height: 48,
+    borderWidth: 1,
+    borderRadius: radius.md,
+    alignItems: "center",
+    justifyContent: "center",
   },
   googleBtn: {
     marginTop: spacing.sm,
