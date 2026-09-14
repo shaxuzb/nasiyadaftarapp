@@ -7,7 +7,7 @@ import { useToast } from "../../../context/ToastContext";
 import { useTranslation } from "../../../i18n";
 import { APP_UPDATE_CHECK_INTERVAL_MS } from "../constants/appUpdate.constants";
 import {
-  fetchPlatformUpdateConfig,
+  fetchAppVersionCheck,
   getAppUpdatePlatform,
 } from "../services/appUpdateService";
 import {
@@ -18,10 +18,8 @@ import {
   AppUpdateController,
   AvailableAppUpdate,
 } from "../types/appUpdate.types";
-import {
-  evaluateUpdateAvailability,
-  isValidSemanticVersion,
-} from "../utils/compareVersions";
+import { getAppUpdateDecision } from "../utils/appUpdateDecision";
+import { isValidSemanticVersion } from "../utils/compareVersions";
 
 function logDevelopmentError(message: string, error: unknown) {
   if (__DEV__) {
@@ -71,40 +69,34 @@ export function useAppUpdate(): AppUpdateController {
           const currentVersion = getCurrentVersion();
           if (!platform || !currentVersion) return;
 
-          const config = await fetchPlatformUpdateConfig(platform);
-          if (!config) return;
+          const response = await fetchAppVersionCheck(platform, currentVersion);
+          if (!response) return;
 
-          const availability = evaluateUpdateAvailability(
-            currentVersion,
-            config.latestVersion,
-            config.minimumVersion,
-            config.forceUpdate,
-          );
-          if (!availability.hasUpdate) {
+          const dismissedVersion =
+            dismissedVersionRef.current ?? (await getDismissedUpdateVersion());
+          dismissedVersionRef.current = dismissedVersion;
+
+          const decision = getAppUpdateDecision(response, dismissedVersion);
+          if (!decision.shouldShow) {
             if (mountedRef.current) setAvailableUpdate(null);
             return;
           }
 
-          const { isForced } = availability;
-
-          if (!isForced) {
-            const dismissedVersion =
-              dismissedVersionRef.current ??
-              (await getDismissedUpdateVersion());
-            dismissedVersionRef.current = dismissedVersion;
-
-            if (dismissedVersion === config.latestVersion) {
-              if (mountedRef.current) setAvailableUpdate(null);
-              return;
-            }
-          }
+          const config = {
+            latestVersion: response.latestVersion,
+            minimumVersion: response.minimumVersion,
+            forceUpdate: response.forceUpdate,
+            title: response.title,
+            message: response.message,
+            storeUrl: response.storeUrl,
+          };
 
           if (mountedRef.current) {
             setAvailableUpdate({
               platform,
               currentVersion,
               config,
-              isForced,
+              isForced: decision.isForced,
             });
           }
         } catch (error) {
