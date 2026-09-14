@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { invalidateClientDomain } from "../../../core/query/clientInvalidation";
 import { queryKeys, QueryScope } from "../../../core/query/queryKeys";
 import {
   createClient,
@@ -31,9 +32,7 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
         created,
         ...prev,
       ]);
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.clientSearchRoot(scope),
-      });
+      void invalidateClientDomain(queryClient, scope, "created", created.id);
     },
   });
 
@@ -43,15 +42,13 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
       queryClient.setQueryData<Customer[]>(queryKeys.clients(scope), (prev = []) =>
         prev.filter((customer) => customer.id !== customerId),
       );
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.clientSearchRoot(scope),
-      });
-      void queryClient.removeQueries({
+      queryClient.removeQueries({
         queryKey: queryKeys.transactionHistory(scope, customerId),
       });
-      void queryClient.removeQueries({
+      queryClient.removeQueries({
         queryKey: queryKeys.client(scope, customerId),
       });
+      void invalidateClientDomain(queryClient, scope, "deleted", customerId);
     },
   });
 
