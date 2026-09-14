@@ -1,9 +1,5 @@
 // @ts-expect-error Node test runner loads the TypeScript module directly.
-import {
-  isPaymentFulfilled,
-  isPaymentTerminal,
-  shouldPersistPendingPayment,
-} from "./paymentState.ts";
+import { isPaymentFulfilled, isPaymentTerminal, shouldPersistPendingPayment } from "./paymentState.ts";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
