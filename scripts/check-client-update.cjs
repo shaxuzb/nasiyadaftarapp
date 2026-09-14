@@ -43,6 +43,7 @@ async function main() {
   await assert.rejects(api.updateClient(82, payload), (error) => error === failure);
 
   const { queryKeys } = load("src/core/query/queryKeys.ts");
+  const organizationScope = load("src/core/query/organizationScope.ts");
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const old = { id: 82, fullName: "Ali", phone: "+998909999999", note: "", currentBalance: 500000, createdAt: "2026-08-22" };
   const other = { ...old, id: 83, fullName: "Boshqa mijoz" };
@@ -61,7 +62,13 @@ async function main() {
       useQuery: (options) => { queries.push(options); return {}; },
       useMutation: (options) => { mutation = options; return {}; },
     },
-    "../../../context/AuthContext": { useAuth: () => ({ user: { id: 2, organizationId: 7 } }) },
+    "../../../context/AuthContext": {
+      useAuth: () => ({
+        user: { id: 2, organizationId: 7 },
+        currentOrganization: { id: 7, name: "Test organization" },
+      }),
+    },
+    "../../../core/query/organizationScope": organizationScope,
     "../../../core/query/queryKeys": { queryKeys },
     "../services/clientsService": api,
     "../../transactions/services/transactionsService": api,
