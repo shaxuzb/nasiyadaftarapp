@@ -6,6 +6,11 @@ export interface OrganizationRequest {
   note: string;
 }
 
+export interface UpdateCurrentOrganizationRequest {
+  name: string;
+  address: string;
+}
+
 export interface OrganizationResponse {
   id: number;
   name: string;
