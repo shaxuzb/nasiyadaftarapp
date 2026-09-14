@@ -1,5 +1,18 @@
 export type AppUpdatePlatform = "android" | "ios";
 
+export interface AppVersionCheckResponse {
+  platform: AppUpdatePlatform;
+  currentVersion: string;
+  latestVersion: string;
+  minimumVersion: string;
+  updateAvailable: boolean;
+  updateRequired: boolean;
+  forceUpdate: boolean;
+  title: string;
+  message: string;
+  storeUrl: string;
+}
+
 export interface PlatformUpdateConfig {
   latestVersion: string;
   minimumVersion: string;
