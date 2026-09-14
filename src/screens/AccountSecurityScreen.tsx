@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { AppInput } from "../components/AppInput";
 import { OtpInput } from "../components/OtpInput";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { DeleteAccountSection } from "../modules/account/components/DeleteAccountSection";
 import {
   confirmGoogleChange,
   confirmPasswordChange,
@@ -692,6 +693,8 @@ export function AccountSecurityScreen({ navigation }: Props) {
             />
           </View>
         ) : null}
+
+        <DeleteAccountSection />
       </ScrollView>
     </SafeAreaView>
   );
