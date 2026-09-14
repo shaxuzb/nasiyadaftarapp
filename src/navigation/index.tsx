@@ -289,6 +289,10 @@ function OrganizationNavigator({
         name="Subscription"
         component={SubscriptionScreen}
       />
+      <OrganizationStack.Screen
+        name="PaymentHistory"
+        component={PaymentHistoryScreen}
+      />
     </OrganizationStack.Navigator>
   );
 }
