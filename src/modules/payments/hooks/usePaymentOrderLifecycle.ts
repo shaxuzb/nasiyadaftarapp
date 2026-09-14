@@ -122,7 +122,6 @@ export function usePaymentOrderLifecycle(
     try {
       await Linking.openURL(url);
       if (shouldPersistPendingPayment(order)) {
-        const current = await getPendingPayment(user.id);
         await savePendingPayment({
           version: 1,
           userId: user.id,
@@ -131,9 +130,6 @@ export function usePaymentOrderLifecycle(
           productId: order.productId,
           openedExternally: true,
           updatedAt: new Date().toISOString(),
-          ...(current?.orderId === order.id
-            ? { openedExternally: true }
-            : null),
         });
       }
       return url;
@@ -160,10 +156,7 @@ export function usePaymentOrderLifecycle(
 
       void (async () => {
         const pending = await getPendingPayment(user.id);
-        if (
-          pending?.orderId === orderId &&
-          pending.openedExternally
-        ) {
+        if (pending?.orderId === orderId && pending.openedExternally) {
           await sync();
         }
       })().catch(() => undefined);
