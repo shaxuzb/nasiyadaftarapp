@@ -10,7 +10,7 @@ export function normalizeNetworkStatus(
   isInternetReachable: boolean | null,
 ): NetworkStatus {
   if (isConnected === false || isInternetReachable === false) return 'offline';
-  if (isConnected === true && isInternetReachable !== false) return 'online';
+  if (isConnected === true) return 'online';
   return 'unknown';
 }
 
