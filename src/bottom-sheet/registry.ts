@@ -5,6 +5,7 @@ import {
 } from "./sheets/TransactionSheet";
 import { TransactionDetailSheet } from "./sheets/TransactionDetailSheet";
 import { LanguageSheet } from "./sheets/LanguageSheet";
+import { OrganizationProfileSheet } from "./sheets/OrganizationProfileSheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
@@ -20,6 +21,12 @@ export const sheetRegistry: SheetRegistry = {
   },
   language: {
     component: LanguageSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+    dismissKeyboardOnOpen: false,
+  },
+  organizationProfile: {
+    component: OrganizationProfileSheet,
     enableDynamicSizing: true,
     enablePanDownToClose: true,
     dismissKeyboardOnOpen: false,
