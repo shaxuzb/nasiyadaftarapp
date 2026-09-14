@@ -26,7 +26,9 @@ assert.match(status, /sync\(\)/);
 assert.match(status, /openCheckout\(\)/);
 
 assert.match(detail, /usePaymentOrderLifecycle/);
-assert.match(detail, /syncOnForeground:\s*false/);
+assert.match(detail, /useState\(false\)/);
+assert.match(detail, /syncOnForeground:\s*syncAfterOpen/);
+assert.match(detail, /setSyncAfterOpen\(true\)/);
 assert.match(detail, /useConfirmDialog/);
 assert.match(detail, /orderId/);
 
