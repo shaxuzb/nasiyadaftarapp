@@ -66,4 +66,5 @@ export type OrganizationStackParamList = {
   OrganizationSetup: undefined;
   OrganizationSelect: undefined;
   Subscription: undefined;
+  PaymentHistory: undefined;
 };
