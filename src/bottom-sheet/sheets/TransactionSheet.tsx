@@ -36,7 +36,8 @@ import { useAuth } from "../../context/AuthContext";
 import { getInitials } from "../../utils";
 import { hapticError, hapticSuccess } from "../../utils/haptics";
 import { createClientTransaction } from "../../modules/transactions/services/transactionsService";
-import { queryKeys } from "../../core/query/queryKeys";
+import { invalidateClientDomain } from "../../core/query/clientInvalidation";
+import { getOrganizationQueryScope } from "../../core/query/organizationScope";
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme, TransactionType } from "../../types";
 import {
@@ -112,9 +113,12 @@ function useTransactionController({
   setDismissLocked,
 }: SheetRenderProps<"transaction">) {
   const { getCustomerById } = useApp();
-  const { user } = useAuth();
+  const { user, currentOrganization } = useAuth();
   const customer = getCustomerById(props.customerId);
-  const scope = user?.organizationId ?? user?.id ?? "anonymous";
+  const { scope, enabled } = getOrganizationQueryScope(
+    user?.id,
+    currentOrganization?.id,
+  );
   const { showToast } = useToast();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -141,6 +145,11 @@ function useTransactionController({
 
   async function save(type: TransactionType) {
     if (submitting.current) return;
+    if (!enabled) {
+      hapticError();
+      showToast(t("profile.organizationNotSelected"), "error");
+      return;
+    }
     if (!validAmount) {
       hapticError();
       showToast(t("transactions.amountError"), "error");
@@ -163,17 +172,13 @@ function useTransactionController({
             ? t("transactions.debtNote")
             : t("transactions.paymentNote")),
       });
-      // A completed POST must not be retried just because a background refresh failed.
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.clients(scope),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.client(scope, props.customerId),
-      });
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.transactions(scope),
-      });
-      void queryClient.invalidateQueries({ queryKey: ["reports", scope] });
+      // A completed POST must not fail just because a background refresh failed.
+      void invalidateClientDomain(
+        queryClient,
+        scope,
+        "transaction",
+        props.customerId,
+      ).catch(() => undefined);
       hapticSuccess();
       showToast(
         type === "debt"
