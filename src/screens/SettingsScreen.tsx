@@ -30,6 +30,8 @@ import {
   normalizePlanCode,
   type SubscriptionUpgradeReason,
 } from "../modules/subscription/utils/upgradeOptions";
+import { useOrganizationProfileUpdate } from "../modules/organization/hooks/useOrganizationProfileUpdate";
+import type { UpdateCurrentOrganizationRequest } from "../modules/organization/types";
 import { useBottomSheet } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import type { TranslateKey } from "../i18n";
@@ -135,6 +137,7 @@ export function SettingsScreen() {
   const { openSheet } = useBottomSheet();
   const { user, currentOrganization, logout, openOrganizationSelector } =
     useAuth();
+  const { saveOrganizationProfile } = useOrganizationProfileUpdate();
   const { openPhoneVerification, requireVerifiedPhone } = useAccountSecurity();
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();
@@ -178,6 +181,38 @@ export function SettingsScreen() {
       );
     }
   }, [openOrganizationSelector, showToast, t]);
+
+  const handleOrganizationProfileSave = useCallback(
+    async (payload: UpdateCurrentOrganizationRequest) => {
+      try {
+        await saveOrganizationProfile(payload);
+      } catch (error) {
+        showToast(
+          getLocalizedApiErrorMessage(error, "errors.generic", t),
+          "error",
+        );
+        throw error;
+      }
+    },
+    [saveOrganizationProfile, showToast, t],
+  );
+
+  const handleOrganizationEdit = useCallback(() => {
+    if (!currentOrganization) {
+      void handleOrganizationSwitch();
+      return;
+    }
+
+    openSheet("organizationProfile", {
+      organization: currentOrganization,
+      onSubmit: handleOrganizationProfileSave,
+    });
+  }, [
+    currentOrganization,
+    handleOrganizationProfileSave,
+    handleOrganizationSwitch,
+    openSheet,
+  ]);
 
   const handleOpenBot = useCallback(() => {
     if (isOpeningBot) return;
@@ -381,6 +416,14 @@ export function SettingsScreen() {
             iconColor={theme.primary}
             iconBackground={theme.primaryLight}
             title={currentOrganization?.name || t("profile.organizationNotSelected")}
+            description={currentOrganization?.address || undefined}
+            onPress={handleOrganizationEdit}
+          />
+          <ProfileMenuRow
+            icon="swap-horizontal-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.inputBackground}
+            title={t("organization.selectTitle")}
             onPress={() => {
               void handleOrganizationSwitch();
             }}
