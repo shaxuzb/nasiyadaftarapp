@@ -1,6 +1,6 @@
 # Versioning Amendment
 
-This amendment is part of `2026-09-14-auth-version-organization-account-lifecycle-design.md` and resolves the versioning ambiguity found during self-review.
+This amendment is part of `2026-09-14-auth-version-organization-account-lifecycle-design.md` and records the final frontend version-check scope.
 
 ## Final decision
 
@@ -10,33 +10,43 @@ Use:
 {
   "cli": {
     "appVersionSource": "local"
-  },
-  "build": {
-    "production": {
-      "autoIncrement": true
-    }
   }
 }
 ```
 
-`expo.version` remains the manually controlled user-facing application version.
+The frontend update system uses only the user-facing application version from:
 
-With `appVersionSource: "local"`, boolean `production.autoIncrement: true` is retained only to increment developer-facing native build counters:
+```text
+app.json -> expo.version
+```
 
-- Android `android.versionCode`
-- iOS `ios.buildNumber`
+At runtime the current version is read from `Application.nativeApplicationVersion`, with `Constants.expoConfig?.version` as fallback.
 
-It is not used as the source of truth for `expo.version`.
+The backend request is therefore based only on semantic app version values such as `1.0.9` or `1.0.10`:
 
-## Production-build safety requirement
+```text
+GET /app-versions/check?platform=android&currentVersion=1.0.10
+GET /app-versions/check?platform=ios&currentVersion=1.0.10
+```
 
-Before the first production EAS build after switching from remote to local version source, the repository's developer-facing build counters must be synchronized with the last accepted store builds.
+## Explicitly out of scope
 
-Current repository state is not sufficient to invent those values:
+The app-update feature does not use, compare, validate, display, or send:
 
-- Android has a local `versionCode`, but its relationship to the latest accepted Play Store build must be verified before release.
-- iOS currently has no explicit `ios.buildNumber` in `app.json`, so a production build must not proceed until the latest accepted App Store/TestFlight build number is known and written to local app config.
+- Android `versionCode`
+- iOS `buildNumber`
 
-Do not guess either value.
+No frontend app-update decision may depend on those developer-facing build counters.
 
-This requirement does not block frontend feature implementation, but it blocks the first production store build after the version-source migration until the store counters are confirmed.
+This specification also does not require changing or synchronizing those counters as part of the version-check implementation.
+
+## Update decision
+
+The backend response remains authoritative:
+
+```text
+show update UI = updateAvailable || updateRequired
+forced UI      = updateRequired
+```
+
+`latestVersion`, `minimumVersion`, and `currentVersion` are semantic application versions only.
