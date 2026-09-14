@@ -13,9 +13,7 @@ interface ParsedSemanticVersion {
 const SEMANTIC_VERSION_PATTERN =
   /^[vV]?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
-function parseSemanticVersion(value: unknown): ParsedSemanticVersion | null {
-  if (typeof value !== "string") return null;
-
+function parseSemanticVersion(value: string): ParsedSemanticVersion | null {
   const match = SEMANTIC_VERSION_PATTERN.exec(value.trim());
   if (!match) return null;
 
@@ -30,6 +28,10 @@ function parseSemanticVersion(value: unknown): ParsedSemanticVersion | null {
     patch,
     prerelease: match[4]?.split(".") ?? [],
   };
+}
+
+function isSemanticVersion(value: unknown): value is string {
+  return typeof value === "string" && parseSemanticVersion(value) !== null;
 }
 
 function comparePrereleaseIdentifiers(left: string[], right: string[]): number {
@@ -116,9 +118,9 @@ export function parseAppVersionCheckResponse(
   } = value;
 
   if (
-    !parseSemanticVersion(currentVersion) ||
-    !parseSemanticVersion(latestVersion) ||
-    !parseSemanticVersion(minimumVersion) ||
+    !isSemanticVersion(currentVersion) ||
+    !isSemanticVersion(latestVersion) ||
+    !isSemanticVersion(minimumVersion) ||
     typeof updateAvailable !== "boolean" ||
     typeof updateRequired !== "boolean" ||
     typeof forceUpdate !== "boolean" ||
