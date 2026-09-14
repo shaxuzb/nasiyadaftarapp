@@ -1,4 +1,4 @@
-import { assertOnlineForMutation, normalizeNetworkStatus } from './networkState.ts';
+import { assertOnlineForMutation, normalizeNetworkStatus } from './networkState';
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
