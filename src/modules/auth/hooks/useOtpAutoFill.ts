@@ -1,16 +1,23 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform } from "react-native";
-import { useSMSRetriever } from "@ebrimasamba/react-native-sms-retriever";
 
+import {
+  addCodeListener,
+  addConsentCancelledListener,
+  addErrorListener,
+  isAvailable,
+  startListening,
+  stopListening,
+} from "../smsUserConsent";
 import { extractOtpCode } from "../utils/otp";
 
 interface UseOtpAutoFillOptions {
   codeLength?: number;
   onCodeReceived: (code: string) => void;
+  autoStart?: boolean;
 }
 
 interface UseOtpAutoFillReturn {
-  appHash: string;
   restartListening: () => Promise<void>;
   isReady: boolean;
   hasError: boolean;
@@ -19,13 +26,18 @@ interface UseOtpAutoFillReturn {
 export function useOtpAutoFill({
   codeLength = 6,
   onCodeReceived,
+  autoStart = true,
 }: UseOtpAutoFillOptions): UseOtpAutoFillReturn {
   const onCodeReceivedRef = useRef(onCodeReceived);
+  const startPromiseRef = useRef<Promise<void> | null>(null);
+  const [hasError, setHasError] = useState(
+    Platform.OS === "android" && !isAvailable,
+  );
 
   onCodeReceivedRef.current = onCodeReceived;
 
-  const handleSuccess = useCallback(
-    (receivedValue: string) => {
+  const handleCodeReceived = useCallback(
+    ({ code: receivedValue }: { code: string }) => {
       const code = extractOtpCode(receivedValue);
       if (code?.length === codeLength) {
         onCodeReceivedRef.current(code);
@@ -34,26 +46,75 @@ export function useOtpAutoFill({
     [codeLength],
   );
 
-  const { appHash, reset, startListening, isReady, hasError } = useSMSRetriever(
-    {
-      onSuccess: handleSuccess,
-    },
-  );
+  useEffect(() => {
+    if (Platform.OS !== "android" || !isAvailable) return;
+
+    const codeSubscription = addCodeListener(handleCodeReceived);
+    const errorSubscription = addErrorListener(() => setHasError(true));
+    const cancelledSubscription = addConsentCancelledListener(() => {
+      setHasError(false);
+    });
+
+    return () => {
+      codeSubscription?.remove();
+      errorSubscription?.remove();
+      cancelledSubscription?.remove();
+    };
+  }, [handleCodeReceived]);
+
+  const armListener = useCallback(() => {
+    if (Platform.OS !== "android" || !isAvailable) {
+      return Promise.resolve();
+    }
+    if (startPromiseRef.current) return startPromiseRef.current;
+
+    setHasError(false);
+    const promise = startListening()
+      .catch((error) => {
+        setHasError(true);
+        throw error;
+      })
+      .finally(() => {
+        startPromiseRef.current = null;
+      });
+    startPromiseRef.current = promise;
+    return promise;
+  }, []);
 
   useEffect(() => {
-    if (__DEV__ && Platform.OS === "android" && appHash) {
-      console.info("[OTP] Android SMS Retriever app hash:", appHash);
-    }
-  }, [appHash]);
+    if (!autoStart || Platform.OS !== "android" || !isAvailable) return;
+
+    void armListener().catch(() => {
+      // SMS User Consent is optional; manual OTP entry remains available.
+    });
+
+    return () => {
+      stopListening();
+      startPromiseRef.current = null;
+    };
+  }, [armListener, autoStart]);
 
   const restartListening = useCallback(async () => {
-    if (Platform.OS !== "android") return;
+    if (Platform.OS !== "android" || !isAvailable) return;
 
-    reset();
-    await startListening().catch(() => {
-      // SMS Retriever is an optional enhancement; manual entry remains available.
+    if (startPromiseRef.current) {
+      await startPromiseRef.current.catch(() => {
+        // A failed attempt is retried below.
+      });
+    }
+
+    setHasError(false);
+    stopListening();
+    startPromiseRef.current = null;
+    await armListener().catch(() => {
+      // SMS User Consent is an optional enhancement; manual entry remains available.
+      setHasError(true);
     });
-  }, [reset, startListening]);
+  }, [armListener]);
 
-  return { appHash, restartListening, isReady, hasError };
+  return {
+    restartListening,
+    isReady: Platform.OS !== "android" || isAvailable,
+    hasError,
+  };
 }

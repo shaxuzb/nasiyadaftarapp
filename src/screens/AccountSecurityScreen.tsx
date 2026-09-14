@@ -152,9 +152,17 @@ function ToggleRow({
       </View>
       <View style={styles.actionCopy}>
         <Text style={styles.actionTitle}>{title}</Text>
-        <Text style={styles.actionDescription} numberOfLines={2}>{description}</Text>
+        <Text style={styles.actionDescription} numberOfLines={2}>
+          {description}
+        </Text>
       </View>
-      <View style={[styles.toggleTrack, value && { backgroundColor: theme.primary }, disabled && styles.disabled]}>
+      <View
+        style={[
+          styles.toggleTrack,
+          value && { backgroundColor: theme.primary },
+          disabled && styles.disabled,
+        ]}
+      >
         <View style={[styles.toggleThumb, value && styles.toggleThumbActive]} />
       </View>
     </Pressable>
@@ -270,7 +278,14 @@ export function AccountSecurityScreen({ navigation }: Props) {
     } finally {
       setPasswordLoading(false);
     }
-  }, [newPassword, passwordCode, passwordDelivery, resetPasswordChange, showToast, t]);
+  }, [
+    newPassword,
+    passwordCode,
+    passwordDelivery,
+    resetPasswordChange,
+    showToast,
+    t,
+  ]);
 
   const resetGoogleChange = useCallback(() => {
     setGoogleStep("idle");
@@ -340,7 +355,10 @@ export function AccountSecurityScreen({ navigation }: Props) {
           accessibilityRole="button"
           accessibilityLabel={t("common.back")}
           onPress={() => navigation.goBack()}
-          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.backButton,
+            pressed && styles.pressed,
+          ]}
         >
           <Ionicons name="arrow-back" size={23} color={theme.text} />
         </Pressable>
@@ -359,10 +377,16 @@ export function AccountSecurityScreen({ navigation }: Props) {
       >
         <View style={styles.summaryCard}>
           <View style={styles.summaryIcon}>
-            <Ionicons name="shield-checkmark-outline" size={22} color={theme.primary} />
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={22}
+              color={theme.primary}
+            />
           </View>
           <View style={styles.summaryCopy}>
-            <Text style={styles.summaryTitle}>{t("security.summaryTitle")}</Text>
+            <Text style={styles.summaryTitle}>
+              {t("security.summaryTitle")}
+            </Text>
             <Text style={styles.summaryDescription}>
               {t("security.summaryDescription")}
             </Text>
@@ -380,7 +404,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 title={
                   biometric?.label === "Barmoq izi"
                     ? t("security.fingerprint")
-                    : biometric?.label ?? t("security.biometric")
+                    : (biometric?.label ?? t("security.biometric"))
                 }
                 description={
                   biometric?.available
@@ -464,7 +488,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
             title={t("security.googleAccount")}
             description={
               hasEmail
-                ? user?.email ?? t("security.googleLinked")
+                ? (user?.email ?? t("security.googleLinked"))
                 : t("security.googleLink")
             }
             onPress={() => {
@@ -483,14 +507,26 @@ export function AccountSecurityScreen({ navigation }: Props) {
           />
         </View>
 
+        {passwordStep === "request" || passwordStep === "confirm" ? (
+          passwordDelivery === "SMS" ? (
+            <PasswordSmsAutoFill onCodeReceived={setPasswordCode} />
+          ) : null
+        ) : null}
+
         {passwordStep === "request" ? (
           <View style={styles.formCard}>
             <View style={styles.formHeader}>
               <View style={styles.formIcon}>
-                <Ionicons name="lock-closed-outline" size={19} color={theme.primary} />
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={19}
+                  color={theme.primary}
+                />
               </View>
               <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>{t("security.chooseDelivery")}</Text>
+                <Text style={styles.formTitle}>
+                  {t("security.chooseDelivery")}
+                </Text>
                 <Text style={styles.formDescription}>
                   {t("security.deliveryDescription")}
                 </Text>
@@ -499,12 +535,15 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 accessibilityRole="button"
                 accessibilityLabel={t("security.cancelPasswordChange")}
                 onPress={resetPasswordChange}
-                style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.closeButton,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Ionicons name="close" size={20} color={theme.textMuted} />
               </Pressable>
             </View>
-            {(canUseSms && canUseEmail) ? (
+            {canUseSms && canUseEmail ? (
               <View style={styles.deliveryRow}>
                 {(["SMS", "EMAIL"] as const).map((delivery) => {
                   const active = passwordDelivery === delivery;
@@ -514,9 +553,17 @@ export function AccountSecurityScreen({ navigation }: Props) {
                       accessibilityRole="button"
                       accessibilityState={{ selected: active }}
                       onPress={() => setPasswordDelivery(delivery)}
-                      style={[styles.deliveryOption, active && styles.deliveryOptionActive]}
+                      style={[
+                        styles.deliveryOption,
+                        active && styles.deliveryOptionActive,
+                      ]}
                     >
-                      <Text style={[styles.deliveryText, active && styles.deliveryTextActive]}>
+                      <Text
+                        style={[
+                          styles.deliveryText,
+                          active && styles.deliveryTextActive,
+                        ]}
+                      >
                         {delivery === "SMS" ? "SMS" : "Email"}
                       </Text>
                     </Pressable>
@@ -548,7 +595,9 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 <Ionicons name="key-outline" size={19} color={theme.primary} />
               </View>
               <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>{t("security.newPassword")}</Text>
+                <Text style={styles.formTitle}>
+                  {t("security.newPassword")}
+                </Text>
                 <Text style={styles.formDescription}>
                   {t("security.codeDelivery", {
                     channel: passwordDelivery === "SMS" ? "SMS" : "email",
@@ -559,7 +608,10 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 accessibilityRole="button"
                 accessibilityLabel={t("security.cancelPasswordChange")}
                 onPress={resetPasswordChange}
-                style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.closeButton,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Ionicons name="close" size={20} color={theme.textMuted} />
               </Pressable>
@@ -574,10 +626,9 @@ export function AccountSecurityScreen({ navigation }: Props) {
               passwordToggle
               autoComplete="new-password"
             />
-            <Text style={styles.codeLabel}>{t("security.verificationCode")}</Text>
-            {passwordDelivery === "SMS" ? (
-              <PasswordSmsAutoFill onCodeReceived={setPasswordCode} />
-            ) : null}
+            <Text style={styles.codeLabel}>
+              {t("security.verificationCode")}
+            </Text>
             <OtpInput
               value={passwordCode}
               onChange={setPasswordCode}
@@ -599,10 +650,16 @@ export function AccountSecurityScreen({ navigation }: Props) {
           <View style={styles.formCard}>
             <View style={styles.formHeader}>
               <View style={styles.formIcon}>
-                <Ionicons name="logo-google" size={19} color={theme.dangerColor} />
+                <Ionicons
+                  name="logo-google"
+                  size={19}
+                  color={theme.dangerColor}
+                />
               </View>
               <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>{t("security.confirmGoogle")}</Text>
+                <Text style={styles.formTitle}>
+                  {t("security.confirmGoogle")}
+                </Text>
                 <Text style={styles.formDescription}>
                   {t("security.googleCodeDescription")}
                 </Text>
@@ -611,12 +668,20 @@ export function AccountSecurityScreen({ navigation }: Props) {
                 accessibilityRole="button"
                 accessibilityLabel={t("security.cancelGoogleChange")}
                 onPress={resetGoogleChange}
-                style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.closeButton,
+                  pressed && styles.pressed,
+                ]}
               >
                 <Ionicons name="close" size={20} color={theme.textMuted} />
               </Pressable>
             </View>
-            <OtpInput value={googleCode} onChange={setGoogleCode} length={OTP_LENGTH} autoFocus />
+            <OtpInput
+              value={googleCode}
+              onChange={setGoogleCode}
+              length={OTP_LENGTH}
+              autoFocus
+            />
             <PrimaryButton
               label={t("security.confirmGoogle")}
               onPress={() => {
@@ -627,7 +692,6 @@ export function AccountSecurityScreen({ navigation }: Props) {
             />
           </View>
         ) : null}
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -655,8 +719,17 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.surface,
     },
     headerCopy: { minWidth: 0, flex: 1, gap: 2 },
-    screenTitle: { color: theme.text, fontSize: 22, lineHeight: 28, fontWeight: "800" },
-    screenSubtitle: { color: theme.textSecondary, fontSize: 12, lineHeight: 17 },
+    screenTitle: {
+      color: theme.text,
+      fontSize: 22,
+      lineHeight: 28,
+      fontWeight: "800",
+    },
+    screenSubtitle: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
+    },
     content: { paddingHorizontal: 16, paddingBottom: 28, gap: 12 },
     summaryCard: {
       flexDirection: "row",
@@ -678,8 +751,17 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.primaryLight,
     },
     summaryCopy: { minWidth: 0, flex: 1, gap: 2 },
-    summaryTitle: { color: theme.text, fontSize: 14, lineHeight: 19, fontWeight: "800" },
-    summaryDescription: { color: theme.textSecondary, fontSize: 11, lineHeight: 16 },
+    summaryTitle: {
+      color: theme.text,
+      fontSize: 14,
+      lineHeight: 19,
+      fontWeight: "800",
+    },
+    summaryDescription: {
+      color: theme.textSecondary,
+      fontSize: 11,
+      lineHeight: 16,
+    },
     sectionTitle: {
       marginTop: 4,
       color: theme.text,
@@ -713,7 +795,12 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 13,
     },
     actionCopy: { minWidth: 0, flex: 1, gap: 2 },
-    actionTitle: { color: theme.text, fontSize: 13, lineHeight: 18, fontWeight: "800" },
+    actionTitle: {
+      color: theme.text,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "800",
+    },
     actionDescription: { color: theme.textMuted, fontSize: 10, lineHeight: 14 },
     toggleTrack: {
       width: 48,
@@ -750,9 +837,19 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.primaryLight,
     },
     formCopy: { minWidth: 0, flex: 1, gap: 1 },
-    formTitle: { color: theme.text, fontSize: 14, lineHeight: 19, fontWeight: "800" },
+    formTitle: {
+      color: theme.text,
+      fontSize: 14,
+      lineHeight: 19,
+      fontWeight: "800",
+    },
     formDescription: { color: theme.textMuted, fontSize: 10, lineHeight: 14 },
-    closeButton: { width: 40, height: 40, alignItems: "center", justifyContent: "center" },
+    closeButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+    },
     deliveryRow: { flexDirection: "row", gap: 8 },
     deliveryOption: {
       minHeight: 38,
@@ -763,10 +860,23 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.border,
       borderRadius: 12,
     },
-    deliveryOptionActive: { borderColor: theme.primary, backgroundColor: theme.primaryLight },
-    deliveryText: { color: theme.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: "700" },
+    deliveryOptionActive: {
+      borderColor: theme.primary,
+      backgroundColor: theme.primaryLight,
+    },
+    deliveryText: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: "700",
+    },
     deliveryTextActive: { color: theme.primary },
-    codeLabel: { color: theme.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: "700" },
+    codeLabel: {
+      color: theme.textSecondary,
+      fontSize: 12,
+      lineHeight: 17,
+      fontWeight: "700",
+    },
     pressed: { opacity: 0.72 },
     disabled: { opacity: 0.58 },
   });

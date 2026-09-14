@@ -5,13 +5,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
@@ -104,9 +98,7 @@ export function PhoneVerificationModal({
       setStage("code");
       requestAnimationFrame(() => otpRef.current?.focus());
     } catch (requestError) {
-      setError(
-        getLocalizedApiErrorMessage(requestError, "errors.generic", t),
-      );
+      setError(getLocalizedApiErrorMessage(requestError, "errors.generic", t));
     } finally {
       setLoading(false);
     }
@@ -161,15 +153,17 @@ export function PhoneVerificationModal({
             />
           </View>
           <Text style={styles.title}>
-            {isChange
-              ? t("security.updatePhone")
-              : t("security.linkPhone")}
+            {isChange ? t("security.updatePhone") : t("security.linkPhone")}
           </Text>
           <Text style={styles.description}>
             {stage === "phone"
               ? t("security.phoneVerificationDescription")
               : t("security.enterCodeForPhone", { phone: requestedPhone })}
           </Text>
+
+          {visible ? (
+            <PhoneOtpAutoFill onCodeReceived={handleAutoFilledCode} />
+          ) : null}
 
           {stage === "phone" ? (
             <AppInput
@@ -186,10 +180,9 @@ export function PhoneVerificationModal({
             />
           ) : (
             <View style={styles.codeSection}>
-              {visible ? (
-                <PhoneOtpAutoFill onCodeReceived={handleAutoFilledCode} />
-              ) : null}
-              <Text style={styles.codeLabel}>{t("security.verificationCode")}</Text>
+              <Text style={styles.codeLabel}>
+                {t("security.verificationCode")}
+              </Text>
               <OtpInput
                 ref={otpRef}
                 value={code}
@@ -210,16 +203,16 @@ export function PhoneVerificationModal({
                 }}
                 style={styles.changePhoneButton}
               >
-                <Text style={styles.changePhoneText}>{t("security.changePhone")}</Text>
+                <Text style={styles.changePhoneText}>
+                  {t("security.changePhone")}
+                </Text>
               </Pressable>
             </View>
           )}
 
           <PrimaryButton
             label={
-              stage === "phone"
-                ? t("security.sendCode")
-                : t("common.confirm")
+              stage === "phone" ? t("security.sendCode") : t("common.confirm")
             }
             onPress={() => {
               void (stage === "phone" ? handleRequest() : handleConfirm());

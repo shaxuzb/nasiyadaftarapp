@@ -73,47 +73,75 @@ export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
 
   const cells = Array.from({ length }, (_, i) => normalized[i] ?? "");
 
+  const handleInputChange = useCallback(
+    (text: string) => {
+      setClipboardError(false);
+      onChange(text.replace(/\D/g, "").slice(0, length));
+    },
+    [length, onChange],
+  );
+
   return (
     <View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("common.otpInput")}
-        onPress={() => inputRef.current?.focus()}
-      >
+      {Platform.OS === "ios" ? (
         <TextInput
           ref={inputRef}
           value={normalized}
-          onChangeText={(text) => {
-            setClipboardError(false);
-            onChange(text.replace(/\D/g, "").slice(0, length));
-          }}
+          onChangeText={handleInputChange}
           keyboardType="number-pad"
           autoFocus={autoFocus}
+          maxLength={length}
+          accessibilityLabel={t("common.otpInput")}
+          autoCorrect={false}
+          spellCheck={false}
           textContentType="oneTimeCode"
-          autoComplete={Platform.OS === "ios" ? "one-time-code" : "sms-otp"}
-          importantForAutofill="yes"
-          caretHidden
-          style={styles.hiddenInput}
+          selectionColor={theme.primary}
+          style={[
+            styles.iosInput,
+            {
+              color: theme.text,
+              backgroundColor: theme.inputBackground,
+              borderColor: normalized ? theme.primary : theme.border,
+            },
+          ]}
         />
-        <View style={styles.row}>
-          {cells.map((char, idx) => (
-            <View
-              key={idx}
-              style={[
-                styles.cell,
-                {
-                  borderColor: char ? theme.primary : theme.border,
-                  backgroundColor: theme.inputBackground,
-                },
-              ]}
-            >
-              <Text style={[typography.headingSmall, { color: theme.text }]}>
-                {char || ""}
-              </Text>
-            </View>
-          ))}
+      ) : (
+        <View style={styles.inputSurface}>
+          <View pointerEvents="none" style={styles.row}>
+            {cells.map((char, idx) => (
+              <View
+                key={idx}
+                style={[
+                  styles.cell,
+                  {
+                    borderColor: char ? theme.primary : theme.border,
+                    backgroundColor: theme.inputBackground,
+                  },
+                ]}
+              >
+                <Text style={[typography.headingSmall, { color: theme.text }]}>
+                  {char || ""}
+                </Text>
+              </View>
+            ))}
+          </View>
+          <TextInput
+            ref={inputRef}
+            value={normalized}
+            onChangeText={handleInputChange}
+            keyboardType="number-pad"
+            autoFocus={autoFocus}
+            maxLength={length}
+            accessibilityLabel={t("common.otpInput")}
+            autoCorrect={false}
+            spellCheck={false}
+            autoComplete="sms-otp"
+            importantForAutofill="yes"
+            selectionColor="transparent"
+            style={styles.autofillInput}
+          />
         </View>
-      </Pressable>
+      )}
 
       {Platform.OS === "ios" ? (
         <Pressable
@@ -138,11 +166,35 @@ export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
 });
 
 const styles = StyleSheet.create({
-  hiddenInput: {
+  inputSurface: {
+    position: "relative",
+    minHeight: 52,
+    width: "100%",
+  },
+  iosInput: {
+    minHeight: 52,
+    width: "100%",
+    borderWidth: 1.5,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    textAlign: "center",
+    fontSize: 24,
+    fontWeight: "700",
+    letterSpacing: 8,
+  },
+  autofillInput: {
     position: "absolute",
-    opacity: 0,
-    width: 1,
-    height: 1,
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 52,
+    zIndex: 2,
+    padding: 0,
+    margin: 0,
+    borderWidth: 0,
+    backgroundColor: "transparent",
+    color: "transparent",
+    fontSize: 1,
   },
   row: {
     flexDirection: "row",

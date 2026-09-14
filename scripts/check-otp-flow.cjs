@@ -45,8 +45,13 @@ assert.match(
 );
 assert.match(
   autoFillSource,
-  /const \{ appHash, reset, startListening, isReady, hasError \}/,
-  "OTP hook must expose retriever readiness",
+  /addCodeListener|startListening/,
+  "OTP hook must use the hashless SMS User Consent bridge",
+);
+assert.doesNotMatch(
+  autoFillSource,
+  /@ebrimasamba\/react-native-sms-retriever/,
+  "OTP hook must not depend on app-hash SMS Retriever",
 );
 assert.match(
   verifySource,

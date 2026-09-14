@@ -90,6 +90,7 @@ export function RegisterSmsVerifyScreen({
 
   const { restartListening, isReady, hasError } = useOtpAutoFill({
     onCodeReceived: handleCodeChange,
+    autoStart: false,
   });
 
   const requestCode = useCallback(
