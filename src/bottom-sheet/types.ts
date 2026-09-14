@@ -1,8 +1,16 @@
 import { BottomSheetBackdropProps } from "@gorhom/bottom-sheet";
 import { ComponentType, ReactElement, ReactNode } from "react";
 import { Transaction } from "../modules/transactions/types";
+import type {
+  OrganizationMembership,
+  UpdateCurrentOrganizationRequest,
+} from "../modules/organization/types";
 
-export type SheetType = "transaction" | "transactionDetail" | "language";
+export type SheetType =
+  | "transaction"
+  | "transactionDetail"
+  | "language"
+  | "organizationProfile";
 
 export interface TransactionSheetProps {
   customerId: number;
@@ -20,10 +28,16 @@ export interface TransactionDetailSheetProps {
 
 export type LanguageSheetProps = Record<never, never>;
 
+export interface OrganizationProfileSheetProps {
+  organization: OrganizationMembership;
+  onSubmit: (payload: UpdateCurrentOrganizationRequest) => Promise<void>;
+}
+
 export interface SheetPropsMap {
   transaction: TransactionSheetProps;
   transactionDetail: TransactionDetailSheetProps;
   language: LanguageSheetProps;
+  organizationProfile: OrganizationProfileSheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {
