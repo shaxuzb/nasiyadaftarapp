@@ -8,6 +8,7 @@ import React, {
 import { useQueryClient } from "@tanstack/react-query";
 import { Customer, Transaction } from "../types";
 import { queryKeys } from "../core/query/queryKeys";
+import { getOrganizationQueryScope } from "../core/query/organizationScope";
 import { useClientQueries } from "../modules/clients/hooks/useClientQueries";
 import { createCustomerMap } from "../modules/clients/utils/clientCalculations";
 import { useTransactionQueries } from "../modules/transactions/hooks/useTransactionQueries";
@@ -38,10 +39,12 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, currentOrganization } = useAuth();
   const queryClient = useQueryClient();
-  const scope = user?.organizationId ?? user?.id ?? "anonymous";
-  const enabled = Boolean(user);
+  const { scope, enabled } = getOrganizationQueryScope(
+    user?.id,
+    currentOrganization?.id,
+  );
 
   const clientState = useClientQueries(scope, enabled);
   const {
@@ -109,8 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [invalidateClientRelatedQueries]);
 
   const addCustomer = useCallback(
-    async (data: Omit<Customer, "id" | "createdAt">) =>
-      addClient(data),
+    async (data: Omit<Customer, "id" | "createdAt">) => addClient(data),
     [addClient],
   );
 

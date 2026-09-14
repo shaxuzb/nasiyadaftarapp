@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useAuth } from "../../../context/AuthContext";
+import { getOrganizationQueryScope } from "../../../core/query/organizationScope";
 import { queryKeys } from "../../../core/query/queryKeys";
 import {
   getDebtSmsHistory,
@@ -17,10 +18,14 @@ import type { SmsHistoryFilters, SmsRecipientFilters } from "../types";
 import { getClientSmsCapabilities } from "../utils/smsPermissions";
 
 function useSmsScope() {
-  const { user } = useAuth();
+  const { user, currentOrganization } = useAuth();
+  const organizationScope = getOrganizationQueryScope(
+    user?.id,
+    currentOrganization?.id,
+  );
   return {
     user,
-    scope: user?.organizationId ?? user?.id ?? "anonymous",
+    ...organizationScope,
     capabilities: getClientSmsCapabilities(
       user?.permissions,
       user?.subscription,
@@ -29,37 +34,36 @@ function useSmsScope() {
 }
 
 export function useSmsRecipients(filters: SmsRecipientFilters) {
-  const { user, scope, capabilities } = useSmsScope();
+  const { enabled, scope, capabilities } = useSmsScope();
   return useQuery({
     queryKey: queryKeys.clientSmsRecipients(scope, filters),
     queryFn: ({ signal }) => getSmsRecipients(filters, signal),
-    enabled: Boolean(user && capabilities.canView),
+    enabled: enabled && capabilities.canView,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 }
 
 export function useSmsHistory(filters: SmsHistoryFilters) {
-  const { user, scope, capabilities } = useSmsScope();
+  const { enabled, scope, capabilities } = useSmsScope();
   return useQuery({
     queryKey: queryKeys.clientSmsHistory(scope, filters),
     queryFn: ({ signal }) => getDebtSmsHistory(filters, signal),
-    enabled: Boolean(user && capabilities.canViewHistory),
+    enabled: enabled && capabilities.canViewHistory,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
 }
 
 export function useSmsTemplate() {
-  const { user, scope, capabilities } = useSmsScope();
+  const { enabled, scope, capabilities } = useSmsScope();
   return useQuery({
     queryKey: queryKeys.clientSmsTemplate(scope),
     queryFn: ({ signal }) => getDebtSmsTemplate(signal),
-    enabled: Boolean(
-      user &&
+    enabled:
+      enabled &&
       capabilities.canView &&
       (capabilities.canSendOne || capabilities.canSendBulk),
-    ),
     staleTime: 5 * 60_000,
   });
 }

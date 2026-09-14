@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../context/AuthContext";
+import { getOrganizationQueryScope } from "../../../core/query/organizationScope";
 import { queryKeys } from "../../../core/query/queryKeys";
 import { getReports } from "../services/reportsService";
 import { ReportsQueryParams } from "../types";
@@ -12,9 +13,11 @@ export const DEFAULT_REPORTS_QUERY: ReportsQueryParams = {
 export function useReports(
   params: ReportsQueryParams = DEFAULT_REPORTS_QUERY,
 ) {
-  const { user } = useAuth();
-  const scope = user?.organizationId ?? user?.id ?? "anonymous";
-  const enabled = Boolean(user);
+  const { user, currentOrganization } = useAuth();
+  const { scope, enabled } = getOrganizationQueryScope(
+    user?.id,
+    currentOrganization?.id,
+  );
 
   const query = useQuery({
     queryKey: queryKeys.reports(scope, params),

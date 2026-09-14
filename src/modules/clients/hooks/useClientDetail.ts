@@ -1,20 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../context/AuthContext";
+import { getOrganizationQueryScope } from "../../../core/query/organizationScope";
 import { queryKeys } from "../../../core/query/queryKeys";
 import { getClientById, updateClient } from "../services/clientsService";
 import { getClientHistory } from "../../transactions/services/transactionsService";
 import type { ClientUpdateRequest, Customer } from "../types";
 
 export function useClientDetail(id: number) {
-  const { user } = useAuth();
-  const scope = user?.organizationId ?? user?.id ?? "anonymous";
+  const { user, currentOrganization } = useAuth();
+  const { scope, enabled } = getOrganizationQueryScope(
+    user?.id,
+    currentOrganization?.id,
+  );
   const queryClient = useQueryClient();
   const detailKey = queryKeys.client(scope, id);
   const listKey = queryKeys.clients(scope);
   const detail = useQuery({
     queryKey: detailKey,
     queryFn: ({ signal }) => getClientById(id, signal),
-    enabled: Boolean(user),
+    enabled,
     initialData: () =>
       queryClient
         .getQueryData<Customer[]>(listKey)
@@ -25,7 +29,7 @@ export function useClientDetail(id: number) {
   const history = useQuery({
     queryKey: queryKeys.transactionHistory(scope, id),
     queryFn: ({ signal }) => getClientHistory(id, signal),
-    enabled: Boolean(user),
+    enabled,
     staleTime: 30_000,
   });
   const update = useMutation({

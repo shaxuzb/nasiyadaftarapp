@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../context/AuthContext";
+import { getOrganizationQueryScope } from "../../../core/query/organizationScope";
 import { queryKeys } from "../../../core/query/queryKeys";
 import {
   getCurrentOrganization,
@@ -7,20 +8,26 @@ import {
 } from "../services/organizationService";
 
 export function useCurrentOrganization() {
-  const { user } = useAuth();
-  const scope = user?.organizationId ?? user?.id ?? "anonymous";
+  const { user, currentOrganization } = useAuth();
+  const { scope, enabled } = getOrganizationQueryScope(
+    user?.id,
+    currentOrganization?.id,
+  );
   return useQuery({
     queryKey: queryKeys.currentOrganization(scope),
     queryFn: ({ signal }) => getCurrentOrganization(signal),
-    enabled: Boolean(user),
+    enabled,
     staleTime: 60_000,
   });
 }
 
 export function useUpdateBlacklistSettings() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const scope = user?.organizationId ?? user?.id ?? "anonymous";
+  const { user, currentOrganization } = useAuth();
+  const { scope } = getOrganizationQueryScope(
+    user?.id,
+    currentOrganization?.id,
+  );
   return useMutation({
     mutationFn: updateBlacklistSettings,
     onSuccess: async () => {
