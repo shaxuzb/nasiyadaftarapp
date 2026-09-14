@@ -16,6 +16,7 @@ import {
   registerAccount,
   selectOrganizationAccount,
 } from "../modules/auth/services/authService";
+import { appleAccount } from "../modules/auth/services/appleAuthApi";
 import {
   clearAuthSession,
   getAuthSessionSync,
@@ -25,6 +26,7 @@ import {
   updateAuthUserInSession,
 } from "../modules/auth/services/authService";
 import {
+  AppleLoginRequest,
   AuthResponse,
   AuthUser,
   GoogleLoginRequest,
@@ -61,6 +63,7 @@ interface AuthContextValue {
   login: (payload: LoginRequest) => Promise<void>;
   register: (payload: RegisterRequest) => Promise<void>;
   loginWithGoogleIdToken: (idToken: string) => Promise<void>;
+  loginWithAppleCredential: (payload: AppleLoginRequest) => Promise<void>;
   createOrganizationForCurrentUser: (
     payload: OrganizationRequest,
   ) => Promise<void>;
@@ -431,6 +434,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [completeAuth],
   );
 
+  const loginWithAppleCredential = useCallback(
+    async (payload: AppleLoginRequest) => {
+      const response = await appleAccount(payload);
+      await completeAuth(response);
+    },
+    [completeAuth],
+  );
+
   useEffect(() => {
     let active = true;
 
@@ -487,6 +498,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       loginWithGoogleIdToken,
+      loginWithAppleCredential,
       createOrganizationForCurrentUser,
       refreshOrganizations,
       refreshSubscription,
@@ -504,6 +516,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isBootstrapping,
       isOrganizationLoading,
       login,
+      loginWithAppleCredential,
       loginWithGoogleIdToken,
       logout,
       openOrganizationSelector,
