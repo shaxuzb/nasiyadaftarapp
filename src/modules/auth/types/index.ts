@@ -42,6 +42,12 @@ export interface GoogleLoginRequest {
   idToken: string;
 }
 
+export interface AppleLoginRequest {
+  identityToken: string;
+  email?: string | null;
+  fullName?: string | null;
+}
+
 export interface LogoutRequest {
   refreshToken: string;
   uniqueId: string;
