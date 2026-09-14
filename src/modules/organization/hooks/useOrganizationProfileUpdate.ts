@@ -9,7 +9,7 @@ import type { UpdateCurrentOrganizationRequest } from "../types";
 import { normalizeOrganizationProfile } from "../utils/organizationProfile";
 
 export function useOrganizationProfileUpdate() {
-  const { refreshOrganizations, updateUserProfile } = useAuth();
+  const { refreshOrganizations } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
 
   const saveOrganizationProfile = useCallback(
@@ -30,13 +30,12 @@ export function useOrganizationProfileUpdate() {
         }
 
         await refreshOrganizations();
-        await updateUserProfile({ organizationName: canonical.name });
         return canonical;
       } finally {
         setIsSaving(false);
       }
     },
-    [refreshOrganizations, updateUserProfile],
+    [refreshOrganizations],
   );
 
   return { saveOrganizationProfile, isSaving };
