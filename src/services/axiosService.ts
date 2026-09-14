@@ -1,5 +1,9 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "../config/env";
+import {
+  assertOnlineForMutation,
+  isServerMutationMethod,
+} from "../core/network/networkState";
 import { AuthRefreshResponse } from "../modules/auth/types";
 import {
   clearAuthSession,
@@ -80,6 +84,10 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 apiClient.interceptors.request.use((config) => {
+  if (isServerMutationMethod(config.method)) {
+    assertOnlineForMutation();
+  }
+
   const session = getAuthSessionSync();
   if (session?.token) {
     config.headers = config.headers ?? {};

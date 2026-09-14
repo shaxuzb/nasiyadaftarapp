@@ -17,6 +17,8 @@ import { ThemeProvider, useThemeContext } from "./src/context/ThemeContext";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./src/core/query/queryClient";
+import { NetworkProvider } from "./src/core/network/NetworkProvider";
+import { OfflineBanner } from "./src/core/network/OfflineBanner";
 import { BottomSheetProvider } from "./src/bottom-sheet";
 import { AppUpdateGate } from "./src/modules/app-update";
 import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
@@ -100,41 +102,44 @@ function ThemedApp() {
   return (
     <AppErrorBoundary theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <SafeAreaProvider>
-            <ToastProvider>
-              <KeyboardProvider>
-                <BottomSheetModalProvider>
-                  <AuthProvider>
-                    <AppLockProvider>
-                    <AccountSecurityProvider>
-                      <AppProvider>
-                        <BottomSheetProvider>
-                          <ConfirmDialogProvider>
-                            <AppUpdateGate>
-                              <StatusBar
-                                style={resolvedScheme === "dark" ? "light" : "dark"}
-                                backgroundColor={theme.background}
-                              />
-                              {showOnboarding ? (
-                                <OnboardingScreen
-                                  onFinish={handleFinishOnboarding}
-                                />
-                              ) : (
-                                <AppNavigator />
-                              )}
-                            </AppUpdateGate>
-                          </ConfirmDialogProvider>
-                        </BottomSheetProvider>
-                      </AppProvider>
-                    </AccountSecurityProvider>
-                    </AppLockProvider>
-                  </AuthProvider>
-                </BottomSheetModalProvider>
-              </KeyboardProvider>
-            </ToastProvider>
-          </SafeAreaProvider>
-        </GestureHandlerRootView>
+        <NetworkProvider>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <SafeAreaProvider>
+              <OfflineBanner />
+              <ToastProvider>
+                <KeyboardProvider>
+                  <BottomSheetModalProvider>
+                    <AuthProvider>
+                      <AppLockProvider>
+                        <AccountSecurityProvider>
+                          <AppProvider>
+                            <BottomSheetProvider>
+                              <ConfirmDialogProvider>
+                                <AppUpdateGate>
+                                  <StatusBar
+                                    style={resolvedScheme === "dark" ? "light" : "dark"}
+                                    backgroundColor={theme.background}
+                                  />
+                                  {showOnboarding ? (
+                                    <OnboardingScreen
+                                      onFinish={handleFinishOnboarding}
+                                    />
+                                  ) : (
+                                    <AppNavigator />
+                                  )}
+                                </AppUpdateGate>
+                              </ConfirmDialogProvider>
+                            </BottomSheetProvider>
+                          </AppProvider>
+                        </AccountSecurityProvider>
+                      </AppLockProvider>
+                    </AuthProvider>
+                  </BottomSheetModalProvider>
+                </KeyboardProvider>
+              </ToastProvider>
+            </SafeAreaProvider>
+          </GestureHandlerRootView>
+        </NetworkProvider>
       </QueryClientProvider>
     </AppErrorBoundary>
   );

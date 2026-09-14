@@ -1,4 +1,5 @@
 import axios from "axios";
+import { OFFLINE_MUTATION_ERROR_CODE } from "../core/network/networkState";
 
 function getDetailMessage(payload: unknown): string | undefined {
   if (!payload || typeof payload !== "object") return undefined;
@@ -38,6 +39,10 @@ export function getApiErrorMessage(
   error: unknown,
   fallbackMessage: string,
 ): string {
+  if (error instanceof Error && error.name === OFFLINE_MUTATION_ERROR_CODE) {
+    return error.message;
+  }
+
   if (!axios.isAxiosError(error)) return fallbackMessage;
 
   return getDetailMessage(error.response?.data) ?? fallbackMessage;
