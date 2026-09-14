@@ -1,8 +1,9 @@
-import { getOrganizationQueryScope } from "./organizationScope";
+// @ts-expect-error This standalone Node test imports the TypeScript module directly.
+import { getOrganizationQueryScope } from "./organizationScope.ts";
 
 function equal(actual: unknown, expected: unknown, message: string) {
   if (actual !== expected) {
-    throw new Error(`${message}: ${String(actual)} !== ${String(expected)}`);
+    throw new Error(message + ": " + String(actual) + " !== " + String(expected));
   }
 }
 
