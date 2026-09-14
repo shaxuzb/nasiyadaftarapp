@@ -3,6 +3,7 @@ import {
   OrganizationMembership,
   OrganizationRequest,
   OrganizationResponse,
+  UpdateCurrentOrganizationRequest,
   BlacklistSettingsRequest,
 } from "../modules/organization/types";
 
@@ -48,6 +49,12 @@ export async function getCurrentOrganization(
     signal,
   });
   return extractOrganization(data);
+}
+
+export async function updateCurrentOrganization(
+  payload: UpdateCurrentOrganizationRequest,
+): Promise<void> {
+  await apiClient.put("/organizations/current", payload);
 }
 
 function parseOrganizationMembership(
