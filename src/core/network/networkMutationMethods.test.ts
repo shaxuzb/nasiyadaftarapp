@@ -1,4 +1,5 @@
-import { isServerMutationMethod } from './networkState';
+// @ts-expect-error This standalone Node test imports the TypeScript module directly.
+import { isServerMutationMethod } from './networkState.ts';
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
