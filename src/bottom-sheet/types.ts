@@ -5,12 +5,19 @@ import type {
   OrganizationMembership,
   UpdateCurrentOrganizationRequest,
 } from "../modules/organization/types";
+import type {
+  SmsPackage,
+  SubscriptionPlan,
+} from "../modules/subscription/types";
 
 export type SheetType =
   | "transaction"
   | "transactionDetail"
   | "language"
-  | "organizationProfile";
+  | "organizationProfile"
+  | "paymentCheckout"
+  | "paymentStatus"
+  | "paymentDetail";
 
 export interface TransactionSheetProps {
   customerId: number;
@@ -33,11 +40,33 @@ export interface OrganizationProfileSheetProps {
   onSubmit: (payload: UpdateCurrentOrganizationRequest) => Promise<void>;
 }
 
+export type PaymentCheckoutSheetProps =
+  | {
+      productType: "subscription";
+      plan: SubscriptionPlan;
+    }
+  | {
+      productType: "sms_package";
+      package: SmsPackage;
+    };
+
+export interface PaymentStatusSheetProps {
+  orderId: number;
+  openCheckoutOnMount?: boolean;
+}
+
+export interface PaymentDetailSheetProps {
+  orderId: number;
+}
+
 export interface SheetPropsMap {
   transaction: TransactionSheetProps;
   transactionDetail: TransactionDetailSheetProps;
   language: LanguageSheetProps;
   organizationProfile: OrganizationProfileSheetProps;
+  paymentCheckout: PaymentCheckoutSheetProps;
+  paymentStatus: PaymentStatusSheetProps;
+  paymentDetail: PaymentDetailSheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {
