@@ -1,20 +1,21 @@
 // @ts-expect-error Node test runner loads the TypeScript module directly.
 import { createPaymentLifecycleCore } from "./paymentLifecycleCore.ts";
+import type { PaymentOrder } from "../types";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
 }
 
-const baseOrder = {
+const baseOrder: PaymentOrder = {
   id: 15,
-  productType: "subscription" as const,
+  productType: "subscription",
   productId: 2,
   productCode: "STANDARD",
   productName: "Standard",
   amount: 29900,
   amountTiyin: 2990000,
   currency: "UZS",
-  status: "pending" as const,
+  status: "pending",
   remoteStatus: "pending",
   externalId: "external",
   invoiceId: "invoice",
@@ -32,7 +33,7 @@ const baseOrder = {
 const events: string[] = [];
 let createShouldFail = false;
 const syncControl: {
-  resolve?: (value: typeof baseOrder) => void;
+  resolve?: (value: PaymentOrder) => void;
 } = {};
 let syncCalls = 0;
 const attempt = {
@@ -69,7 +70,7 @@ const core = createPaymentLifecycleCore({
   syncPayment: async () => {
     syncCalls += 1;
     events.push("sync");
-    return await new Promise<typeof baseOrder>((resolve) => {
+    return await new Promise<PaymentOrder>((resolve) => {
       syncControl.resolve = resolve;
     });
   },
@@ -78,7 +79,7 @@ const core = createPaymentLifecycleCore({
   },
   getPayment: async () => {
     events.push("get");
-    return { ...baseOrder, status: "cancelled" as const };
+    return { ...baseOrder, status: "cancelled" };
   },
   getCheckoutUrl: (order) => order.paymentUrl,
   shouldPersistPending: (order) =>
@@ -117,8 +118,11 @@ createShouldFail = false;
 const syncOne = core.syncOrder(7, 15);
 const syncTwo = core.syncOrder(7, 15);
 assert(syncCalls === 1, "Concurrent manual/foreground sync must deduplicate");
-assert(typeof syncControl.resolve === "function", "Sync resolver must be registered before resolving");
-syncControl.resolve({ ...baseOrder, status: "paid", isFulfilled: false });
+const resolveSync = syncControl.resolve;
+if (!resolveSync) {
+  throw new Error("Sync resolver must be registered before resolving");
+}
+resolveSync({ ...baseOrder, status: "paid", isFulfilled: false });
 const [syncedOne, syncedTwo] = await Promise.all([syncOne, syncTwo]);
 assert(syncedOne.status === "paid" && syncedTwo.status === "paid", "Both sync callers receive same canonical result");
 assert(!events.includes("fulfilled"), "Paid but unfulfilled must not refresh entitlement as success");
@@ -139,7 +143,7 @@ const fulfilledCore = createPaymentLifecycleCore({
   },
   createSubscriptionPayment: async () => ({
     ...baseOrder,
-    status: "paid" as const,
+    status: "paid",
     isFulfilled: true,
   }),
   createSmsPackagePayment: async () => {
