@@ -6,6 +6,9 @@ import {
 import { TransactionDetailSheet } from "./sheets/TransactionDetailSheet";
 import { LanguageSheet } from "./sheets/LanguageSheet";
 import { OrganizationProfileSheet } from "./sheets/OrganizationProfileSheet";
+import { PaymentCheckoutSheet } from "./sheets/PaymentCheckoutSheet";
+import { PaymentStatusSheet } from "./sheets/PaymentStatusSheet";
+import { PaymentDetailSheet } from "./sheets/PaymentDetailSheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
@@ -30,5 +33,20 @@ export const sheetRegistry: SheetRegistry = {
     enableDynamicSizing: true,
     enablePanDownToClose: true,
     dismissKeyboardOnOpen: false,
+  },
+  paymentCheckout: {
+    component: PaymentCheckoutSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+  },
+  paymentStatus: {
+    component: PaymentStatusSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+  },
+  paymentDetail: {
+    component: PaymentDetailSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
   },
 };
