@@ -13,6 +13,7 @@
     },
     "ios": {
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "bundleIdentifier": "com.rbsx.nasiyadaftarapp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -37,6 +38,7 @@
     },
     "plugins": [
       "expo-contacts",
+      "expo-apple-authentication",
       [
         "react-native-nitro-google-signin",
         {
