@@ -24,6 +24,7 @@ import { AppUpdateGate } from "./src/modules/app-update";
 import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
 import { AccountSecurityProvider } from "./src/modules/account/context/AccountSecurityContext";
 import { AppLockProvider } from "./src/modules/pin-auth/context/AppLockContext";
+import { PaymentRecoveryGate } from "./src/modules/payments/components/PaymentRecoveryGate";
 import { LanguageProvider } from "./src/i18n";
 
 const ONBOARDING_DONE_KEY = "onboarding_done_v1";
@@ -116,8 +117,13 @@ function ThemedApp() {
                             <BottomSheetProvider>
                               <ConfirmDialogProvider>
                                 <AppUpdateGate>
+                                  <PaymentRecoveryGate
+                                    enabled={!showOnboarding}
+                                  />
                                   <StatusBar
-                                    style={resolvedScheme === "dark" ? "light" : "dark"}
+                                    style={
+                                      resolvedScheme === "dark" ? "light" : "dark"
+                                    }
                                     backgroundColor={theme.background}
                                   />
                                   {showOnboarding ? (
