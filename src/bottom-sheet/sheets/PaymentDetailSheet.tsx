@@ -8,37 +8,11 @@ import { useConfirmDialog } from "../../context/ConfirmDialogContext";
 import { useToast } from "../../context/ToastContext";
 import { useTheme } from "../../hooks/useTheme";
 import { useTranslation } from "../../i18n";
+import { getPaymentCopy } from "../../modules/payments/i18n/paymentCopy";
 import { PaymentOrderContent } from "../../modules/payments/components/PaymentOrderContent";
 import { usePaymentOrderLifecycle } from "../../modules/payments/hooks/usePaymentOrderLifecycle";
 import { radius, spacing, typography } from "../../theme";
 import type { AppTheme } from "../../types";
-
-const COPY = {
-  uz: {
-    title: "To‘lov tafsilotlari",
-    continue: "To‘lovni davom ettirish",
-    refresh: "Holatni yangilash",
-    cancel: "To‘lovni bekor qilish",
-    close: "Yopish",
-    cancelTitle: "To‘lovni bekor qilasizmi?",
-    cancelMessage: "Faqat hali to‘lanmagan buyurtma bekor qilinadi.",
-    error: "To‘lov ma’lumotini yangilab bo‘lmadi",
-    openError: "To‘lov sahifasini ochib bo‘lmadi",
-    loading: "To‘lov tafsilotlari yuklanmoqda...",
-  },
-  ru: {
-    title: "Детали оплаты",
-    continue: "Продолжить оплату",
-    refresh: "Обновить статус",
-    cancel: "Отменить оплату",
-    close: "Закрыть",
-    cancelTitle: "Отменить оплату?",
-    cancelMessage: "Можно отменить только ещё не оплаченный заказ.",
-    error: "Не удалось обновить данные оплаты",
-    openError: "Не удалось открыть страницу оплаты",
-    loading: "Загрузка деталей оплаты...",
-  },
-} as const;
 
 export function PaymentDetailSheet({
   props,
@@ -47,7 +21,7 @@ export function PaymentDetailSheet({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale, t } = useTranslation();
-  const copy = COPY[locale === "ru" ? "ru" : "uz"];
+  const copy = getPaymentCopy(locale).detailSheet;
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();
   const [syncAfterOpen, setSyncAfterOpen] = useState(false);
@@ -144,25 +118,41 @@ export function PaymentDetailSheet({
             accessibilityRole="button"
             disabled={busy}
             onPress={() => void handleContinue()}
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, busy && styles.disabled]}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed && styles.pressed,
+              busy && styles.disabled,
+            ]}
           >
-            {isOpeningCheckout ? <ActivityIndicator size="small" color={theme.surface} /> : null}
+            {isOpeningCheckout ? (
+              <ActivityIndicator size="small" color={theme.surface} />
+            ) : null}
             <Text style={styles.primaryText}>{copy.continue}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             disabled={busy}
             onPress={() => void handleSync()}
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, busy && styles.disabled]}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              pressed && styles.pressed,
+              busy && styles.disabled,
+            ]}
           >
-            {isSyncing ? <ActivityIndicator size="small" color={theme.primary} /> : null}
+            {isSyncing ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : null}
             <Text style={styles.secondaryText}>{copy.refresh}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             disabled={busy}
             onPress={() => void handleCancel()}
-            style={({ pressed }) => [styles.dangerButton, pressed && styles.pressed, busy && styles.disabled]}
+            style={({ pressed }) => [
+              styles.dangerButton,
+              pressed && styles.pressed,
+              busy && styles.disabled,
+            ]}
           >
             <Text style={styles.dangerText}>{copy.cancel}</Text>
           </Pressable>
@@ -172,9 +162,15 @@ export function PaymentDetailSheet({
           accessibilityRole="button"
           disabled={busy}
           onPress={() => void handleSync()}
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, busy && styles.disabled]}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.pressed,
+            busy && styles.disabled,
+          ]}
         >
-          {isSyncing ? <ActivityIndicator size="small" color={theme.surface} /> : null}
+          {isSyncing ? (
+            <ActivityIndicator size="small" color={theme.surface} />
+          ) : null}
           <Text style={styles.primaryText}>{copy.refresh}</Text>
         </Pressable>
       ) : (
