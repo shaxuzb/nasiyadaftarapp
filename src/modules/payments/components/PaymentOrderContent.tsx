@@ -10,53 +10,8 @@ import {
 } from "../../../i18n";
 import { radius, spacing, typography } from "../../../theme";
 import type { AppTheme } from "../../../types";
+import { getPaymentCopy } from "../i18n/paymentCopy";
 import type { PaymentOrder } from "../types";
-
-type Copy = {
-  status: Record<PaymentOrder["status"], string>;
-  fulfilled: string;
-  provider: string;
-  account: string;
-  created: string;
-  paid: string;
-  fulfilledAt: string;
-  orderId: string;
-};
-
-const COPY: Record<"uz" | "ru", Copy> = {
-  uz: {
-    status: {
-      pending: "To‘lov kutilmoqda",
-      paid: "To‘lov qabul qilindi",
-      cancelled: "To‘lov bekor qilindi",
-      failed: "To‘lov amalga oshmadi",
-      expired: "To‘lov muddati tugadi",
-    },
-    fulfilled: "Xizmat faollashtirildi",
-    provider: "Provayder",
-    account: "Hisob raqami",
-    created: "Yaratilgan",
-    paid: "To‘langan",
-    fulfilledAt: "Faollashtirilgan",
-    orderId: "Buyurtma ID",
-  },
-  ru: {
-    status: {
-      pending: "Ожидание оплаты",
-      paid: "Оплата получена",
-      cancelled: "Оплата отменена",
-      failed: "Оплата не выполнена",
-      expired: "Срок оплаты истёк",
-    },
-    fulfilled: "Услуга активирована",
-    provider: "Провайдер",
-    account: "Номер счёта",
-    created: "Создано",
-    paid: "Оплачено",
-    fulfilledAt: "Активировано",
-    orderId: "ID заказа",
-  },
-};
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   const theme = useTheme();
@@ -75,7 +30,7 @@ export function PaymentOrderContent({ order }: { order: PaymentOrder }) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale } = useTranslation();
-  const copy = COPY[locale === "ru" ? "ru" : "uz"];
+  const copy = getPaymentCopy(locale).order;
   const successful = order.status === "paid" && order.isFulfilled;
   const accent = successful
     ? theme.successColor
@@ -106,7 +61,9 @@ export function PaymentOrderContent({ order }: { order: PaymentOrder }) {
 
       <View style={styles.details}>
         <DetailRow label={copy.orderId} value={String(order.id)} />
-        {order.provider ? <DetailRow label={copy.provider} value={order.provider} /> : null}
+        {order.provider ? (
+          <DetailRow label={copy.provider} value={order.provider} />
+        ) : null}
         {order.accountNumber ? (
           <DetailRow label={copy.account} value={order.accountNumber} />
         ) : null}
