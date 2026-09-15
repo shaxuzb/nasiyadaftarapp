@@ -8,6 +8,7 @@ import { useToast } from "../../../context/ToastContext";
 import { queryClient } from "../../../core/query/queryClient";
 import { useTheme } from "../../../hooks/useTheme";
 import { useTranslation } from "../../../i18n";
+import { clearPaymentLifecycleForUser } from "../../payments/services/paymentStorage";
 import { clearAuthSession } from "../../../services/authStorage";
 import { radius, spacing, typography } from "../../../theme";
 import type { AppTheme } from "../../../types";
@@ -68,6 +69,7 @@ export function DeleteAccountSection() {
     await deleteMyAccount();
 
     if (userId) {
+      await clearPaymentLifecycleForUser(userId).catch(() => undefined);
       try {
         await Promise.all([
           pinStorage.clearPin(userId),
