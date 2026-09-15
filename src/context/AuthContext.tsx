@@ -46,6 +46,7 @@ import {
 import { getCurrentSubscription } from "../modules/subscription/services/subscriptionService";
 import { canCreateOrganization } from "../modules/subscription/utils/entitlements";
 import { isAuthResponse } from "../modules/auth/utils/authResponse";
+import { clearPaymentLifecycleForUser } from "../modules/payments/services/paymentStorage";
 import {
   clearOrganizationQueries,
   invalidateAccountDependentQueries,
@@ -357,6 +358,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     const session = getAuthSessionSync() ?? (await hydrateAuthSession());
+    const paymentUserId = user?.id ?? session?.user.id ?? null;
 
     if (session?.refreshToken && session.uniqueId) {
       try {
@@ -369,6 +371,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    if (paymentUserId) {
+      await clearPaymentLifecycleForUser(paymentUserId).catch(() => undefined);
+    }
+    queryClient.removeQueries({ queryKey: queryKeys.paymentsRoot() });
     clearOrganizationQueries();
     await clearAuthSession();
     previousOrganizationRef.current = null;
@@ -376,7 +382,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCurrentOrganization(null);
     setOrganizations([]);
     setUser(null);
-  }, []);
+  }, [user]);
 
   const cancelOrganizationSelection = useCallback(async () => {
     const action = getOrganizationSelectionBackAction(
