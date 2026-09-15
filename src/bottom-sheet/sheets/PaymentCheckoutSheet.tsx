@@ -8,43 +8,11 @@ import { useBottomSheet } from "../useBottomSheet";
 import { useToast } from "../../context/ToastContext";
 import { useTheme } from "../../hooks/useTheme";
 import { formatLocalizedCurrency, useTranslation } from "../../i18n";
+import { getPaymentCopy } from "../../modules/payments/i18n/paymentCopy";
 import { usePaymentCheckout } from "../../modules/payments/hooks/usePaymentCheckout";
 import { isPaymentFulfilled } from "../../modules/payments/utils/paymentState";
 import { radius, spacing, typography } from "../../theme";
 import type { AppTheme } from "../../types";
-
-const COPY = {
-  uz: {
-    planTitle: "Tarifni tasdiqlash",
-    packageTitle: "SMS paketni tasdiqlash",
-    externalHint: "To‘lov xavfsiz tashqi sahifada davom etadi. Karta ma’lumotlari ilovaga kiritilmaydi.",
-    freeHint: "Bu tarif bepul. Tasdiqlagandan keyin backend orqali faollashtirish boshlanadi.",
-    monthlySms: "Oyiga {count} SMS",
-    organizations: "{count} ta tashkilotgacha",
-    unlimitedOrganizations: "Cheksiz tashkilot",
-    smsCount: "{count} ta SMS hisobingizga qo‘shiladi",
-    pay: "{amount} to‘lash",
-    activate: "Tarifga o‘tish",
-    buyPackage: "SMS paketni sotib olish",
-    cancel: "Bekor qilish",
-    error: "To‘lov buyurtmasini yaratib bo‘lmadi",
-  },
-  ru: {
-    planTitle: "Подтверждение тарифа",
-    packageTitle: "Подтверждение пакета SMS",
-    externalHint: "Оплата продолжится на защищённой внешней странице. Данные карты не вводятся в приложении.",
-    freeHint: "Этот тариф бесплатный. После подтверждения активация начнётся через сервер.",
-    monthlySms: "{count} SMS в месяц",
-    organizations: "До {count} организаций",
-    unlimitedOrganizations: "Безлимитные организации",
-    smsCount: "На счёт будет добавлено {count} SMS",
-    pay: "Оплатить {amount}",
-    activate: "Перейти на тариф",
-    buyPackage: "Купить пакет SMS",
-    cancel: "Отмена",
-    error: "Не удалось создать платёжный заказ",
-  },
-} as const;
 
 function fill(template: string, values: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (token, key) =>
@@ -60,7 +28,7 @@ export function PaymentCheckoutSheet({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale } = useTranslation();
-  const copy = COPY[locale === "ru" ? "ru" : "uz"];
+  const copy = getPaymentCopy(locale).checkout;
   const { showToast } = useToast();
   const { openSheet } = useBottomSheet();
   const { startCheckout, isCreating } = usePaymentCheckout();
