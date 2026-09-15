@@ -8,45 +8,11 @@ import { useConfirmDialog } from "../../context/ConfirmDialogContext";
 import { useToast } from "../../context/ToastContext";
 import { useTheme } from "../../hooks/useTheme";
 import { useTranslation } from "../../i18n";
+import { getPaymentCopy } from "../../modules/payments/i18n/paymentCopy";
 import { usePaymentOrderLifecycle } from "../../modules/payments/hooks/usePaymentOrderLifecycle";
 import { PaymentOrderContent } from "../../modules/payments/components/PaymentOrderContent";
 import { radius, spacing, typography } from "../../theme";
 import type { AppTheme } from "../../types";
-
-const COPY = {
-  uz: {
-    title: "To‘lov holati",
-    waiting: "To‘lov hali yakunlanmagan. To‘lov oynasini davom ettirishingiz yoki holatni tekshirishingiz mumkin.",
-    activating: "To‘lov qabul qilindi. Xizmat backend tomonidan faollashtirilmoqda.",
-    success: "To‘lov muvaffaqiyatli yakunlandi va xizmat faollashtirildi.",
-    terminal: "Ushbu to‘lov yakunlangan. Yangi xarid uchun tarif yoki SMS paketni qayta tanlang.",
-    continue: "To‘lovni davom ettirish",
-    refresh: "Holatni yangilash",
-    cancel: "To‘lovni bekor qilish",
-    close: "Yopish",
-    cancelTitle: "To‘lovni bekor qilasizmi?",
-    cancelMessage: "Faqat hali to‘lanmagan buyurtma bekor qilinadi.",
-    error: "To‘lov holatini yangilab bo‘lmadi",
-    openError: "To‘lov sahifasini ochib bo‘lmadi",
-    loading: "To‘lov ma’lumoti yuklanmoqda...",
-  },
-  ru: {
-    title: "Статус оплаты",
-    waiting: "Оплата ещё не завершена. Можно продолжить оплату или обновить статус.",
-    activating: "Оплата получена. Услуга активируется на сервере.",
-    success: "Оплата успешно завершена, услуга активирована.",
-    terminal: "Этот платёж завершён. Для новой покупки снова выберите тариф или пакет SMS.",
-    continue: "Продолжить оплату",
-    refresh: "Обновить статус",
-    cancel: "Отменить оплату",
-    close: "Закрыть",
-    cancelTitle: "Отменить оплату?",
-    cancelMessage: "Можно отменить только ещё не оплаченный заказ.",
-    error: "Не удалось обновить статус оплаты",
-    openError: "Не удалось открыть страницу оплаты",
-    loading: "Загрузка данных оплаты...",
-  },
-} as const;
 
 export function PaymentStatusSheet({
   props,
@@ -55,7 +21,7 @@ export function PaymentStatusSheet({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale, t } = useTranslation();
-  const copy = COPY[locale === "ru" ? "ru" : "uz"];
+  const copy = getPaymentCopy(locale).statusSheet;
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();
   const openedOnMountRef = useRef(false);
@@ -164,26 +130,44 @@ export function PaymentStatusSheet({
           <Pressable
             accessibilityRole="button"
             disabled={busy}
-            onPress={() => void openCheckout().catch(() => showToast(copy.openError, "error"))}
-            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, busy && styles.disabled]}
+            onPress={() =>
+              void openCheckout().catch(() => showToast(copy.openError, "error"))
+            }
+            style={({ pressed }) => [
+              styles.primaryButton,
+              pressed && styles.pressed,
+              busy && styles.disabled,
+            ]}
           >
-            {isOpeningCheckout ? <ActivityIndicator size="small" color={theme.surface} /> : null}
+            {isOpeningCheckout ? (
+              <ActivityIndicator size="small" color={theme.surface} />
+            ) : null}
             <Text style={styles.primaryText}>{copy.continue}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             disabled={busy}
             onPress={() => void handleSync()}
-            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, busy && styles.disabled]}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              pressed && styles.pressed,
+              busy && styles.disabled,
+            ]}
           >
-            {isSyncing ? <ActivityIndicator size="small" color={theme.primary} /> : null}
+            {isSyncing ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : null}
             <Text style={styles.secondaryText}>{copy.refresh}</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
             disabled={busy}
             onPress={() => void handleCancel()}
-            style={({ pressed }) => [styles.dangerButton, pressed && styles.pressed, busy && styles.disabled]}
+            style={({ pressed }) => [
+              styles.dangerButton,
+              pressed && styles.pressed,
+              busy && styles.disabled,
+            ]}
           >
             <Text style={styles.dangerText}>{copy.cancel}</Text>
           </Pressable>
@@ -193,9 +177,15 @@ export function PaymentStatusSheet({
           accessibilityRole="button"
           disabled={busy}
           onPress={() => void handleSync()}
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed, busy && styles.disabled]}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.pressed,
+            busy && styles.disabled,
+          ]}
         >
-          {isSyncing ? <ActivityIndicator size="small" color={theme.surface} /> : null}
+          {isSyncing ? (
+            <ActivityIndicator size="small" color={theme.surface} />
+          ) : null}
           <Text style={styles.primaryText}>{copy.refresh}</Text>
         </Pressable>
       ) : (
