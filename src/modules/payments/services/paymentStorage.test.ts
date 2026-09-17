@@ -51,10 +51,48 @@ await core.savePendingPayment({
 const pending = await core.getPendingPayment(7);
 assert(pending?.orderId === 15, "Pending order must survive persistence read");
 
+await core.savePendingPayment({
+  version: 1,
+  userId: 7,
+  orderId: 16,
+  productType: "sms_package",
+  productId: 1,
+  openedExternally: true,
+  updatedAt: "2026-09-14T12:05:30Z",
+});
+const pendingPayments = await core.getPendingPayments(7);
+assert(pendingPayments.length === 2, "Multiple pending orders must be retained");
+assert(
+  (await core.getPendingPayment(7, 15))?.orderId === 15,
+  "Pending lookup must support a specific order",
+);
+assert(
+  (await core.getPendingPayment(7, 16))?.openedExternally === true,
+  "Specific pending lookup must preserve external checkout state",
+);
+
 await core.clearPendingPayment(7, 99);
-assert((await core.getPendingPayment(7))?.orderId === 15, "Wrong order id must not clear pending payment");
+assert((await core.getPendingPayments(7)).length === 2, "Wrong order id must not clear pending payment");
 await core.clearPendingPayment(7, 15);
-assert((await core.getPendingPayment(7)) === null, "Matching order id must clear pending payment");
+assert((await core.getPendingPayment(7))?.orderId === 16, "Matching order id must only clear one pending payment");
+await core.clearPendingPayment(7, 16);
+assert((await core.getPendingPayment(7)) === null, "All matching pending payments must clear");
+
+data.set(
+  "payment:pending:v1:9",
+  JSON.stringify({
+    version: 1,
+    userId: 9,
+    orderId: 19,
+    productType: "subscription",
+    productId: 2,
+    openedExternally: false,
+    updatedAt: "2026-09-14T12:08:00Z",
+  }),
+);
+const migrated = await core.getPendingPayments(9);
+assert(migrated.length === 1 && migrated[0]?.orderId === 19, "Legacy pending payment must migrate");
+assert(data.get("payment:pending:v1:9")?.startsWith("[") === true, "Migrated pending payment must be stored as a list");
 
 await core.savePendingPayment({
   version: 1,

@@ -32,6 +32,8 @@ import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
 import { SmsRecipientRow } from "../modules/client-sms/components/SmsRecipientRow";
+import { CustomerEditSheet } from "../modules/clients/components/CustomerEditSheet";
+import { useClientDetail } from "../modules/clients/hooks/useClientDetail";
 import {
   useSendBulkDebtSms,
   useSendDebtSms,
@@ -46,11 +48,13 @@ import type {
 } from "../modules/client-sms/types";
 import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 import {
+  isSmsRecipientSelectable,
   selectEligibleRecipients,
   toggleRecipientSelection,
 } from "../modules/client-sms/utils/recipientSelection";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
+import type { Customer } from "../modules/clients/types";
 import {
   formatLocalizedCurrency,
   getLocalizedApiErrorMessage,
@@ -118,6 +122,8 @@ function ClientSmsContent({
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkSummary, setBulkSummary] = useState<BulkSmsResponse | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [phoneEditorRecipient, setPhoneEditorRecipient] =
+    useState<SmsRecipient | null>(null);
   const submitting = useRef(false);
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
@@ -196,7 +202,11 @@ function ClientSmsContent({
         setIsUpgradeModalOpen(true);
         return;
       }
-      if (submitting.current || !capabilities.canSendOne || !recipient.canSend)
+      if (
+        submitting.current ||
+        !capabilities.canSendOne ||
+        !isSmsRecipientSelectable(recipient)
+      )
         return;
       submitting.current = true;
       try {
@@ -380,7 +390,7 @@ function ClientSmsContent({
         </View>
         <View style={styles.summary}>
           <Text style={styles.summaryText}>{t("sms.count", { count })}</Text>
-          {capabilities.canSendBulk && rows.some((item) => item.canSend) ? (
+          {capabilities.canSendBulk && rows.some(isSmsRecipientSelectable) ? (
             <Pressable
               onPress={() =>
                 setSelected(
@@ -464,6 +474,7 @@ function ClientSmsContent({
                 canSendOne={capabilities.canSendOne}
                 onToggle={toggle}
                 onSend={(value) => void sendToOne(value)}
+                onAddPhone={setPhoneEditorRecipient}
                 onQuotaReached={
                   smsLimitReached
                     ? () => setIsUpgradeModalOpen(true)
@@ -555,6 +566,12 @@ function ClientSmsContent({
             />
           </View>
         ) : null}
+        {phoneEditorRecipient ? (
+          <SmsRecipientPhoneEditor
+            recipient={phoneEditorRecipient}
+            onClose={() => setPhoneEditorRecipient(null)}
+          />
+        ) : null}
         <SubscriptionUpgradeModal
           visible={isUpgradeModalOpen}
           reason="sms-limit"
@@ -563,6 +580,39 @@ function ClientSmsContent({
         />
       </KeyboardAvoidingView>
     </SafeAreaView>
+  );
+}
+
+function SmsRecipientPhoneEditor({
+  recipient,
+  onClose,
+}: {
+  recipient: SmsRecipient;
+  onClose: () => void;
+}) {
+  const { detail, update } = useClientDetail(recipient.id);
+  const fallbackCustomer = useMemo<Customer>(
+    () => ({
+      id: recipient.id,
+      fullName: recipient.fullName,
+      phone: recipient.phone,
+      note: "",
+      currentBalance: recipient.currentBalance,
+    }),
+    [recipient],
+  );
+  const customer = detail.data ?? fallbackCustomer;
+
+  return (
+    <CustomerEditSheet
+      customer={customer}
+      ready={Boolean(detail.data)}
+      dataState={
+        detail.isError ? "error" : detail.data ? "ready" : "loading"
+      }
+      onSave={update.mutateAsync}
+      onClose={onClose}
+    />
   );
 }
 

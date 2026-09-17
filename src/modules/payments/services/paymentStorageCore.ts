@@ -21,6 +21,7 @@ const attemptsKey = (userId: number) =>
 const pendingKey = (userId: number) => `payment:pending:v1:${userId}`;
 const productKey = (productType: PaymentProductType, productId: number) =>
   `${productType}:${productId}`;
+const pendingMutations = new Map<number, Promise<unknown>>();
 
 function assertPositiveId(value: number): void {
   if (!Number.isSafeInteger(value) || value <= 0) {
@@ -80,6 +81,32 @@ function parseJson(raw: string): unknown {
   } catch {
     throw new Error("Invalid payment lifecycle storage");
   }
+}
+
+function sortPendingPayments(
+  payments: PendingPaymentReference[],
+): PendingPaymentReference[] {
+  return [...payments].sort((a, b) => {
+    const byUpdatedAt = b.updatedAt.localeCompare(a.updatedAt);
+    return byUpdatedAt !== 0 ? byUpdatedAt : b.orderId - a.orderId;
+  });
+}
+
+function enqueuePendingMutation<T>(
+  userId: number,
+  mutation: () => Promise<T>,
+): Promise<T> {
+  const previous = pendingMutations.get(userId) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(mutation);
+  pendingMutations.set(userId, next);
+  void next
+    .finally(() => {
+      if (pendingMutations.get(userId) === next) {
+        pendingMutations.delete(userId);
+      }
+    })
+    .catch(() => undefined);
+  return next;
 }
 
 export function createPaymentStorageCore({
@@ -161,29 +188,82 @@ export function createPaymentStorageCore({
     await writeAttempts(userId, attempts);
   }
 
+  async function readPendingPayments(
+    userId: number,
+  ): Promise<PendingPaymentReference[]> {
+    assertPositiveId(userId);
+    const raw = await storage.getItem(pendingKey(userId));
+    if (!raw) return [];
+
+    const parsed = parseJson(raw);
+    // Migrate the original single-reference shape without making users lose
+    // an unfinished checkout after upgrading the app.
+    if (isPendingReference(parsed, userId)) {
+      const migrated = [parsed];
+      await storage.setItem(pendingKey(userId), JSON.stringify(migrated));
+      return migrated;
+    }
+    if (!Array.isArray(parsed)) {
+      throw new Error("Invalid payment lifecycle storage");
+    }
+
+    const unique = new Map<number, PendingPaymentReference>();
+    for (const value of parsed) {
+      if (!isPendingReference(value, userId)) {
+        throw new Error("Invalid payment lifecycle storage");
+      }
+      unique.set(value.orderId, value);
+    }
+    return sortPendingPayments([...unique.values()]);
+  }
+
+  async function writePendingPayments(
+    userId: number,
+    payments: PendingPaymentReference[],
+  ): Promise<void> {
+    const sorted = sortPendingPayments(payments);
+    if (sorted.length === 0) {
+      await storage.removeItem(pendingKey(userId));
+      return;
+    }
+    await storage.setItem(pendingKey(userId), JSON.stringify(sorted));
+  }
+
   async function savePendingPayment(
     reference: PendingPaymentReference,
   ): Promise<void> {
     assertPositiveId(reference.userId);
     assertPositiveId(reference.orderId);
     assertPositiveId(reference.productId);
-    await storage.setItem(
-      pendingKey(reference.userId),
-      JSON.stringify(reference),
-    );
+    await enqueuePendingMutation(reference.userId, async () => {
+      const current = await readPendingPayments(reference.userId);
+      await writePendingPayments(reference.userId, [
+        ...current.filter((item) => item.orderId !== reference.orderId),
+        reference,
+      ]);
+    });
+  }
+
+  async function getPendingPayments(
+    userId: number,
+  ): Promise<PendingPaymentReference[]> {
+    assertPositiveId(userId);
+    const currentMutation = pendingMutations.get(userId);
+    if (currentMutation) await currentMutation.catch(() => undefined);
+    return readPendingPayments(userId);
   }
 
   async function getPendingPayment(
     userId: number,
+    orderId?: number,
   ): Promise<PendingPaymentReference | null> {
-    assertPositiveId(userId);
-    const raw = await storage.getItem(pendingKey(userId));
-    if (!raw) return null;
-    const parsed = parseJson(raw);
-    if (!isPendingReference(parsed, userId)) {
-      throw new Error("Invalid payment lifecycle storage");
-    }
-    return parsed;
+    if (orderId !== undefined) assertPositiveId(orderId);
+    const payments = await getPendingPayments(userId);
+    return (
+      (orderId === undefined
+        ? payments[0]
+        : payments.find((item) => item.orderId === orderId)) ?? null
+    );
   }
 
   async function clearPendingPayment(
@@ -192,19 +272,27 @@ export function createPaymentStorageCore({
   ): Promise<void> {
     if (orderId !== undefined) {
       assertPositiveId(orderId);
-      const current = await getPendingPayment(userId);
-      if (!current || current.orderId !== orderId) return;
-    } else {
-      assertPositiveId(userId);
     }
-    await storage.removeItem(pendingKey(userId));
+    assertPositiveId(userId);
+    await enqueuePendingMutation(userId, async () => {
+      const current = await readPendingPayments(userId);
+      if (orderId === undefined) {
+        await writePendingPayments(userId, []);
+        return;
+      }
+      if (!current.some((item) => item.orderId === orderId)) return;
+      await writePendingPayments(
+        userId,
+        current.filter((item) => item.orderId !== orderId),
+      );
+    });
   }
 
   async function clearPaymentLifecycleForUser(userId: number): Promise<void> {
     assertPositiveId(userId);
     await Promise.all([
       storage.removeItem(attemptsKey(userId)),
-      storage.removeItem(pendingKey(userId)),
+      enqueuePendingMutation(userId, () => storage.removeItem(pendingKey(userId))),
     ]);
   }
 
@@ -212,6 +300,7 @@ export function createPaymentStorageCore({
     getOrCreateCheckoutAttempt,
     clearCheckoutAttempt,
     savePendingPayment,
+    getPendingPayments,
     getPendingPayment,
     clearPendingPayment,
     clearPaymentLifecycleForUser,

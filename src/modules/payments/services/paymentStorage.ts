@@ -12,6 +12,7 @@ export const getOrCreateCheckoutAttempt =
   paymentStorage.getOrCreateCheckoutAttempt;
 export const clearCheckoutAttempt = paymentStorage.clearCheckoutAttempt;
 export const savePendingPayment = paymentStorage.savePendingPayment;
+export const getPendingPayments = paymentStorage.getPendingPayments;
 export const getPendingPayment = paymentStorage.getPendingPayment;
 export const clearPendingPayment = paymentStorage.clearPendingPayment;
 export const clearPaymentLifecycleForUser =

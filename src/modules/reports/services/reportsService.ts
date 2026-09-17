@@ -30,6 +30,21 @@ function asNonEmptyString(value: unknown, field: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {
     throw new Error(`Invalid reports field: ${field}`);
   }
+  return value.trim();
+}
+
+function asOptionalString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function unwrapReportsResponse(value: unknown): unknown {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return value;
+  }
+
+  const data = value as Record<string, unknown>;
+  if (data.data && typeof data.data === "object") return data.data;
+  if (data.result && typeof data.result === "object") return data.result;
   return value;
 }
 
@@ -42,10 +57,7 @@ function parseTopDebtor(value: unknown, index: number): ReportTopDebtor {
   return {
     clientId: asFiniteNumber(item.clientId, `topDebtors[${index}].clientId`),
     fullName: asNonEmptyString(item.fullName, `topDebtors[${index}].fullName`),
-    phoneNumber: asNonEmptyString(
-      item.phoneNumber,
-      `topDebtors[${index}].phoneNumber`,
-    ),
+    phoneNumber: asOptionalString(item.phoneNumber),
     balance: asFiniteNumber(item.balance, `topDebtors[${index}].balance`),
   };
 }
@@ -79,15 +91,20 @@ function parseMonthlyStatistic(
 }
 
 function parseReportsResponse(value: unknown): ReportsResponse {
-  if (!value || typeof value !== "object") {
+  const unwrapped = unwrapReportsResponse(value);
+  if (!unwrapped || typeof unwrapped !== "object" || Array.isArray(unwrapped)) {
     throw new Error("Invalid reports response");
   }
 
-  const data = value as Record<string, unknown>;
-  const topDebtors = data.topDebtors;
+  const data = unwrapped as Record<string, unknown>;
+  const rawTopDebtors = data.topDebtors;
   const monthlyStatistics = data.monthlyStatistics;
 
-  if (!Array.isArray(topDebtors)) {
+  if (
+    rawTopDebtors !== undefined &&
+    rawTopDebtors !== null &&
+    !Array.isArray(rawTopDebtors)
+  ) {
     throw new Error("Invalid reports field: topDebtors");
   }
 
@@ -120,7 +137,7 @@ function parseReportsResponse(value: unknown): ReportsResponse {
       data.currentMonthBalance,
       remainingBalance,
     ),
-    topDebtors: topDebtors.map(parseTopDebtor),
+    topDebtors: (rawTopDebtors ?? []).map(parseTopDebtor),
     monthlyStatistics: Array.isArray(monthlyStatistics)
       ? monthlyStatistics.map(parseMonthlyStatistic)
       : [],

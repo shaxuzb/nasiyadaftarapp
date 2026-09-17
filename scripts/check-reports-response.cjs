@@ -15,29 +15,48 @@ const code = ts.transpileModule(source, {
 }).outputText;
 
 let request;
+let requestCount = 0;
 const apiClient = {
   get: async (url, config) => {
     request = { url, config };
+    requestCount += 1;
     return {
-      data: {
-        totalDebt: 600000,
-        totalPayment: 280000,
-        remainingBalance: 320000,
-        topDebtors: [
-          {
-            clientId: 82,
-            fullName: "Зохиджон akam",
-            phoneNumber: "+998913746666",
-            balance: 150000,
-          },
-          {
-            clientId: 81,
-            fullName: "Абай Зовхоз 38",
-            phoneNumber: "+998933160969",
-            balance: 70000,
-          },
-        ],
-      },
+      data:
+        requestCount === 1
+          ? {
+              totalDebt: 600000,
+              totalPayment: 280000,
+              remainingBalance: 320000,
+              topDebtors: [
+                {
+                  clientId: 82,
+                  fullName: "Зохиджон akam",
+                  phoneNumber: "+998913746666",
+                  balance: 150000,
+                },
+                {
+                  clientId: 81,
+                  fullName: "Абай Зовхоз 38",
+                  phoneNumber: "+998933160969",
+                  balance: 70000,
+                },
+              ],
+            }
+          : {
+              data: {
+                totalDebt: "100000",
+                totalPayment: 25000,
+                remainingBalance: 75000,
+                topDebtors: [
+                  {
+                    clientId: 1,
+                    fullName: "Telefonisiz mijoz",
+                    phoneNumber: null,
+                    balance: "75000",
+                  },
+                ],
+              },
+            },
     };
   },
 };
@@ -82,6 +101,11 @@ vm.runInNewContext(code, {
     },
   ]);
   assert.deepEqual(JSON.parse(JSON.stringify(report.monthlyStatistics)), []);
+
+  const wrappedReport = await moduleExports.getReports();
+  assert.equal(wrappedReport.totalDebt, 100000);
+  assert.equal(wrappedReport.remainingBalance, 75000);
+  assert.equal(wrappedReport.topDebtors[0].phoneNumber, "");
   console.log("Reports new response parsing passed");
 })().catch((error) => {
   console.error(error);

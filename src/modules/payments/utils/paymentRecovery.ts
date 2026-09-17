@@ -7,6 +7,7 @@ export interface PendingPaymentRecoveryState {
   setupRequired: boolean;
   isSheetOpen: boolean;
   pendingOrderId: number | null;
+  openedExternally: boolean;
   recoveredOrderId: number | null;
 }
 
@@ -20,6 +21,7 @@ export function shouldRecoverPendingPayment(
   if (state.isLocked || state.setupRequired) return false;
   if (state.isSheetOpen) return false;
   if (state.pendingOrderId === null) return false;
+  if (!state.openedExternally) return false;
   if (state.recoveredOrderId === state.pendingOrderId) return false;
   return true;
 }

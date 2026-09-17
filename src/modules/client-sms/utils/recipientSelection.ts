@@ -1,3 +1,15 @@
+export interface SmsRecipientEligibility {
+  id: number;
+  canSend: boolean;
+  phone: string;
+}
+
+export function isSmsRecipientSelectable(
+  item: SmsRecipientEligibility,
+): boolean {
+  return item.canSend && Boolean(item.phone.trim());
+}
+
 export function toggleRecipientSelection(selection: Set<number>, id: number) {
   const next = new Set(selection);
   if (next.has(id)) next.delete(id);
@@ -6,9 +18,11 @@ export function toggleRecipientSelection(selection: Set<number>, id: number) {
 }
 
 export function selectEligibleRecipients(
-  items: Array<{ id: number; canSend: boolean }>,
+  items: SmsRecipientEligibility[],
 ) {
-  return new Set(items.filter((item) => item.canSend).map((item) => item.id));
+  return new Set(
+    items.filter(isSmsRecipientSelectable).map((item) => item.id),
+  );
 }
 
 export function reconcileRecipientSelection(

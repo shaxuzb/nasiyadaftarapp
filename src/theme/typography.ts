@@ -51,7 +51,7 @@ export const typography: Record<string, TextStyle> = {
     lineHeight: 17,
   },
   label: {
-    fontSize:   13,
+    fontSize:   14,
     fontWeight: '600',
     letterSpacing: 0.2,
     lineHeight: 18,

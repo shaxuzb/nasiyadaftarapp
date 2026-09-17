@@ -11,17 +11,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { AppInput } from "../components/AppInput";
 import { OtpInput } from "../components/OtpInput";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { DeleteAccountSection } from "../modules/account/components/DeleteAccountSection";
 import {
   confirmGoogleChange,
-  confirmPasswordChange,
   requestGoogleChange,
-  requestPasswordChange,
 } from "../modules/account/services/accountService";
-import { PasswordDelivery } from "../modules/account/types";
 import {
   getGoogleSignInErrorKey,
   getGoogleEmailFromIdToken,
@@ -35,23 +31,13 @@ import { AppTheme, RootStackParamList } from "../types";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
 import { translatePinError } from "../modules/pin-auth/utils/pinErrors";
-import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
+import { useBottomSheet } from "../bottom-sheet";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AccountSecurity">;
-type PasswordStep = "idle" | "request" | "confirm";
 type GoogleStep = "idle" | "confirm";
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
 const OTP_LENGTH = 6;
-
-function PasswordSmsAutoFill({
-  onCodeReceived,
-}: {
-  onCodeReceived: (code: string) => void;
-}) {
-  useOtpAutoFill({ onCodeReceived });
-  return null;
-}
 
 interface ActionRowProps {
   icon: IconName;
@@ -186,13 +172,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
   } = useAppLock();
   const { showToast } = useToast();
   const { confirm } = useConfirmDialog();
-
-  const [passwordStep, setPasswordStep] = useState<PasswordStep>("idle");
-  const [passwordDelivery, setPasswordDelivery] =
-    useState<PasswordDelivery>("SMS");
-  const [passwordCode, setPasswordCode] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [passwordLoading, setPasswordLoading] = useState(false);
+  const { openSheet } = useBottomSheet();
 
   const [googleStep, setGoogleStep] = useState<GoogleStep>("idle");
   const [googleCode, setGoogleCode] = useState("");
@@ -200,10 +180,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
 
-  const hasPhone = Boolean(user?.phoneNumber?.trim());
   const hasEmail = Boolean(user?.email?.trim());
-  const canUseSms = hasPhone;
-  const canUseEmail = hasEmail;
 
   const handlePinRemove = useCallback(async () => {
     const accepted = await confirm({
@@ -222,71 +199,6 @@ export function AccountSecurityScreen({ navigation }: Props) {
       result.success ? "success" : "error",
     );
   }, [confirm, removePin, showToast, t]);
-
-  const resetPasswordChange = useCallback(() => {
-    setPasswordStep("idle");
-    setPasswordCode("");
-    setNewPassword("");
-  }, []);
-
-  const handlePasswordRequest = useCallback(async () => {
-    if (!canUseSms && !canUseEmail) {
-      showToast(t("security.linkAccountFirst"), "error");
-      return;
-    }
-
-    const delivery = canUseSms ? passwordDelivery : "EMAIL";
-    setPasswordLoading(true);
-    try {
-      await requestPasswordChange({ delivery });
-      setPasswordDelivery(delivery);
-      setPasswordStep("confirm");
-      showToast(t("security.codeSent"), "success");
-    } catch (error) {
-      showToast(
-        getLocalizedApiErrorMessage(error, "security.codeSendError", t),
-        "error",
-      );
-    } finally {
-      setPasswordLoading(false);
-    }
-  }, [canUseEmail, canUseSms, passwordDelivery, showToast, t]);
-
-  const handlePasswordConfirm = useCallback(async () => {
-    if (passwordCode.length !== OTP_LENGTH) {
-      showToast(t("security.otpRequired"), "error");
-      return;
-    }
-    if (newPassword.trim().length < 8) {
-      showToast(t("security.passwordMinLength"), "error");
-      return;
-    }
-
-    setPasswordLoading(true);
-    try {
-      await confirmPasswordChange({
-        delivery: passwordDelivery,
-        code: passwordCode,
-        newPassword,
-      });
-      resetPasswordChange();
-      showToast(t("security.passwordUpdated"), "success");
-    } catch (error) {
-      showToast(
-        getLocalizedApiErrorMessage(error, "security.passwordUpdateError", t),
-        "error",
-      );
-    } finally {
-      setPasswordLoading(false);
-    }
-  }, [
-    newPassword,
-    passwordCode,
-    passwordDelivery,
-    resetPasswordChange,
-    showToast,
-    t,
-  ]);
 
   const resetGoogleChange = useCallback(() => {
     setGoogleStep("idle");
@@ -477,10 +389,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
             iconBackground={theme.inputBackground}
             title={t("security.passwordChange")}
             description={t("security.passwordDescription")}
-            onPress={() => {
-              setPasswordStep("request");
-            }}
-            loading={passwordLoading && passwordStep === "idle"}
+            onPress={() => openSheet("passwordChange", {})}
           />
           <ActionRow
             icon="logo-google"
@@ -496,7 +405,12 @@ export function AccountSecurityScreen({ navigation }: Props) {
               void handleGoogleRequest();
             }}
             loading={googleLoading && googleStep === "idle"}
+            isLast
           />
+        </View>
+
+        <Text style={styles.sectionTitle}>{t("security.appLockSection")}</Text>
+        <View style={styles.card}>
           <ActionRow
             icon="lock-closed-outline"
             iconColor={theme.primary}
@@ -507,145 +421,6 @@ export function AccountSecurityScreen({ navigation }: Props) {
             isLast
           />
         </View>
-
-        {passwordStep === "request" || passwordStep === "confirm" ? (
-          passwordDelivery === "SMS" ? (
-            <PasswordSmsAutoFill onCodeReceived={setPasswordCode} />
-          ) : null
-        ) : null}
-
-        {passwordStep === "request" ? (
-          <View style={styles.formCard}>
-            <View style={styles.formHeader}>
-              <View style={styles.formIcon}>
-                <Ionicons
-                  name="lock-closed-outline"
-                  size={19}
-                  color={theme.primary}
-                />
-              </View>
-              <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>
-                  {t("security.chooseDelivery")}
-                </Text>
-                <Text style={styles.formDescription}>
-                  {t("security.deliveryDescription")}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("security.cancelPasswordChange")}
-                onPress={resetPasswordChange}
-                style={({ pressed }) => [
-                  styles.closeButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Ionicons name="close" size={20} color={theme.textMuted} />
-              </Pressable>
-            </View>
-            {canUseSms && canUseEmail ? (
-              <View style={styles.deliveryRow}>
-                {(["SMS", "EMAIL"] as const).map((delivery) => {
-                  const active = passwordDelivery === delivery;
-                  return (
-                    <Pressable
-                      key={delivery}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      onPress={() => setPasswordDelivery(delivery)}
-                      style={[
-                        styles.deliveryOption,
-                        active && styles.deliveryOptionActive,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.deliveryText,
-                          active && styles.deliveryTextActive,
-                        ]}
-                      >
-                        {delivery === "SMS" ? "SMS" : "Email"}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            ) : (
-              <Text style={styles.formDescription}>
-                {t("security.codeDelivery", {
-                  channel: canUseSms ? "SMS" : t("profile.email"),
-                })}
-              </Text>
-            )}
-            <PrimaryButton
-              label={t("security.sendCode")}
-              onPress={() => {
-                void handlePasswordRequest();
-              }}
-              loading={passwordLoading}
-              disabled={passwordLoading}
-            />
-          </View>
-        ) : null}
-
-        {passwordStep === "confirm" ? (
-          <View style={styles.formCard}>
-            <View style={styles.formHeader}>
-              <View style={styles.formIcon}>
-                <Ionicons name="key-outline" size={19} color={theme.primary} />
-              </View>
-              <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>
-                  {t("security.newPassword")}
-                </Text>
-                <Text style={styles.formDescription}>
-                  {t("security.codeDelivery", {
-                    channel: passwordDelivery === "SMS" ? "SMS" : "email",
-                  })}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("security.cancelPasswordChange")}
-                onPress={resetPasswordChange}
-                style={({ pressed }) => [
-                  styles.closeButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Ionicons name="close" size={20} color={theme.textMuted} />
-              </Pressable>
-            </View>
-            <AppInput
-              label={t("security.newPassword")}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              placeholder={t("security.passwordPlaceholder")}
-              iconName="lock-closed-outline"
-              secureTextEntry
-              passwordToggle
-              autoComplete="new-password"
-            />
-            <Text style={styles.codeLabel}>
-              {t("security.verificationCode")}
-            </Text>
-            <OtpInput
-              value={passwordCode}
-              onChange={setPasswordCode}
-              length={OTP_LENGTH}
-              autoFocus={passwordDelivery === "SMS"}
-            />
-            <PrimaryButton
-              label={t("security.updatePassword")}
-              onPress={() => {
-                void handlePasswordConfirm();
-              }}
-              loading={passwordLoading}
-              disabled={passwordLoading}
-            />
-          </View>
-        ) : null}
 
         {googleStep === "confirm" ? (
           <View style={styles.formCard}>
@@ -852,33 +627,6 @@ const createStyles = (theme: AppTheme) =>
       height: 40,
       alignItems: "center",
       justifyContent: "center",
-    },
-    deliveryRow: { flexDirection: "row", gap: 8 },
-    deliveryOption: {
-      minHeight: 38,
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: 12,
-    },
-    deliveryOptionActive: {
-      borderColor: theme.primary,
-      backgroundColor: theme.primaryLight,
-    },
-    deliveryText: {
-      color: theme.textSecondary,
-      fontSize: 12,
-      lineHeight: 16,
-      fontWeight: "700",
-    },
-    deliveryTextActive: { color: theme.primary },
-    codeLabel: {
-      color: theme.textSecondary,
-      fontSize: 12,
-      lineHeight: 17,
-      fontWeight: "700",
     },
     pressed: { opacity: 0.72 },
     disabled: { opacity: 0.58 },

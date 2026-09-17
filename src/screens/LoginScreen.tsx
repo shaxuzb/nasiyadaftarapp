@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import * as AppleAuthentication from "expo-apple-authentication";
 import {
   ActivityIndicator,
   Text,
@@ -11,7 +10,7 @@ import {
   Platform,
 } from "react-native";
 import { useTheme } from "../hooks/useTheme";
-import { radius, spacing, typography } from "../theme";
+import { spacing, typography } from "../theme";
 import { AppInput } from "../components/AppInput";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
@@ -37,6 +36,7 @@ import {
 import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import { LanguageSelectorButton } from "../components/LanguageSelectorButton";
+import { AppleAuthButton } from "../components/AppleAuthButton";
 import { useTranslation } from "../i18n";
 
 interface Props {
@@ -150,44 +150,35 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
   };
 
   return (
-    <ScreenContainer contentContainerStyle={styles.scrollContent}>
+    <ScreenContainer
+      padded={false}
+      style={styles.screenInner}
+      contentContainerStyle={styles.scrollContent}
+    >
       <KeyboardAvoidingView style={styles.keyboardWrap} behavior="padding">
         <View style={styles.wrapper}>
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <View style={styles.topBar}>
-              <LanguageSelectorButton />
-            </View>
-            <View style={styles.headerWrap}>
-              <View
-                style={[
-                  styles.logoWrap,
-                  { backgroundColor: theme.primaryLight },
-                ]}
-              >
-                <Image
-                  source={require("../../assets/icon.png")}
-                  style={styles.logo}
-                />
-              </View>
-              <Text style={[typography.headingLarge, { color: theme.text }]}>
-                {t("auth.login.title")}
-              </Text>
-              <Text
-                style={[
-                  typography.bodySmall,
-                  styles.desc,
-                  { color: theme.textSecondary },
-                ]}
-              >
-                {t("auth.login.description", { appName: APP_NAME })}
-              </Text>
-            </View>
+          <View style={styles.topBar}>
+            <LanguageSelectorButton />
+          </View>
 
+          <View style={styles.headerWrap}>
+            <View
+              style={[styles.logoWrap, { backgroundColor: theme.primaryLight }]}
+            >
+              <Image
+                source={require("../../assets/icon.png")}
+                style={styles.logo}
+              />
+            </View>
+            <Text style={[styles.title, { color: theme.text }]}>
+              {t("auth.login.title")}
+            </Text>
+            {/* <Text style={[styles.desc, { color: theme.textSecondary }]}>
+              {t("auth.login.description", { appName: APP_NAME })}
+            </Text> */}
+          </View>
+
+          <View style={styles.form}>
             <AppInput
               label={t("auth.login.identifierLabel")}
               uncontrolled
@@ -221,88 +212,81 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
               onPress={handleLogin}
               loading={loading}
               disabled={!canSubmit}
-              style={{ marginTop: spacing.xs }}
+              style={styles.authAction}
             />
 
             <TouchableOpacity
               onPress={onGoToForgotPassword}
               style={styles.forgotBtn}
             >
-              <Text style={[typography.label, { color: theme.primary }]}>
+              <Text style={[styles.link, { color: theme.primary }]}>
                 {t("auth.login.forgotPassword")}
               </Text>
             </TouchableOpacity>
+          </View>
 
-            {Platform.OS === "ios" && appleAvailable ? (
-              <View style={styles.appleWrap}>
-                {appleLoading ? (
-                  <View
-                    style={[
-                      styles.appleLoading,
-                      { borderColor: theme.border },
-                    ]}
-                  >
-                    <ActivityIndicator size="small" color={theme.primary} />
-                  </View>
-                ) : (
-                  <AppleAuthentication.AppleAuthenticationButton
-                    buttonType={
-                      AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
-                    }
-                    buttonStyle={
-                      AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                    }
-                    cornerRadius={radius.md}
-                    style={styles.appleButton}
-                    onPress={() => {
-                      void handleAppleLogin();
-                    }}
-                  />
-                )}
-              </View>
-            ) : null}
+          <View style={styles.divider}>
+            <View
+              style={[styles.dividerLine, { backgroundColor: theme.border }]}
+            />
+            <Text style={[styles.dividerText, { color: theme.textMuted }]}>
+              {t("common.or")}
+            </Text>
+            <View
+              style={[styles.dividerLine, { backgroundColor: theme.border }]}
+            />
+          </View>
 
-            <TouchableOpacity
-              activeOpacity={0.85}
-              style={[
-                styles.googleBtn,
-                {
-                  borderColor: theme.border,
-                  backgroundColor: theme.inputBackground,
-                  opacity: googleLoading ? 0.7 : 1,
-                },
-              ]}
-              onPress={handleGoogleLogin}
-              disabled={googleLoading}
-              accessibilityState={{
-                disabled: googleLoading,
-                busy: googleLoading,
+          {Platform.OS === "ios" && appleAvailable ? (
+            <AppleAuthButton
+              variant="signIn"
+              loading={appleLoading}
+              onPress={() => {
+                void handleAppleLogin();
               }}
-            >
-              {googleLoading ? (
-                <ActivityIndicator size="small" color={theme.primary} />
-              ) : (
-                <Ionicons name="logo-google" size={18} color={theme.text} />
-              )}
-              <Text style={[typography.label, { color: theme.text }]}>
-                {googleLoading
-                  ? t("auth.login.googleSigningIn")
-                  : t("auth.login.googleSignIn")}
+            />
+          ) : null}
+
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[
+              styles.googleBtn,
+              {
+                borderColor: theme.border,
+                backgroundColor: theme.inputBackground,
+                opacity: googleLoading ? 0.7 : 1,
+              },
+            ]}
+            onPress={handleGoogleLogin}
+            disabled={googleLoading}
+            accessibilityState={{
+              disabled: googleLoading,
+              busy: googleLoading,
+            }}
+          >
+            {googleLoading ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : (
+              <Ionicons name="logo-google" size={20} color={theme.text} />
+            )}
+            <Text style={[styles.providerLabel, { color: theme.text }]}>
+              {googleLoading
+                ? t("auth.login.googleSigningIn")
+                : t("auth.login.googleSignIn")}
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.footerRow}>
+            <Text style={[typography.bodySmall, { color: theme.textMuted }]}>
+              {t("auth.login.noAccount")}
+            </Text>
+            <TouchableOpacity onPress={onGoToRegister}>
+              <Text style={[styles.link, { color: theme.primary }]}>
+                {t("auth.login.registerAction")}
               </Text>
             </TouchableOpacity>
-
-            <View style={styles.footerRow}>
-              <Text style={[typography.bodySmall, { color: theme.textMuted }]}>
-                {t("auth.login.noAccount")}
-              </Text>
-              <TouchableOpacity onPress={onGoToRegister}>
-                <Text style={[typography.label, { color: theme.primary }]}>
-                  {t("auth.login.registerAction")}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <AdminContactButton style={styles.adminContact} />
           </View>
+          <AdminContactButton style={styles.adminContact} />
         </View>
       </KeyboardAvoidingView>
     </ScreenContainer>
@@ -310,9 +294,14 @@ export function LoginScreen({ onGoToRegister, onGoToForgotPassword }: Props) {
 }
 
 const styles = StyleSheet.create({
+  screenInner: {
+    flex: 1,
+  },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xl,
   },
   keyboardWrap: {
     flex: 1,
@@ -324,72 +313,90 @@ const styles = StyleSheet.create({
     maxWidth: 520,
     alignSelf: "center",
   },
-  card: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    padding: spacing.lg,
-  },
   topBar: {
+    position: "absolute",
+    top: 0,
+    right: 0,
     alignItems: "flex-end",
-    marginBottom: spacing.xs,
+    marginBottom: spacing.md,
   },
   headerWrap: {
     alignItems: "center",
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   logoWrap: {
-    width: 62,
-    height: 62,
-    borderRadius: radius.full,
+    width: 88,
+    height: 88,
+    borderRadius: 28,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   logo: {
-    width: 42,
-    height: 42,
-    borderRadius: 12,
+    width: 62,
+    height: 62,
+    borderRadius: 20,
+  },
+  title: {
+    ...typography.displayMedium,
+    textAlign: "center",
   },
   desc: {
+    ...typography.bodyMedium,
+    maxWidth: 340,
     textAlign: "center",
     marginTop: spacing.xs,
   },
-  appleWrap: {
-    marginTop: spacing.sm,
-  },
-  appleButton: {
+  form: {
     width: "100%",
-    height: 48,
   },
-  appleLoading: {
-    height: 48,
-    borderWidth: 1,
-    borderRadius: radius.md,
+  authAction: {
+    minHeight: 50,
+    marginTop: spacing.xs,
+  },
+  forgotBtn: {
+    alignSelf: "flex-end",
+    paddingVertical: spacing.sm,
+  },
+  link: {
+    ...typography.label,
+    fontWeight: "700",
+  },
+  divider: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: spacing.sm,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  dividerText: {
+    ...typography.bodyMedium,
   },
   googleBtn: {
     marginTop: spacing.sm,
     borderWidth: 1,
-    minHeight: 48,
-    borderRadius: radius.md,
+    minHeight: 52,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: spacing.sm,
   },
-  forgotBtn: {
-    marginTop: spacing.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: spacing.xs,
+  providerLabel: {
+    ...typography.bodyLarge,
+    fontWeight: "600",
   },
   footerRow: {
-    marginTop: spacing.md,
+    marginTop: spacing.lg,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs,
+    flexWrap: "wrap",
   },
   adminContact: {
     marginTop: spacing.sm,

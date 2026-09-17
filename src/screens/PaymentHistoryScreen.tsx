@@ -39,6 +39,8 @@ export function PaymentHistoryScreen() {
   const { openSheet } = useBottomSheet();
   const query = usePaymentHistory(30);
   const items = query.data ?? [];
+  console.log(query.isError);
+  console.log(items);
 
   const renderItem = ({ item }: { item: PaymentOrder }) => (
     <Pressable
@@ -94,10 +96,7 @@ export function PaymentHistoryScreen() {
       ) : query.isError && !items.length ? (
         <View style={styles.center}>
           <Text style={styles.empty}>{copy.error}</Text>
-          <Pressable
-            onPress={() => void query.refetch()}
-            style={styles.retry}
-          >
+          <Pressable onPress={() => void query.refetch()} style={styles.retry}>
             <Text style={styles.retryText}>{copy.retry}</Text>
           </Pressable>
         </View>

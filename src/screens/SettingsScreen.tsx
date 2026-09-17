@@ -22,9 +22,9 @@ import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
 import { AppTheme, RootStackParamList } from "../types";
-import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import { useCurrentSubscription } from "../modules/subscription/hooks/useSubscription";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
+import { useAdminContact } from "../modules/support/hooks/useAdminContact";
 import {
   isPaidPlanCode,
   normalizePlanCode,
@@ -44,7 +44,11 @@ const THEME_OPTIONS: ReadonlyArray<{
   labelKey: TranslateKey;
   icon: IconName;
 }> = [
-  { mode: "system", labelKey: "profile.themeSystem", icon: "phone-portrait-outline" },
+  {
+    mode: "system",
+    labelKey: "profile.themeSystem",
+    icon: "phone-portrait-outline",
+  },
   { mode: "light", labelKey: "profile.themeLight", icon: "sunny-outline" },
   { mode: "dark", labelKey: "profile.themeDark", icon: "moon-outline" },
 ];
@@ -109,9 +113,11 @@ function ProfileMenuRow({
         <Ionicons name={icon} size={20} color={iconColor} />
       </View>
       <View style={styles.menuCopy}>
-        <Text style={styles.menuTitle}>{title}</Text>
+        <Text style={styles.menuTitle} numberOfLines={2}>
+          {title}
+        </Text>
         {description ? (
-          <Text style={styles.menuDescription} numberOfLines={1}>
+          <Text style={styles.menuDescription} numberOfLines={2}>
             {description}
           </Text>
         ) : null}
@@ -141,11 +147,15 @@ export function SettingsScreen() {
   const { openPhoneVerification, requireVerifiedPhone } = useAccountSecurity();
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();
+  const { isOpening: isOpeningAdminContact, openAdminContact } =
+    useAdminContact();
   const [isOpeningBot, setIsOpeningBot] = useState(false);
   const [upgradeReason, setUpgradeReason] =
     useState<SubscriptionUpgradeReason | null>(null);
   const subscriptionQuery = useCurrentSubscription();
   const subscription = subscriptionQuery.data ?? user?.subscription;
+  const isAdministrator =
+    user?.role === "Administrator" && user?.roleId === 2;
   const isPaidSubscription = isPaidPlanCode(subscription?.planCode);
   const telegramEnabled = subscription?.telegramBotEnabled !== false;
   const subscriptionName = subscription
@@ -155,7 +165,21 @@ export function SettingsScreen() {
         ? t("subscription.standardPlan")
         : normalizePlanCode(subscription.planCode) === "PREMIUM"
           ? t("subscription.premiumPlan")
-        : subscription.planName
+          : subscription.planName
+    : null;
+  const subscriptionMeta = subscription
+    ? [
+        subscription.sms.totalRemaining === null
+          ? t("profile.unlimitedSms")
+          : t("profile.smsRemaining", {
+              count: subscription.sms.totalRemaining,
+            }),
+        subscription.unlimitedOrganizations
+          ? t("profile.unlimitedOrganizations")
+          : t("profile.organizationsCount", {
+              count: subscription.maxOrganizations ?? 0,
+            }),
+      ].join(" · ")
     : null;
 
   const phoneVerified = hasVerifiedPhone(user);
@@ -176,7 +200,11 @@ export function SettingsScreen() {
       await openOrganizationSelector();
     } catch (error) {
       showToast(
-        getLocalizedApiErrorMessage(error, "profile.switchOrganizationError", t),
+        getLocalizedApiErrorMessage(
+          error,
+          "profile.switchOrganizationError",
+          t,
+        ),
         "error",
       );
     }
@@ -253,7 +281,10 @@ export function SettingsScreen() {
       await logout();
       showToast(t("profile.logoutSuccess"), "success");
     } catch (error) {
-      showToast(getLocalizedApiErrorMessage(error, "profile.logoutError", t), "error");
+      showToast(
+        getLocalizedApiErrorMessage(error, "profile.logoutError", t),
+        "error",
+      );
     }
   }, [confirm, logout, showToast, t]);
 
@@ -268,82 +299,55 @@ export function SettingsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        {subscription ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t("profile.planLimits")}
-            onPress={() => navigation.navigate("Subscription")}
-            style={({ pressed }) => [
-              styles.subscriptionCard,
-              pressed && styles.pressed,
-            ]}
-          >
-            <View style={styles.subscriptionIcon}>
-              <Ionicons
-                name="sparkles-outline"
-                size={22}
-                color={theme.primary}
-              />
-            </View>
-            <View style={styles.subscriptionCopy}>
-              <Text style={styles.subscriptionEyebrow}>{t("profile.currentPlan")}</Text>
-              <Text style={styles.subscriptionName}>
-                {subscriptionName}
-              </Text>
-              <Text style={styles.subscriptionMeta} numberOfLines={1}>
-                {subscription.sms.totalRemaining === null
-                  ? t("profile.unlimitedSms")
-                  : t("profile.smsRemaining", { count: subscription.sms.totalRemaining })}
-                {subscription.unlimitedOrganizations
-                  ? ` · ${t("profile.unlimitedOrganizations")}`
-                  : ` · ${t("profile.organizationsCount", { count: subscription.maxOrganizations ?? 0 })}`}
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={theme.textMuted}
-            />
-          </Pressable>
-        ) : null}
         <View style={styles.profileCard}>
           <View style={styles.profileHeader}>
-            <View style={styles.avatar} accessibilityLabel={t("profile.avatarLabel")}>
+            <View
+              style={styles.avatar}
+              accessibilityLabel={t("profile.avatarLabel")}
+            >
               <Text style={styles.avatarText}>{initials}</Text>
             </View>
             <View style={styles.identityCopy}>
-              <Text style={styles.profileName} numberOfLines={1}>
+              <Text style={styles.profileName} numberOfLines={2}>
                 {user?.fullName || t("profile.userFallback")}
               </Text>
-              <Text selectable style={styles.username} numberOfLines={1}>
-                {user?.userName ? `@${user.userName}` : t("profile.usernameMissing")}
-              </Text>
-            </View>
-            <View
-              style={[
-                styles.statusBadge,
-                phoneVerified
-                  ? styles.statusBadgeSuccess
-                  : styles.statusBadgeWarning,
-              ]}
-            >
-              <Ionicons
-                name={phoneVerified ? "checkmark-circle" : "alert-circle"}
-                size={15}
-                color={phoneVerified ? theme.paymentColor : theme.warningColor}
-              />
-              <Text
-                style={[
-                  styles.statusText,
-                  {
-                    color: phoneVerified
-                      ? theme.paymentColor
-                      : theme.warningColor,
-                  },
-                ]}
-              >
-                {phoneVerified ? t("profile.verified") : t("profile.unverified")}
-              </Text>
+              <View style={styles.identityMeta}>
+                <Text selectable style={styles.username} numberOfLines={1}>
+                  {user?.userName
+                    ? `@${user.userName}`
+                    : t("profile.usernameMissing")}
+                </Text>
+                <View
+                  style={[
+                    styles.statusBadge,
+                    phoneVerified
+                      ? styles.statusBadgeSuccess
+                      : styles.statusBadgeWarning,
+                  ]}
+                >
+                  <Ionicons
+                    name={phoneVerified ? "checkmark-circle" : "alert-circle"}
+                    size={15}
+                    color={
+                      phoneVerified ? theme.paymentColor : theme.warningColor
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.statusText,
+                      {
+                        color: phoneVerified
+                          ? theme.paymentColor
+                          : theme.warningColor,
+                      },
+                    ]}
+                  >
+                    {phoneVerified
+                      ? t("profile.verified")
+                      : t("profile.unverified")}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -351,7 +355,9 @@ export function SettingsScreen() {
             <View style={styles.profileDetailRow}>
               <Ionicons name="call-outline" size={18} color={theme.primary} />
               <View style={styles.profileDetailCopy}>
-                <Text style={styles.profileDetailLabel}>{t("profile.phone")}</Text>
+                <Text style={styles.profileDetailLabel}>
+                  {t("profile.phone")}
+                </Text>
                 <Text selectable style={styles.profileDetailValue}>
                   {user?.phoneNumber || t("profile.notLinked")}
                 </Text>
@@ -361,17 +367,52 @@ export function SettingsScreen() {
             <View style={styles.profileDetailRow}>
               <Ionicons name="mail-outline" size={18} color={theme.primary} />
               <View style={styles.profileDetailCopy}>
-                <Text style={styles.profileDetailLabel}>{t("profile.email")}</Text>
+                <Text style={styles.profileDetailLabel}>
+                  {t("profile.email")}
+                </Text>
                 <Text
                   selectable
                   style={styles.profileDetailValue}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {user?.email || t("profile.notLinked")}
                 </Text>
               </View>
             </View>
           </View>
+
+          {!isAdministrator && subscription ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("profile.planLimits")}
+              onPress={() => navigation.navigate("Subscription")}
+              style={({ pressed }) => [
+                styles.profilePlanRow,
+                pressed && styles.pressed,
+              ]}
+            >
+              <View style={styles.profilePlanIcon}>
+                <Ionicons
+                  name="sparkles-outline"
+                  size={20}
+                  color={theme.primary}
+                />
+              </View>
+              <View style={styles.profilePlanCopy}>
+                <Text style={styles.profilePlanName} numberOfLines={2}>
+                  {subscriptionName}
+                </Text>
+                <Text style={styles.profilePlanMeta} numberOfLines={2}>
+                  {subscriptionMeta}
+                </Text>
+              </View>
+              <Ionicons
+                name="chevron-forward"
+                size={20}
+                color={theme.textMuted}
+              />
+            </Pressable>
+          ) : null}
         </View>
 
         <SectionTitle title={t("profile.accountSection")} />
@@ -385,9 +426,7 @@ export function SettingsScreen() {
                 ? t("profile.changePhone")
                 : t("profile.linkPhone")
             }
-            description={
-              user?.phoneNumber || t("profile.phoneSecurityHint")
-            }
+            description={user?.phoneNumber || t("profile.phoneSecurityHint")}
             onPress={() => openPhoneVerification()}
           />
           <ProfileMenuRow
@@ -397,17 +436,50 @@ export function SettingsScreen() {
             title={t("profile.security")}
             description={t("profile.securityDescription")}
             onPress={() => navigation.navigate("AccountSecurity")}
+            isLast={isAdministrator}
           />
-          <ProfileMenuRow
-            icon="pricetags-outline"
-            iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
-            title={t("profile.planLimits")}
-            description={t("profile.planLimitsDescription")}
-            onPress={() => navigation.navigate("Subscription")}
-            isLast
-          />
+          {!isAdministrator ? (
+            <ProfileMenuRow
+              icon="pricetags-outline"
+              iconColor={theme.primary}
+              iconBackground={theme.primaryLight}
+              title={t("profile.planLimits")}
+              description={t("profile.planLimitsDescription")}
+              onPress={() => navigation.navigate("Subscription")}
+              isLast
+            />
+          ) : null}
         </View>
+
+        {!isAdministrator ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("profile.paymentHistory")}
+            accessibilityHint={t("profile.paymentHistoryDescription")}
+            onPress={() => navigation.navigate("PaymentHistory")}
+            style={({ pressed }) => [
+              styles.paymentHistoryCard,
+              pressed && styles.pressed,
+            ]}
+          >
+            <View style={styles.paymentHistoryIcon}>
+              <Ionicons name="receipt-outline" size={20} color={theme.primary} />
+            </View>
+            <View style={styles.paymentHistoryCopy}>
+              <Text style={styles.paymentHistoryTitle}>
+                {t("profile.paymentHistory")}
+              </Text>
+              <Text style={styles.paymentHistoryHint} numberOfLines={2}>
+                {t("profile.paymentHistoryDescription")}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={theme.textMuted}
+            />
+          </Pressable>
+        ) : null}
 
         <SectionTitle title={t("profile.organizationSection")} />
         <View style={styles.card}>
@@ -415,7 +487,9 @@ export function SettingsScreen() {
             icon="business-outline"
             iconColor={theme.primary}
             iconBackground={theme.primaryLight}
-            title={currentOrganization?.name || t("profile.organizationNotSelected")}
+            title={
+              currentOrganization?.name || t("profile.organizationNotSelected")
+            }
             description={currentOrganization?.address || undefined}
             onPress={handleOrganizationEdit}
           />
@@ -429,7 +503,9 @@ export function SettingsScreen() {
             }}
           />
           <ProfileMenuRow
-            icon={isPaidSubscription ? "warning-outline" : "lock-closed-outline"}
+            icon={
+              isPaidSubscription ? "warning-outline" : "lock-closed-outline"
+            }
             iconColor={
               isPaidSubscription ? theme.warningColor : theme.textSecondary
             }
@@ -441,9 +517,9 @@ export function SettingsScreen() {
                 : t("profile.paidPlanAvailable")
             }
             onPress={handleOpenBlacklist}
-            badge={
-              isPaidSubscription ? undefined : t("subscription.standardPlan")
-            }
+            // badge={
+            //   isPaidSubscription ? undefined : t("subscription.standardPlan")
+            // }
             isLast
           />
         </View>
@@ -470,17 +546,24 @@ export function SettingsScreen() {
                 : () => setUpgradeReason("telegram")
             }
             loading={telegramEnabled && isOpeningBot}
-            badge={
-              telegramEnabled ? undefined : t("subscription.standardPlan")
-            }
+            // badge={
+            //   telegramEnabled ? undefined : t("subscription.standardPlan")
+            // }
+          />
+          <ProfileMenuRow
+            icon="chatbubble-ellipses-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title={t("common.adminContactTitle")}
+            description={t("common.adminContactDescription")}
+            onPress={() => void openAdminContact()}
+            loading={isOpeningAdminContact}
             isLast
           />
         </View>
 
-        <AdminContactButton variant="card" />
-
         <SectionTitle title={t("profile.appearanceSection")} />
-        <View style={styles.card}>
+        <View style={styles.appearanceCard}>
           <ProfileMenuRow
             icon="language-outline"
             iconColor={theme.primary}
@@ -488,41 +571,42 @@ export function SettingsScreen() {
             title={t("auth.language")}
             description={locale === "ru" ? t("auth.russian") : t("auth.uzbek")}
             onPress={() => openSheet("language", {})}
-            isLast
           />
-        </View>
-        <View style={styles.themeSelector}>
-          {THEME_OPTIONS.map((option) => {
-            const active = mode === option.mode;
-            return (
-              <Pressable
-                key={option.mode}
-                accessibilityRole="button"
-                accessibilityLabel={t("profile.themeAccessibility", { theme: t(option.labelKey) })}
-                accessibilityState={{ selected: active }}
-                onPress={() => setMode(option.mode)}
-                style={({ pressed }) => [
-                  styles.themeOption,
-                  active && styles.themeOptionActive,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Ionicons
-                  name={option.icon}
-                  size={20}
-                  color={active ? theme.primary : theme.textSecondary}
-                />
-                <Text
-                  style={[
-                    styles.themeOptionText,
-                    active && styles.themeOptionTextActive,
+          <View style={styles.themeSelector}>
+            {THEME_OPTIONS.map((option) => {
+              const active = mode === option.mode;
+              return (
+                <Pressable
+                  key={option.mode}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("profile.themeAccessibility", {
+                    theme: t(option.labelKey),
+                  })}
+                  accessibilityState={{ selected: active }}
+                  onPress={() => setMode(option.mode)}
+                  style={({ pressed }) => [
+                    styles.themeOption,
+                    active && styles.themeOptionActive,
+                    pressed && styles.pressed,
                   ]}
                 >
-                  {t(option.labelKey)}
-                </Text>
-              </Pressable>
-            );
-          })}
+                  <Ionicons
+                    name={option.icon}
+                    size={20}
+                    color={active ? theme.primary : theme.textSecondary}
+                  />
+                  <Text
+                    style={[
+                      styles.themeOptionText,
+                      active && styles.themeOptionTextActive,
+                    ]}
+                  >
+                    {t(option.labelKey)}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         <Pressable
@@ -569,39 +653,10 @@ const createStyles = (theme: AppTheme) =>
       paddingBottom: spacing.xl,
       gap: spacing.sm,
     },
-    subscriptionCard: {
-      minHeight: 78,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 11,
-      padding: 13,
-      borderWidth: 1,
-      borderColor: `${theme.primary}55`,
-      borderRadius: radius.xl,
-      borderCurve: "continuous",
-      backgroundColor: theme.primaryLight,
-    },
-    subscriptionIcon: {
-      width: 42,
-      height: 42,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 14,
-      backgroundColor: theme.surface,
-    },
-    subscriptionCopy: { minWidth: 0, flex: 1, gap: 1 },
-    subscriptionEyebrow: {
-      ...typography.caption,
-      color: theme.primary,
-      fontWeight: "800",
-      letterSpacing: 0.6,
-    },
-    subscriptionName: { ...typography.headingSmall, color: theme.text },
-    subscriptionMeta: { ...typography.caption, color: theme.textSecondary },
     profileCard: {
       overflow: "hidden",
       padding: 14,
-      gap: 12,
+      gap: 14,
       borderWidth: 1,
       borderColor: theme.border,
       borderRadius: radius.xl,
@@ -611,7 +666,7 @@ const createStyles = (theme: AppTheme) =>
     },
     profileHeader: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-start",
       gap: 12,
     },
     avatar: {
@@ -630,15 +685,25 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "800",
       letterSpacing: 0.3,
     },
-    identityCopy: { minWidth: 0, flex: 1, gap: 2 },
+    identityCopy: { minWidth: 0, flex: 1, gap: 4 },
     profileName: { ...typography.headingMedium, color: theme.text },
-    username: { ...typography.caption, color: theme.textSecondary },
+    identityMeta: {
+      flexDirection: "row",
+      alignItems: "center",
+      flexWrap: "wrap",
+      gap: 6,
+    },
+    username: {
+      flexShrink: 1,
+      ...typography.caption,
+      color: theme.textSecondary,
+    },
     statusBadge: {
-      minHeight: 28,
+      minHeight: 24,
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.xs,
-      paddingHorizontal: spacing.sm,
+      paddingHorizontal: 8,
       borderRadius: radius.full,
     },
     statusBadgeSuccess: { backgroundColor: theme.paymentBg },
@@ -660,15 +725,90 @@ const createStyles = (theme: AppTheme) =>
     },
     profileDetailCopy: { minWidth: 0, flex: 1, gap: 1 },
     profileDetailLabel: { ...typography.caption, color: theme.textMuted },
-    profileDetailValue: { ...typography.label, color: theme.text },
+    profileDetailValue: {
+      ...typography.label,
+      color: theme.text,
+      flexShrink: 1,
+    },
     profileDetailDivider: {
       height: 1,
       marginLeft: 40,
       backgroundColor: theme.border,
     },
+    profilePlanRow: {
+      minHeight: 62,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: `${theme.primary}44`,
+      borderRadius: radius.lg,
+      borderCurve: "continuous",
+      backgroundColor: theme.primaryLight,
+    },
+    profilePlanIcon: {
+      width: 38,
+      height: 38,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 12,
+      backgroundColor: theme.surface,
+    },
+    profilePlanCopy: { minWidth: 0, flex: 1, gap: 2 },
+    profilePlanName: {
+      ...typography.label,
+      color: theme.text,
+      fontWeight: "800",
+    },
+    profilePlanMeta: {
+      ...typography.caption,
+      color: theme.textSecondary,
+    },
+    paymentHistoryCard: {
+      minHeight: 62,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: radius.lg,
+      borderCurve: "continuous",
+      backgroundColor: theme.surface,
+      boxShadow: theme.cardShadow,
+    },
+    paymentHistoryIcon: {
+      width: 38,
+      height: 38,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 12,
+      backgroundColor: theme.primaryLight,
+    },
+    paymentHistoryCopy: { minWidth: 0, flex: 1, gap: 2 },
+    paymentHistoryTitle: {
+      ...typography.label,
+      color: theme.text,
+      fontWeight: "800",
+    },
+    paymentHistoryHint: { ...typography.caption, color: theme.textMuted },
     sectionHeader: { paddingTop: spacing.sm },
     sectionTitle: { ...typography.headingSmall, color: theme.text },
     card: {
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: radius.lg,
+      borderCurve: "continuous",
+      backgroundColor: theme.surface,
+      boxShadow: theme.cardShadow,
+    },
+    appearanceCard: {
       overflow: "hidden",
       borderWidth: 1,
       borderColor: theme.border,
@@ -716,12 +856,9 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: "row",
       gap: spacing.sm,
       padding: 6,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: radius.lg,
-      borderCurve: "continuous",
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
       backgroundColor: theme.surface,
-      boxShadow: theme.cardShadow,
     },
     themeOption: {
       minHeight: 48,

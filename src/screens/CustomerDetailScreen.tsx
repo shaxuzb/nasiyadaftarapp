@@ -312,8 +312,15 @@ export function CustomerDetailScreen() {
                 <Text style={styles.name} numberOfLines={2}>
                   {displayName}
                 </Text>
-                <Text selectable style={styles.phone}>
-                  {customer.phone}
+                <Text
+                  selectable={Boolean(customer.phone.trim())}
+                  style={[
+                    styles.phone,
+                    !customer.phone.trim() && styles.phoneMissing,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {customer.phone.trim() || t("customers.phoneMissing")}
                 </Text>
                 {showBlacklistBadge ? (
                   <View
@@ -690,6 +697,7 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 14,
       fontVariant: ["tabular-nums"],
     },
+    phoneMissing: { color: theme.textMuted },
     badge: {
       paddingHorizontal: 9,
       paddingVertical: 5,

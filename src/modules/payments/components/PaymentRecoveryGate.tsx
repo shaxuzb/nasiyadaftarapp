@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useBottomSheet } from "../../../bottom-sheet";
 import { useAuth } from "../../../context/AuthContext";
 import { useAppLock } from "../../pin-auth/context/AppLockContext";
-import { getPendingPayment } from "../services/paymentStorage";
+import { getPendingPayments } from "../services/paymentStorage";
 import { shouldRecoverPendingPayment } from "../utils/paymentRecovery";
 
 interface PaymentRecoveryGateProps {
@@ -15,6 +15,8 @@ export function PaymentRecoveryGate({ enabled }: PaymentRecoveryGateProps) {
   const { isResolving, setupRequired, isLocked } = useAppLock();
   const { isOpen, openSheet } = useBottomSheet();
   const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
+  const [pendingOpenedExternally, setPendingOpenedExternally] =
+    useState(false);
   const recoveredOrderId = useRef<number | null>(null);
 
   useEffect(() => {
@@ -22,19 +24,25 @@ export function PaymentRecoveryGate({ enabled }: PaymentRecoveryGateProps) {
 
     if (!enabled || isBootstrapping || !user) {
       setPendingOrderId(null);
+      setPendingOpenedExternally(false);
       if (!user) recoveredOrderId.current = null;
       return () => {
         active = false;
       };
     }
 
-    void getPendingPayment(user.id)
-      .then((pending) => {
+    void getPendingPayments(user.id)
+      .then((payments) => {
         if (!active) return;
-        setPendingOrderId(pending?.orderId ?? null);
+        const recoverable = payments.find((item) => item.openedExternally);
+        setPendingOrderId(recoverable?.orderId ?? null);
+        setPendingOpenedExternally(recoverable?.openedExternally === true);
       })
       .catch(() => {
-        if (active) setPendingOrderId(null);
+        if (active) {
+          setPendingOrderId(null);
+          setPendingOpenedExternally(false);
+        }
       });
 
     return () => {
@@ -53,6 +61,7 @@ export function PaymentRecoveryGate({ enabled }: PaymentRecoveryGateProps) {
         setupRequired,
         isSheetOpen: isOpen,
         pendingOrderId,
+        openedExternally: pendingOpenedExternally,
         recoveredOrderId: recoveredOrderId.current,
       })
     ) {
@@ -70,6 +79,7 @@ export function PaymentRecoveryGate({ enabled }: PaymentRecoveryGateProps) {
     isResolving,
     openSheet,
     pendingOrderId,
+    pendingOpenedExternally,
     setupRequired,
     user,
   ]);

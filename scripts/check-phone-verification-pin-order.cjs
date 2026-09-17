@@ -6,7 +6,9 @@ const source = fs.readFileSync(
   "utf8",
 );
 
-assert.match(source, /useAppLock/);
-assert.match(source, /isResolving\s*\|\|\s*setupRequired\s*\|\|\s*isLocked/);
-assert.match(source, /!isResolving.*!setupRequired.*!isLocked/);
-console.log("Phone verification waits until PIN gate is cleared");
+assert.match(source, /requireVerifiedPhone/);
+assert.doesNotMatch(
+  source,
+  /promptedUserIdRef|isGoogleUser|const pinGateCleared/,
+);
+console.log("Phone verification is requested only by explicit protected actions");

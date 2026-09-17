@@ -6,6 +6,7 @@ import React, {
   useState,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -40,11 +41,19 @@ import { getLocalizedApiErrorMessage, useTranslation } from "../../../i18n";
 
 interface Props {
   customer: Customer;
+  ready?: boolean;
+  dataState?: "ready" | "loading" | "error";
   onSave: (payload: ClientUpdateRequest) => Promise<void>;
   onClose: () => void;
 }
 
-export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
+export function CustomerEditSheet({
+  customer,
+  ready = true,
+  dataState = "ready",
+  onSave,
+  onClose,
+}: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { t } = useTranslation();
@@ -59,6 +68,7 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
   const [phone, setPhone] = useState(formatUzPhoneFromDigits(customer.phone));
   const [note, setNote] = useState(customer.note ?? "");
   const [phoneError, setPhoneError] = useState<string>();
+  const previousDataState = useRef(dataState);
   const changed =
     name.trim() !== customer.fullName ||
     toStoredUzPhone(phone) !== customer.phone ||
@@ -67,6 +77,16 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
     setPhone(formatUzPhoneFromDigits(value));
     setPhoneError(undefined);
   }, []);
+
+  useEffect(() => {
+    if (previousDataState.current !== "ready" && dataState === "ready") {
+      setName(customer.fullName);
+      setPhone(formatUzPhoneFromDigits(customer.phone));
+      setNote(customer.note ?? "");
+      setPhoneError(undefined);
+    }
+    previousDataState.current = dataState;
+  }, [customer, dataState]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => sheet.current?.present());
@@ -92,7 +112,7 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
   );
 
   async function save() {
-    if (submitting.current) return;
+    if (submitting.current || !ready || dataState !== "ready") return;
     if (!isValidUzPhone(phone)) {
       setPhoneError(t("transactions.phoneIncomplete"));
       return;
@@ -199,11 +219,24 @@ export function CustomerEditSheet({ customer, onSave, onClose }: Props) {
           multiline
           style={styles.note}
         />
+        {dataState === "loading" ? (
+          <View style={styles.dataStatus}>
+            <ActivityIndicator size="small" color={theme.primary} />
+            <Text style={styles.dataStatusText}>{t("common.loading")}</Text>
+          </View>
+        ) : dataState === "error" ? (
+          <Text style={styles.dataError}>{t("transactions.dataLoadError")}</Text>
+        ) : null}
         <PrimaryButton
           label={t("common.save")}
           onPress={save}
-          loading={saving}
-          disabled={!changed || !isValidUzPhone(phone)}
+          loading={saving || dataState === "loading"}
+          disabled={
+            !ready ||
+            dataState !== "ready" ||
+            !changed ||
+            !isValidUzPhone(phone)
+          }
         />
       </BottomSheetScrollView>
     </BottomSheetModal>
@@ -223,4 +256,11 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: "center",
     },
     note: { minHeight: 76, paddingVertical: 12, textAlignVertical: "top" },
+    dataStatus: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    dataStatusText: { color: theme.textMuted, fontSize: 12 },
+    dataError: { color: theme.dangerColor, fontSize: 12 },
   });

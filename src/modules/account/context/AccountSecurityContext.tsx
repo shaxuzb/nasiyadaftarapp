@@ -24,11 +24,10 @@ const AccountSecurityContext = createContext<
 >(undefined);
 
 export function AccountSecurityProvider({ children }: { children: ReactNode }) {
-  const { user, currentOrganization, updateUserProfile } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const { isResolving, setupRequired, isLocked } = useAppLock();
   const [visible, setVisible] = useState(false);
   const afterVerifiedRef = useRef<(() => void) | undefined>(undefined);
-  const promptedUserIdRef = useRef<number | null>(null);
 
   const closePhoneVerification = useCallback(() => {
     setVisible(false);
@@ -51,35 +50,6 @@ export function AccountSecurityProvider({ children }: { children: ReactNode }) {
     },
     [openPhoneVerification, user],
   );
-
-  useEffect(() => {
-    const pinGateCleared = !isResolving && !setupRequired && !isLocked;
-    const isGoogleUser = [
-      user?.authProvider,
-      user?.loginTypeCode,
-      user?.loginType,
-    ].some((value) => value?.toLocaleUpperCase().includes("GOOGLE"));
-    if (
-      !pinGateCleared ||
-      !currentOrganization ||
-      !user ||
-      !isGoogleUser ||
-      hasVerifiedPhone(user) ||
-      promptedUserIdRef.current === user.id
-    ) {
-      return;
-    }
-
-    promptedUserIdRef.current = user.id;
-    openPhoneVerification();
-  }, [
-    currentOrganization,
-    isLocked,
-    isResolving,
-    openPhoneVerification,
-    setupRequired,
-    user,
-  ]);
 
   useEffect(() => {
     if (isResolving || setupRequired || isLocked) {

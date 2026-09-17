@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import type { AppTheme } from "../../../types";
 import type { SmsRecipient } from "../types";
+import { isSmsRecipientSelectable } from "../utils/recipientSelection";
 import {
   formatLocalizedCurrency,
   formatLocalizedDisplayedBalance,
@@ -16,6 +17,7 @@ interface Props {
   selectable: boolean;
   canSendOne: boolean;
   onQuotaReached?: () => void;
+  onAddPhone?: (recipient: SmsRecipient) => void;
   onToggle: (id: number) => void;
   onSend: (recipient: SmsRecipient) => void;
 }
@@ -26,6 +28,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
   selectable,
   canSendOne,
   onQuotaReached,
+  onAddPhone,
   onToggle,
   onSend,
 }: Props) {
@@ -33,6 +36,9 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
   const { locale, t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const displayName = recipient.fullName.trim() || t("sms.clientFallback");
+  const displayPhone = recipient.phone.trim();
+  const hasPhone = Boolean(displayPhone);
+  const canSend = isSmsRecipientSelectable(recipient);
   const initials =
     displayName
       .trim()
@@ -43,31 +49,42 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
       .toUpperCase() || t("sms.clientFallback").slice(0, 1);
   return (
     <Pressable
-      accessibilityRole={selectable ? "checkbox" : "button"}
+      accessibilityRole={selectable && canSend ? "checkbox" : "button"}
       accessibilityState={{
-        checked: selectable ? selected : undefined,
-        disabled: selectable && !recipient.canSend,
+        checked: selectable && canSend ? selected : undefined,
+        disabled: selectable && !canSend && !onAddPhone,
       }}
       accessibilityLabel={`${displayName}, ${formatLocalizedDisplayedBalance(recipient.currentBalance, locale)}`}
-      disabled={selectable && !recipient.canSend}
-      onPress={() =>
-        selectable
-          ? onToggle(recipient.id)
-          : recipient.canSend
-            ? canSendOne
-              ? onSend(recipient)
-              : onQuotaReached?.()
-            : undefined
-      }
+      disabled={selectable && !canSend && !onAddPhone}
+      onPress={() => {
+        if (selectable && canSend) {
+          onToggle(recipient.id);
+          return;
+        }
+        if (!hasPhone) {
+          onAddPhone?.(recipient);
+          return;
+        }
+        if (!selectable && recipient.canSend) {
+          if (canSendOne) onSend(recipient);
+          else onQuotaReached?.();
+        }
+      }}
       style={({ pressed }) => [
         styles.card,
-        selected && styles.selected,
+        selected && canSend && styles.selected,
         pressed && styles.pressed,
       ]}
     >
       {selectable ? (
-        <View style={[styles.check, selected && styles.checkSelected]}>
-          {selected ? (
+        <View
+          style={[
+            styles.check,
+            !canSend && styles.checkDisabled,
+            selected && canSend && styles.checkSelected,
+          ]}
+        >
+          {selected && canSend ? (
             <Ionicons name="checkmark" size={15} color="#fff" />
           ) : null}
         </View>
@@ -87,9 +104,25 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
           ) : null}
         </View>
         <Text numberOfLines={1} style={styles.phone}>
-          {recipient.phone || t("sms.recipientPhoneMissing")}
+          {displayPhone || t("sms.recipientPhoneMissing")}
         </Text>
-        {!recipient.canSend ? (
+        {!hasPhone ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${t("sms.addRecipientPhone")}: ${displayName}`}
+            hitSlop={6}
+            onPress={(event) => {
+              event.stopPropagation();
+              onAddPhone?.(recipient);
+            }}
+            style={styles.phoneAction}
+          >
+            <Ionicons name="create-outline" size={13} color={theme.primary} />
+            <Text style={styles.phoneActionText}>
+              {t("sms.addRecipientPhone")}
+            </Text>
+          </Pressable>
+        ) : !recipient.canSend ? (
           <Text numberOfLines={1} style={styles.reason}>
             {recipient.cannotSendReason || t("sms.cannotSend")}
           </Text>
@@ -116,7 +149,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
             })}
           </Text>
         ) : null}
-        {!selectable && recipient.canSend ? (
+        {!selectable && canSend ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={
@@ -176,6 +209,11 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.primary,
       backgroundColor: theme.primary,
     },
+    checkDisabled: {
+      borderColor: theme.border,
+      backgroundColor: theme.inputBackground,
+      opacity: 0.55,
+    },
     avatar: {
       width: 42,
       height: 42,
@@ -196,6 +234,19 @@ const createStyles = (theme: AppTheme) =>
     },
     phone: { color: theme.textSecondary, fontSize: 12 },
     reason: { color: theme.warningColor, fontSize: 10 },
+    phoneAction: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 4,
+      marginTop: 1,
+      paddingVertical: 2,
+    },
+    phoneActionText: {
+      color: theme.primary,
+      fontSize: 11,
+      fontWeight: "700",
+    },
     blacklistBadge: {
       paddingHorizontal: 6,
       paddingVertical: 2,

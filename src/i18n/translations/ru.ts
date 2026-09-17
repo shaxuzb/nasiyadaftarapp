@@ -11,6 +11,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     close: "Закрыть",
     back: "Назад",
     later: "Позже",
+    or: "или",
     loading: "Загрузка...",
     retry: "Повторить",
     retryDescription:
@@ -56,6 +57,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     chooseLanguage: "Выберите язык",
     uzbek: "O‘zbekcha",
     russian: "Русский",
+    appleSigningIn: "Выполняется вход через Apple...",
     login: {
       title: "Добро пожаловать",
       description: "Войдите в {appName}, чтобы управлять клиентами и долгами",
@@ -72,6 +74,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
       success: "Вход выполнен успешно",
       error: "Неверный логин или пароль",
       googleSuccess: "Выполнен вход через Google",
+      appleSignIn: "Войти через Apple",
     },
     register: {
       title: "Создать аккаунт",
@@ -89,6 +92,8 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
       hasAccount: "Уже есть аккаунт?",
       loginAction: "Войти",
       googleSuccess: "Выполнен вход через Google",
+      appleSignUp: "Зарегистрироваться через Apple",
+      appleNameRequired: "Apple не вернул имя. Заполните поле Ф.И.О.",
     },
     smsVerify: {
       title: "Подтверждение по SMS",
@@ -175,6 +180,8 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     securityDescription: "PIN, биометрия, пароль и аккаунт Google",
     planLimits: "Тарифы и лимиты",
     planLimitsDescription: "Тариф, SMS и доступные возможности",
+    paymentHistory: "История платежей",
+    paymentHistoryDescription: "Платежи за тарифы и пакеты SMS",
     organizationSection: "Организация",
     organizationNotSelected: "Организация не выбрана",
     blacklistSettings: "Настройки чёрного списка",
@@ -232,6 +239,8 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     name: "Имя",
     namePlaceholder: "Введите имя клиента",
     phoneRequired: "Телефон *",
+    phoneOptional: "Телефон (необязательно)",
+    phoneMissing: "Номер телефона не указан",
     phonePlaceholder: "+998 XX XXX XX XX",
     contactPicker: "Выбрать контакт",
     contactPickerHint: "Заполнить имя и телефон клиента из контактов",
@@ -344,7 +353,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     paymentLabel: "Платёж",
   },
   sms: {
-    screenTitle: "SMS клиентам",
+    screenTitle: "SMS",
     permissionTitle: "Нет доступа",
     permissionDescription:
       "Для просмотра списка SMS-клиентов нужно разрешение.",
@@ -380,7 +389,8 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     selectedCount: "Выбрано: {count}",
     selectedHint: "Только клиенты, которым доступны SMS",
     sendBulk: "Отправить SMS",
-    recipientPhoneMissing: "Телефон не указан",
+    recipientPhoneMissing: "Номер телефона не указан",
+    addRecipientPhone: "Добавить телефон",
     cannotSend: "SMS отправить нельзя",
     sendToClient: "Отправить SMS клиенту {name}",
     increaseLimit: "Увеличить лимит SMS",
@@ -442,10 +452,12 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     freePrice: "Пока бесплатно",
     priceForDays: "{price} / {days} дней",
     recommended: "Рекомендуем",
+    purchasePlan: "Купить тариф",
+    purchasePackage: "Купить пакет SMS",
     adminActivate: "Связаться с администратором",
     packages: "SMS-пакеты",
-    packageHint: "Подключается через администратора",
-    info: "Для активации тарифа или SMS-пакета свяжитесь с администратором.",
+    packageHint: "Нажмите для покупки",
+    info: "Выберите тариф или пакет SMS. Оплата продолжится на защищённой внешней странице.",
     quotaLoading: "Загрузка пакетов...",
     packageNotFound: "Пакеты не найдены.",
     packageSelect: "Выберите SMS-пакет",
@@ -454,7 +466,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     close: "Закрыть",
     moreSms: "Больше",
     packageNote:
-      "Согласуйте выбор с администратором. После подключения оплаты покупка будет доступна прямо в этом окне.",
+      "Оплата выбранного пакета продолжится на защищённой внешней странице.",
     upgrade: { viewPlans: "Посмотреть тарифы" },
   },
   organization: {
@@ -529,6 +541,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
       "Изменения безопасно подтверждаются кодом из SMS или email.",
     pinSection: "PIN-код и биометрия",
     passwordSection: "Пароль и аккаунты",
+    appLockSection: "Защита приложения",
     chooseDelivery: "Выберите способ подтверждения",
     deliveryDescription: "Код будет отправлен перед сохранением нового пароля.",
     googleCodeDescription:

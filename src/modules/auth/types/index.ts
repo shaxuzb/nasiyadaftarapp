@@ -60,8 +60,9 @@ export interface AuthResponse {
 }
 
 export interface AuthRefreshResponse {
-  token: string;
-  refreshToken: string;
+  accessToken?: string | null;
+  token?: string | null;
+  refreshToken?: string | null;
 }
 
 export interface OrganizationSelectResponse {

@@ -50,10 +50,11 @@ import { useBottomSheet, useBottomSheetBackHandler } from "../bottom-sheet";
 import { AndroidSheetKeyboardBridge } from "../bottom-sheet/AndroidSheetKeyboardBridge";
 import {
   formatUzPhoneFromDigits,
-  isValidUzPhone,
-  toStoredUzPhone,
+  isOptionalUzPhoneValid,
+  toOptionalStoredUzPhone,
 } from "../utils/masks";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
+import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -230,7 +231,7 @@ export function CustomersScreen() {
   function validateForm(): boolean {
     const e: { phone?: string } = {};
 
-    if (!isValidUzPhone(phone))
+    if (!isOptionalUzPhoneValid(phone))
       e.phone = t("customers.phoneInvalid");
 
     setErrors(e);
@@ -251,7 +252,7 @@ export function CustomersScreen() {
       setIsCreatingCustomer(true);
       await addCustomer({
         fullName: fullName.trim().replace(/\s+/g, " "),
-        phone: toStoredUzPhone(phone),
+        phone: toOptionalStoredUzPhone(phone),
         note: "",
       });
 
@@ -272,6 +273,7 @@ export function CustomersScreen() {
 
   async function handlePickFromContacts() {
     try {
+      phoneInputRef.current?.blur();
       await KeyboardController.dismiss();
       const existingPermission = await Contacts.getPermissionsAsync();
       const permission =
@@ -411,6 +413,8 @@ export function CustomersScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        <PendingPaymentBanner />
 
         <FlatList
           data={isListLoading && listData.length === 0 ? [] : listData}
@@ -568,8 +572,8 @@ export function CustomersScreen() {
               variant="sheet"
               compact
               inputRef={phoneInputRef}
-              key={phoneInputKey}
-              label={t("customers.phoneRequired")}
+              inputResetKey={phoneInputKey}
+              label={t("customers.phoneOptional")}
               uncontrolled
               defaultValue={phone}
               transformText={formatUzPhoneFromDigits}
@@ -605,7 +609,7 @@ export function CustomersScreen() {
             label={t("customers.addAction")}
             onPress={handleCreateCustomer}
             loading={isCreatingCustomer}
-            disabled={!isValidUzPhone(phone)}
+            disabled={!isOptionalUzPhoneValid(phone)}
             style={styles.sheetSaveButton}
           />
         </BottomSheetScrollView>

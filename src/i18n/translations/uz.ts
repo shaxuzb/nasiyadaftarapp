@@ -8,6 +8,7 @@ export const uzTranslations = {
     close: "Yopish",
     back: "Orqaga",
     later: "Keyinroq",
+    or: "yoki",
     loading: "Yuklanmoqda...",
     retry: "Qayta urinish",
     retryDescription:
@@ -53,6 +54,7 @@ export const uzTranslations = {
     chooseLanguage: "Tilni tanlang",
     uzbek: "O‘zbekcha",
     russian: "Русский",
+    appleSigningIn: "Apple orqali kirilmoqda...",
     login: {
       title: "Xush kelibsiz",
       description: "{appName} ga kirib, mijozlar va qarzlarni tez boshqaring",
@@ -69,6 +71,7 @@ export const uzTranslations = {
       success: "Muvaffaqiyatli kirildi",
       error: "Login yoki parol xato",
       googleSuccess: "Google orqali tizimga kirildi",
+      appleSignIn: "Apple bilan kirish",
     },
     register: {
       title: "Hisob ochish",
@@ -86,6 +89,8 @@ export const uzTranslations = {
       hasAccount: "Akkauntingiz bormi?",
       loginAction: "Kirish",
       googleSuccess: "Google orqali tizimga kirildi",
+      appleSignUp: "Apple bilan ro‘yxatdan o‘tish",
+      appleNameRequired: "Apple ismni qaytarmadi. F.I.SH maydonini kiriting.",
     },
     smsVerify: {
       title: "SMS tasdiqlash",
@@ -173,6 +178,8 @@ export const uzTranslations = {
     securityDescription: "PIN, biometrika, parol va Google akkaunt",
     planLimits: "Tariflar va limitlar",
     planLimitsDescription: "Tarif, SMS va imkoniyatlarni ko'rish",
+    paymentHistory: "To'lovlar tarixi",
+    paymentHistoryDescription: "Tarif va SMS paketlar bo'yicha to'lovlar",
     organizationSection: "Tashkilot",
     organizationNotSelected: "Tashkilot tanlanmagan",
     blacklistSettings: "Qora ro'yxat sozlamasi",
@@ -229,6 +236,8 @@ export const uzTranslations = {
     name: "Ism",
     namePlaceholder: "Mijoz ismini kiriting",
     phoneRequired: "Telefon *",
+    phoneOptional: "Telefon (ixtiyoriy)",
+    phoneMissing: "Telefon raqami kiritilmagan",
     phonePlaceholder: "+998 XX XXX XX XX",
     contactPicker: "Kontaktdan tanlash",
     contactPickerHint: "Mijoz ismi va telefonini kontaktlardan to'ldirish",
@@ -340,7 +349,7 @@ export const uzTranslations = {
     paymentLabel: "To‘lov",
   },
   sms: {
-    screenTitle: "Mijozlarga SMS",
+    screenTitle: "SMS",
     permissionTitle: "Ruxsat mavjud emas",
     permissionDescription:
       "SMS mijozlar ro'yxatini ko'rish uchun ruxsat kerak.",
@@ -376,7 +385,8 @@ export const uzTranslations = {
     selectedCount: "{count} ta tanlandi",
     selectedHint: "Faqat SMS mumkin bo'lgan mijozlar",
     sendBulk: "SMS yuborish",
-    recipientPhoneMissing: "Telefon mavjud emas",
+    recipientPhoneMissing: "Telefon raqami kiritilmagan",
+    addRecipientPhone: "Telefonni qo'shish",
     cannotSend: "SMS yuborib bo'lmaydi",
     sendToClient: "{name}ga SMS yuborish",
     increaseLimit: "SMS limitini oshirish",
@@ -438,10 +448,12 @@ export const uzTranslations = {
     freePrice: "Hozircha bepul",
     priceForDays: "{price} / {days} kun",
     recommended: "Tavsiya etiladi",
+    purchasePlan: "Tarifni sotib olish",
+    purchasePackage: "SMS paketni sotib olish",
     adminActivate: "Administrator bilan bog'lanish",
     packages: "SMS paketlar",
-    packageHint: "Admin orqali ulash",
-    info: "Tarif va SMS paketlarini faollashtirish uchun administrator bilan bog'laning.",
+    packageHint: "Sotib olish uchun bosing",
+    info: "Tarif yoki SMS paketni tanlang. To'lov xavfsiz tashqi sahifada davom etadi.",
     quotaLoading: "Paketlar yuklanmoqda...",
     packageNotFound: "Paketlar topilmadi.",
     packageSelect: "SMS paketini tanlang",
@@ -450,7 +462,7 @@ export const uzTranslations = {
     close: "Yopish",
     moreSms: "Ko'proq",
     packageNote:
-      "Tanlovni administrator bilan kelishasiz. To'lov API ulangach shu oynaning o'zidan xarid qilinadi.",
+      "Tanlangan paket uchun to'lov xavfsiz tashqi sahifada davom etadi.",
     upgrade: { viewPlans: "Tariflarni ko'rish" },
   },
   organization: {
@@ -525,6 +537,7 @@ export const uzTranslations = {
       "O‘zgarishlar SMS yoki email kodi orqali xavfsiz tasdiqlanadi.",
     pinSection: "PIN-kod va biometrika",
     passwordSection: "Parol va akkauntlar",
+    appLockSection: "Ilova himoyasi",
     chooseDelivery: "Tasdiqlash usulini tanlang",
     deliveryDescription: "Kod yangi parolni saqlashdan oldin yuboriladi.",
     googleCodeDescription:

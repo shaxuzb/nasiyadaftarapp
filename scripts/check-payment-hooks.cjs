@@ -17,6 +17,7 @@ const queries = fs.readFileSync(
 assert.match(checkout, /getOrCreateCheckoutAttempt|createPaymentLifecycleCore/);
 assert.match(checkout, /refreshSubscription/);
 assert.match(checkout, /paymentsRoot|paymentsHistory/);
+assert.match(checkout, /pendingPayment/);
 assert.doesNotMatch(checkout, /setInterval|setTimeout\([^,]+,\s*\d+\s*\)/);
 
 assert.match(lifecycle, /AppState\.addEventListener/);
@@ -25,10 +26,13 @@ assert.match(lifecycle, /getPendingPayment/);
 assert.match(lifecycle, /openedExternally/);
 assert.match(lifecycle, /syncOnForeground/);
 assert.match(lifecycle, /createPaymentLifecycleCore/);
+assert.match(lifecycle, /pendingPayment/);
 assert.doesNotMatch(lifecycle, /setInterval/);
 
 assert.match(queries, /queryKeys\.paymentsHistory/);
 assert.match(queries, /queryKeys\.payment/);
+assert.match(queries, /queryKeys\.pendingPayment/);
+assert.match(queries, /getPendingPayment/);
 assert.match(queries, /getPayments/);
 assert.match(queries, /getPayment/);
 

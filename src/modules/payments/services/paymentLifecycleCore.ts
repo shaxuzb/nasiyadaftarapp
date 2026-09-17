@@ -30,6 +30,7 @@ interface PaymentLifecycleDependencies {
   savePendingPayment(reference: PendingPaymentReference): Promise<void>;
   getPendingPayment?: (
     userId: number,
+    orderId?: number,
   ) => Promise<PendingPaymentReference | null>;
   clearPendingPayment(userId: number, orderId?: number): Promise<void>;
   createSubscriptionPayment(
@@ -76,7 +77,7 @@ export function createPaymentLifecycleCore({
     order: PaymentOrder,
   ): Promise<PaymentOrder> {
     if (shouldPersistPending(order)) {
-      const current = await getPendingPayment?.(userId);
+      const current = await getPendingPayment?.(userId, order.id);
       await savePendingPayment({
         version: 1,
         userId,

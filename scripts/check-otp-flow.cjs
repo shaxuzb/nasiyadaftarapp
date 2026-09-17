@@ -101,6 +101,28 @@ try {
     detail,
     "409 API detail must be shown to the user",
   );
+
+  const unauthorizedDetail = "Login yoki parol noto'g'ri";
+  const unauthorized = new AxiosError(
+    "Unauthorized",
+    "ERR_BAD_REQUEST",
+    undefined,
+    undefined,
+    {
+      status: 401,
+      data: {
+        title: "Unauthorized",
+        status: 401,
+        detail: unauthorizedDetail,
+      },
+    },
+  );
+
+  assert.equal(
+    getLocalizedApiErrorMessage(unauthorized, "auth.login.error", uz),
+    unauthorizedDetail,
+    "401 login detail must be shown to the user",
+  );
 } finally {
   if (previousTsLoader) require.extensions[".ts"] = previousTsLoader;
   else delete require.extensions[".ts"];

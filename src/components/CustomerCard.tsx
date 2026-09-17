@@ -35,8 +35,11 @@ export const CustomerCard = memo(function CustomerCard({
         <Text style={styles.name} numberOfLines={1}>
           {getFullName(customer)}
         </Text>
-        <Text style={styles.phone} numberOfLines={1}>
-          {customer.phone}
+        <Text
+          style={[styles.phone, !customer.phone.trim() && styles.phoneMissing]}
+          numberOfLines={1}
+        >
+          {customer.phone.trim() || t("customers.phoneMissing")}
         </Text>
       </View>
       <Text
@@ -92,6 +95,7 @@ const createStyles = (theme: AppTheme) =>
       lineHeight: 17,
       fontVariant: ["tabular-nums"],
     },
+    phoneMissing: { color: theme.textMuted },
     balance: {
       maxWidth: "38%",
       color: theme.debtColor,

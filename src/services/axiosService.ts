@@ -53,14 +53,22 @@ async function refreshAccessToken(): Promise<string | null> {
       },
     );
 
+    const newAccessToken = (
+      response.data.accessToken ?? response.data.token
+    )?.trim();
+    if (!newAccessToken) {
+      throw new Error("Refresh response did not include an access token");
+    }
+
+    const newRefreshToken = response.data.refreshToken?.trim();
     const refreshedSession = {
       ...session,
-      token: response.data.token,
-      refreshToken: response.data.refreshToken ?? session.refreshToken,
+      token: newAccessToken,
+      refreshToken: newRefreshToken || session.refreshToken,
     };
 
     await setAuthSession(refreshedSession);
-    return refreshedSession.token;
+    return newAccessToken;
   })().finally(() => {
     refreshPromise = null;
   });

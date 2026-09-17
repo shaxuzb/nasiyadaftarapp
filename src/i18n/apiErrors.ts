@@ -24,10 +24,11 @@ const ERROR_STATUS_KEYS: Partial<Record<number, TranslateKey>> = {
 function getResponseCode(error: unknown): string | undefined {
   if (!axios.isAxiosError(error)) return undefined;
   const payload = error.response?.data;
+
   if (!payload || typeof payload !== "object") return undefined;
 
   const body = payload as Record<string, unknown>;
-  for (const value of [body.code, body.errorCode, body.type]) {
+  for (const value of [body.detail, body.errorCode, body.type]) {
     if (typeof value !== "string") continue;
     const normalized = value.trim().toUpperCase();
     if (normalized) return normalized;
@@ -40,14 +41,22 @@ export function getLocalizedApiErrorMessage(
   fallbackKey: TranslateKey,
   t: Translate,
 ): string {
+  const status = getApiErrorStatus(error);
+  const detail = getApiErrorMessage(error, "").trim();
+
+  // The login endpoint uses 401 for invalid credentials and returns the
+  // actionable message in ProblemDetails.detail. A generic 401 fallback is
+  // still appropriate everywhere else because it usually means an expired
+  // session, not a failed login attempt.
+  if (status === 401 && fallbackKey === "auth.login.error" && detail) {
+    return detail;
+  }
+
   const codeKey = getResponseCode(error);
   const mappedKey = codeKey ? ERROR_CODE_KEYS[codeKey] : undefined;
-  const statusKey = getApiErrorStatus(error);
-
-  if (statusKey === 409) {
-    const detail = getApiErrorMessage(error, "").trim();
+  if (status === 409) {
     return detail || t("errors.conflict");
   }
 
-  return t(mappedKey ?? ERROR_STATUS_KEYS[statusKey ?? -1] ?? fallbackKey);
+  return t(mappedKey ?? ERROR_STATUS_KEYS[status ?? -1] ?? fallbackKey);
 }

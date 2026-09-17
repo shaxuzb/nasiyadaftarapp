@@ -109,13 +109,13 @@ function ThemedApp() {
               <OfflineBanner />
               <ToastProvider>
                 <KeyboardProvider>
-                  <BottomSheetModalProvider>
-                    <AuthProvider>
-                      <AppLockProvider>
-                        <AccountSecurityProvider>
-                          <AppProvider>
-                            <BottomSheetProvider>
-                              <ConfirmDialogProvider>
+                  <AuthProvider>
+                    <AppLockProvider>
+                      <AccountSecurityProvider>
+                        <AppProvider>
+                          <BottomSheetModalProvider>
+                            <ConfirmDialogProvider>
+                              <BottomSheetProvider>
                                 <AppUpdateGate>
                                   <PaymentRecoveryGate
                                     enabled={!showOnboarding}
@@ -134,13 +134,13 @@ function ThemedApp() {
                                     <AppNavigator />
                                   )}
                                 </AppUpdateGate>
-                              </ConfirmDialogProvider>
-                            </BottomSheetProvider>
-                          </AppProvider>
-                        </AccountSecurityProvider>
-                      </AppLockProvider>
-                    </AuthProvider>
-                  </BottomSheetModalProvider>
+                              </BottomSheetProvider>
+                            </ConfirmDialogProvider>
+                          </BottomSheetModalProvider>
+                        </AppProvider>
+                      </AccountSecurityProvider>
+                    </AppLockProvider>
+                  </AuthProvider>
                 </KeyboardProvider>
               </ToastProvider>
             </SafeAreaProvider>

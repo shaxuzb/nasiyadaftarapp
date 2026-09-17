@@ -46,8 +46,10 @@ import {
   type PaidPlanCode,
   type SubscriptionUpgradeReason,
 } from "../utils/upgradeOptions";
-import { useAdminContact } from "../../support/hooks/useAdminContact";
-import { useBottomSheetBackHandler } from "../../../bottom-sheet";
+import {
+  useBottomSheet,
+  useBottomSheetBackHandler,
+} from "../../../bottom-sheet";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -153,10 +155,11 @@ export function SubscriptionUpgradeModal({
   const sheet = useRef<BottomSheetModal>(null);
   const presentedRef = useRef(false);
   const visibleRef = useRef(visible);
+  const afterDismissRef = useRef<(() => void) | undefined>(undefined);
   visibleRef.current = visible;
+  const { openSheet } = useBottomSheet();
   const plansQuery = useSubscriptionPlans();
   const packagesQuery = useSmsPackages();
-  const { isOpening, openAdminContact } = useAdminContact();
   const [selectedPackage, setSelectedPackage] = useState<SmsPackage | null>(
     null,
   );
@@ -194,17 +197,22 @@ export function SubscriptionUpgradeModal({
   );
   const packages = packagesQuery.data ?? [];
 
-  const closeSheet = useCallback(() => {
+  const closeSheet = useCallback((afterDismiss?: () => void) => {
     if (!presentedRef.current) {
       onClose();
+      afterDismiss?.();
       return;
     }
+    afterDismissRef.current = afterDismiss;
     sheet.current?.dismiss();
   }, [onClose]);
 
   const handleDismiss = useCallback(() => {
     presentedRef.current = false;
+    const afterDismiss = afterDismissRef.current;
+    afterDismissRef.current = undefined;
     onClose();
+    afterDismiss?.();
   }, [onClose]);
 
   useBottomSheetBackHandler(visible, closeSheet);
@@ -248,10 +256,29 @@ export function SubscriptionUpgradeModal({
     );
   }, [packages, visible]);
 
-  const openAdmin = useCallback(async () => {
-    await openAdminContact();
-    closeSheet();
-  }, [closeSheet, openAdminContact]);
+  const openPlanPayment = useCallback(
+    (plan: SubscriptionPlan) => {
+      closeSheet(() =>
+        openSheet("paymentCheckout", {
+          productType: "subscription",
+          plan,
+        }),
+      );
+    },
+    [closeSheet, openSheet],
+  );
+
+  const openPackagePayment = useCallback(
+    (item: SmsPackage) => {
+      closeSheet(() =>
+        openSheet("paymentCheckout", {
+          productType: "sms_package",
+          package: item,
+        }),
+      );
+    },
+    [closeSheet, openSheet],
+  );
 
   const renderFooter = useCallback(
     (footerProps: BottomSheetFooterProps) => {
@@ -262,38 +289,21 @@ export function SubscriptionUpgradeModal({
           <View style={styles.stickyAction}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={t("subscription.packageContact", {
-                name: selectedPackage.name,
-              })}
-              accessibilityState={{ disabled: isOpening, busy: isOpening }}
-              disabled={isOpening}
-              onPress={() => void openAdmin()}
+              accessibilityLabel={t("subscription.purchasePackage")}
+              onPress={() => openPackagePayment(selectedPackage)}
               style={({ pressed }) => [
                 styles.packageAction,
                 pressed && styles.pressed,
-                isOpening && styles.disabled,
               ]}
             >
-              {isOpening ? (
-                <ActivityIndicator size="small" color={theme.primary} />
-              ) : (
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={19}
-                  color={theme.primary}
-                />
-              )}
-              <Text style={styles.packageActionText}>
-                {t("subscription.packageContact", {
-                  name: selectedPackage.name,
-                })}
-              </Text>
+              <Ionicons name="card-outline" size={19} color={theme.primary} />
+              <Text style={styles.packageActionText}>{t("subscription.purchasePackage")}</Text>
             </Pressable>
           </View>
         </BottomSheetFooter>
       );
     },
-    [isOpening, openAdmin, selectedPackage, styles, theme.primary, t],
+    [openPackagePayment, selectedPackage, styles, theme.primary, t],
   );
 
   const renderBackdrop = useCallback(
@@ -359,7 +369,7 @@ export function SubscriptionUpgradeModal({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("subscription.close")}
-              onPress={closeSheet}
+              onPress={() => closeSheet()}
               style={styles.closeButton}
             >
               <Ionicons name="close" size={21} color={theme.textSecondary} />
@@ -433,9 +443,9 @@ export function SubscriptionUpgradeModal({
                     normalizePlanCode(selectedPlan.code) ===
                     options.recommendedPlanCode
                   }
-                  actionLabel={t("subscription.adminActivate")}
-                  onPress={() => void openAdmin()}
-                  loading={isOpening}
+                  actionLabel={t("subscription.purchasePlan")}
+                  onPress={() => openPlanPayment(selectedPlan)}
+                  loading={false}
                   theme={theme}
                   styles={styles}
                   t={t}

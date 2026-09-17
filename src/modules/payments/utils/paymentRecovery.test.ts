@@ -14,6 +14,7 @@ const ready = {
   setupRequired: false,
   isSheetOpen: false,
   pendingOrderId: 15,
+  openedExternally: true,
   recoveredOrderId: null,
 };
 
@@ -25,6 +26,7 @@ assert(!shouldRecoverPendingPayment({ ...ready, isLockResolving: true }), "PIN s
 assert(!shouldRecoverPendingPayment({ ...ready, isLocked: true }), "Locked app must not expose payment sheet");
 assert(!shouldRecoverPendingPayment({ ...ready, setupRequired: true }), "Required PIN setup must stay in front");
 assert(!shouldRecoverPendingPayment({ ...ready, isSheetOpen: true }), "Recovery must not replace another sheet");
+assert(!shouldRecoverPendingPayment({ ...ready, openedExternally: false }), "A payment not opened externally must stay visible as a banner");
 assert(!shouldRecoverPendingPayment({ ...ready, pendingOrderId: null }), "No persisted pending order means nothing to recover");
 assert(!shouldRecoverPendingPayment({ ...ready, recoveredOrderId: 15 }), "Same order must not auto-open twice in one session");
 assert(shouldRecoverPendingPayment({ ...ready, recoveredOrderId: 14 }), "A different pending order may recover");

@@ -9,15 +9,18 @@ import type {
   SmsPackage,
   SubscriptionPlan,
 } from "../modules/subscription/types";
+import type { PendingPaymentReference } from "../modules/payments/types";
 
 export type SheetType =
   | "transaction"
   | "transactionDetail"
   | "language"
+  | "passwordChange"
   | "organizationProfile"
   | "paymentCheckout"
   | "paymentStatus"
-  | "paymentDetail";
+  | "paymentDetail"
+  | "pendingPayments";
 
 export interface TransactionSheetProps {
   customerId: number;
@@ -34,6 +37,8 @@ export interface TransactionDetailSheetProps {
 }
 
 export type LanguageSheetProps = Record<never, never>;
+
+export type PasswordChangeSheetProps = Record<never, never>;
 
 export interface OrganizationProfileSheetProps {
   organization: OrganizationMembership;
@@ -59,19 +64,26 @@ export interface PaymentDetailSheetProps {
   orderId: number;
 }
 
+export interface PendingPaymentsSheetProps {
+  payments: PendingPaymentReference[];
+}
+
 export interface SheetPropsMap {
   transaction: TransactionSheetProps;
   transactionDetail: TransactionDetailSheetProps;
   language: LanguageSheetProps;
+  passwordChange: PasswordChangeSheetProps;
   organizationProfile: OrganizationProfileSheetProps;
   paymentCheckout: PaymentCheckoutSheetProps;
   paymentStatus: PaymentStatusSheetProps;
   paymentDetail: PaymentDetailSheetProps;
+  pendingPayments: PendingPaymentsSheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {
   closeSheet: (afterDismiss?: () => void) => void;
   setDismissLocked: (locked: boolean) => void;
+  openSheet: BottomSheetContextValue["openSheet"];
   props: SheetPropsMap[T];
 }
 

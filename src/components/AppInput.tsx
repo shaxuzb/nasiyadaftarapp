@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   View,
   TextInput,
@@ -27,6 +33,8 @@ interface Props extends TextInputProps {
   uncontrolled?: boolean;
   /** Optional formatter used by the local input before notifying the parent. */
   transformText?: (value: string, previousValue: string) => string;
+  /** Updates a locally-controlled input without remounting its native view. */
+  inputResetKey?: string | number;
   trailingAccessory?: React.ReactNode;
   inputRef?: React.Ref<TextInput>;
 }
@@ -40,6 +48,7 @@ interface LocalTextInputProps extends Omit<
   inputRef: React.Ref<TextInput>;
   onChangeText?: (value: string) => void;
   transformText?: (value: string, previousValue: string) => string;
+  resetKey?: string | number;
 }
 
 const LocalTextInput = React.memo(
@@ -49,10 +58,20 @@ const LocalTextInput = React.memo(
     inputRef,
     onChangeText,
     transformText,
+    resetKey,
     ...rest
   }: LocalTextInputProps) {
     const [value, setValue] = useState(initialValue);
     const valueRef = useRef(initialValue);
+    const initialValueRef = useRef(initialValue);
+    initialValueRef.current = initialValue;
+
+    useEffect(() => {
+      if (resetKey === undefined) return;
+      const nextValue = initialValueRef.current;
+      valueRef.current = nextValue;
+      setValue(nextValue);
+    }, [resetKey]);
 
     const handleChangeText = useCallback(
       (nextValue: string) => {
@@ -153,6 +172,7 @@ export function AppInput({
   compact = false,
   uncontrolled = false,
   transformText,
+  inputResetKey,
   trailingAccessory,
   inputRef,
   secureTextEntry,
@@ -280,6 +300,7 @@ export function AppInput({
             initialValue={initialValue}
             inputRef={setInputRef}
             style={inputStyle}
+            resetKey={inputResetKey}
             placeholderTextColor={theme.textMuted}
             onFocus={handleFocus}
             onBlur={handleBlur}

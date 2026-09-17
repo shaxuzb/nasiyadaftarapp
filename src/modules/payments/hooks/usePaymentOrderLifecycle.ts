@@ -43,6 +43,7 @@ export function usePaymentOrderLifecycle(
 ) {
   const { user, refreshSubscription } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id ?? null;
   const orderQuery = usePayment(orderId);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -71,12 +72,17 @@ export function usePaymentOrderLifecycle(
           await queryClient.invalidateQueries({
             queryKey: queryKeys.paymentsHistoryRoot(),
           });
+          if (userId !== null) {
+            await queryClient.invalidateQueries({
+              queryKey: queryKeys.pendingPayment(userId),
+            });
+          }
         },
         onFulfilled: async () => {
           await refreshSubscription();
         },
       }),
-    [queryClient, refreshSubscription],
+    [queryClient, refreshSubscription, userId],
   );
 
   const sync = useCallback(async (): Promise<PaymentOrder> => {
@@ -131,6 +137,9 @@ export function usePaymentOrderLifecycle(
           openedExternally: true,
           updatedAt: new Date().toISOString(),
         });
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.pendingPayment(user.id),
+        });
       }
       return url;
     } catch (error) {
@@ -155,7 +164,7 @@ export function usePaymentOrderLifecycle(
       }
 
       void (async () => {
-        const pending = await getPendingPayment(user.id);
+        const pending = await getPendingPayment(user.id, orderId);
         if (pending?.orderId === orderId && pending.openedExternally) {
           await sync();
         }

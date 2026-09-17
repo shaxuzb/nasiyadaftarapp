@@ -31,6 +31,7 @@ import {
 export function usePaymentCheckout() {
   const { user, refreshSubscription } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id ?? null;
   const [isCreating, setIsCreating] = useState(false);
   const inFlightRef = useRef<Promise<StartPaymentCheckoutResult> | null>(null);
 
@@ -55,12 +56,17 @@ export function usePaymentCheckout() {
           await queryClient.invalidateQueries({
             queryKey: queryKeys.paymentsHistoryRoot(),
           });
+          if (userId !== null) {
+            await queryClient.invalidateQueries({
+              queryKey: queryKeys.pendingPayment(userId),
+            });
+          }
         },
         onFulfilled: async () => {
           await refreshSubscription();
         },
       }),
-    [queryClient, refreshSubscription],
+    [queryClient, refreshSubscription, userId],
   );
 
   const startCheckout = useCallback(

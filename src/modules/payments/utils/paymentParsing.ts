@@ -1,8 +1,4 @@
-import type {
-  PaymentOrder,
-  PaymentProductType,
-  PaymentStatus,
-} from "../types";
+import type { PaymentOrder, PaymentProductType, PaymentStatus } from "../types";
 
 type RecordValue = Record<string, unknown>;
 
@@ -37,11 +33,7 @@ function unwrap(value: unknown): unknown {
 }
 
 function positiveInteger(value: unknown): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isSafeInteger(value) ||
-    value <= 0
-  ) {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
     invalid();
   }
   return value;
@@ -79,7 +71,10 @@ function nullableHttpsUrl(value: unknown): string | null {
 }
 
 function productType(value: unknown): PaymentProductType {
-  if (typeof value !== "string" || !PRODUCT_TYPES.has(value as PaymentProductType)) {
+  if (
+    typeof value !== "string" ||
+    !PRODUCT_TYPES.has(value as PaymentProductType)
+  ) {
     invalid();
   }
   return value as PaymentProductType;
@@ -103,33 +98,50 @@ export function parsePaymentOrder(input: unknown): PaymentOrder {
 
   return {
     id: positiveInteger(value.id),
+
     productType: productType(value.productType),
     productId: positiveInteger(value.productId),
     productCode: requiredText(value.productCode),
     productName: requiredText(value.productName),
+
     amount: nonNegativeNumber(value.amount),
     amountTiyin: nonNegativeNumber(value.amountTiyin),
     currency: requiredText(value.currency),
+
     status: status(value.status),
     remoteStatus: nullableText(value.remoteStatus),
+
     externalId: nullableText(value.externalId),
     invoiceId: nullableText(value.invoiceId),
     accountNumber: nullableText(value.accountNumber),
+
     provider: nullableText(value.provider),
+
+    paymentServiceTransactionId: nullableText(
+      value.paymentServiceTransactionId,
+    ),
+
+    providerTransactionId: nullableText(value.providerTransactionId),
+
     paymentUrl: nullableHttpsUrl(value.paymentUrl),
+
     paymentLinks: {
       payme: nullableHttpsUrl(links.payme),
     },
+
     createdDate: requiredText(value.createdDate),
     updatedDate: nullableText(value.updatedDate),
     paidDate: nullableText(value.paidDate),
     fulfilledDate: nullableText(value.fulfilledDate),
+    reversedDate: nullableText(value.reversedDate),
+
     isFulfilled: boolean(value.isFulfilled),
   };
 }
 
 export function parsePaymentOrders(input: unknown): PaymentOrder[] {
   const value = unwrap(input);
+
   const items = Array.isArray(value)
     ? value
     : Array.isArray(record(value).results)

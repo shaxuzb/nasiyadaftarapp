@@ -19,9 +19,9 @@ assert.deepEqual(
 assert.deepEqual(
   [
     ...moduleExports.selectEligibleRecipients([
-      { id: 1, canSend: true },
-      { id: 2, canSend: false },
-      { id: 3, canSend: true },
+      { id: 1, canSend: true, phone: "+998901234567" },
+      { id: 2, canSend: false, phone: "+998901234567" },
+      { id: 3, canSend: true, phone: "+998901234568" },
     ]),
   ],
   [1, 3],

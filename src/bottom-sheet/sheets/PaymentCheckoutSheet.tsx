@@ -4,7 +4,6 @@ import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 
 import type { SheetRenderProps } from "../types";
-import { useBottomSheet } from "../useBottomSheet";
 import { useToast } from "../../context/ToastContext";
 import { useTheme } from "../../hooks/useTheme";
 import { formatLocalizedCurrency, useTranslation } from "../../i18n";
@@ -13,6 +12,7 @@ import { usePaymentCheckout } from "../../modules/payments/hooks/usePaymentCheck
 import { isPaymentFulfilled } from "../../modules/payments/utils/paymentState";
 import { radius, spacing, typography } from "../../theme";
 import type { AppTheme } from "../../types";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 function fill(template: string, values: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (token, key) =>
@@ -24,13 +24,14 @@ export function PaymentCheckoutSheet({
   props,
   closeSheet,
   setDismissLocked,
+  openSheet,
 }: SheetRenderProps<"paymentCheckout">) {
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale } = useTranslation();
   const copy = getPaymentCopy(locale).checkout;
   const { showToast } = useToast();
-  const { openSheet } = useBottomSheet();
   const { startCheckout, isCreating } = usePaymentCheckout();
   const submittingRef = useRef(false);
 
@@ -82,7 +83,10 @@ export function PaymentCheckoutSheet({
 
   return (
     <BottomSheetScrollView
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: insets.bottom },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
@@ -149,7 +153,6 @@ const createStyles = (theme: AppTheme) =>
     content: {
       paddingHorizontal: spacing.md,
       paddingTop: spacing.xs,
-      paddingBottom: spacing.xl,
       gap: spacing.md,
       backgroundColor: theme.surface,
     },

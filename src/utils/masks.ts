@@ -56,6 +56,15 @@ export function toStoredUzPhone(input: string): string {
   return `+998${normalizeUzPhoneDigits(input)}`;
 }
 
+export function isOptionalUzPhoneValid(input: string): boolean {
+  const digits = normalizeUzPhoneDigits(input);
+  return digits.length === 0 || digits.length === 9;
+}
+
+export function toOptionalStoredUzPhone(input: string): string {
+  return normalizeUzPhoneDigits(input) ? toStoredUzPhone(input) : "";
+}
+
 export function maskUzPhoneForDisplay(input: string): string {
   const digits = normalizeUzPhoneDigits(input);
   if (digits.length !== 9) return input;

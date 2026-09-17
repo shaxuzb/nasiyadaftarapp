@@ -5,10 +5,12 @@ import {
 } from "./sheets/TransactionSheet";
 import { TransactionDetailSheet } from "./sheets/TransactionDetailSheet";
 import { LanguageSheet } from "./sheets/LanguageSheet";
+import { PasswordChangeSheet } from "./sheets/PasswordChangeSheet";
 import { OrganizationProfileSheet } from "./sheets/OrganizationProfileSheet";
 import { PaymentCheckoutSheet } from "./sheets/PaymentCheckoutSheet";
 import { PaymentStatusSheet } from "./sheets/PaymentStatusSheet";
 import { PaymentDetailSheet } from "./sheets/PaymentDetailSheet";
+import { PendingPaymentsSheet } from "./sheets/PendingPaymentsSheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
@@ -28,6 +30,11 @@ export const sheetRegistry: SheetRegistry = {
     enablePanDownToClose: true,
     dismissKeyboardOnOpen: false,
   },
+  passwordChange: {
+    component: PasswordChangeSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+  },
   organizationProfile: {
     component: OrganizationProfileSheet,
     enableDynamicSizing: true,
@@ -46,6 +53,11 @@ export const sheetRegistry: SheetRegistry = {
   },
   paymentDetail: {
     component: PaymentDetailSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+  },
+  pendingPayments: {
+    component: PendingPaymentsSheet,
     enableDynamicSizing: true,
     enablePanDownToClose: true,
   },

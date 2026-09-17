@@ -311,7 +311,7 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
               styles.action,
               {
                 backgroundColor:
-                  type === "debt" ? theme.primary : theme.paymentColor,
+                  type === "debt" ? theme.dangerColor : theme.paymentColor,
               },
               (!validAmount || !!saving || pressed) && styles.disabled,
             ]}

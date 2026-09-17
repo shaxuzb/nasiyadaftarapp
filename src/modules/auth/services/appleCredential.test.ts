@@ -22,6 +22,20 @@ const repeatLogin = normalizeAppleCredential({
 assert(repeatLogin.email === null, 'Repeat login may omit email');
 assert(repeatLogin.fullName === null, 'Repeat login may omit full name');
 
+const tokenPayload = Buffer.from(JSON.stringify({
+  email: 'relay@example.com',
+})).toString('base64url');
+const tokenWithEmail = `header.${tokenPayload}.signature`;
+const emailRecoveredFromToken = normalizeAppleCredential({
+  identityToken: tokenWithEmail,
+  email: null,
+  fullName: null,
+});
+assert(
+  emailRecoveredFromToken.email === 'relay@example.com',
+  'Apple email claim should recover when native credential omits email',
+);
+
 let missingTokenRejected = false;
 try {
   normalizeAppleCredential({ identityToken: '   ', email: null, fullName: null });

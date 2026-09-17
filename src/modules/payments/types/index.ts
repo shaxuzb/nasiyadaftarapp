@@ -14,6 +14,9 @@ export interface PaymentLinks {
 export interface PaymentOrder {
   id: number;
   productType: PaymentProductType;
+  providerTransactionId: string | null;
+  paymentServiceTransactionId: string | null;
+  reversedDate: string | null;
   productId: number;
   productCode: string;
   productName: string;

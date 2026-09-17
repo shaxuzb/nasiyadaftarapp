@@ -1,13 +1,23 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Keyboard, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Keyboard,
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 
 import { AppInput } from "../../components/AppInput";
 import { PrimaryButton } from "../../components/PrimaryButton";
 import { useTheme } from "../../hooks/useTheme";
 import { useTranslation } from "../../i18n";
 import type { AppTheme } from "../../types";
+import { AndroidSheetKeyboardBridge } from "../AndroidSheetKeyboardBridge";
 import type { SheetRenderProps } from "../types";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function OrganizationProfileSheet({
   closeSheet,
@@ -16,16 +26,36 @@ export function OrganizationProfileSheet({
 }: SheetRenderProps<"organizationProfile">) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [name, setName] = useState(props.organization.name);
   const [address, setAddress] = useState(props.organization.address ?? "");
   const [nameError, setNameError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [keyboardVisible, setKeyboardVisible] = useState(() =>
+    Platform.OS === "android" ? Keyboard.isVisible() : false,
+  );
 
   useEffect(() => {
     setDismissLocked(saving);
     return () => setDismissLocked(false);
   }, [saving, setDismissLocked]);
+
+  useEffect(() => {
+    if (Platform.OS !== "android") return undefined;
+
+    const showSubscription = Keyboard.addListener("keyboardDidShow", () => {
+      setKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener("keyboardDidHide", () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   async function handleSave() {
     const normalizedName = name.trim();
@@ -50,7 +80,20 @@ export function OrganizationProfileSheet({
   }
 
   return (
-    <View style={styles.content}>
+    <BottomSheetScrollView
+      style={styles.scroll}
+      contentContainerStyle={[
+        styles.content,
+        {
+          paddingBottom: keyboardVisible ? 0 : insets.bottom,
+        },
+      ]}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="interactive"
+      showsVerticalScrollIndicator={false}
+      bounces={false}
+    >
+      <AndroidSheetKeyboardBridge />
       <View style={styles.header}>
         <View style={styles.headerIcon}>
           <Ionicons name="business-outline" size={22} color={theme.primary} />
@@ -114,16 +157,16 @@ export function OrganizationProfileSheet({
           <Text style={styles.cancelText}>{t("common.cancel")}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </BottomSheetScrollView>
   );
 }
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
+    scroll: { flexGrow: 0 },
     content: {
       paddingHorizontal: 16,
       paddingTop: 4,
-      paddingBottom: 24,
     },
     header: {
       flexDirection: "row",

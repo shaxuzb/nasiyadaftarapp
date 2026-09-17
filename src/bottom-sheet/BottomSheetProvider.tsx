@@ -15,10 +15,12 @@ import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { KeyboardController } from "react-native-keyboard-controller";
 
+import { ConfirmDialogProvider } from "../context/ConfirmDialogContext";
 import { useTheme } from "../hooks/useTheme";
 import { BottomSheetContext } from "./context";
 import { registerBackHandler } from "./backHandlerRegistry";
 import { sheetRegistry } from "./registry";
+import { useBottomSheetBackHandler } from "./useBottomSheetBackHandler";
 import {
   ActiveSheetEntry,
   BottomSheetContextValue,
@@ -150,6 +152,10 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
     });
   }, [closeSheet, isOpen]);
 
+  // Register while the modal is open so Android consumes back before the
+  // navigation container can pop the current screen.
+  useBottomSheetBackHandler(isOpen, closeSheet);
+
   const contextValue = useMemo<BottomSheetContextValue>(
     () => ({ openSheet, closeSheet, isOpen }),
     [closeSheet, isOpen, openSheet],
@@ -166,6 +172,7 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
         <ActiveProvider
           key={activeEntry.id}
           props={activeEntry.props as never}
+          openSheet={openSheet}
           closeSheet={closeSheet}
           setDismissLocked={setDismissLocked}
         >
@@ -197,23 +204,29 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
             backgroundStyle={{ backgroundColor: theme.surface }}
             handleIndicatorStyle={{ backgroundColor: theme.textMuted }}
           >
-            {activeDefinition.enableDynamicSizing ? (
-              <ActiveComponent
-                closeSheet={closeSheet}
-                setDismissLocked={setDismissLocked}
-                props={activeEntry.props as never}
-              />
-            ) : (
-              <View
-                style={[styles.container, { paddingBottom: insets.bottom }]}
-              >
-                <ActiveComponent
-                  closeSheet={closeSheet}
-                  setDismissLocked={setDismissLocked}
-                  props={activeEntry.props as never}
-                />
-              </View>
-            )}
+            <ConfirmDialogProvider>
+              <BottomSheetContext.Provider value={contextValue}>
+                {activeDefinition.enableDynamicSizing ? (
+                  <ActiveComponent
+                    closeSheet={closeSheet}
+                    setDismissLocked={setDismissLocked}
+                    openSheet={openSheet}
+                    props={activeEntry.props as never}
+                  />
+                ) : (
+                  <View
+                    style={[styles.container, { paddingBottom: insets.bottom }]}
+                  >
+                    <ActiveComponent
+                      closeSheet={closeSheet}
+                      setDismissLocked={setDismissLocked}
+                      openSheet={openSheet}
+                      props={activeEntry.props as never}
+                    />
+                  </View>
+                )}
+              </BottomSheetContext.Provider>
+            </ConfirmDialogProvider>
           </BottomSheetModal>
         </ActiveProvider>
       ) : null}

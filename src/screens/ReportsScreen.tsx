@@ -153,7 +153,6 @@ export function ReportsScreen() {
       setIsExporting(false);
     }
   }, [isExporting, showToast, t]);
-
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
@@ -433,7 +432,7 @@ export function ReportsScreen() {
                         style={styles.debtorPhone}
                         numberOfLines={1}
                       >
-                        {entry.phoneNumber}
+                        {entry.phoneNumber || t("customers.phoneMissing")}
                       </Text>
                     </View>
                     <View style={styles.debtorAmountWrap}>
