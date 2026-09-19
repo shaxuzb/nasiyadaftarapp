@@ -9,13 +9,10 @@ export const PAYMENT_COPY = {
         "To‘lov xavfsiz tashqi sahifada davom etadi. Karta ma’lumotlari ilovaga kiritilmaydi.",
       freeHint:
         "Bu tarif bepul. Tasdiqlagandan keyin backend orqali faollashtirish boshlanadi.",
-      monthlySms: "Oyiga {count} SMS",
-      organizations: "{count} ta tashkilotgacha",
-      unlimitedOrganizations: "Cheksiz tashkilot",
-      smsCount: "{count} ta SMS hisobingizga qo‘shiladi",
       pay: "{amount} to‘lash",
       activate: "Tarifga o‘tish",
       buyPackage: "SMS paketni sotib olish",
+      processing: "To‘lov tayyorlanmoqda...",
       cancel: "Bekor qilish",
       error: "To‘lov buyurtmasini yaratib bo‘lmadi",
     },
@@ -33,6 +30,7 @@ export const PAYMENT_COPY = {
       plan: "Tarif",
       package: "SMS paketi",
       pending: "To‘lov kutilmoqda",
+      holding: "To‘lov qayta ishlanmoqda",
       activating: "Faollashtirilmoqda",
       loading: "To‘lov ma’lumoti yuklanmoqda...",
       continue: "Davom ettirish",
@@ -43,9 +41,13 @@ export const PAYMENT_COPY = {
       title: "To‘lov holati",
       waiting:
         "To‘lov hali yakunlanmagan. To‘lov oynasini davom ettirishingiz yoki holatni tekshirishingiz mumkin.",
+      holding:
+        "To‘lov provayder tomonidan qayta ishlanmoqda. Birozdan keyin holatni yangilang.",
       activating:
         "To‘lov qabul qilindi. Xizmat backend tomonidan faollashtirilmoqda.",
       success: "To‘lov muvaffaqiyatli yakunlandi va xizmat faollashtirildi.",
+      refunded:
+        "To‘lov qaytarilgan. Yangi xarid uchun tarif yoki SMS paketni tanlang.",
       terminal:
         "Ushbu to‘lov yakunlangan. Yangi xarid uchun tarif yoki SMS paketni qayta tanlang.",
       continue: "To‘lovni davom ettirish",
@@ -80,10 +82,12 @@ export const PAYMENT_COPY = {
     order: {
       status: {
         pending: "To‘lov kutilmoqda",
+        holding: "To‘lov qayta ishlanmoqda",
         paid: "To‘lov qabul qilindi",
         cancelled: "To‘lov bekor qilindi",
         failed: "To‘lov amalga oshmadi",
         expired: "To‘lov muddati tugadi",
+        refunded: "To‘lov qaytarildi",
       },
       fulfilled: "Xizmat faollashtirildi",
       provider: "Provayder",
@@ -102,13 +106,10 @@ export const PAYMENT_COPY = {
         "Оплата продолжится на защищённой внешней странице. Данные карты не вводятся в приложении.",
       freeHint:
         "Этот тариф бесплатный. После подтверждения активация начнётся через сервер.",
-      monthlySms: "{count} SMS в месяц",
-      organizations: "До {count} организаций",
-      unlimitedOrganizations: "Безлимитные организации",
-      smsCount: "На счёт будет добавлено {count} SMS",
       pay: "Оплатить {amount}",
       activate: "Перейти на тариф",
       buyPackage: "Купить пакет SMS",
+      processing: "Подготовка оплаты...",
       cancel: "Отмена",
       error: "Не удалось создать платёжный заказ",
     },
@@ -126,6 +127,7 @@ export const PAYMENT_COPY = {
       plan: "Тариф",
       package: "Пакет SMS",
       pending: "Ожидается оплата",
+      holding: "Платёж обрабатывается",
       activating: "Активация выполняется",
       loading: "Загрузка данных оплаты...",
       continue: "Продолжить",
@@ -136,8 +138,12 @@ export const PAYMENT_COPY = {
       title: "Статус оплаты",
       waiting:
         "Оплата ещё не завершена. Можно продолжить оплату или обновить статус.",
+      holding:
+        "Платёж обрабатывается провайдером. Обновите статус через некоторое время.",
       activating: "Оплата получена. Услуга активируется на сервере.",
       success: "Оплата успешно завершена, услуга активирована.",
+      refunded:
+        "Платёж возвращён. Для новой покупки выберите тариф или пакет SMS.",
       terminal:
         "Этот платёж завершён. Для новой покупки снова выберите тариф или пакет SMS.",
       continue: "Продолжить оплату",
@@ -172,10 +178,12 @@ export const PAYMENT_COPY = {
     order: {
       status: {
         pending: "Ожидание оплаты",
+        holding: "Платёж обрабатывается",
         paid: "Оплата получена",
         cancelled: "Оплата отменена",
         failed: "Оплата не выполнена",
         expired: "Срок оплаты истёк",
+        refunded: "Платёж возвращён",
       },
       fulfilled: "Услуга активирована",
       provider: "Провайдер",

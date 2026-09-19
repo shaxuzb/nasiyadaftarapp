@@ -39,9 +39,6 @@ export function PaymentHistoryScreen() {
   const { openSheet } = useBottomSheet();
   const query = usePaymentHistory(30);
   const items = query.data ?? [];
-  console.log(query.isError);
-  console.log(items);
-
   const renderItem = ({ item }: { item: PaymentOrder }) => (
     <Pressable
       accessibilityRole="button"

@@ -1,5 +1,11 @@
 import React, { useEffect, useMemo, useRef } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -13,6 +19,7 @@ import { usePaymentOrderLifecycle } from "../../modules/payments/hooks/usePaymen
 import { PaymentOrderContent } from "../../modules/payments/components/PaymentOrderContent";
 import { radius, spacing, typography } from "../../theme";
 import type { AppTheme } from "../../types";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function PaymentStatusSheet({
   props,
@@ -20,6 +27,7 @@ export function PaymentStatusSheet({
 }: SheetRenderProps<"paymentStatus">) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const { locale, t } = useTranslation();
   const copy = getPaymentCopy(locale).statusSheet;
   const { confirm } = useConfirmDialog();
@@ -51,7 +59,13 @@ export function PaymentStatusSheet({
     void openCheckout().catch(() => {
       showToast(copy.openError, "error");
     });
-  }, [copy.openError, openCheckout, order, props.openCheckoutOnMount, showToast]);
+  }, [
+    copy.openError,
+    openCheckout,
+    order,
+    props.openCheckoutOnMount,
+    showToast,
+  ]);
 
   const handleSync = async () => {
     try {
@@ -79,7 +93,12 @@ export function PaymentStatusSheet({
 
   if (isLoading && !order) {
     return (
-      <View style={styles.loading}>
+      <View
+        style={[
+          styles.loading,
+          { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
+        ]}
+      >
         <ActivityIndicator color={theme.primary} />
         <Text style={styles.muted}>{copy.loading}</Text>
       </View>
@@ -88,8 +107,17 @@ export function PaymentStatusSheet({
 
   if (!order) {
     return (
-      <View style={styles.loading}>
-        <Ionicons name="alert-circle-outline" size={28} color={theme.dangerColor} />
+      <View
+        style={[
+          styles.loading,
+          { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
+        ]}
+      >
+        <Ionicons
+          name="alert-circle-outline"
+          size={28}
+          color={theme.dangerColor}
+        />
         <Text style={styles.muted}>{copy.error}</Text>
         <Pressable onPress={() => closeSheet()} style={styles.secondaryButton}>
           <Text style={styles.secondaryText}>{copy.close}</Text>
@@ -101,17 +129,26 @@ export function PaymentStatusSheet({
   const fulfilled = order.status === "paid" && order.isFulfilled;
   const paidPendingFulfillment = order.status === "paid" && !order.isFulfilled;
   const pending = order.status === "pending";
+  const holding = order.status === "holding";
+  const refunded = order.status === "refunded";
   const description = fulfilled
     ? copy.success
     : paidPendingFulfillment
       ? copy.activating
       : pending
         ? copy.waiting
-        : copy.terminal;
+        : holding
+          ? copy.holding
+          : refunded
+            ? copy.refunded
+            : copy.terminal;
 
   return (
     <BottomSheetScrollView
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.title}>{copy.title}</Text>
@@ -120,7 +157,11 @@ export function PaymentStatusSheet({
 
       {error ? (
         <View style={styles.errorBox}>
-          <Ionicons name="alert-circle-outline" size={18} color={theme.dangerColor} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={18}
+            color={theme.dangerColor}
+          />
           <Text style={styles.errorText}>{copy.error}</Text>
         </View>
       ) : null}
@@ -131,7 +172,9 @@ export function PaymentStatusSheet({
             accessibilityRole="button"
             disabled={busy}
             onPress={() =>
-              void openCheckout().catch(() => showToast(copy.openError, "error"))
+              void openCheckout().catch(() =>
+                showToast(copy.openError, "error"),
+              )
             }
             style={({ pressed }) => [
               styles.primaryButton,
@@ -172,7 +215,7 @@ export function PaymentStatusSheet({
             <Text style={styles.dangerText}>{copy.cancel}</Text>
           </Pressable>
         </View>
-      ) : paidPendingFulfillment ? (
+      ) : holding || paidPendingFulfillment ? (
         <Pressable
           accessibilityRole="button"
           disabled={busy}
@@ -192,7 +235,10 @@ export function PaymentStatusSheet({
         <Pressable
           accessibilityRole="button"
           onPress={() => closeSheet()}
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={styles.primaryText}>{copy.close}</Text>
         </Pressable>
@@ -244,7 +290,11 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
     },
-    primaryText: { ...typography.bodyMedium, color: theme.surface, fontWeight: "800" },
+    primaryText: {
+      ...typography.bodyMedium,
+      color: theme.surface,
+      fontWeight: "800",
+    },
     secondaryButton: {
       minHeight: 48,
       borderRadius: radius.md,
@@ -257,7 +307,11 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
     },
-    secondaryText: { ...typography.bodyMedium, color: theme.text, fontWeight: "700" },
+    secondaryText: {
+      ...typography.bodyMedium,
+      color: theme.text,
+      fontWeight: "700",
+    },
     dangerButton: {
       minHeight: 46,
       borderRadius: radius.md,
@@ -265,7 +319,11 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: "center",
       backgroundColor: `${theme.dangerColor}12`,
     },
-    dangerText: { ...typography.bodySmall, color: theme.dangerColor, fontWeight: "800" },
+    dangerText: {
+      ...typography.bodySmall,
+      color: theme.dangerColor,
+      fontWeight: "800",
+    },
     errorBox: {
       flexDirection: "row",
       alignItems: "center",

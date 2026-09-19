@@ -18,6 +18,7 @@ import * as Clipboard from "expo-clipboard";
 import { useTheme } from "../hooks/useTheme";
 import { radius, spacing, typography } from "../theme";
 import { extractOtpCode } from "../modules/auth/utils/otp";
+import { getOtpAutofillConfig } from "../modules/auth/utils/otpInputConfig";
 import { useTranslation } from "../i18n";
 
 interface Props {
@@ -94,7 +95,7 @@ export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
           accessibilityLabel={t("common.otpInput")}
           autoCorrect={false}
           spellCheck={false}
-          textContentType="oneTimeCode"
+          {...getOtpAutofillConfig("ios")}
           selectionColor={theme.primary}
           style={[
             styles.iosInput,
@@ -135,8 +136,7 @@ export const OtpInput = forwardRef<OtpInputHandle, Props>(function OtpInput(
             accessibilityLabel={t("common.otpInput")}
             autoCorrect={false}
             spellCheck={false}
-            autoComplete="sms-otp"
-            importantForAutofill="yes"
+            {...getOtpAutofillConfig("android")}
             selectionColor="transparent"
             style={styles.autofillInput}
           />

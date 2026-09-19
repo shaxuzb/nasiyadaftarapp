@@ -42,8 +42,9 @@ interface PaymentLifecycleDependencies {
     idempotencyKey: string,
   ): Promise<PaymentOrder>;
   syncPayment(orderId: number): Promise<PaymentOrder>;
-  cancelPayment(orderId: number): Promise<void>;
-  getPayment(orderId: number): Promise<PaymentOrder>;
+  cancelPayment(orderId: number): Promise<PaymentOrder>;
+  cancelCurrentSubscription?: () => Promise<unknown>;
+  onSubscriptionCancellation?: () => Promise<void>;
   getCheckoutUrl(order: PaymentOrder): string | null;
   shouldPersistPending(order: PaymentOrder): boolean;
   isFulfilled(order: PaymentOrder): boolean;
@@ -62,7 +63,8 @@ export function createPaymentLifecycleCore({
   createSmsPackagePayment,
   syncPayment,
   cancelPayment,
-  getPayment,
+  cancelCurrentSubscription,
+  onSubscriptionCancellation,
   getCheckoutUrl,
   shouldPersistPending,
   isFulfilled,
@@ -71,6 +73,7 @@ export function createPaymentLifecycleCore({
   nowIso = () => new Date().toISOString(),
 }: PaymentLifecycleDependencies) {
   const inFlightSyncs = new Map<string, Promise<PaymentOrder>>();
+  const subscriptionCancellationAttempts = new Set<string>();
 
   async function handleCanonicalOrder(
     userId: number,
@@ -138,7 +141,27 @@ export function createPaymentLifecycleCore({
     if (existing) return existing;
 
     const request = (async () => {
-      const order = await syncPayment(orderId);
+      let order = await syncPayment(orderId);
+      const cancellationKey = `${userId}:${orderId}`;
+      const requiresSubscriptionCancellation =
+        order.productType === "subscription" &&
+        order.status === "paid" &&
+        !order.isFulfilled &&
+        Boolean(cancelCurrentSubscription) &&
+        !subscriptionCancellationAttempts.has(cancellationKey);
+
+      if (requiresSubscriptionCancellation) {
+        subscriptionCancellationAttempts.add(cancellationKey);
+        try {
+          await cancelCurrentSubscription?.();
+          await onSubscriptionCancellation?.();
+          order = await syncPayment(orderId);
+        } catch (error) {
+          subscriptionCancellationAttempts.delete(cancellationKey);
+          throw error;
+        }
+      }
+
       return handleCanonicalOrder(userId, order);
     })();
     inFlightSyncs.set(key, request);
@@ -156,9 +179,8 @@ export function createPaymentLifecycleCore({
     userId: number,
     orderId: number,
   ): Promise<PaymentOrder> {
-    await cancelPayment(orderId);
-    const canonical = await getPayment(orderId);
-    return handleCanonicalOrder(userId, canonical);
+    const cancelled = await cancelPayment(orderId);
+    return handleCanonicalOrder(userId, cancelled);
   }
 
   return {

@@ -24,7 +24,6 @@ export function useReports(
     queryFn: () => getReports(params),
     enabled,
     staleTime: 60_000,
-    refetchOnMount: "always",
   });
 
   return {

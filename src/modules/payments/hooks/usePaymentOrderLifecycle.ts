@@ -4,12 +4,12 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../../../context/AuthContext";
 import { queryKeys } from "../../../core/query/queryKeys";
+import { cancelCurrentSubscription } from "../../subscription/services/subscriptionService";
 import type { PaymentOrder } from "../types";
 import {
   cancelPayment,
   createSmsPackagePayment,
   createSubscriptionPayment,
-  getPayment,
   syncPayment,
 } from "../services/paymentService";
 import {
@@ -63,7 +63,10 @@ export function usePaymentOrderLifecycle(
         createSmsPackagePayment,
         syncPayment,
         cancelPayment,
-        getPayment,
+        cancelCurrentSubscription,
+        onSubscriptionCancellation: async () => {
+          await refreshSubscription().catch(() => undefined);
+        },
         getCheckoutUrl: getPaymentCheckoutUrl,
         shouldPersistPending: shouldPersistPendingPayment,
         isFulfilled: isPaymentFulfilled,

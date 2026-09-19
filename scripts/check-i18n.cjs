@@ -42,7 +42,6 @@ const registerSource = fs.readFileSync(
   "utf8",
 );
 const authScreenPaths = [
-  "OnboardingScreen.tsx",
   "RegisterSmsVerifyScreen.tsx",
   "PasswordResetRequestScreen.tsx",
   "PasswordResetConfirmScreen.tsx",
@@ -91,6 +90,8 @@ const accountFeaturePaths = [
   path.join(root, "src", "modules", "pin-auth", "screens", "PinGateScreen.tsx"),
   path.join(root, "src", "modules", "pin-auth", "screens", "PinChangeScreen.tsx"),
   path.join(root, "src", "screens", "ReportsScreen.tsx"),
+  path.join(root, "src", "screens", "NotificationsScreen.tsx"),
+  path.join(root, "src", "screens", "NotificationSettingsScreen.tsx"),
 ];
 const appSource = fs.readFileSync(path.join(root, "App.tsx"), "utf8");
 

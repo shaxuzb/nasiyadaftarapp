@@ -9,7 +9,10 @@ import {
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -47,6 +50,7 @@ const filters: { key: TxDateFilter; labelKey: TranslateKey }[] = [
 export function CustomerDetailScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const { locale, t } = useTranslation();
   const {
@@ -62,6 +66,7 @@ export function CustomerDetailScreen() {
   const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [footerHeight, setFooterHeight] = useState(0);
   const deletePending = useRef(false);
 
   const { txs, totalDebt, totalPaid } = useMemo(() => {
@@ -102,7 +107,9 @@ export function CustomerDetailScreen() {
   async function openContact(whatsApp = false) {
     if (!customer) return;
     const customerName =
-      customer.fullName.trim() || customer.phone || t("transactions.customerFallback");
+      customer.fullName.trim() ||
+      customer.phone ||
+      t("transactions.customerFallback");
     const message =
       `${t("customers.sheetTitle")}, ${customerName}!\n${APP_NAME}` +
       (balance === undefined
@@ -115,7 +122,9 @@ export function CustomerDetailScreen() {
       await Linking.openURL(url);
     } catch {
       showToast(
-        whatsApp ? t("transactions.whatsappError") : t("transactions.callError"),
+        whatsApp
+          ? t("transactions.whatsappError")
+          : t("transactions.callError"),
         "error",
       );
     }
@@ -124,7 +133,9 @@ export function CustomerDetailScreen() {
   async function share() {
     if (!customer) return;
     const customerName =
-      customer.fullName.trim() || customer.phone || t("transactions.customerFallback");
+      customer.fullName.trim() ||
+      customer.phone ||
+      t("transactions.customerFallback");
     const totals = history.data
       ? `\n${t("transactions.totalDebt")}: ${formatLocalizedCurrency(totalDebt, locale)}\n${t("transactions.totalPayment")}: ${formatLocalizedCurrency(totalPaid, locale)}`
       : "";
@@ -248,7 +259,24 @@ export function CustomerDetailScreen() {
   const showBlacklistBadge =
     customer.isBlacklisted === true || blacklistedOrganizationCount > 0;
   const displayName =
-    customer.fullName.trim() || customer.phone || t("transactions.customerFallback");
+    customer.fullName.trim() ||
+    customer.phone ||
+    t("transactions.customerFallback");
+
+  function openTransactionSheet() {
+    if (!customer || deleting) return;
+    openSheet("transaction", {
+      customerId,
+      customerName: displayName,
+      customerPhone: customer.phone,
+      onOpenProfile: () =>
+        navigation.navigate("CustomerDetail", {
+          customerId,
+        }),
+      currentBalance: balance,
+    });
+  }
+
   const deleteLabel = t("transactions.delete");
   const footerActions: {
     label: string;
@@ -521,7 +549,9 @@ export function CustomerDetailScreen() {
                 size={22}
                 color={theme.textSecondary}
               />
-              <Text style={styles.sectionTitle}>{t("transactions.history")}</Text>
+              <Text style={styles.sectionTitle}>
+                {t("transactions.history")}
+              </Text>
               {txDateFilter !== "all" && (
                 <Pressable
                   accessibilityRole="button"
@@ -563,7 +593,9 @@ export function CustomerDetailScreen() {
             style={({ pressed }) => [styles.txRow, pressed && styles.pressed]}
           >
             <View style={styles.txCopy}>
-              <Text style={styles.txDate}>{formatLocalizedDate(tx.date, locale)}</Text>
+              <Text style={styles.txDate}>
+                {formatLocalizedDate(tx.date, locale)}
+              </Text>
               <Text style={styles.txLabel}>{tx.note}</Text>
             </View>
             <Text
@@ -604,7 +636,12 @@ export function CustomerDetailScreen() {
           )
         }
       />
-      <View style={styles.footer}>
+      <View
+        onLayout={({ nativeEvent }) =>
+          setFooterHeight(nativeEvent.layout.height)
+        }
+        style={styles.footer}
+      >
         {footerActions.map((action) => (
           <Pressable
             key={action.label}
@@ -634,6 +671,27 @@ export function CustomerDetailScreen() {
           </Pressable>
         ))}
       </View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t("transactions.addTransaction")}
+        accessibilityState={{ disabled: deleting }}
+        disabled={deleting}
+        onPress={openTransactionSheet}
+        style={({ pressed }) => [
+          styles.floatingActionButton,
+          {
+            bottom: (footerHeight > 0 ? footerHeight : 92) + insets.bottom + 12,
+          },
+          pressed && styles.pressed,
+          deleting && styles.disabled,
+        ]}
+      >
+        <Ionicons
+          name="swap-horizontal-outline"
+          size={28}
+          color={theme.surface}
+        />
+      </Pressable>
       {editing && (
         <CustomerEditSheet
           customer={customer}
@@ -667,7 +725,7 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 16,
     },
     centered: { flex: 1, justifyContent: "center", alignItems: "center" },
-    list: { paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 },
+    list: { paddingHorizontal: 16, paddingBottom: 96, flexGrow: 1 },
     identity: {
       flexDirection: "row",
       alignItems: "center",
@@ -833,8 +891,26 @@ const createStyles = (theme: AppTheme) =>
       lineHeight: 14,
       textAlign: "center",
     },
+    floatingActionButton: {
+      position: "absolute",
+      right: 18,
+      bottom: 78,
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primary,
+      shadowColor: "#000",
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 8,
+      elevation: 10,
+      zIndex: 10,
+    },
     error: { paddingVertical: 12 },
     errorText: { color: theme.dangerColor, fontSize: 13 },
     loading: { marginVertical: 40 },
     pressed: { opacity: 0.65 },
+    disabled: { opacity: 0.5 },
   });

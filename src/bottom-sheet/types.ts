@@ -6,6 +6,7 @@ import type {
   UpdateCurrentOrganizationRequest,
 } from "../modules/organization/types";
 import type {
+  CurrentSubscription,
   SmsPackage,
   SubscriptionPlan,
 } from "../modules/subscription/types";
@@ -17,6 +18,7 @@ export type SheetType =
   | "language"
   | "passwordChange"
   | "organizationProfile"
+  | "subscriptionCancellation"
   | "paymentCheckout"
   | "paymentStatus"
   | "paymentDetail"
@@ -64,6 +66,11 @@ export interface PaymentDetailSheetProps {
   orderId: number;
 }
 
+export interface SubscriptionCancellationSheetProps {
+  currentSubscription: CurrentSubscription;
+  targetPlan: SubscriptionPlan;
+}
+
 export interface PendingPaymentsSheetProps {
   payments: PendingPaymentReference[];
 }
@@ -74,6 +81,7 @@ export interface SheetPropsMap {
   language: LanguageSheetProps;
   passwordChange: PasswordChangeSheetProps;
   organizationProfile: OrganizationProfileSheetProps;
+  subscriptionCancellation: SubscriptionCancellationSheetProps;
   paymentCheckout: PaymentCheckoutSheetProps;
   paymentStatus: PaymentStatusSheetProps;
   paymentDetail: PaymentDetailSheetProps;

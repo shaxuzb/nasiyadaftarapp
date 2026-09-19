@@ -26,6 +26,6 @@ assert.match(banner, /openSheet\("paymentStatus"/);
 assert.match(banner, /isPaymentTerminal/);
 assert.match(customers, /PendingPaymentBanner/);
 assert.match(app, /PaymentRecoveryGate/);
-assert.match(app, /enabled={!showOnboarding}/);
+assert.match(app, /<PaymentRecoveryGate\s+enabled=\{true\}\s*\/>/);
 
 console.log("Payment recovery integration contract passed");

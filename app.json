@@ -15,6 +15,10 @@
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.rbsx.nasiyadaftarapp",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSContactsUsageDescription": "Mijozni kontaktlardan tez qo'shish uchun kontaktlarga ruxsat bering.",
@@ -30,8 +34,10 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.rbsx.nasiyadaftarapp",
+      "googleServicesFile": "./google-services.json",
       "permissions": [
-        "android.permission.READ_CONTACTS"
+        "android.permission.READ_CONTACTS",
+        "android.permission.POST_NOTIFICATIONS"
       ]
     },
     "web": {
@@ -64,7 +70,17 @@
           "faceIDPermission": "Qarz Daftar hisobingizni himoyalash uchun Face ID’dan foydalanadi."
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      "./plugins/with-android-notification-icon",
+      [
+        "@react-native-firebase/app",
+        {
+          "ios": {
+            "disableSPM": true
+          }
+        }
+      ],
+      "@react-native-firebase/messaging"
     ],
     "extra": {
       "eas": {

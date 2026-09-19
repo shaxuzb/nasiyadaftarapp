@@ -31,6 +31,8 @@ import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
 import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
 import { SubscriptionScreen } from "../screens/SubscriptionScreen";
 import { PaymentHistoryScreen } from "../screens/PaymentHistoryScreen";
+import { NotificationsScreen } from "../screens/NotificationsScreen";
+import { NotificationSettingsScreen } from "../screens/NotificationSettingsScreen";
 
 import {
   AuthStackParamList,
@@ -44,6 +46,14 @@ import { PinGateScreen } from "../modules/pin-auth/screens/PinGateScreen";
 import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
 import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 import { useTranslation } from "../i18n";
+import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
+import { PushInAppBanner } from "../modules/push/components/PushInAppBanner";
+import {
+  consumePendingPushNavigation,
+  navigateToPushNotification,
+  navigationRef,
+} from "./navigationRef";
+import { shouldMountMainNavigator } from "./appNavigatorState";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -202,6 +212,11 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
       />
       <Stack.Screen name="Subscription" component={SubscriptionScreen} />
       <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+      <Stack.Screen name="Notifications" component={NotificationsScreen} />
+      <Stack.Screen
+        name="NotificationSettings"
+        component={NotificationSettingsScreen}
+      />
     </Stack.Navigator>
   );
 }
@@ -309,6 +324,37 @@ export function AppNavigator() {
     organizationSelectionReturnTab,
   } = useAuth();
   const { isResolving: isPinResolving, setupRequired, isLocked } = useAppLock();
+  const {
+    pendingNotificationId,
+    hasPendingNotification,
+    clearPendingNotification,
+  } = usePushNotifications();
+  const [navigationReady, setNavigationReady] = React.useState(false);
+  const [unlockedUserId, setUnlockedUserId] = React.useState<number | null>(
+    null,
+  );
+  const userId = user?.id ?? null;
+  const currentOrganizationId = currentOrganization?.id ?? null;
+
+  React.useEffect(() => {
+    if (userId === null) {
+      setUnlockedUserId(null);
+      return;
+    }
+
+    if (currentOrganizationId !== null && !setupRequired && !isLocked) {
+      setUnlockedUserId(userId);
+    }
+  }, [currentOrganizationId, isLocked, setupRequired, userId]);
+
+  const shouldMountMain = shouldMountMainNavigator({
+    userId,
+    organizationId: currentOrganizationId,
+    isLocked,
+    setupRequired,
+    unlockedUserId,
+  });
+  const showPinGate = Boolean(user && (setupRequired || isLocked));
 
   const navTheme = React.useMemo(() => {
     const baseTheme = resolvedScheme === "dark" ? DarkTheme : DefaultTheme;
@@ -326,6 +372,27 @@ export function AppNavigator() {
     };
   }, [resolvedScheme, theme]);
 
+  React.useEffect(() => {
+    const mainNavigatorActive = Boolean(
+      user && currentOrganization && !setupRequired && !isLocked,
+    );
+    if (!navigationReady || !mainNavigatorActive || !hasPendingNotification) {
+      return;
+    }
+
+    navigateToPushNotification(pendingNotificationId);
+    clearPendingNotification();
+  }, [
+    clearPendingNotification,
+    currentOrganization,
+    hasPendingNotification,
+    isLocked,
+    navigationReady,
+    pendingNotificationId,
+    setupRequired,
+    user,
+  ]);
+
   if (isBootstrapping || isOrganizationLoading || isPinResolving) {
     return (
       <View
@@ -337,20 +404,44 @@ export function AppNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <>
+      <NavigationContainer
+        ref={navigationRef}
+        onReady={() => {
+          setNavigationReady(true);
+          const pending = consumePendingPushNavigation();
+          if (pending !== undefined) navigateToPushNotification(pending);
+        }}
+        theme={navTheme}
+      >
       <BottomSheetBackHandler />
       {!user ? (
         <AuthNavigator />
-      ) : setupRequired || isLocked ? (
+      ) : shouldMountMain && currentOrganization ? (
+        <>
+          <MainNavigator
+            initialTab={organizationSelectionReturnTab ?? undefined}
+          />
+          {showPinGate ? (
+            <View
+              pointerEvents="auto"
+              style={[
+                StyleSheet.absoluteFillObject,
+                { backgroundColor: theme.background },
+              ]}
+            >
+              <PinGateScreen />
+            </View>
+          ) : null}
+        </>
+      ) : showPinGate ? (
         <PinGateScreen />
-      ) : currentOrganization ? (
-        <MainNavigator
-          initialTab={organizationSelectionReturnTab ?? undefined}
-        />
       ) : (
         <OrganizationNavigator hasOrganizations={organizations.length > 0} />
       )}
-    </NavigationContainer>
+      </NavigationContainer>
+      <PushInAppBanner />
+    </>
   );
 }
 

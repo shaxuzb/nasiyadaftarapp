@@ -74,6 +74,7 @@ export function parseCurrentSubscription(input: unknown): CurrentSubscription {
     endAt: nullableText(value.endAt),
     source: text(value.source, "system"),
     provider: nullableText(value.provider),
+    cancellationRequestedAt: nullableText(value.cancellationRequestedAt),
     maxOrganizations,
     maxClients,
     unlimitedOrganizations:

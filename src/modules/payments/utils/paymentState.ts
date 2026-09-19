@@ -1,5 +1,12 @@
 type PaymentState = {
-  status: "pending" | "paid" | "cancelled" | "failed" | "expired";
+  status:
+    | "pending"
+    | "holding"
+    | "paid"
+    | "cancelled"
+    | "failed"
+    | "expired"
+    | "refunded";
   isFulfilled: boolean;
 };
 
@@ -12,7 +19,8 @@ export function isPaymentTerminal(order: PaymentState): boolean {
     isPaymentFulfilled(order) ||
     order.status === "cancelled" ||
     order.status === "failed" ||
-    order.status === "expired"
+    order.status === "expired" ||
+    order.status === "refunded"
   );
 }
 

@@ -46,6 +46,7 @@ import {
   type PaidPlanCode,
   type SubscriptionUpgradeReason,
 } from "../utils/upgradeOptions";
+import { getPlanPurchaseStep } from "../utils/planPurchase";
 import {
   useBottomSheet,
   useBottomSheetBackHandler,
@@ -197,15 +198,18 @@ export function SubscriptionUpgradeModal({
   );
   const packages = packagesQuery.data ?? [];
 
-  const closeSheet = useCallback((afterDismiss?: () => void) => {
-    if (!presentedRef.current) {
-      onClose();
-      afterDismiss?.();
-      return;
-    }
-    afterDismissRef.current = afterDismiss;
-    sheet.current?.dismiss();
-  }, [onClose]);
+  const closeSheet = useCallback(
+    (afterDismiss?: () => void) => {
+      if (!presentedRef.current) {
+        onClose();
+        afterDismiss?.();
+        return;
+      }
+      afterDismissRef.current = afterDismiss;
+      sheet.current?.dismiss();
+    },
+    [onClose],
+  );
 
   const handleDismiss = useCallback(() => {
     presentedRef.current = false;
@@ -258,6 +262,19 @@ export function SubscriptionUpgradeModal({
 
   const openPlanPayment = useCallback(
     (plan: SubscriptionPlan) => {
+      if (
+        subscription &&
+        getPlanPurchaseStep(subscription, plan) === "cancel-current"
+      ) {
+        closeSheet(() =>
+          openSheet("subscriptionCancellation", {
+            currentSubscription: subscription,
+            targetPlan: plan,
+          }),
+        );
+        return;
+      }
+
       closeSheet(() =>
         openSheet("paymentCheckout", {
           productType: "subscription",
@@ -265,7 +282,7 @@ export function SubscriptionUpgradeModal({
         }),
       );
     },
-    [closeSheet, openSheet],
+    [closeSheet, openSheet, subscription],
   );
 
   const openPackagePayment = useCallback(
@@ -297,7 +314,9 @@ export function SubscriptionUpgradeModal({
               ]}
             >
               <Ionicons name="card-outline" size={19} color={theme.primary} />
-              <Text style={styles.packageActionText}>{t("subscription.purchasePackage")}</Text>
+              <Text style={styles.packageActionText}>
+                {t("subscription.purchasePackage")}
+              </Text>
             </Pressable>
           </View>
         </BottomSheetFooter>

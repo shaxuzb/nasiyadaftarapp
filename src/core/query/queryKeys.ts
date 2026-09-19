@@ -42,4 +42,11 @@ export const queryKeys = {
     scope: QueryScope,
     params: { months: number; topDebtorsLimit: number },
   ) => ["reports", scope, params] as const,
+  pushRoot: (scope: QueryScope) => ["push", scope] as const,
+  pushNotifications: (scope: QueryScope, pageSize?: number) =>
+    pageSize === undefined
+      ? (["push", scope, "notifications"] as const)
+      : (["push", scope, "notifications", pageSize] as const),
+  pushUnreadCount: (scope: QueryScope) =>
+    ["push", scope, "unread-count"] as const,
 };

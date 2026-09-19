@@ -1,5 +1,11 @@
 import React, { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -13,6 +19,7 @@ import { PaymentOrderContent } from "../../modules/payments/components/PaymentOr
 import { usePaymentOrderLifecycle } from "../../modules/payments/hooks/usePaymentOrderLifecycle";
 import { radius, spacing, typography } from "../../theme";
 import type { AppTheme } from "../../types";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export function PaymentDetailSheet({
   props,
@@ -20,6 +27,7 @@ export function PaymentDetailSheet({
 }: SheetRenderProps<"paymentDetail">) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const { locale, t } = useTranslation();
   const copy = getPaymentCopy(locale).detailSheet;
   const { confirm } = useConfirmDialog();
@@ -75,7 +83,12 @@ export function PaymentDetailSheet({
 
   if (isLoading && !order) {
     return (
-      <View style={styles.loading}>
+      <View
+        style={[
+          styles.loading,
+          { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
+        ]}
+      >
         <ActivityIndicator color={theme.primary} />
         <Text style={styles.muted}>{copy.loading}</Text>
       </View>
@@ -84,8 +97,17 @@ export function PaymentDetailSheet({
 
   if (!order) {
     return (
-      <View style={styles.loading}>
-        <Ionicons name="alert-circle-outline" size={28} color={theme.dangerColor} />
+      <View
+        style={[
+          styles.loading,
+          { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
+        ]}
+      >
+        <Ionicons
+          name="alert-circle-outline"
+          size={28}
+          color={theme.dangerColor}
+        />
         <Text style={styles.muted}>{copy.error}</Text>
         <Pressable onPress={() => closeSheet()} style={styles.secondaryButton}>
           <Text style={styles.secondaryText}>{copy.close}</Text>
@@ -95,11 +117,15 @@ export function PaymentDetailSheet({
   }
 
   const pending = order.status === "pending";
+  const holding = order.status === "holding";
   const paidPendingFulfillment = order.status === "paid" && !order.isFulfilled;
 
   return (
     <BottomSheetScrollView
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
+      ]}
       showsVerticalScrollIndicator={false}
     >
       <Text style={styles.title}>{copy.title}</Text>
@@ -107,7 +133,11 @@ export function PaymentDetailSheet({
 
       {error ? (
         <View style={styles.errorBox}>
-          <Ionicons name="alert-circle-outline" size={18} color={theme.dangerColor} />
+          <Ionicons
+            name="alert-circle-outline"
+            size={18}
+            color={theme.dangerColor}
+          />
           <Text style={styles.errorText}>{copy.error}</Text>
         </View>
       ) : null}
@@ -157,7 +187,7 @@ export function PaymentDetailSheet({
             <Text style={styles.dangerText}>{copy.cancel}</Text>
           </Pressable>
         </View>
-      ) : paidPendingFulfillment ? (
+      ) : holding || paidPendingFulfillment ? (
         <Pressable
           accessibilityRole="button"
           disabled={busy}
@@ -177,7 +207,10 @@ export function PaymentDetailSheet({
         <Pressable
           accessibilityRole="button"
           onPress={() => closeSheet()}
-          style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.pressed,
+          ]}
         >
           <Text style={styles.primaryText}>{copy.close}</Text>
         </Pressable>
@@ -195,7 +228,11 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.md,
       backgroundColor: theme.surface,
     },
-    title: { ...typography.headingLarge, color: theme.text, textAlign: "center" },
+    title: {
+      ...typography.headingLarge,
+      color: theme.text,
+      textAlign: "center",
+    },
     loading: {
       minHeight: 220,
       padding: spacing.lg,
@@ -203,7 +240,11 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: "center",
       gap: spacing.sm,
     },
-    muted: { ...typography.bodySmall, color: theme.textSecondary, textAlign: "center" },
+    muted: {
+      ...typography.bodySmall,
+      color: theme.textSecondary,
+      textAlign: "center",
+    },
     actions: { gap: spacing.sm },
     primaryButton: {
       minHeight: 50,
@@ -215,7 +256,11 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
     },
-    primaryText: { ...typography.bodyMedium, color: theme.surface, fontWeight: "800" },
+    primaryText: {
+      ...typography.bodyMedium,
+      color: theme.surface,
+      fontWeight: "800",
+    },
     secondaryButton: {
       minHeight: 48,
       borderRadius: radius.md,
@@ -228,7 +273,11 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
     },
-    secondaryText: { ...typography.bodyMedium, color: theme.text, fontWeight: "700" },
+    secondaryText: {
+      ...typography.bodyMedium,
+      color: theme.text,
+      fontWeight: "700",
+    },
     dangerButton: {
       minHeight: 46,
       borderRadius: radius.md,
@@ -236,7 +285,11 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: "center",
       backgroundColor: `${theme.dangerColor}12`,
     },
-    dangerText: { ...typography.bodySmall, color: theme.dangerColor, fontWeight: "800" },
+    dangerText: {
+      ...typography.bodySmall,
+      color: theme.dangerColor,
+      fontWeight: "800",
+    },
     errorBox: {
       flexDirection: "row",
       alignItems: "center",

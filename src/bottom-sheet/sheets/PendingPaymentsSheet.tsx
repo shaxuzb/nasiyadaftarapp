@@ -63,7 +63,12 @@ function PendingPaymentRow({
     order?.productName ??
     (payment.productType === "subscription" ? copy.plan : copy.package);
   const amount = order ? formatLocalizedCurrency(order.amount, locale) : null;
-  const status = order?.status === "paid" ? copy.activating : copy.pending;
+  const status =
+    order?.status === "paid"
+      ? copy.activating
+      : order?.status === "holding"
+        ? copy.holding
+        : copy.pending;
 
   return (
     <Pressable
@@ -112,7 +117,9 @@ export function PendingPaymentsSheet({
     <BottomSheetScrollView
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: Math.max(insets.bottom + 16, 28) },
+        {
+          paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl),
+        },
       ]}
       showsVerticalScrollIndicator={false}
     >
@@ -130,7 +137,10 @@ export function PendingPaymentsSheet({
           accessibilityRole="button"
           accessibilityLabel={copy.close}
           onPress={() => closeSheet()}
-          style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.closeButton,
+            pressed && styles.pressed,
+          ]}
         >
           <Ionicons name="close" size={23} color={theme.textSecondary} />
         </Pressable>
@@ -242,7 +252,11 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.primaryLight,
     },
     rowCopy: { flex: 1, minWidth: 0, gap: 2 },
-    rowTitle: { ...typography.bodyMedium, color: theme.text, fontWeight: "800" },
+    rowTitle: {
+      ...typography.bodyMedium,
+      color: theme.text,
+      fontWeight: "800",
+    },
     rowSubtitle: { ...typography.caption, color: theme.textSecondary },
     empty: {
       minHeight: 88,

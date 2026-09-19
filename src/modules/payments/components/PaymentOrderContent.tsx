@@ -34,11 +34,15 @@ export function PaymentOrderContent({ order }: { order: PaymentOrder }) {
   const successful = order.status === "paid" && order.isFulfilled;
   const accent = successful
     ? theme.successColor
-    : order.status === "failed" || order.status === "expired"
+    : order.status === "failed" ||
+        order.status === "expired" ||
+        order.status === "refunded"
       ? theme.dangerColor
       : order.status === "cancelled"
         ? theme.textMuted
-        : theme.primary;
+        : order.status === "holding"
+          ? theme.warningColor
+          : theme.primary;
 
   return (
     <>

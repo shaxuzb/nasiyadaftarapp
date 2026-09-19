@@ -54,6 +54,7 @@ import {
 import { queryClient } from "../core/query/queryClient";
 import { queryKeys } from "../core/query/queryKeys";
 import { getOrganizationSelectionBackAction } from "./organizationSelection";
+import { unregisterPushDevice } from "../modules/push/services/pushService";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -360,6 +361,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const session = getAuthSessionSync() ?? (await hydrateAuthSession());
     const paymentUserId = user?.id ?? session?.user.id ?? null;
 
+    if (session?.uniqueId) {
+      void unregisterPushDevice(session.uniqueId).catch(() => undefined);
+    }
+
     if (session?.refreshToken && session.uniqueId) {
       try {
         await logoutAccount({
@@ -375,6 +380,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await clearPaymentLifecycleForUser(paymentUserId).catch(() => undefined);
     }
     queryClient.removeQueries({ queryKey: queryKeys.paymentsRoot() });
+    queryClient.removeQueries({ queryKey: ["push"] });
     clearOrganizationQueries();
     await clearAuthSession();
     previousOrganizationRef.current = null;

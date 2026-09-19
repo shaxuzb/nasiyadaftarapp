@@ -9,10 +9,12 @@ const PRODUCT_TYPES: ReadonlySet<PaymentProductType> = new Set([
 
 const STATUSES: ReadonlySet<PaymentStatus> = new Set([
   "pending",
+  "holding",
   "paid",
   "cancelled",
   "failed",
   "expired",
+  "refunded",
 ]);
 
 function invalid(): never {
@@ -37,6 +39,11 @@ function positiveInteger(value: unknown): number {
     invalid();
   }
   return value;
+}
+
+function nullablePositiveInteger(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  return positiveInteger(value);
 }
 
 function nonNegativeNumber(value: unknown): number {
@@ -117,7 +124,7 @@ export function parsePaymentOrder(input: unknown): PaymentOrder {
 
     provider: nullableText(value.provider),
 
-    paymentServiceTransactionId: nullableText(
+    paymentServiceTransactionId: nullablePositiveInteger(
       value.paymentServiceTransactionId,
     ),
 
@@ -147,6 +154,5 @@ export function parsePaymentOrders(input: unknown): PaymentOrder[] {
     : Array.isArray(record(value).results)
       ? (record(value).results as unknown[])
       : invalid();
-
   return items.map(parsePaymentOrder);
 }

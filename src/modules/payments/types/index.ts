@@ -2,10 +2,12 @@ export type PaymentProductType = "subscription" | "sms_package";
 
 export type PaymentStatus =
   | "pending"
+  | "holding"
   | "paid"
   | "cancelled"
   | "failed"
-  | "expired";
+  | "expired"
+  | "refunded";
 
 export interface PaymentLinks {
   payme: string | null;
@@ -15,7 +17,7 @@ export interface PaymentOrder {
   id: number;
   productType: PaymentProductType;
   providerTransactionId: string | null;
-  paymentServiceTransactionId: string | null;
+  paymentServiceTransactionId: number | null;
   reversedDate: string | null;
   productId: number;
   productCode: string;

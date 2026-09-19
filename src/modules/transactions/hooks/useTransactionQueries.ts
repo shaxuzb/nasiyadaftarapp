@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys, QueryScope } from "../../../core/query/queryKeys";
+import { getQueryLoadingState } from "../../../core/query/queryLoading";
 import {
   getClientHistories,
   getClientHistory,
@@ -59,11 +60,18 @@ export function useTransactionQueries(
     [queryClient, scope],
   );
 
+  const historyLoading = getQueryLoadingState(
+    historyQuery.isPending,
+    historyQuery.isFetching,
+  );
+
   return {
     transactions: historyQuery.data ?? EMPTY_TRANSACTIONS,
     isLoading:
       clientIdsWithMissingBalance.length > 0 &&
-      (historyQuery.isPending || historyQuery.isFetching),
+      historyLoading.isLoading,
+    isRefreshing:
+      clientIdsWithMissingBalance.length > 0 && historyLoading.isRefreshing,
     error: historyQuery.error,
     loadCustomerHistory,
   };

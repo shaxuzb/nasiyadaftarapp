@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { invalidateClientDomain } from "../../../core/query/clientInvalidation";
 import { queryKeys, QueryScope } from "../../../core/query/queryKeys";
+import { getQueryLoadingState } from "../../../core/query/queryLoading";
 import {
   createClient,
   deleteClient,
@@ -18,6 +19,7 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
     queryKey: queryKeys.clients(scope),
     queryFn: ({ signal }) => getClients(undefined, signal),
     enabled,
+    staleTime: 30_000,
   });
 
   const addCustomerMutation = useMutation({
@@ -81,9 +83,15 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
     [deleteCustomerMutation],
   );
 
+  const clientsLoading = getQueryLoadingState(
+    clientsQuery.isPending,
+    clientsQuery.isFetching,
+  );
+
   return {
     customers: clientsQuery.data ?? EMPTY_CUSTOMERS,
-    isLoading: clientsQuery.isPending || clientsQuery.isFetching,
+    isLoading: clientsLoading.isLoading,
+    isRefreshing: clientsLoading.isRefreshing,
     error: clientsQuery.error,
     addCustomer,
     deleteCustomer,

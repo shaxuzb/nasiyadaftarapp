@@ -17,6 +17,7 @@ export interface CurrentSubscription {
   endAt: string | null;
   source: string;
   provider: string | null;
+  cancellationRequestedAt: string | null;
   maxOrganizations: number | null;
   maxClients: number | null;
   unlimitedOrganizations: boolean;

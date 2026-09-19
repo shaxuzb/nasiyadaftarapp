@@ -35,6 +35,7 @@ import type { UpdateCurrentOrganizationRequest } from "../modules/organization/t
 import { useBottomSheet } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import type { TranslateKey } from "../i18n";
+import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -143,6 +144,7 @@ export function SettingsScreen() {
   const { openSheet } = useBottomSheet();
   const { user, currentOrganization, logout, openOrganizationSelector } =
     useAuth();
+  const { permission: pushPermission } = usePushNotifications();
   const { saveOrganizationProfile } = useOrganizationProfileUpdate();
   const { openPhoneVerification, requireVerifiedPhone } = useAccountSecurity();
   const { confirm } = useConfirmDialog();
@@ -156,6 +158,12 @@ export function SettingsScreen() {
   const subscription = subscriptionQuery.data ?? user?.subscription;
   const isAdministrator =
     user?.role === "Administrator" && user?.roleId === 2;
+  const pushPermissionDescription =
+    pushPermission === "granted"
+      ? t("notifications.permissionGranted")
+      : pushPermission === "denied"
+        ? t("notifications.permissionDenied")
+        : t("notifications.permissionUndetermined");
   const isPaidSubscription = isPaidPlanCode(subscription?.planCode);
   const telegramEnabled = subscription?.telegramBotEnabled !== false;
   const subscriptionName = subscription
@@ -436,6 +444,15 @@ export function SettingsScreen() {
             title={t("profile.security")}
             description={t("profile.securityDescription")}
             onPress={() => navigation.navigate("AccountSecurity")}
+            isLast={false}
+          />
+          <ProfileMenuRow
+            icon="notifications-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title={t("notifications.permissionTitle")}
+            description={pushPermissionDescription}
+            onPress={() => navigation.navigate("NotificationSettings")}
             isLast={isAdministrator}
           />
           {!isAdministrator ? (

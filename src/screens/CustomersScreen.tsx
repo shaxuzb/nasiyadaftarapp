@@ -43,6 +43,7 @@ import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { AppInput } from "../components/AppInput";
 import { createBalanceMap } from "../modules/clients/utils/clientCalculations";
+import { sortCustomerList } from "../modules/clients/utils/clientList";
 import { useClientSearch } from "../modules/clients/hooks/useClientSearch";
 import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
 import { AppTheme, RootStackParamList } from "../types";
@@ -55,6 +56,7 @@ import {
 } from "../utils/masks";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
+import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -93,6 +95,8 @@ export function CustomersScreen() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const { openSheet } = useBottomSheet();
+  const unreadNotifications = useUnreadPushNotificationCount();
+  const unreadNotificationCount = unreadNotifications.data ?? 0;
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const phoneInputRef = useRef<TextInput>(null);
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
@@ -165,11 +169,14 @@ export function CustomersScreen() {
   }, [balanceMap, debtorOnly, sourceCustomers]);
 
   const listData = useMemo(() => {
-    return filteredCustomers.map((customer) => ({
-      customer,
-      balance: customer.currentBalance ?? balanceMap.get(customer.id) ?? 0,
-    }));
-  }, [balanceMap, filteredCustomers]);
+    return sortCustomerList(
+      filteredCustomers.map((customer) => ({
+        customer,
+        balance: customer.currentBalance ?? balanceMap.get(customer.id) ?? 0,
+      })),
+      debtorOnly,
+    );
+  }, [balanceMap, debtorOnly, filteredCustomers]);
 
   const customerCountLabel = useMemo(
     () =>
@@ -231,8 +238,7 @@ export function CustomersScreen() {
   function validateForm(): boolean {
     const e: { phone?: string } = {};
 
-    if (!isOptionalUzPhoneValid(phone))
-      e.phone = t("customers.phoneInvalid");
+    if (!isOptionalUzPhoneValid(phone)) e.phone = t("customers.phoneInvalid");
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -359,20 +365,48 @@ export function CustomersScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.titleBlock}>
-              <Text style={styles.screenTitle}>{t("customers.screenTitle")}</Text>
+              <Text style={styles.screenTitle}>
+                {t("customers.screenTitle")}
+              </Text>
               {/* <Text style={styles.screenSubtitle}>
                 Qarz va to'lovlarni boshqaring
               </Text> */}
             </View>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("customers.addCustomer")}
-              onPress={openAddCustomerSheet}
-              activeOpacity={0.82}
-              style={styles.addBtn}
-            >
-              <Ionicons name="add" size={26} color="#FFFFFF" />
-            </TouchableOpacity>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("notifications.unreadA11y", {
+                  count: unreadNotificationCount,
+                })}
+                onPress={() => navigation.navigate("Notifications")}
+                activeOpacity={0.82}
+                style={styles.notificationBtn}
+              >
+                <Ionicons
+                  name="notifications-outline"
+                  size={22}
+                  color={theme.text}
+                />
+                {unreadNotificationCount > 0 ? (
+                  <View style={styles.notificationBadge}>
+                    <Text style={styles.notificationBadgeText}>
+                      {unreadNotificationCount > 99
+                        ? "99+"
+                        : unreadNotificationCount}
+                    </Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("customers.addCustomer")}
+                onPress={openAddCustomerSheet}
+                activeOpacity={0.82}
+                style={styles.addBtn}
+              >
+                <Ionicons name="add" size={26} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           </View>
           <View style={styles.searchWrap}>
             <SearchBar
@@ -449,7 +483,11 @@ export function CustomersScreen() {
                         : refreshCustomers;
                       void refresh().catch((error) =>
                         showToast(
-                          getLocalizedApiErrorMessage(error, "customers.retryLoadError", t),
+                          getLocalizedApiErrorMessage(
+                            error,
+                            "customers.retryLoadError",
+                            t,
+                          ),
                           "error",
                         ),
                       );
@@ -475,7 +513,9 @@ export function CustomersScreen() {
                 }
                 description={
                   isSearchActive
-                    ? t("customers.emptySearchDescription", { query: debouncedQuery })
+                    ? t("customers.emptySearchDescription", {
+                        query: debouncedQuery,
+                      })
                     : debtorOnly
                       ? t("customers.emptyDebtorsDescription")
                       : t("customers.emptyDescription")
@@ -500,7 +540,11 @@ export function CustomersScreen() {
                   : refreshCustomers;
                 void refresh().catch((error) =>
                   showToast(
-                    getLocalizedApiErrorMessage(error, "customers.retryLoadError", t),
+                    getLocalizedApiErrorMessage(
+                      error,
+                      "customers.retryLoadError",
+                      t,
+                    ),
                     "error",
                   ),
                 );
@@ -637,6 +681,11 @@ const createStyles = (theme: AppTheme) =>
       alignItems: "center",
       gap: 16,
     },
+    headerActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
     titleBlock: {
       flex: 1,
       gap: 2,
@@ -662,6 +711,36 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: "center",
       backgroundColor: theme.primary,
       boxShadow: theme.cardShadow,
+    },
+    notificationBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    notificationBadge: {
+      position: "absolute",
+      top: -3,
+      right: -3,
+      minWidth: 18,
+      height: 18,
+      paddingHorizontal: 4,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 9,
+      backgroundColor: theme.dangerColor,
+      borderWidth: 2,
+      borderColor: theme.background,
+    },
+    notificationBadgeText: {
+      color: "#FFFFFF",
+      fontSize: 9,
+      lineHeight: 11,
+      fontWeight: "800",
     },
     searchWrap: {},
     searchMeta: {

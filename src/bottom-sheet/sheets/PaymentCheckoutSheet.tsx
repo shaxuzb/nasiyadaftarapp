@@ -1,5 +1,11 @@
 import React, { useMemo, useRef } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 
@@ -45,17 +51,7 @@ export function PaymentCheckoutSheet({
       : isPlan
         ? fill(copy.pay, { amount: formatLocalizedCurrency(amount, locale) })
         : copy.buyPackage;
-
-  const details = isPlan
-    ? [
-        props.plan.monthlySmsLimit === null
-          ? null
-          : fill(copy.monthlySms, { count: props.plan.monthlySmsLimit }),
-        props.plan.maxOrganizations === null
-          ? copy.unlimitedOrganizations
-          : fill(copy.organizations, { count: props.plan.maxOrganizations }),
-      ].filter((value): value is string => Boolean(value))
-    : [fill(copy.smsCount, { count: props.package.smsCount })];
+  const actionLabel = isCreating ? copy.processing : primaryLabel;
 
   const handleConfirm = async () => {
     if (submittingRef.current) return;
@@ -85,7 +81,9 @@ export function PaymentCheckoutSheet({
     <BottomSheetScrollView
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: insets.bottom },
+        {
+          paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl),
+        },
       ]}
       showsVerticalScrollIndicator={false}
     >
@@ -105,21 +103,17 @@ export function PaymentCheckoutSheet({
         <Text style={styles.price}>
           {formatLocalizedCurrency(amount, locale)}
         </Text>
-        <Text style={styles.hint}>{amount === 0 ? copy.freeHint : copy.externalHint}</Text>
-      </View>
-
-      <View style={styles.detailsCard}>
-        {details.map((detail) => (
-          <View key={detail} style={styles.detailRow}>
-            <Ionicons name="checkmark-circle" size={18} color={theme.successColor} />
-            <Text style={styles.detailText}>{detail}</Text>
-          </View>
-        ))}
+        <Text style={styles.hint}>
+          {amount === 0 ? copy.freeHint : copy.externalHint}
+        </Text>
       </View>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ disabled: isCreating, busy: isCreating }}
+        accessibilityState={{
+          disabled: isCreating,
+          busy: isCreating,
+        }}
         disabled={isCreating}
         onPress={() => void handleConfirm()}
         style={({ pressed }) => [
@@ -128,8 +122,10 @@ export function PaymentCheckoutSheet({
           isCreating && styles.disabled,
         ]}
       >
-        {isCreating ? <ActivityIndicator size="small" color={theme.surface} /> : null}
-        <Text style={styles.primaryText}>{primaryLabel}</Text>
+        {isCreating ? (
+          <ActivityIndicator size="small" color={theme.surface} />
+        ) : null}
+        <Text style={styles.primaryText}>{actionLabel}</Text>
       </Pressable>
 
       <Pressable
@@ -190,14 +186,6 @@ const createStyles = (theme: AppTheme) =>
       textAlign: "center",
       lineHeight: 20,
     },
-    detailsCard: {
-      gap: spacing.sm,
-      padding: spacing.md,
-      borderRadius: radius.lg,
-      backgroundColor: theme.inputBackground,
-    },
-    detailRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-    detailText: { flex: 1, ...typography.bodySmall, color: theme.text },
     primaryButton: {
       minHeight: 50,
       borderRadius: radius.md,
@@ -208,7 +196,11 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.xs,
       paddingHorizontal: spacing.md,
     },
-    primaryText: { ...typography.bodyMedium, color: theme.surface, fontWeight: "800" },
+    primaryText: {
+      ...typography.bodyMedium,
+      color: theme.surface,
+      fontWeight: "800",
+    },
     secondaryButton: {
       minHeight: 46,
       borderRadius: radius.md,
@@ -218,7 +210,11 @@ const createStyles = (theme: AppTheme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    secondaryText: { ...typography.bodyMedium, color: theme.text, fontWeight: "700" },
+    secondaryText: {
+      ...typography.bodyMedium,
+      color: theme.text,
+      fontWeight: "700",
+    },
     pressed: { opacity: 0.75 },
     disabled: { opacity: 0.55 },
   });

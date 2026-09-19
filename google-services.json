@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1047856631244",
+    "project_id": "nasiya-daftar-8b362",
+    "storage_bucket": "nasiya-daftar-8b362.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1047856631244:android:d0d0a2708a427d5900a169",
+        "android_client_info": {
+          "package_name": "com.rbsx.nasiyadaftarapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAuI-WCf4D71Lj8rj9JdMvAaWXxAcVKtSE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

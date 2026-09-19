@@ -38,6 +38,8 @@ export type RootStackParamList = {
   BlacklistSettings: undefined;
   Subscription: undefined;
   PaymentHistory: undefined;
+  Notifications: { highlightId?: number } | undefined;
+  NotificationSettings: undefined;
 };
 
 export type MainTabParamList = {
