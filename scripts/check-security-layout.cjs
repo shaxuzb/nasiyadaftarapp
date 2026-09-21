@@ -6,7 +6,8 @@ const uz = fs.readFileSync("src/i18n/translations/uz.ts", "utf8");
 const ru = fs.readFileSync("src/i18n/translations/ru.ts", "utf8");
 
 assert.match(security, /t\("security\.appLockSection"\)/);
-assert.match(security, /openSheet\("passwordChange",\s*\{\}\)/);
+assert.doesNotMatch(security, /openSheet\("passwordChange"/);
+assert.match(security, /t\("security\.providersSection"\)/);
 assert.match(uz, /appLockSection:/);
 assert.match(ru, /appLockSection:/);
 

@@ -51,17 +51,11 @@ export type MainTabParamList = {
 
 export type AuthStackParamList = {
   Login: undefined;
-  Register: undefined;
-  RegisterSmsVerify: {
-    registerPayload: {
-      userName: string;
-      password: string;
-      fullName: string;
-      phoneNumber: string;
-    };
+  PhoneAuthVerify: {
+    phoneNumber: string;
+    maskedPhone: string;
+    expiresInSeconds: number;
   };
-  PasswordResetRequest: undefined;
-  PasswordResetConfirm: { phone: string };
 };
 
 export type OrganizationStackParamList = {

@@ -1,6 +1,7 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,18 +12,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { OtpInput } from "../components/OtpInput";
-import { PrimaryButton } from "../components/PrimaryButton";
 import { DeleteAccountSection } from "../modules/account/components/DeleteAccountSection";
 import {
-  confirmGoogleChange,
-  requestGoogleChange,
-} from "../modules/account/services/accountService";
-import {
   getGoogleSignInErrorKey,
-  getGoogleEmailFromIdToken,
   requestGoogleIdToken,
 } from "../modules/auth/services/googleSignInService";
+import {
+  AppleSignInFlowError,
+  isAppleSignInAvailable,
+  requestAppleCredential,
+} from "../modules/auth/services/appleSignInService";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useConfirmDialog } from "../context/ConfirmDialogContext";
@@ -31,13 +30,9 @@ import { AppTheme, RootStackParamList } from "../types";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
 import { translatePinError } from "../modules/pin-auth/utils/pinErrors";
-import { useBottomSheet } from "../bottom-sheet";
 
 type Props = NativeStackScreenProps<RootStackParamList, "AccountSecurity">;
-type GoogleStep = "idle" | "confirm";
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
-
-const OTP_LENGTH = 6;
 
 interface ActionRowProps {
   icon: IconName;
@@ -160,7 +155,11 @@ export function AccountSecurityScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { t } = useTranslation();
-  const { user, updateUserProfile } = useAuth();
+  const {
+    user,
+    linkGoogleAccount,
+    linkAppleAccount,
+  } = useAuth();
   const {
     pinEnabled,
     biometric,
@@ -172,15 +171,28 @@ export function AccountSecurityScreen({ navigation }: Props) {
   } = useAppLock();
   const { showToast } = useToast();
   const { confirm } = useConfirmDialog();
-  const { openSheet } = useBottomSheet();
-
-  const [googleStep, setGoogleStep] = useState<GoogleStep>("idle");
-  const [googleCode, setGoogleCode] = useState("");
-  const [googleIdToken, setGoogleIdToken] = useState("");
-  const [googleLoading, setGoogleLoading] = useState(false);
+  const [providerLoading, setProviderLoading] = useState<
+    "google" | "apple" | null
+  >(null);
+  const [appleAvailable, setAppleAvailable] = useState(false);
   const [biometricLoading, setBiometricLoading] = useState(false);
 
-  const hasEmail = Boolean(user?.email?.trim());
+  useEffect(() => {
+    let active = true;
+    if (Platform.OS !== "ios") return undefined;
+
+    void isAppleSignInAvailable()
+      .then((available) => {
+        if (active) setAppleAvailable(available);
+      })
+      .catch(() => {
+        if (active) setAppleAvailable(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const handlePinRemove = useCallback(async () => {
     const accepted = await confirm({
@@ -200,66 +212,46 @@ export function AccountSecurityScreen({ navigation }: Props) {
     );
   }, [confirm, removePin, showToast, t]);
 
-  const resetGoogleChange = useCallback(() => {
-    setGoogleStep("idle");
-    setGoogleCode("");
-    setGoogleIdToken("");
-  }, []);
-
   const handleGoogleRequest = useCallback(async () => {
-    setGoogleLoading(true);
+    if (providerLoading) return;
+    setProviderLoading("google");
     try {
       const idToken = await requestGoogleIdToken();
-      await requestGoogleChange({ idToken });
-      setGoogleIdToken(idToken);
-      setGoogleStep("confirm");
-      showToast(t("security.googleCodeSent"), "success");
+      await linkGoogleAccount(idToken);
+      showToast(t("security.googleUpdated"), "success");
     } catch (error) {
       showToast(
         getLocalizedApiErrorMessage(error, getGoogleSignInErrorKey(error), t),
         "error",
       );
     } finally {
-      setGoogleLoading(false);
+      setProviderLoading(null);
     }
-  }, [showToast, t]);
+  }, [linkGoogleAccount, providerLoading, showToast, t]);
 
-  const handleGoogleConfirm = useCallback(async () => {
-    if (googleCode.length !== OTP_LENGTH) {
-      showToast(t("security.otpRequired"), "error");
-      return;
-    }
+  const handleAppleRequest = useCallback(async () => {
+    if (providerLoading) return;
 
-    setGoogleLoading(true);
+    setProviderLoading("apple");
     try {
-      const response = await confirmGoogleChange({
-        idToken: googleIdToken,
-        code: googleCode,
-      });
-      const confirmedEmail =
-        response?.user?.email ??
-        response?.email ??
-        getGoogleEmailFromIdToken(googleIdToken);
-      await updateUserProfile({ email: confirmedEmail ?? user?.email ?? null });
-      resetGoogleChange();
-      showToast(t("security.googleUpdated"), "success");
+      const credential = await requestAppleCredential();
+      await linkAppleAccount(credential.identityToken);
+      showToast(t("security.appleUpdated"), "success");
     } catch (error) {
+      if (
+        error instanceof AppleSignInFlowError &&
+        error.reason === "cancelled"
+      ) {
+        return;
+      }
       showToast(
-        getLocalizedApiErrorMessage(error, "security.googleUpdateError", t),
+        getLocalizedApiErrorMessage(error, "errors.generic", t),
         "error",
       );
     } finally {
-      setGoogleLoading(false);
+      setProviderLoading(null);
     }
-  }, [
-    googleCode,
-    googleIdToken,
-    resetGoogleChange,
-    showToast,
-    t,
-    updateUserProfile,
-    user?.email,
-  ]);
+  }, [linkAppleAccount, providerLoading, showToast, t]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -381,32 +373,42 @@ export function AccountSecurityScreen({ navigation }: Props) {
           )}
         </View>
 
-        <Text style={styles.sectionTitle}>{t("security.passwordSection")}</Text>
+        <Text style={styles.sectionTitle}>{t("security.providersSection")}</Text>
         <View style={styles.card}>
-          <ActionRow
-            icon="lock-closed-outline"
-            iconColor={theme.warningColor}
-            iconBackground={theme.inputBackground}
-            title={t("security.passwordChange")}
-            description={t("security.passwordDescription")}
-            onPress={() => openSheet("passwordChange", {})}
-          />
           <ActionRow
             icon="logo-google"
             iconColor={theme.dangerColor}
             iconBackground={theme.debtBg}
             title={t("security.googleAccount")}
             description={
-              hasEmail
-                ? (user?.email ?? t("security.googleLinked"))
+              user?.hasGoogleAccount
+                ? (user.email ?? t("security.googleLinked"))
                 : t("security.googleLink")
             }
             onPress={() => {
               void handleGoogleRequest();
             }}
-            loading={googleLoading && googleStep === "idle"}
-            isLast
+            loading={providerLoading === "google"}
+            isLast={Platform.OS !== "ios" || !appleAvailable}
           />
+          {Platform.OS === "ios" && appleAvailable ? (
+            <ActionRow
+              icon="logo-apple"
+              iconColor={theme.text}
+              iconBackground={theme.inputBackground}
+              title={t("security.appleAccount")}
+              description={
+                user?.hasAppleAccount
+                  ? t("security.appleLinked")
+                  : t("security.appleLink")
+              }
+              onPress={() => {
+                void handleAppleRequest();
+              }}
+              loading={providerLoading === "apple"}
+              isLast
+            />
+          ) : null}
         </View>
 
         <Text style={styles.sectionTitle}>{t("security.appLockSection")}</Text>
@@ -421,53 +423,6 @@ export function AccountSecurityScreen({ navigation }: Props) {
             isLast
           />
         </View>
-
-        {googleStep === "confirm" ? (
-          <View style={styles.formCard}>
-            <View style={styles.formHeader}>
-              <View style={styles.formIcon}>
-                <Ionicons
-                  name="logo-google"
-                  size={19}
-                  color={theme.dangerColor}
-                />
-              </View>
-              <View style={styles.formCopy}>
-                <Text style={styles.formTitle}>
-                  {t("security.confirmGoogle")}
-                </Text>
-                <Text style={styles.formDescription}>
-                  {t("security.googleCodeDescription")}
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("security.cancelGoogleChange")}
-                onPress={resetGoogleChange}
-                style={({ pressed }) => [
-                  styles.closeButton,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Ionicons name="close" size={20} color={theme.textMuted} />
-              </Pressable>
-            </View>
-            <OtpInput
-              value={googleCode}
-              onChange={setGoogleCode}
-              length={OTP_LENGTH}
-              autoFocus
-            />
-            <PrimaryButton
-              label={t("security.confirmGoogle")}
-              onPress={() => {
-                void handleGoogleConfirm();
-              }}
-              loading={googleLoading}
-              disabled={googleLoading}
-            />
-          </View>
-        ) : null}
 
         <DeleteAccountSection />
       </ScrollView>

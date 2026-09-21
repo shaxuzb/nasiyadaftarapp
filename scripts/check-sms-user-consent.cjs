@@ -49,7 +49,7 @@ const verifyPath = path.join(
   root,
   "src",
   "screens",
-  "RegisterSmsVerifyScreen.tsx",
+  "PhoneAuthVerifyScreen.tsx",
 );
 
 assert.equal(
@@ -114,7 +114,7 @@ assert.match(
 assert.doesNotMatch(hookSource, /@ebrimasamba\/react-native-sms-retriever/);
 assert.match(
   verifySource,
-  /await restartListening\(\)[\s\S]{0,240}await sendSmsCode\(/,
+  /await restartListening\(\)[\s\S]{0,240}requestPhoneAuthCode\(/,
 );
 
 const previousTsLoader = require.extensions[".ts"];

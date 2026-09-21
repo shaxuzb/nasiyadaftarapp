@@ -5,8 +5,7 @@ const read = (path) => fs.readFileSync(path, "utf8");
 
 const app = JSON.parse(read("app.json"));
 const pkg = JSON.parse(read("package.json"));
-const login = read("src/screens/LoginScreen.tsx");
-const register = read("src/screens/RegisterScreen.tsx");
+const phoneAuth = read("src/screens/PhoneAuthScreen.tsx");
 const appleButton = read("src/components/AppleAuthButton.tsx");
 const context = read("src/context/AuthContext.tsx");
 const appleApi = read("src/modules/auth/services/appleAuthApi.ts");
@@ -32,7 +31,7 @@ assert.match(context, /appleAccount\(payload\)/);
 assert.match(context, /completeAuth\(response\)/);
 assert.match(context, /loginWithGoogleIdToken/);
 
-for (const source of [login, register]) {
+for (const source of [phoneAuth]) {
   assert.match(source, /Platform\.OS === "ios"/);
   assert.match(source, /<AppleAuthButton/);
   assert.doesNotMatch(source, /AppleAuthentication\.AppleAuthenticationButton/);
@@ -40,14 +39,9 @@ for (const source of [login, register]) {
   assert.match(source, /loginWithAppleCredential/);
 }
 
-assert.match(register, /pendingAppleCredential/);
-assert.match(register, /appleNameRequired/);
-assert.match(register, /fullName: resolvedFullName/);
-
 assert.match(appleButton, /logo-apple/);
 assert.doesNotMatch(appleButton, /AppleAuthenticationButton/);
-assert.match(login, /variant="signIn"/);
-assert.match(register, /variant="signUp"/);
+assert.match(phoneAuth, /variant="signIn"/);
 
 assert.match(axios, /isPublicAccountRoute/);
 assert.match(route, /"\/account\/apple"/);

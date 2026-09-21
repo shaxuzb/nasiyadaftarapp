@@ -12,8 +12,7 @@ assert.equal(
   "Apple auth must be extracted into a reusable component",
 );
 const button = read("src", "components", "AppleAuthButton.tsx");
-const login = read("src", "screens", "LoginScreen.tsx");
-const register = read("src", "screens", "RegisterScreen.tsx");
+const phoneAuth = read("src", "screens", "PhoneAuthScreen.tsx");
 const uz = read("src", "i18n", "translations", "uz.ts");
 const ru = read("src", "i18n", "translations", "ru.ts");
 
@@ -43,12 +42,10 @@ assert.doesNotMatch(
   "Apple auth component must not lock the visual label to the native button",
 );
 
-assert.match(login, /import \{ AppleAuthButton \} from "\.\.\/components\/AppleAuthButton";/);
-assert.match(login, /<AppleAuthButton[\s\S]*variant="signIn"[\s\S]*loading=\{appleLoading\}/);
-assert.match(register, /import \{ AppleAuthButton \} from "\.\.\/components\/AppleAuthButton";/);
-assert.match(register, /<AppleAuthButton[\s\S]*variant="signUp"[\s\S]*loading=\{appleLoading\}/);
-assert.doesNotMatch(login, /AppleAuthentication\.AppleAuthenticationButton/);
-assert.doesNotMatch(register, /AppleAuthentication\.AppleAuthenticationButton/);
+assert.match(phoneAuth, /import \{ AppleAuthButton \} from "\.\.\/components\/AppleAuthButton";/);
+assert.match(phoneAuth, /variant="signIn"/);
+assert.match(phoneAuth, /loading=\{appleLoading\}/);
+assert.doesNotMatch(phoneAuth, /AppleAuthentication\.AppleAuthenticationButton/);
 
 assert.match(uz, /appleSigningIn:/);
 assert.match(uz, /appleSignIn:/);

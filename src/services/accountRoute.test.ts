@@ -6,10 +6,10 @@ function assert(value: boolean, message: string) {
 }
 
 for (const path of [
-  '/account/login',
-  '/account/register',
   '/account/google',
   '/account/apple',
+  '/account/phone/request',
+  '/account/phone/confirm',
   '/account/refresh',
   '/account/logout',
   '/api/account/apple',
@@ -23,6 +23,8 @@ for (const path of [
   '/account/apple-extra',
   '/foo/account/apple',
   '/account/profile',
+  '/account/profile/phone/request',
+  '/account/profile/phone/confirm',
   '',
 ]) {
   assert(!isPublicAccountRoute(path), `${path} must not be a public account route`);

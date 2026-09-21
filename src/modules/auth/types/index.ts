@@ -3,12 +3,16 @@ import type { CurrentSubscription } from "../../subscription/types";
 
 export interface AuthUser {
   id: number;
-  userName: string;
+  userName?: string | null;
   phoneNumber?: string | null;
   email?: string | null;
   phoneVerified?: boolean;
-  fullName: string;
+  fullName: string | null;
   authProvider?: string;
+  authMethods?: string[];
+  hasPhoneNumber?: boolean;
+  hasGoogleAccount?: boolean;
+  hasAppleAccount?: boolean;
   organizations?: OrganizationMembership[];
   organizationId?: number | null;
   organizationName?: string | null;
@@ -26,20 +30,21 @@ export interface AuthUser {
   subscription?: CurrentSubscription;
 }
 
-export interface RegisterRequest {
-  userName: string;
-  password: string;
-  fullName: string;
+export interface GoogleLoginRequest {
+  idToken: string;
+}
+
+export interface PhoneAuthRequest {
   phoneNumber: string;
 }
 
-export interface LoginRequest {
-  userName: string;
-  password: string;
+export interface PhoneAuthConfirmRequest extends PhoneAuthRequest {
+  code: string;
 }
 
-export interface GoogleLoginRequest {
-  idToken: string;
+export interface PhoneAuthRequestResponse {
+  maskedPhone: string;
+  expiresInSeconds: number;
 }
 
 export interface AppleLoginRequest {

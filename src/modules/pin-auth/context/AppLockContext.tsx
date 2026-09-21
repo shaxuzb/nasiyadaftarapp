@@ -20,6 +20,7 @@ import type { BiometricCapability } from "../types";
 import { validatePin } from "../utils/pinValidation";
 import { shouldLockAfterInactivity } from "../utils/appInactivity";
 import type { PinErrorCode } from "../utils/pinErrors";
+import { getAuthDisplayName } from "../utils/userDisplay";
 import { useTranslation } from "../../../i18n";
 
 type UnlockResult = {
@@ -110,7 +111,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       if (!active || userIdRef.current !== user.id) return;
       const updatedRecord = await pinStorage.updateDisplayMetadata(
         user.id,
-        user.fullName,
+        getAuthDisplayName(user.fullName),
         maskedContact(user.phoneNumber, user.email),
       );
       if (active) {
@@ -167,7 +168,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       await pinStorage.setPin({
         userId: user.id,
         pin,
-        displayName: user.fullName,
+        displayName: getAuthDisplayName(user.fullName),
         maskedContact: maskedContact(user.phoneNumber, user.email),
       });
       let enabled = false;

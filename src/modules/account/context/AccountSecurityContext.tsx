@@ -24,7 +24,7 @@ const AccountSecurityContext = createContext<
 >(undefined);
 
 export function AccountSecurityProvider({ children }: { children: ReactNode }) {
-  const { user, updateUserProfile } = useAuth();
+  const { user, linkPhoneWithCode } = useAuth();
   const { isResolving, setupRequired, isLocked } = useAppLock();
   const [visible, setVisible] = useState(false);
   const afterVerifiedRef = useRef<(() => void) | undefined>(undefined);
@@ -58,13 +58,13 @@ export function AccountSecurityProvider({ children }: { children: ReactNode }) {
   }, [closePhoneVerification, isLocked, isResolving, setupRequired]);
 
   const handleVerified = useCallback(
-    async (phoneNumber: string) => {
-      await updateUserProfile({ phoneNumber, phoneVerified: true });
+    async (phoneNumber: string, code: string) => {
+      await linkPhoneWithCode(phoneNumber, code);
       const afterVerified = afterVerifiedRef.current;
       afterVerifiedRef.current = undefined;
       afterVerified?.();
     },
-    [updateUserProfile],
+    [linkPhoneWithCode],
   );
 
   const value = useMemo<AccountSecurityContextValue>(

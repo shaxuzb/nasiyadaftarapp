@@ -315,7 +315,6 @@ export function CustomerDetailScreen() {
       onPress: () => void remove(),
     },
   ];
-
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       {header}
@@ -325,6 +324,9 @@ export function CustomerDetailScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        removeClippedSubviews
         refreshing={detail.isRefetching || history.isRefetching}
         onRefresh={() => {
           void detail.refetch();

@@ -10,7 +10,16 @@ assert.match(screen, /t\("subscription\.packages"\)/);
 assert.match(screen, /openSheet\("paymentCheckout"/);
 assert.match(screen, /productType:\s*"subscription"/);
 assert.match(screen, /productType:\s*"sms_package"/);
-assert.match(screen, /navigation\.navigate\("PaymentHistory"\)/);
+assert.doesNotMatch(
+  screen,
+  /navigation\.navigate\("PaymentHistory"\)/,
+  "Payment history must remain outside the subscription catalog",
+);
+assert.match(
+  settings,
+  /navigation\.navigate\("PaymentHistory"\)/,
+  "Payment history must be accessible from profile/settings",
+);
 assert.match(screen, /AdminContactButton/);
 assert.doesNotMatch(screen, /openAdminContact\(\)/);
 assert.match(screen, /plan\.transactionSmsEnabled/);

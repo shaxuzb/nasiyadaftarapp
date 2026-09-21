@@ -97,6 +97,11 @@ export function CustomersScreen() {
   const { openSheet } = useBottomSheet();
   const unreadNotifications = useUnreadPushNotificationCount();
   const unreadNotificationCount = unreadNotifications.data ?? 0;
+  const isAdministrator =
+    user?.role === "Administrator" && user?.roleId === 2;
+  const isPremium =
+    user?.subscription?.planCode?.trim().toUpperCase() === "PREMIUM";
+  const showProBadge = !isAdministrator && !isPremium;
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const phoneInputRef = useRef<TextInput>(null);
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
@@ -373,6 +378,22 @@ export function CustomersScreen() {
               </Text> */}
             </View>
             <View style={styles.headerActions}>
+          {showProBadge ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t("subscription.openPlans")}
+                  onPress={() => navigation.navigate("Subscription")}
+                  activeOpacity={0.82}
+                  style={styles.proButton}
+                >
+                  <Ionicons
+                    name="diamond-outline"
+                    size={16}
+                    color={theme.primary}
+                  />
+                  <Text style={styles.proButtonText}>PRO</Text>
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={t("notifications.unreadA11y", {
@@ -685,6 +706,26 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
+    },
+    proButton: {
+      minWidth: 58,
+      height: 36,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 4,
+      paddingHorizontal: 9,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: `${theme.primary}55`,
+      backgroundColor: theme.primaryLight,
+    },
+    proButtonText: {
+      color: theme.primary,
+      fontSize: 11,
+      lineHeight: 14,
+      fontWeight: "900",
+      letterSpacing: 0.4,
     },
     titleBlock: {
       flex: 1,

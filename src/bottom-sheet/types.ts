@@ -16,7 +16,6 @@ export type SheetType =
   | "transaction"
   | "transactionDetail"
   | "language"
-  | "passwordChange"
   | "organizationProfile"
   | "subscriptionCancellation"
   | "paymentCheckout"
@@ -39,8 +38,6 @@ export interface TransactionDetailSheetProps {
 }
 
 export type LanguageSheetProps = Record<never, never>;
-
-export type PasswordChangeSheetProps = Record<never, never>;
 
 export interface OrganizationProfileSheetProps {
   organization: OrganizationMembership;
@@ -79,7 +76,6 @@ export interface SheetPropsMap {
   transaction: TransactionSheetProps;
   transactionDetail: TransactionDetailSheetProps;
   language: LanguageSheetProps;
-  passwordChange: PasswordChangeSheetProps;
   organizationProfile: OrganizationProfileSheetProps;
   subscriptionCancellation: SubscriptionCancellationSheetProps;
   paymentCheckout: PaymentCheckoutSheetProps;

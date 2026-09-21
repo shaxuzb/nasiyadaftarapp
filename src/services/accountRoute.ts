@@ -1,8 +1,8 @@
 const PUBLIC_ACCOUNT_PATHS = new Set([
-  "/account/login",
-  "/account/register",
   "/account/google",
   "/account/apple",
+  "/account/phone/request",
+  "/account/phone/confirm",
   "/account/refresh",
   "/account/logout",
 ]);

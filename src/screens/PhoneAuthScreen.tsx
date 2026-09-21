@@ -1,67 +1,69 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Ionicons } from "@expo/vector-icons";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
+  Platform,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  StyleSheet,
-  Image,
-  Platform,
 } from "react-native";
-import { useTheme } from "../hooks/useTheme";
-import { spacing, typography } from "../theme";
+import { Ionicons } from "@expo/vector-icons";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+
+import { AdminContactButton } from "../modules/support/components/AdminContactButton";
+import { AppleAuthButton } from "../components/AppleAuthButton";
 import { AppInput } from "../components/AppInput";
+import { LanguageSelectorButton } from "../components/LanguageSelectorButton";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { APP_NAME } from "../constants";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
-import { isValidUzPhone, toStoredUzPhone, uzPhoneMask } from "../utils/masks";
-import {
-  getGoogleSignInErrorKey,
-  requestGoogleIdToken,
-} from "../modules/auth/services/googleSignInService";
+import { useTranslation } from "../i18n";
+import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import {
   AppleSignInFlowError,
   isAppleSignInAvailable,
   requestAppleCredential,
 } from "../modules/auth/services/appleSignInService";
-import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
-import { AdminContactButton } from "../modules/support/components/AdminContactButton";
-import { LanguageSelectorButton } from "../components/LanguageSelectorButton";
-import { AppleAuthButton } from "../components/AppleAuthButton";
-import { useTranslation } from "../i18n";
-import type { AppleLoginRequest } from "../modules/auth/types";
+import {
+  getGoogleSignInErrorKey,
+  requestGoogleIdToken,
+} from "../modules/auth/services/googleSignInService";
+import { requestPhoneAuthCode } from "../services/authApi";
+import { useTheme } from "../hooks/useTheme";
+import { APP_NAME } from "../constants";
+import { radius, spacing, typography } from "../theme";
+import {
+  formatUzPhoneFromDigits,
+  isValidUzPhone,
+  toStoredUzPhone,
+  uzPhoneMask,
+} from "../utils/masks";
 
 interface Props {
-  onGoToLogin: () => void;
-  onGoToSmsVerify: (params: {
-    registerPayload: {
-      userName: string;
-      password: string;
-      fullName: string;
-      phoneNumber: string;
-    };
+  onGoToVerify: (params: {
+    phoneNumber: string;
+    maskedPhone: string;
+    expiresInSeconds: number;
   }) => void;
 }
 
-export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
+export function PhoneAuthScreen({ onGoToVerify }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { loginWithGoogleIdToken, loginWithAppleCredential } = useAuth();
-
-  const [fullName, setFullName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("+998 ");
-  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
-  const [pendingAppleCredential, setPendingAppleCredential] =
-    useState<AppleLoginRequest | null>(null);
-  const [appleNameError, setAppleNameError] = useState<string | undefined>();
+
+  const canSubmit = useMemo(
+    () => isValidUzPhone(phoneNumber) && !loading,
+    [loading, phoneNumber],
+  );
 
   useEffect(() => {
     let active = true;
@@ -80,66 +82,65 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
     };
   }, []);
 
-  const canSubmit = useMemo(() => {
-    return (
-      fullName.trim().length > 2 &&
-      isValidUzPhone(phoneNumber) &&
-      password.trim().length >= 6
-    );
-  }, [fullName, password, phoneNumber]);
+  const handlePhoneChange = useCallback((value: string) => {
+    setPhoneNumber(value);
+  }, []);
 
-  const handleRegister = () => {
-    if (!canSubmit) {
-      showToast(t("auth.register.invalidForm"), "error");
+  const handleRequestCode = useCallback(async () => {
+    if (!isValidUzPhone(phoneNumber)) {
+      showToast(t("auth.phoneAuth.phoneError"), "error");
       return;
     }
 
-    const safePhone = toStoredUzPhone(phoneNumber);
-    const userName = safePhone;
+    const normalizedPhone = toStoredUzPhone(phoneNumber);
+    setLoading(true);
+    try {
+      const response = await requestPhoneAuthCode({
+        phoneNumber: normalizedPhone,
+      });
+      onGoToVerify({
+        phoneNumber: normalizedPhone,
+        maskedPhone: response.maskedPhone,
+        expiresInSeconds: response.expiresInSeconds,
+      });
+      showToast(t("auth.phoneAuth.smsSent"), "success");
+    } catch (error) {
+      showToast(
+        getLocalizedApiErrorMessage(
+          error,
+          "auth.phoneAuth.requestError",
+          t,
+        ),
+        "error",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, [onGoToVerify, phoneNumber, showToast, t]);
 
-    onGoToSmsVerify({
-      registerPayload: {
-        userName,
-        password,
-        fullName: fullName.trim(),
-        phoneNumber: safePhone,
-      },
-    });
-  };
+  const handleGoogleLogin = useCallback(async () => {
+    if (googleLoading || loading) return;
 
-  const handleGoogleLogin = async () => {
     try {
       setGoogleLoading(true);
       const idToken = await requestGoogleIdToken();
       await loginWithGoogleIdToken(idToken);
-      showToast(t("auth.register.googleSuccess"), "success");
+      showToast(t("auth.login.googleSuccess"), "success");
     } catch (error) {
       showToast(t(getGoogleSignInErrorKey(error)), "error");
     } finally {
       setGoogleLoading(false);
     }
-  };
+  }, [googleLoading, loading, loginWithGoogleIdToken, showToast, t]);
 
-  const handleAppleLogin = async () => {
-    if (appleLoading) return;
+  const handleAppleLogin = useCallback(async () => {
+    if (appleLoading || loading) return;
 
     setAppleLoading(true);
     try {
-      const credential =
-        pendingAppleCredential ?? (await requestAppleCredential());
-      const resolvedFullName = credential.fullName ?? fullName.trim();
-      if (resolvedFullName.length < 3) {
-        setPendingAppleCredential(credential);
-        setAppleNameError(t("auth.register.appleNameRequired"));
-        showToast(t("auth.register.appleNameRequired"), "error");
-        return;
-      }
-
-      setPendingAppleCredential(null);
-      setAppleNameError(undefined);
+      const credential = await requestAppleCredential();
       await loginWithAppleCredential({
-        ...credential,
-        fullName: resolvedFullName,
+        identityToken: credential.identityToken,
       });
       showToast(t("auth.login.success"), "success");
     } catch (error) {
@@ -156,7 +157,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
     } finally {
       setAppleLoading(false);
     }
-  };
+  }, [appleLoading, loading, loginWithAppleCredential, showToast, t]);
 
   return (
     <ScreenContainer
@@ -180,48 +181,44 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
               />
             </View>
             <Text style={[styles.title, { color: theme.text }]}>
-              {t("auth.register.title")}
+              {t("auth.login.title")}
             </Text>
-            <Text style={[styles.desc, { color: theme.textSecondary }]}>
-              {t("auth.register.description", { appName: APP_NAME })}
+            <Text style={[styles.desc, { color: theme.textSecondary }]}> 
+              {t("auth.login.description", { appName: APP_NAME })}
             </Text>
           </View>
 
           <View style={styles.form}>
             <AppInput
-              label={t("auth.register.fullNameLabel")}
-              value={fullName}
-              onChangeText={(value) => {
-                setFullName(value);
-                if (appleNameError) setAppleNameError(undefined);
-              }}
-              iconName="person-outline"
-              placeholder={t("auth.register.fullNamePlaceholder")}
-              error={appleNameError}
-            />
-            <AppInput
-              label={t("auth.register.phoneLabel")}
+              label={t("auth.phoneAuth.phoneLabel")}
               uncontrolled
               defaultValue={phoneNumber}
-              onChangeText={setPhoneNumber}
-              keyboardType="phone-pad"
-              iconName="call-outline"
-              placeholder={t("auth.register.phonePlaceholder")}
+              onChangeText={handlePhoneChange}
+              onChangeRawText={(raw) => {
+                if (raw.length === 9) {
+                  setPhoneNumber(formatUzPhoneFromDigits(raw));
+                }
+              }}
               mask={uzPhoneMask}
-            />
-            <AppInput
-              label={t("auth.register.passwordLabel")}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              passwordToggle
-              iconName="lock-closed-outline"
-              placeholder="******"
+              autoCapitalize="none"
+              autoCorrect={false}
+              iconName="call-outline"
+              placeholder={t("auth.phoneAuth.phonePlaceholder")}
+              keyboardType="phone-pad"
+              textContentType="telephoneNumber"
+              autoComplete="tel"
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                void handleRequestCode();
+              }}
             />
 
             <PrimaryButton
-              label={`${t("auth.register.action")}`}
-              onPress={handleRegister}
+              label={t("auth.phoneAuth.sendCode")}
+              onPress={() => {
+                void handleRequestCode();
+              }}
+              loading={loading}
               disabled={!canSubmit}
               style={styles.authAction}
             />
@@ -241,7 +238,7 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
 
           {Platform.OS === "ios" && appleAvailable ? (
             <AppleAuthButton
-              variant="signUp"
+              variant="signIn"
               loading={appleLoading}
               onPress={() => {
                 void handleAppleLogin();
@@ -259,10 +256,12 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
                 opacity: googleLoading ? 0.7 : 1,
               },
             ]}
-            onPress={handleGoogleLogin}
-            disabled={googleLoading}
+            onPress={() => {
+              void handleGoogleLogin();
+            }}
+            disabled={googleLoading || loading}
             accessibilityState={{
-              disabled: googleLoading,
+              disabled: googleLoading || loading,
               busy: googleLoading,
             }}
           >
@@ -278,16 +277,6 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.footerRow}>
-            <Text style={[typography.bodySmall, { color: theme.textMuted }]}>
-              {t("auth.register.hasAccount")}
-            </Text>
-            <TouchableOpacity onPress={onGoToLogin}>
-              <Text style={[styles.link, { color: theme.primary }]}>
-                {t("auth.register.loginAction")}
-              </Text>
-            </TouchableOpacity>
-          </View>
           <AdminContactButton style={styles.adminContact} />
         </View>
       </KeyboardAvoidingView>
@@ -295,19 +284,18 @@ export function RegisterScreen({ onGoToLogin, onGoToSmsVerify }: Props) {
   );
 }
 
+export const phoneAuthInputFormatter = (value: string): string =>
+  formatUzPhoneFromDigits(value);
+
 const styles = StyleSheet.create({
-  screenInner: {
-    flex: 1,
-  },
+  screenInner: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
   },
-  keyboardWrap: {
-    flex: 1,
-  },
+  keyboardWrap: { flex: 1 },
   wrapper: {
     flex: 1,
     justifyContent: "center",
@@ -317,10 +305,9 @@ const styles = StyleSheet.create({
   },
   topBar: {
     position: "absolute",
-    top: spacing.sm,
-    right: spacing.md,
+    top: 0,
+    right: 0,
     alignItems: "flex-end",
-    marginBottom: spacing.md,
   },
   headerWrap: {
     alignItems: "center",
@@ -334,33 +321,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: spacing.md,
   },
-  logo: {
-    width: 62,
-    height: 62,
-    borderRadius: 20,
-  },
-  title: {
-    ...typography.displayMedium,
-    textAlign: "center",
-  },
+  logo: { width: 62, height: 62, borderRadius: 20 },
+  title: { ...typography.displayMedium, textAlign: "center" },
   desc: {
     ...typography.bodyMedium,
     maxWidth: 340,
     textAlign: "center",
     marginTop: spacing.xs,
   },
-  form: {
-    width: "100%",
-  },
-  authAction: {
-    minHeight: 50,
-    borderRadius: 18,
-    marginTop: spacing.xs,
-  },
-  link: {
-    ...typography.label,
-    fontWeight: "700",
-  },
+  form: { width: "100%" },
+  authAction: { minHeight: 50, marginTop: spacing.xs },
   divider: {
     flexDirection: "row",
     alignItems: "center",
@@ -368,36 +338,19 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    ...typography.bodyMedium,
-  },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { ...typography.bodyMedium },
   googleBtn: {
     marginTop: spacing.sm,
-    borderWidth: 1,
     minHeight: 52,
-    borderRadius: 18,
+    borderWidth: 1,
+    borderRadius: radius.md,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
-  providerLabel: {
-    ...typography.bodyLarge,
-    fontWeight: "600",
-  },
-  footerRow: {
-    marginTop: spacing.lg,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: spacing.xs,
-    flexWrap: "wrap",
-  },
-  adminContact: {
-    marginTop: spacing.sm,
-  },
+  providerLabel: { ...typography.label, fontWeight: "600" },
+  adminContact: { marginTop: spacing.lg },
 });

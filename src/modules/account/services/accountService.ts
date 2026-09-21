@@ -1,8 +1,4 @@
 export {
-  confirmGoogleChange,
-  confirmPasswordChange,
-  confirmPhoneChange,
-  requestGoogleChange,
-  requestPasswordChange,
-  requestPhoneChange,
+  confirmProfilePhone,
+  requestProfilePhoneCode,
 } from "../../../services/authApi";

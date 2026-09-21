@@ -7,15 +7,19 @@ const source = fs.readFileSync(
   path.join(root, "src", "components", "OtpInput.tsx"),
   "utf8",
 );
+const config = fs.readFileSync(
+  path.join(root, "src", "modules", "auth", "utils", "otpInputConfig.ts"),
+  "utf8",
+);
 
 assert.match(
-  source,
-  /textContentType="oneTimeCode"/,
+  config,
+  /textContentType:\s*"oneTimeCode"/,
   "iOS OTP input must use the native oneTimeCode content type",
 );
 assert.match(
-  source,
-  /autoComplete="sms-otp"/,
+  config,
+  /autoComplete:\s*"sms-otp"/,
   "Android OTP input must keep sms-otp while iOS uses textContentType",
 );
 assert.doesNotMatch(

@@ -64,7 +64,6 @@ import { renderSmsTemplate } from "../modules/client-sms/utils/smsParsing";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-const PAGE_SIZE = 20;
 type BooleanFilter = "blacklisted" | "hasDebt" | "canSend";
 
 function isBottomTabNavigation(navigation: Nav) {
@@ -115,7 +114,6 @@ function ClientSmsContent({
   const { showToast } = useToast();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [pageNumber, setPageNumber] = useState(1);
   const [filters, setFilters] = useState<
     Partial<Record<BooleanFilter, boolean>>
   >({});
@@ -130,21 +128,15 @@ function ClientSmsContent({
     return () => clearTimeout(timer);
   }, [search]);
   useEffect(() => {
-    setPageNumber(1);
     setSelected(new Set());
     setBulkSummary(null);
   }, [debouncedSearch, filters]);
-  useEffect(() => {
-    setSelected(new Set());
-  }, [pageNumber]);
   const queryFilters = useMemo<SmsRecipientFilters>(
     () => ({
       search: debouncedSearch || undefined,
       ...filters,
-      pageNumber,
-      pageSize: PAGE_SIZE,
     }),
-    [debouncedSearch, filters, pageNumber],
+    [debouncedSearch, filters],
   );
   const recipients = useSmsRecipients(queryFilters);
   const smsTemplate = useSmsTemplate();
@@ -152,7 +144,10 @@ function ClientSmsContent({
   const sendBulk = useSendBulkDebtSms();
   const rows = recipients.data?.results ?? [];
   const count = recipients.data?.count ?? 0;
-  const pageCount = Math.max(1, Math.ceil(count / PAGE_SIZE));
+  const hasSelectableRecipients = useMemo(
+    () => rows.some(isSmsRecipientSelectable),
+    [rows],
+  );
   const smsQuota = user?.subscription?.sms;
   const smsLimitReached = smsQuota?.totalRemaining === 0;
   const blacklistAvailable = user?.subscription?.blacklistEnabled !== false;
@@ -167,6 +162,7 @@ function ClientSmsContent({
       setSelected((current) => toggleRecipientSelection(current, id)),
     [],
   );
+  const keyExtractor = useCallback((item: SmsRecipient) => String(item.id), []);
   const getTemplateForConfirmation = useCallback(async () => {
     const template = smsTemplate.data ?? (await smsTemplate.refetch()).data;
     if (!template) throw new Error(t("sms.templateLoadError"));
@@ -272,6 +268,36 @@ function ClientSmsContent({
       submitting.current = false;
     }
   };
+  const renderRecipient = useCallback(
+    ({ item }: { item: SmsRecipient }) => (
+      <SmsRecipientRow
+        recipient={item}
+        selected={selected.has(item.id)}
+        selectable={capabilities.canSendBulk}
+        canSendOne={capabilities.canSendOne}
+        onToggle={toggle}
+        onSend={(value) => void sendToOne(value)}
+        onAddPhone={setPhoneEditorRecipient}
+        onQuotaReached={
+          smsLimitReached
+            ? () => setIsUpgradeModalOpen(true)
+            : undefined
+        }
+      />
+    ),
+    [
+      capabilities.canSendBulk,
+      capabilities.canSendOne,
+      selected,
+      sendToOne,
+      smsLimitReached,
+      toggle,
+    ],
+  );
+  const renderSeparator = useCallback(
+    () => <View style={styles.separator} />,
+    [styles.separator],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -390,7 +416,7 @@ function ClientSmsContent({
         </View>
         <View style={styles.summary}>
           <Text style={styles.summaryText}>{t("sms.count", { count })}</Text>
-          {capabilities.canSendBulk && rows.some(isSmsRecipientSelectable) ? (
+          {capabilities.canSendBulk && hasSelectableRecipients ? (
             <Pressable
               onPress={() =>
                 setSelected(
@@ -399,7 +425,7 @@ function ClientSmsContent({
               }
             >
               <Text style={styles.selectAll}>
-                {selected.size ? t("sms.cancelSelection") : t("sms.selectPage")}
+                {selected.size ? t("sms.cancelSelection") : t("sms.selectAll")}
               </Text>
             </Pressable>
           ) : null}
@@ -465,23 +491,8 @@ function ClientSmsContent({
         ) : (
           <FlatList
             data={rows}
-            keyExtractor={(item) => String(item.id)}
-            renderItem={({ item }) => (
-              <SmsRecipientRow
-                recipient={item}
-                selected={selected.has(item.id)}
-                selectable={capabilities.canSendBulk}
-                canSendOne={capabilities.canSendOne}
-                onToggle={toggle}
-                onSend={(value) => void sendToOne(value)}
-                onAddPhone={setPhoneEditorRecipient}
-                onQuotaReached={
-                  smsLimitReached
-                    ? () => setIsUpgradeModalOpen(true)
-                    : undefined
-                }
-              />
-            )}
+            keyExtractor={keyExtractor}
+            renderItem={renderRecipient}
             contentContainerStyle={[
               styles.list,
               !rows.length && styles.emptyList,
@@ -491,7 +502,7 @@ function ClientSmsContent({
                   : 20 + insets.bottom,
               },
             ]}
-            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            ItemSeparatorComponent={renderSeparator}
             ListEmptyComponent={
               <EmptyState
                 iconName="chatbubble-ellipses-outline"
@@ -508,46 +519,12 @@ function ClientSmsContent({
               />
             }
             keyboardShouldPersistTaps="handled"
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            removeClippedSubviews
           />
         )}
-        {count > PAGE_SIZE ? (
-          <View
-            style={[
-              styles.pagination,
-              {
-                bottom: selected.size ? 76 + insets.bottom : insets.bottom + 4,
-              },
-            ]}
-          >
-            <Pressable
-              disabled={pageNumber <= 1}
-              onPress={() => setPageNumber((p) => p - 1)}
-              style={styles.pageButton}
-            >
-              <Ionicons
-                name="chevron-back"
-                size={20}
-                color={pageNumber <= 1 ? theme.textMuted : theme.primary}
-              />
-            </Pressable>
-            <Text style={styles.pageText}>
-              {pageNumber} / {pageCount}
-            </Text>
-            <Pressable
-              disabled={pageNumber >= pageCount}
-              onPress={() => setPageNumber((p) => p + 1)}
-              style={styles.pageButton}
-            >
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={
-                  pageNumber >= pageCount ? theme.textMuted : theme.primary
-                }
-              />
-            </Pressable>
-          </View>
-        ) : null}
         {capabilities.canSendBulk && selected.size ? (
           <View style={[styles.footer, { paddingBottom: 10 }]}>
             <View>
@@ -759,26 +736,6 @@ const createStyles = (theme: AppTheme) =>
     separator: { height: spacing.sm },
     emptyList: { flexGrow: 1 },
     center: { flex: 1, alignItems: "center", justifyContent: "center" },
-    pagination: {
-      position: "absolute",
-      alignSelf: "center",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      padding: 4,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: radius.full,
-      backgroundColor: theme.surface,
-      boxShadow: theme.cardShadow,
-    },
-    pageButton: {
-      width: 36,
-      height: 32,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    pageText: { ...typography.labelSmall, color: theme.textSecondary },
     footer: {
       position: "absolute",
       left: 0,

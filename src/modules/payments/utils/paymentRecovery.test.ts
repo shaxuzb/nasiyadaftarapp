@@ -1,5 +1,5 @@
 // @ts-expect-error Node test runner loads the TypeScript module directly.
-import { shouldRecoverPendingPayment } from "./paymentRecovery.ts";
+import { PendingPaymentCheckoutError, getPendingPaymentRedirect, shouldRecoverPendingPayment } from "./paymentRecovery.ts";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -30,5 +30,38 @@ assert(!shouldRecoverPendingPayment({ ...ready, openedExternally: false }), "A p
 assert(!shouldRecoverPendingPayment({ ...ready, pendingOrderId: null }), "No persisted pending order means nothing to recover");
 assert(!shouldRecoverPendingPayment({ ...ready, recoveredOrderId: 15 }), "Same order must not auto-open twice in one session");
 assert(shouldRecoverPendingPayment({ ...ready, recoveredOrderId: 14 }), "A different pending order may recover");
+
+const pendingReference = {
+  version: 1 as const,
+  userId: 7,
+  orderId: 15,
+  productType: "subscription" as const,
+  productId: 2,
+  openedExternally: true,
+  updatedAt: "2026-09-14T12:00:00Z",
+};
+const singleRedirect = getPendingPaymentRedirect([pendingReference]);
+assert(
+  singleRedirect?.type === "paymentStatus" && singleRedirect.orderId === 15,
+  "One pending payment must redirect directly to its status sheet",
+);
+const multipleRedirect = getPendingPaymentRedirect([
+  pendingReference,
+  { ...pendingReference, orderId: 16, productType: "sms_package" as const },
+]);
+assert(
+  multipleRedirect?.type === "pendingPayments" &&
+    multipleRedirect.payments.length === 2,
+  "Multiple pending payments must redirect to the pending payments sheet",
+);
+assert(
+  getPendingPaymentRedirect([]) === null,
+  "No pending payment must allow a new checkout",
+);
+const pendingError = new PendingPaymentCheckoutError(singleRedirect!);
+assert(
+  pendingError.redirect.type === "paymentStatus",
+  "Pending checkout error must preserve the redirect target",
+);
 
 console.log("Payment recovery guard tests passed");

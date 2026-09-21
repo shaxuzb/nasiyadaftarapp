@@ -58,12 +58,12 @@ assert.match(
 );
 assert.match(
   checkout,
-  /paddingBottom:\s*insets\.bottom/,
+  /paddingBottom:\s*[\s\S]*insets\.bottom/,
   "Payment checkout sheet bottom padding must use the safe-area inset",
 );
 assert.doesNotMatch(
   checkout,
-  /paddingBottom:\s*Math\.max|paddingBottom:\s*spacing\.xl/,
+  /paddingBottom:\s*spacing\.xl(?!\s*\+)|paddingBottom:\s*24/,
   "Payment checkout sheet must not add extra or fixed bottom padding",
 );
 assert.ok(

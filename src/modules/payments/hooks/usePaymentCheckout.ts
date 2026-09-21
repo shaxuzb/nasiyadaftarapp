@@ -15,6 +15,7 @@ import {
   clearPendingPayment,
   getOrCreateCheckoutAttempt,
   getPendingPayment,
+  getPendingPayments,
   savePendingPayment,
 } from "../services/paymentStorage";
 import {
@@ -27,6 +28,10 @@ import {
   isPaymentFulfilled,
   shouldPersistPendingPayment,
 } from "../utils/paymentState";
+import {
+  getPendingPaymentRedirect,
+  PendingPaymentCheckoutError,
+} from "../utils/paymentRecovery";
 
 export function usePaymentCheckout() {
   const { user, refreshSubscription } = useAuth();
@@ -84,7 +89,12 @@ export function usePaymentCheckout() {
       if (inFlightRef.current) return inFlightRef.current;
 
       setIsCreating(true);
-      const request = core.startCheckout({ ...input, userId: user.id });
+      const request = (async () => {
+        const pendingPayments = await getPendingPayments(user.id);
+        const redirect = getPendingPaymentRedirect(pendingPayments);
+        if (redirect) throw new PendingPaymentCheckoutError(redirect);
+        return core.startCheckout({ ...input, userId: user.id });
+      })();
       inFlightRef.current = request;
       try {
         return await request;

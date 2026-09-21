@@ -20,8 +20,7 @@ import {
   uzPhoneMask,
 } from "../../../utils/masks";
 import {
-  confirmPhoneChange,
-  requestPhoneChange,
+  requestProfilePhoneCode,
 } from "../services/accountService";
 import { useOtpAutoFill } from "../../auth/hooks/useOtpAutoFill";
 import { useTranslation } from "../../../i18n";
@@ -31,7 +30,7 @@ interface Props {
   visible: boolean;
   currentPhone?: string | null;
   onDismiss: () => void;
-  onVerified: (phoneNumber: string) => Promise<void> | void;
+  onVerified: (phoneNumber: string, code: string) => Promise<void> | void;
 }
 
 const OTP_LENGTH = 6;
@@ -57,6 +56,7 @@ export function PhoneVerificationModal({
   const otpRef = useRef<OtpInputHandle>(null);
   const [phoneNumber, setPhoneNumber] = useState(currentPhone || "+998 ");
   const [requestedPhone, setRequestedPhone] = useState("");
+  const [maskedPhone, setMaskedPhone] = useState("");
   const [code, setCode] = useState("");
   const [stage, setStage] = useState<"phone" | "code">("phone");
   const [loading, setLoading] = useState(false);
@@ -78,6 +78,7 @@ export function PhoneVerificationModal({
     if (!visible) return;
     setPhoneNumber(currentPhone || "+998 ");
     setRequestedPhone("");
+    setMaskedPhone("");
     setCode("");
     setStage("phone");
     setError(undefined);
@@ -93,8 +94,11 @@ export function PhoneVerificationModal({
     setLoading(true);
     setError(undefined);
     try {
-      await requestPhoneChange({ phoneNumber: normalizedPhone });
+      const response = await requestProfilePhoneCode({
+        phoneNumber: normalizedPhone,
+      });
       setRequestedPhone(normalizedPhone);
+      setMaskedPhone(response.maskedPhone);
       setStage("code");
       requestAnimationFrame(() => otpRef.current?.focus());
     } catch (requestError) {
@@ -113,11 +117,7 @@ export function PhoneVerificationModal({
     setLoading(true);
     setError(undefined);
     try {
-      await confirmPhoneChange({
-        phoneNumber: requestedPhone,
-        code: code.trim(),
-      });
-      await onVerified(requestedPhone);
+      await onVerified(requestedPhone, code.trim());
       onDismiss();
     } catch (confirmError) {
       setError(
@@ -158,7 +158,9 @@ export function PhoneVerificationModal({
           <Text style={styles.description}>
             {stage === "phone"
               ? t("security.phoneVerificationDescription")
-              : t("security.enterCodeForPhone", { phone: requestedPhone })}
+              : t("security.enterCodeForPhone", {
+                  phone: maskedPhone || requestedPhone,
+                })}
           </Text>
 
           {visible ? (

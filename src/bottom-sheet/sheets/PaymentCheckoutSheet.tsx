@@ -16,6 +16,7 @@ import { formatLocalizedCurrency, useTranslation } from "../../i18n";
 import { getPaymentCopy } from "../../modules/payments/i18n/paymentCopy";
 import { usePaymentCheckout } from "../../modules/payments/hooks/usePaymentCheckout";
 import { isPaymentFulfilled } from "../../modules/payments/utils/paymentState";
+import { PendingPaymentCheckoutError } from "../../modules/payments/utils/paymentRecovery";
 import { radius, spacing, typography } from "../../theme";
 import type { AppTheme } from "../../types";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -70,9 +71,21 @@ export function PaymentCheckoutSheet({
             Boolean(result.checkoutUrl) && !isPaymentFulfilled(result.order),
         });
       });
-    } catch {
+    } catch (error) {
       setDismissLocked(false);
       submittingRef.current = false;
+      if (error instanceof PendingPaymentCheckoutError) {
+        closeSheet(() => {
+          if (error.redirect.type === "paymentStatus") {
+            openSheet("paymentStatus", { orderId: error.redirect.orderId });
+          } else {
+            openSheet("pendingPayments", {
+              payments: error.redirect.payments,
+            });
+          }
+        });
+        return;
+      }
       showToast(copy.error, "error");
     }
   };

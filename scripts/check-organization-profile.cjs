@@ -60,7 +60,7 @@ assert.match(
 );
 assert.match(
   sheet,
-  /paddingBottom:\s*Platform\.OS\s*===\s*"android"\s*&&\s*keyboardVisible\s*\?\s*0\s*:\s*insets\.bottom/,
+  /paddingBottom:\s*(?:Platform\.OS\s*===\s*"android"\s*&&\s*)?keyboardVisible\s*\?\s*0\s*:\s*insets\.bottom/,
   "Organization profile sheet must not add safe-area padding while keyboard is open",
 );
 assert.match(

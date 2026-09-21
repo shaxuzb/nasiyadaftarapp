@@ -35,8 +35,7 @@ assert(
 for (const filename of [
   "src/screens/CustomersScreen.tsx",
   "src/modules/clients/components/CustomerEditSheet.tsx",
-  "src/screens/RegisterScreen.tsx",
-  "src/screens/PasswordResetRequestScreen.tsx",
+  "src/screens/PhoneAuthScreen.tsx",
   "src/modules/account/components/PhoneVerificationModal.tsx",
 ]) {
   assert(

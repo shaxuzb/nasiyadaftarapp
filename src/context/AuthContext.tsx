@@ -11,9 +11,11 @@ import React, {
 
 import {
   googleAccount,
-  loginAccount,
+  linkAppleProfile,
+  linkGoogleProfile,
   logoutAccount,
-  registerAccount,
+  confirmPhoneAuth,
+  confirmProfilePhone,
   selectOrganizationAccount,
 } from "../modules/auth/services/authService";
 import { appleAccount } from "../modules/auth/services/appleAuthApi";
@@ -30,9 +32,7 @@ import {
   AuthResponse,
   AuthUser,
   GoogleLoginRequest,
-  LoginRequest,
   OrganizationSelectResponse,
-  RegisterRequest,
 } from "../modules/auth/types";
 import { setUnauthorizedHandler } from "../services/axiosService";
 import {
@@ -45,7 +45,6 @@ import {
 } from "../modules/organization/types";
 import { getCurrentSubscription } from "../modules/subscription/services/subscriptionService";
 import { canCreateOrganization } from "../modules/subscription/utils/entitlements";
-import { isAuthResponse } from "../modules/auth/utils/authResponse";
 import { clearPaymentLifecycleForUser } from "../modules/payments/services/paymentStorage";
 import {
   clearOrganizationQueries,
@@ -62,10 +61,12 @@ interface AuthContextValue {
   currentOrganization: OrganizationMembership | null;
   isBootstrapping: boolean;
   isOrganizationLoading: boolean;
-  login: (payload: LoginRequest) => Promise<void>;
-  register: (payload: RegisterRequest) => Promise<void>;
+  loginWithPhoneCode: (phoneNumber: string, code: string) => Promise<void>;
+  linkPhoneWithCode: (phoneNumber: string, code: string) => Promise<void>;
   loginWithGoogleIdToken: (idToken: string) => Promise<void>;
   loginWithAppleCredential: (payload: AppleLoginRequest) => Promise<void>;
+  linkGoogleAccount: (idToken: string) => Promise<void>;
+  linkAppleAccount: (identityToken: string) => Promise<void>;
   createOrganizationForCurrentUser: (
     payload: OrganizationRequest,
   ) => Promise<void>;
@@ -234,7 +235,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           organizations: availableOrganizations,
           organizationId: null,
           organizationName: null,
-          hasOrganization: availableOrganizations.length > 0,
+          hasOrganization:
+            baseUser.hasOrganization === true ||
+            availableOrganizations.length > 0,
         });
       } finally {
         setIsOrganizationLoading(false);
@@ -411,28 +414,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, [logout, updateUserProfile]);
 
-  const login = useCallback(
-    async (payload: LoginRequest) => {
-      const response = await loginAccount(payload);
+  const loginWithPhoneCode = useCallback(
+    async (phoneNumber: string, code: string) => {
+      const response = await confirmPhoneAuth({ phoneNumber, code });
       await completeAuth(response);
     },
     [completeAuth],
   );
 
-  const register = useCallback(
-    async (payload: RegisterRequest) => {
-      const response = await registerAccount(payload);
-
-      if (isAuthResponse(response)) {
-        await completeAuth(response);
-        return;
-      }
-
-      const loginResponse = await loginAccount({
-        userName: payload.userName,
-        password: payload.password,
-      });
-      await completeAuth(loginResponse);
+  const linkPhoneWithCode = useCallback(
+    async (phoneNumber: string, code: string) => {
+      const response = await confirmProfilePhone({ phoneNumber, code });
+      await completeAuth(response);
     },
     [completeAuth],
   );
@@ -449,6 +442,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithAppleCredential = useCallback(
     async (payload: AppleLoginRequest) => {
       const response = await appleAccount(payload);
+      await completeAuth(response);
+    },
+    [completeAuth],
+  );
+
+  const linkGoogleAccount = useCallback(
+    async (idToken: string) => {
+      const response = await linkGoogleProfile({ idToken });
+      await completeAuth(response);
+    },
+    [completeAuth],
+  );
+
+  const linkAppleAccount = useCallback(
+    async (identityToken: string) => {
+      const response = await linkAppleProfile({ identityToken });
       await completeAuth(response);
     },
     [completeAuth],
@@ -507,10 +516,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       currentOrganization,
       isBootstrapping,
       isOrganizationLoading,
-      login,
-      register,
+      loginWithPhoneCode,
+      linkPhoneWithCode,
       loginWithGoogleIdToken,
       loginWithAppleCredential,
+      linkGoogleAccount,
+      linkAppleAccount,
       createOrganizationForCurrentUser,
       refreshOrganizations,
       refreshSubscription,
@@ -527,16 +538,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cancelOrganizationSelection,
       isBootstrapping,
       isOrganizationLoading,
-      login,
+      loginWithPhoneCode,
+      linkPhoneWithCode,
       loginWithAppleCredential,
       loginWithGoogleIdToken,
+      linkGoogleAccount,
+      linkAppleAccount,
       logout,
       openOrganizationSelector,
       organizationSelectionReturnTab,
       organizations,
       refreshOrganizations,
       refreshSubscription,
-      register,
       selectOrganization,
       updateUserProfile,
       user,

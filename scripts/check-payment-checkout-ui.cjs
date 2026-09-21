@@ -14,5 +14,7 @@ assert.match(checkout, /startCheckout\(/);
 assert.match(checkout, /closeSheet\(\(\) =>/);
 assert.match(checkout, /openSheet\("paymentStatus"/);
 assert.match(checkout, /openCheckoutOnMount/);
+assert.match(checkout, /PendingPaymentCheckoutError/);
+assert.match(checkout, /pendingPayment/);
 
 console.log("Payment checkout loading and transition contract passed");

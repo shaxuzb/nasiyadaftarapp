@@ -2,32 +2,63 @@ import { apiClient } from "./axiosService";
 import {
   AuthResponse,
   GoogleLoginRequest,
-  LoginRequest,
   LogoutRequest,
   OrganizationSelectResponse,
-  RegisterRequest,
+  PhoneAuthConfirmRequest,
+  PhoneAuthRequest,
+  PhoneAuthRequestResponse,
 } from "../modules/auth/types";
 
-export interface AccountChangeResponse {
-  user?: Partial<AuthResponse["user"]>;
-  email?: string | null;
+export async function googleAccount(payload: GoogleLoginRequest) {
+  const { data } = await apiClient.post<AuthResponse>("/account/google", payload);
+  return data;
 }
 
-export async function registerAccount(payload: RegisterRequest) {
-  const { data } = await apiClient.post<AuthResponse | Record<string, unknown>>(
-    "/account/register",
+export async function linkGoogleProfile(payload: GoogleLoginRequest) {
+  const { data } = await apiClient.put<AuthResponse>(
+    "/account/profile/google",
     payload,
   );
   return data;
 }
 
-export async function loginAccount(payload: LoginRequest) {
-  const { data } = await apiClient.post<AuthResponse>("/account/login", payload);
+export async function linkAppleProfile(payload: { identityToken: string }) {
+  const { data } = await apiClient.put<AuthResponse>(
+    "/account/profile/apple",
+    payload,
+  );
   return data;
 }
 
-export async function googleAccount(payload: GoogleLoginRequest) {
-  const { data } = await apiClient.post<AuthResponse>("/account/google", payload);
+export async function requestPhoneAuthCode(payload: PhoneAuthRequest) {
+  const { data } = await apiClient.post<PhoneAuthRequestResponse>(
+    "/account/phone/request",
+    payload,
+  );
+  return data;
+}
+
+export async function confirmPhoneAuth(payload: PhoneAuthConfirmRequest) {
+  const { data } = await apiClient.post<AuthResponse>(
+    "/account/phone/confirm",
+    payload,
+  );
+  return data;
+}
+
+export async function requestProfilePhoneCode(payload: PhoneAuthRequest) {
+  const { data } = await apiClient.post<PhoneAuthRequestResponse>(
+    "/account/profile/phone/request",
+    payload,
+  );
+  return data;
+}
+
+export async function confirmProfilePhone(payload: PhoneAuthConfirmRequest) {
+  const { data } = await apiClient.post<AuthResponse>(
+    "/account/profile/phone/confirm",
+    payload,
+  );
   return data;
 }
 
@@ -40,70 +71,5 @@ export async function selectOrganizationAccount(organizationId: number) {
     "/account/select-organization",
     { organizationId },
   );
-  return data;
-}
-
-export async function requestPasswordChange(payload: { delivery: string }) {
-  await apiClient.post("/account/password-change/request", payload);
-}
-
-export async function confirmPasswordChange(payload: {
-  delivery: string;
-  code: string;
-  newPassword: string;
-}) {
-  await apiClient.post("/account/password-change/confirm", payload);
-}
-
-export async function requestPhoneChange(payload: { phoneNumber: string }) {
-  await apiClient.post("/account/phone-change/request", payload);
-}
-
-export async function confirmPhoneChange(payload: {
-  phoneNumber: string;
-  code: string;
-}) {
-  await apiClient.post("/account/phone-change/confirm", payload);
-}
-
-export async function requestGoogleChange(payload: { idToken: string }) {
-  await apiClient.post("/account/google-change/request", payload);
-}
-
-export async function confirmGoogleChange(payload: {
-  idToken: string;
-  code: string;
-}) {
-  const { data } = await apiClient.post<AccountChangeResponse | undefined>(
-    "/account/google-change/confirm",
-    payload,
-  );
-  return data;
-}
-
-export async function requestPasswordReset(payload: { phone: string }) {
-  await apiClient.post("/account/password-reset/request", payload);
-}
-
-export async function confirmPasswordReset(payload: {
-  phone: string;
-  code: string;
-  newPassword: string;
-}) {
-  await apiClient.post("/account/password-reset/confirm", payload);
-}
-
-export interface SmsSendResponse {
-  phoneMasked: string;
-  expiresInSeconds: number;
-}
-
-export async function sendSmsCode(payload: { phone: string }) {
-  const { data } = await apiClient.post<SmsSendResponse>("/sms/send", payload);
-  return data;
-}
-
-export async function verifySmsCode(payload: { phone: string; code: string }) {
-  const { data } = await apiClient.post<{ success: boolean }>("/sms/verify", payload);
   return data;
 }

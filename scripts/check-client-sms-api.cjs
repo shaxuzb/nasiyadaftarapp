@@ -126,9 +126,30 @@ vm.runInNewContext(code, {
     pageSize: 20,
   });
   assert.equal(history.results[0].normalizedStatus, "failed");
+
+  const allRecipients = await moduleExports.getSmsRecipients({
+    search: "",
+    hasDebt: true,
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(calls.at(-1).params)), {
+    hasDebt: true,
+  });
+  assert.equal(allRecipients.count, 1);
+
   nextData = {};
   await moduleExports.sendDebtSms(1);
   assert.equal(calls.at(-1).url, "/clients/1/debt-sms");
+
+  const clientSmsScreen = fs.readFileSync(
+    "src/screens/ClientSmsScreen.tsx",
+    "utf8",
+  );
+  assert.doesNotMatch(
+    clientSmsScreen,
+    /PAGE_SIZE|pageNumber|pageSize|selectPage|styles\.pagination/,
+    "ClientSmsScreen should rely on the backend default list and must not keep UI pagination",
+  );
+
   console.log(
     "Client SMS API filters, parsing, individual/bulk payloads and validation passed",
   );

@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { SheetRenderProps } from "../types";
+import { useConfirmDialog } from "../../context/ConfirmDialogContext";
 import { useAuth } from "../../context/AuthContext";
 import { useToast } from "../../context/ToastContext";
 import { useTheme } from "../../hooks/useTheme";
@@ -32,6 +33,7 @@ export function SubscriptionCancellationSheet({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { confirm } = useConfirmDialog();
   const { user, refreshSubscription } = useAuth();
   const { showToast } = useToast();
   const queryClient = useQueryClient();
@@ -39,6 +41,16 @@ export function SubscriptionCancellationSheet({
 
   const handleConfirm = async () => {
     if (isSubmitting) return;
+
+    const accepted = await confirm({
+      title: t("subscription.cancelPlanConfirmTitle"),
+      message: t("subscription.cancelPlanConfirmMessage"),
+      confirmText: t("subscription.cancelPlanConfirmAction"),
+      cancelText: t("subscription.cancelPlanBack"),
+      variant: "danger",
+    });
+    if (!accepted) return;
+
     setIsSubmitting(true);
     setDismissLocked(true);
 

@@ -191,17 +191,11 @@ export function SettingsScreen() {
     : null;
 
   const phoneVerified = hasVerifiedPhone(user);
-  const initials = useMemo(
-    () =>
-      (user?.fullName ?? "U")
-        .split(" ")
-        .filter(Boolean)
-        .map((word) => word[0] ?? "")
-        .slice(0, 2)
-        .join("")
-        .toUpperCase(),
-    [user?.fullName],
-  );
+  const organizationStatusLabel = currentOrganization
+    ? currentOrganization.stateId === 1
+      ? t("profile.organizationActive")
+      : currentOrganization.state || t("profile.organizationStatusUnknown")
+    : t("profile.organizationNotSelected");
 
   const handleOrganizationSwitch = useCallback(async () => {
     try {
@@ -308,79 +302,63 @@ export function SettingsScreen() {
         contentContainerStyle={styles.content}
       >
         <View style={styles.profileCard}>
-          <View style={styles.profileHeader}>
+          <View style={styles.organizationHeader}>
             <View
-              style={styles.avatar}
-              accessibilityLabel={t("profile.avatarLabel")}
+              style={styles.organizationAvatar}
+              accessibilityLabel={t("profile.organizationAvatarLabel")}
             >
-              <Text style={styles.avatarText}>{initials}</Text>
+              <Ionicons name="business-outline" size={27} color={theme.primary} />
             </View>
-            <View style={styles.identityCopy}>
-              <Text style={styles.profileName} numberOfLines={2}>
-                {user?.fullName || t("profile.userFallback")}
+            <View style={styles.organizationIdentity}>
+              <Text style={styles.organizationEyebrow}>
+                {t("profile.currentOrganization")}
               </Text>
-              <View style={styles.identityMeta}>
-                <Text selectable style={styles.username} numberOfLines={1}>
-                  {user?.userName
-                    ? `@${user.userName}`
-                    : t("profile.usernameMissing")}
+              <Text style={styles.profileName} numberOfLines={2}>
+                {currentOrganization?.name || t("profile.organizationNotSelected")}
+              </Text>
+              <View style={styles.organizationStatusRow}>
+                <View style={styles.organizationStatusDot} />
+                <Text style={styles.organizationStatusText}>
+                  {organizationStatusLabel}
                 </Text>
-                <View
-                  style={[
-                    styles.statusBadge,
-                    phoneVerified
-                      ? styles.statusBadgeSuccess
-                      : styles.statusBadgeWarning,
-                  ]}
-                >
-                  <Ionicons
-                    name={phoneVerified ? "checkmark-circle" : "alert-circle"}
-                    size={15}
-                    color={
-                      phoneVerified ? theme.paymentColor : theme.warningColor
-                    }
-                  />
-                  <Text
-                    style={[
-                      styles.statusText,
-                      {
-                        color: phoneVerified
-                          ? theme.paymentColor
-                          : theme.warningColor,
-                      },
-                    ]}
-                  >
-                    {phoneVerified
-                      ? t("profile.verified")
-                      : t("profile.unverified")}
-                  </Text>
-                </View>
               </View>
             </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("profile.editOrganization")}
+              accessibilityHint={t("profile.editOrganizationHint")}
+              onPress={handleOrganizationEdit}
+              style={({ pressed }) => [
+                styles.organizationEdit,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons name="create-outline" size={21} color={theme.primary} />
+            </Pressable>
           </View>
 
-          <View style={styles.profileDetails}>
-            <View style={styles.profileDetailRow}>
+          <View style={styles.organizationContactDetails}>
+            <View style={styles.organizationContactRow}>
               <Ionicons name="call-outline" size={18} color={theme.primary} />
-              <View style={styles.profileDetailCopy}>
-                <Text style={styles.profileDetailLabel}>
+              <View style={styles.organizationContactCopy}>
+                <Text style={styles.organizationContactLabel}>
                   {t("profile.phone")}
                 </Text>
-                <Text selectable style={styles.profileDetailValue}>
+                <Text selectable style={styles.organizationContactValue}>
                   {user?.phoneNumber || t("profile.notLinked")}
                 </Text>
               </View>
             </View>
-            <View style={styles.profileDetailDivider} />
-            <View style={styles.profileDetailRow}>
+            <View style={styles.organizationContactDivider} />
+            <View style={styles.organizationContactRow}>
               <Ionicons name="mail-outline" size={18} color={theme.primary} />
-              <View style={styles.profileDetailCopy}>
-                <Text style={styles.profileDetailLabel}>
+              <View style={styles.organizationContactCopy}>
+                <Text style={styles.organizationContactLabel}>
                   {t("profile.email")}
                 </Text>
                 <Text
                   selectable
-                  style={styles.profileDetailValue}
+                  style={styles.organizationContactValue}
                   numberOfLines={2}
                 >
                   {user?.email || t("profile.notLinked")}
@@ -501,23 +479,14 @@ export function SettingsScreen() {
         <SectionTitle title={t("profile.organizationSection")} />
         <View style={styles.card}>
           <ProfileMenuRow
-            icon="business-outline"
-            iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
-            title={
-              currentOrganization?.name || t("profile.organizationNotSelected")
-            }
-            description={currentOrganization?.address || undefined}
-            onPress={handleOrganizationEdit}
-          />
-          <ProfileMenuRow
             icon="swap-horizontal-outline"
             iconColor={theme.primary}
-            iconBackground={theme.inputBackground}
+            iconBackground={theme.primaryLight}
             title={t("organization.selectTitle")}
             onPress={() => {
               void handleOrganizationSwitch();
             }}
+            isLast={false}
           />
           <ProfileMenuRow
             icon={
@@ -534,9 +503,9 @@ export function SettingsScreen() {
                 : t("profile.paidPlanAvailable")
             }
             onPress={handleOpenBlacklist}
-            // badge={
-            //   isPaidSubscription ? undefined : t("subscription.standardPlan")
-            // }
+            badge={
+              isPaidSubscription ? undefined : t("subscription.standardPlan")
+            }
             isLast
           />
         </View>
@@ -563,9 +532,9 @@ export function SettingsScreen() {
                 : () => setUpgradeReason("telegram")
             }
             loading={telegramEnabled && isOpeningBot}
-            // badge={
-            //   telegramEnabled ? undefined : t("subscription.standardPlan")
-            // }
+            badge={
+              telegramEnabled ? undefined : t("subscription.standardPlan")
+            }
           />
           <ProfileMenuRow
             icon="chatbubble-ellipses-outline"
@@ -681,73 +650,79 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.surface,
       boxShadow: theme.cardShadow,
     },
-    profileHeader: {
+    organizationHeader: {
       flexDirection: "row",
-      alignItems: "flex-start",
+      alignItems: "center",
       gap: 12,
     },
-    avatar: {
-      width: 54,
-      height: 54,
+    organizationAvatar: {
+      width: 56,
+      height: 56,
       flexShrink: 0,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 27,
+      borderRadius: 18,
       backgroundColor: theme.primaryLight,
     },
-    avatarText: {
-      color: theme.primary,
-      fontSize: 20,
-      lineHeight: 25,
-      fontWeight: "800",
-      letterSpacing: 0.3,
+    organizationIdentity: { minWidth: 0, flex: 1, gap: 3 },
+    organizationEyebrow: {
+      ...typography.caption,
+      color: theme.textMuted,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
     },
-    identityCopy: { minWidth: 0, flex: 1, gap: 4 },
     profileName: { ...typography.headingMedium, color: theme.text },
-    identityMeta: {
+    organizationStatusRow: {
       flexDirection: "row",
       alignItems: "center",
-      flexWrap: "wrap",
       gap: 6,
     },
-    username: {
-      flexShrink: 1,
-      ...typography.caption,
-      color: theme.textSecondary,
-    },
-    statusBadge: {
-      minHeight: 24,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.xs,
-      paddingHorizontal: 8,
+    organizationStatusDot: {
+      width: 7,
+      height: 7,
       borderRadius: radius.full,
+      backgroundColor: theme.paymentColor,
     },
-    statusBadgeSuccess: { backgroundColor: theme.paymentBg },
-    statusBadgeWarning: { backgroundColor: theme.inputBackground },
-    statusText: { fontSize: 10, lineHeight: 14, fontWeight: "700" },
-    profileDetails: {
+    organizationStatusText: {
+      ...typography.caption,
+      color: theme.paymentColor,
+      fontWeight: "700",
+    },
+    organizationEdit: {
+      width: 42,
+      height: 42,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radius.full,
+      backgroundColor: theme.primaryLight,
+    },
+    organizationContactDetails: {
       overflow: "hidden",
       borderRadius: radius.lg,
       borderCurve: "continuous",
       backgroundColor: theme.inputBackground,
     },
-    profileDetailRow: {
-      minHeight: 46,
+    organizationContactRow: {
+      minHeight: 48,
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
       paddingHorizontal: 12,
       paddingVertical: spacing.sm,
     },
-    profileDetailCopy: { minWidth: 0, flex: 1, gap: 1 },
-    profileDetailLabel: { ...typography.caption, color: theme.textMuted },
-    profileDetailValue: {
+    organizationContactCopy: { minWidth: 0, flex: 1, gap: 1 },
+    organizationContactLabel: {
+      ...typography.caption,
+      color: theme.textMuted,
+    },
+    organizationContactValue: {
       ...typography.label,
       color: theme.text,
       flexShrink: 1,
     },
-    profileDetailDivider: {
+    organizationContactDivider: {
       height: 1,
       marginLeft: 40,
       backgroundColor: theme.border,

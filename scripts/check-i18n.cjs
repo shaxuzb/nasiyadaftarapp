@@ -33,18 +33,12 @@ const settingsSource = fs.readFileSync(
   path.join(root, "src", "screens", "SettingsScreen.tsx"),
   "utf8",
 );
-const loginSource = fs.readFileSync(
-  path.join(root, "src", "screens", "LoginScreen.tsx"),
-  "utf8",
-);
-const registerSource = fs.readFileSync(
-  path.join(root, "src", "screens", "RegisterScreen.tsx"),
+const phoneAuthSource = fs.readFileSync(
+  path.join(root, "src", "screens", "PhoneAuthScreen.tsx"),
   "utf8",
 );
 const authScreenPaths = [
-  "RegisterSmsVerifyScreen.tsx",
-  "PasswordResetRequestScreen.tsx",
-  "PasswordResetConfirmScreen.tsx",
+  "PhoneAuthVerifyScreen.tsx",
 ].map((filename) => path.join(root, "src", "screens", filename));
 const accountFeaturePaths = [
   path.join(root, "src", "navigation", "index.tsx"),
@@ -112,11 +106,9 @@ assert.equal(fs.existsSync(apiErrors), true, "apiErrors.ts must exist");
 assert.match(bottomSheetTypes, /"language"/);
 assert.match(bottomSheetRegistry, /language:/);
 assert.match(settingsSource, /openSheet\("language", \{\}\)/);
-assert.match(loginSource, /LanguageSelectorButton/);
-assert.match(registerSource, /LanguageSelectorButton/);
+assert.match(phoneAuthSource, /LanguageSelectorButton/);
 for (const filename of [
-  path.join(root, "src", "screens", "LoginScreen.tsx"),
-  path.join(root, "src", "screens", "RegisterScreen.tsx"),
+  path.join(root, "src", "screens", "PhoneAuthScreen.tsx"),
   ...authScreenPaths,
 ]) {
   assert.match(fs.readFileSync(filename, "utf8"), /useTranslation/);

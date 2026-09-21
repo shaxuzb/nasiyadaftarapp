@@ -18,12 +18,9 @@ import { SettingsScreen } from "../screens/SettingsScreen";
 
 import { CustomerDetailScreen } from "../screens/CustomerDetailScreen";
 import { LoginScreen } from "../screens/LoginScreen";
-import { RegisterScreen } from "../screens/RegisterScreen";
-import { RegisterSmsVerifyScreen } from "../screens/RegisterSmsVerifyScreen";
+import { PhoneAuthVerifyScreen } from "../screens/PhoneAuthVerifyScreen";
 import { OrganizationSetupScreen } from "../screens/OrganizationSetupScreen";
 import { OrganizationSelectScreen } from "../screens/OrganizationSelectScreen";
-import { PasswordResetRequestScreen } from "../screens/PasswordResetRequestScreen";
-import { PasswordResetConfirmScreen } from "../screens/PasswordResetConfirmScreen";
 import { AccountSecurityScreen } from "../screens/AccountSecurityScreen";
 import { PinChangeScreen } from "../modules/pin-auth/screens/PinChangeScreen";
 import { ClientSmsScreen } from "../screens/ClientSmsScreen";
@@ -230,49 +227,19 @@ function AuthNavigator() {
       <AuthStack.Screen name="Login">
         {({ navigation }) => (
           <LoginScreen
-            onGoToRegister={() => navigation.navigate("Register")}
-            onGoToForgotPassword={() =>
-              navigation.navigate("PasswordResetRequest")
+            onGoToVerify={(params) =>
+              navigation.navigate("PhoneAuthVerify", params)
             }
           />
         )}
       </AuthStack.Screen>
-      <AuthStack.Screen name="Register">
-        {({ navigation }) => (
-          <RegisterScreen
-            onGoToLogin={() => navigation.navigate("Login")}
-            onGoToSmsVerify={(params) =>
-              navigation.navigate("RegisterSmsVerify", params)
-            }
-          />
-        )}
-      </AuthStack.Screen>
-      <AuthStack.Screen name="RegisterSmsVerify">
+      <AuthStack.Screen name="PhoneAuthVerify">
         {({ route, navigation }) => (
-          <RegisterSmsVerifyScreen
-            registerPayload={route.params.registerPayload}
-            onGoBackToRegister={() => navigation.goBack()}
-            onGoToLogin={() =>
-              navigation.reset({ index: 0, routes: [{ name: "Login" }] })
-            }
-          />
-        )}
-      </AuthStack.Screen>
-      <AuthStack.Screen name="PasswordResetRequest">
-        {({ navigation }) => (
-          <PasswordResetRequestScreen
-            onGoBackToLogin={() => navigation.replace("Login")}
-            onGoToConfirm={(phone) =>
-              navigation.replace("PasswordResetConfirm", { phone })
-            }
-          />
-        )}
-      </AuthStack.Screen>
-      <AuthStack.Screen name="PasswordResetConfirm">
-        {({ route, navigation }) => (
-          <PasswordResetConfirmScreen
-            phone={route.params.phone}
-            onGoBackToLogin={() => navigation.replace("Login")}
+          <PhoneAuthVerifyScreen
+            phoneNumber={route.params.phoneNumber}
+            maskedPhone={route.params.maskedPhone}
+            expiresInSeconds={route.params.expiresInSeconds}
+            onGoBack={() => navigation.goBack()}
           />
         )}
       </AuthStack.Screen>
@@ -437,7 +404,7 @@ export function AppNavigator() {
       ) : showPinGate ? (
         <PinGateScreen />
       ) : (
-        <OrganizationNavigator hasOrganizations={organizations.length > 0} />
+        <OrganizationNavigator hasOrganizations={user.hasOrganization === true} />
       )}
       </NavigationContainer>
       <PushInAppBanner />

@@ -5,7 +5,6 @@ import {
 } from "./sheets/TransactionSheet";
 import { TransactionDetailSheet } from "./sheets/TransactionDetailSheet";
 import { LanguageSheet } from "./sheets/LanguageSheet";
-import { PasswordChangeSheet } from "./sheets/PasswordChangeSheet";
 import { OrganizationProfileSheet } from "./sheets/OrganizationProfileSheet";
 import { SubscriptionCancellationSheet } from "./sheets/SubscriptionCancellationSheet";
 import { PaymentCheckoutSheet } from "./sheets/PaymentCheckoutSheet";
@@ -30,11 +29,6 @@ export const sheetRegistry: SheetRegistry = {
     enableDynamicSizing: true,
     enablePanDownToClose: true,
     dismissKeyboardOnOpen: false,
-  },
-  passwordChange: {
-    component: PasswordChangeSheet,
-    enableDynamicSizing: true,
-    enablePanDownToClose: true,
   },
   organizationProfile: {
     component: OrganizationProfileSheet,

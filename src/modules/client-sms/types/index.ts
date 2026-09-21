@@ -8,8 +8,8 @@ export interface SmsRecipientFilters {
   blacklisted?: boolean;
   hasDebt?: boolean;
   canSend?: boolean;
-  pageNumber: number;
-  pageSize: number;
+  pageNumber?: number;
+  pageSize?: number;
 }
 
 export interface SmsHistoryFilters {

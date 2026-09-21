@@ -6,11 +6,11 @@ const ts = require("typescript");
 
 const root = path.resolve(__dirname, "..");
 const registerSource = fs.readFileSync(
-  path.join(root, "src", "screens", "RegisterScreen.tsx"),
+  path.join(root, "src", "screens", "PhoneAuthScreen.tsx"),
   "utf8",
 );
 const verifySource = fs.readFileSync(
-  path.join(root, "src", "screens", "RegisterSmsVerifyScreen.tsx"),
+  path.join(root, "src", "screens", "PhoneAuthVerifyScreen.tsx"),
   "utf8",
 );
 const autoFillSource = fs.readFileSync(
@@ -25,18 +25,18 @@ assert.doesNotMatch(
 );
 assert.match(
   registerSource,
-  /onGoToSmsVerify\(\{\s*registerPayload:\s*\{/,
-  "registration form must navigate with the registration payload",
+  /requestPhoneAuthCode\([\s\S]*onGoToVerify\(/,
+  "phone auth form must request a code before navigating to verification",
 );
 assert.match(
   verifySource,
-  /const \{ restartListening, isReady, hasError \} = useOtpAutoFill\(/,
+  /const \{ restartListening \} = useOtpAutoFill\(/,
   "OTP screen must control the retriever lifecycle",
 );
 assert.match(
   verifySource,
-  /await restartListening\(\)[\s\S]{0,240}await sendSmsCode\(/,
-  "OTP listener must be restarted before sending the initial SMS or resend",
+  /await restartListening\(\)[\s\S]{0,240}requestPhoneAuthCode\(/,
+  "OTP listener must be restarted before sending a resend",
 );
 assert.match(
   autoFillSource,
@@ -53,11 +53,7 @@ assert.doesNotMatch(
   /@ebrimasamba\/react-native-sms-retriever/,
   "OTP hook must not depend on app-hash SMS Retriever",
 );
-assert.match(
-  verifySource,
-  /Platform\.OS === "android" && !isReady && !hasError/,
-  "initial SMS request must wait for Android retriever readiness",
-);
+assert.match(verifySource, /autoStart:\s*true/);
 
 const previousTsLoader = require.extensions[".ts"];
 const previousTsxLoader = require.extensions[".tsx"];
