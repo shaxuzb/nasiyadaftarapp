@@ -51,6 +51,7 @@ const SCREEN_COPY = {
     noBlacklist: "Qora ro‘yxat",
     telegram: "Telegram bot",
     more: "+2",
+    smsSubtitle: "Qo‘shimcha SMS oling",
     info: "Tarif yoki SMS paketni tanlang. To‘lov xavfsiz tashqi sahifada davom etadi.",
   },
   ru: {
@@ -71,6 +72,7 @@ const SCREEN_COPY = {
     noBlacklist: "Чёрный список",
     telegram: "Telegram-бот",
     more: "+2",
+    smsSubtitle: "Дополнительные SMS",
     info: "Выберите тариф или пакет SMS. Оплата продолжится на защищённой внешней странице.",
   },
 } as const;
@@ -176,7 +178,6 @@ export function SubscriptionScreen() {
 
         <View style={styles.headerCopy}>
           <Text style={styles.title}>{t("subscription.screenTitle")}</Text>
-          <Text style={styles.subtitle}>{copy.subtitle}</Text>
         </View>
 
         <View style={styles.headerButton} />
@@ -188,34 +189,94 @@ export function SubscriptionScreen() {
       >
         {current ? (
           <View style={styles.currentCard}>
-            <View style={styles.currentIcon}>
-              <Ionicons
-                name="sparkles-outline"
-                size={25}
-                color={theme.primary}
-              />
-            </View>
+            <View style={styles.currentTop}>
+              <View style={styles.currentIcon}>
+                <Ionicons
+                  name="sparkles-outline"
+                  size={28}
+                  color={theme.primary}
+                />
+              </View>
 
-            <View style={styles.flexCopy}>
-              <Text style={styles.currentEyebrow}>
-                {copy.currentBadge}
-              </Text>
-              <Text style={styles.currentName}>
-                {getPlanName(current.planCode, current.planName)}
-              </Text>
-              {currentStatusText ? (
-                <Text style={styles.currentMeta} numberOfLines={1}>
-                  {currentStatusText}
+              <View style={styles.flexCopy}>
+                <Text style={styles.currentEyebrow}>
+                  {copy.currentBadge.toUpperCase()}
                 </Text>
-              ) : null}
+                <Text style={styles.currentName}>
+                  {getPlanName(current.planCode, current.planName)}
+                </Text>
+                <Text style={styles.currentDescription} numberOfLines={2}>
+                  {getPlanDescription(current.planCode, current.planName)}
+                </Text>
+              </View>
+
+              <View style={styles.activeBadge}>
+                <View style={styles.activeDot} />
+                <Text style={styles.activeBadgeText}>
+                  {t("subscription.active")}
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.activeBadge}>
-              <Text style={styles.activeBadgeText}>
-                {t("subscription.active")}
-              </Text>
-              <View style={styles.activeDot} />
+            <View style={styles.currentStats}>
+              <View style={styles.currentStat}>
+                <View style={styles.currentStatIcon}>
+                  <Ionicons
+                    name="chatbubble-ellipses-outline"
+                    size={19}
+                    color={theme.primary}
+                  />
+                </View>
+                <View>
+                  <Text style={styles.currentStatValue}>
+                    {current.sms.totalRemaining === null
+                      ? "∞"
+                      : current.sms.totalRemaining}
+                  </Text>
+                  <Text style={styles.currentStatLabel}>
+                    {t("subscription.remainingSms")}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.currentStatDivider} />
+
+              <View style={styles.currentStatCentered}>
+                <Text style={styles.currentStatSymbol}>
+                  {current.unlimitedOrganizations
+                    ? "∞"
+                    : (current.maxOrganizations ?? 0)}
+                </Text>
+                <Text style={styles.currentStatLabel}>
+                  {t("subscription.organizations")}
+                </Text>
+              </View>
+
+              <View style={styles.currentStatDivider} />
+
+              <View style={styles.currentStatCentered}>
+                <Ionicons
+                  name={
+                    current.blacklistEnabled
+                      ? "shield-checkmark-outline"
+                      : "shield-outline"
+                  }
+                  size={25}
+                  color={
+                    current.blacklistEnabled ? theme.primary : theme.textMuted
+                  }
+                />
+                <Text style={styles.currentStatLabel}>
+                  {t("subscription.blacklist")}
+                </Text>
+              </View>
             </View>
+
+            {currentStatusText && current.cancellationRequestedAt ? (
+              <Text style={styles.currentCancellation} numberOfLines={1}>
+                {currentStatusText}
+              </Text>
+            ) : null}
           </View>
         ) : currentQuery.isPending ? (
           <View style={styles.loadingCard}>
@@ -423,6 +484,7 @@ export function SubscriptionScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{t("subscription.packages")}</Text>
+          <Text style={styles.sectionMeta}>{copy.smsSubtitle}</Text>
         </View>
 
         {packagesQuery.isPending && !packages.length ? (
@@ -431,11 +493,7 @@ export function SubscriptionScreen() {
             <Text style={styles.muted}>{t("subscription.quotaLoading")}</Text>
           </View>
         ) : packages.length ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.packageRow}
-          >
+          <View style={styles.packageGrid}>
             {packages.map((item) => (
               <Pressable
                 key={item.id}
@@ -455,19 +513,31 @@ export function SubscriptionScreen() {
                 <View style={styles.packageIcon}>
                   <Ionicons
                     name="chatbubble-ellipses-outline"
-                    size={19}
+                    size={20}
                     color={theme.primary}
                   />
                 </View>
-                <Text style={styles.packageName} numberOfLines={1}>
-                  {item.name}
-                </Text>
-                <Text style={styles.packagePrice} numberOfLines={1}>
-                  {formatLocalizedCurrency(item.price, locale)}
-                </Text>
+
+                <View style={styles.packageCopy}>
+                  <Text style={styles.packageName} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.packagePrice} numberOfLines={1}>
+                    {formatLocalizedCurrency(item.price, locale)}
+                  </Text>
+                  <Text style={styles.packageHint} numberOfLines={1}>
+                    {t("subscription.packageHint")}
+                  </Text>
+                </View>
+
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={theme.textMuted}
+                />
               </Pressable>
             ))}
-          </ScrollView>
+          </View>
         ) : (
           <View style={styles.loadingCard}>
             <Text style={styles.muted}>{t("subscription.packageNotFound")}</Text>
@@ -571,31 +641,29 @@ const createStyles = (theme: AppTheme) =>
       color: theme.text,
       textAlign: "center",
     },
-    subtitle: {
-      ...typography.bodySmall,
-      color: theme.textSecondary,
-      textAlign: "center",
-    },
     content: {
       paddingHorizontal: spacing.md,
       paddingBottom: spacing.xl,
       gap: 14,
     },
     currentCard: {
-      minHeight: 100,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
       padding: 14,
+      gap: 14,
       borderRadius: radius.xl,
       backgroundColor: theme.primaryLight,
       borderWidth: 1,
       borderColor: `${theme.primary}28`,
     },
+    currentTop: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+    },
     currentIcon: {
-      width: 52,
-      height: 52,
-      borderRadius: 16,
+      width: 58,
+      height: 58,
+      flexShrink: 0,
+      borderRadius: 18,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.surface,
@@ -610,10 +678,69 @@ const createStyles = (theme: AppTheme) =>
       color: theme.text,
       marginTop: 1,
     },
-    currentMeta: {
+    currentDescription: {
       ...typography.bodySmall,
       color: theme.textSecondary,
-      marginTop: 2,
+      marginTop: 3,
+      lineHeight: 19,
+    },
+    currentStats: {
+      minHeight: 78,
+      flexDirection: "row",
+      alignItems: "center",
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      borderRadius: radius.lg,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: `${theme.primary}10`,
+    },
+    currentStat: {
+      flex: 1,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+    },
+    currentStatCentered: {
+      flex: 1,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 2,
+    },
+    currentStatIcon: {
+      width: 34,
+      height: 34,
+      borderRadius: 11,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.primaryLight,
+    },
+    currentStatValue: {
+      ...typography.headingMedium,
+      color: theme.text,
+      fontWeight: "800",
+      fontVariant: ["tabular-nums"],
+    },
+    currentStatSymbol: {
+      fontSize: 28,
+      lineHeight: 30,
+      color: theme.primary,
+      fontWeight: "700",
+    },
+    currentStatLabel: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      textAlign: "center",
+    },
+    currentStatDivider: {
+      width: 1,
+      height: 42,
+      backgroundColor: `${theme.primary}20`,
+    },
+    currentCancellation: {
+      ...typography.caption,
+      color: theme.textSecondary,
     },
     activeBadge: {
       flexDirection: "row",
@@ -788,28 +915,37 @@ const createStyles = (theme: AppTheme) =>
       color: theme.textMuted,
       fontWeight: "700",
     },
-    packageRow: {
-      gap: 8,
-      paddingRight: 1,
+    packageGrid: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      justifyContent: "space-between",
+      rowGap: 10,
     },
     packageCard: {
-      width: 92,
-      minHeight: 116,
-      padding: 11,
-      gap: 5,
+      width: "48.7%",
+      minHeight: 104,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
+      padding: 12,
       borderRadius: radius.lg,
       backgroundColor: theme.surface,
       borderWidth: 1,
       borderColor: theme.border,
     },
     packageIcon: {
-      width: 36,
-      height: 36,
+      width: 44,
+      height: 44,
+      flexShrink: 0,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 11,
+      borderRadius: 13,
       backgroundColor: theme.primaryLight,
-      marginBottom: 3,
+    },
+    packageCopy: {
+      minWidth: 0,
+      flex: 1,
+      gap: 2,
     },
     packageName: {
       ...typography.bodySmall,
@@ -820,6 +956,12 @@ const createStyles = (theme: AppTheme) =>
       ...typography.bodySmall,
       color: theme.primary,
       fontWeight: "800",
+    },
+    packageHint: {
+      ...typography.caption,
+      color: theme.textMuted,
+      fontSize: 10,
+      lineHeight: 13,
     },
     infoBox: {
       minHeight: 58,
