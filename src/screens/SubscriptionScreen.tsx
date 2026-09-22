@@ -306,7 +306,7 @@ export function SubscriptionScreen() {
               const isPremium = normalizedCode === "PREMIUM";
               const isFree = normalizedCode === "FREE";
               const availability = getPlanPurchaseAvailability(current, plan);
-              const selectable = !isCurrent && availability.allowed;
+              const selectable = !isFree && !isCurrent && availability.allowed;
               const accent = getPlanAccent(plan.code, theme);
               const duration = plan.durationDays ?? 30;
 
@@ -351,7 +351,9 @@ export function SubscriptionScreen() {
                 },
               ];
 
-              const visibleFeatures = isFree ? features.slice(0, 4) : features;
+              const visibleFeatures = isFree
+                ? features.filter((feature) => feature.key !== "sms").slice(0, 3)
+                : features;
 
               return (
                 <Pressable
@@ -372,7 +374,9 @@ export function SubscriptionScreen() {
                   style={({ pressed }) => [
                     styles.planCard,
                     {
-                      borderColor: isCurrent ? theme.primary : theme.border,
+                      borderColor: isCurrent
+                        ? theme.primary
+                        : theme.tabBarBorder,
                       backgroundColor: isCurrent
                         ? `${theme.primary}05`
                         : isPremium
@@ -434,26 +438,16 @@ export function SubscriptionScreen() {
                       </Text>
                     </View>
 
-                    <View style={styles.priceWrap}>
-                      <Text style={styles.priceAmount}>
-                        {formatLocalizedCurrency(plan.price, locale)}
-                      </Text>
-                      <Text style={styles.pricePeriod}>/ {duration} {copy.dayUnit}</Text>
-                    </View>
-
-                    <View
-                      style={[
-                        styles.radio,
-                        isCurrent && {
-                          borderColor: theme.primary,
-                          borderWidth: 2,
-                        },
-                      ]}
-                    >
-                      {isCurrent ? (
-                        <View style={styles.radioDot} />
-                      ) : null}
-                    </View>
+                    {!isFree ? (
+                      <View style={styles.priceWrap}>
+                        <Text style={styles.priceAmount}>
+                          {formatLocalizedCurrency(plan.price, locale)}
+                        </Text>
+                        <Text style={styles.pricePeriod}>
+                          / {duration} {copy.dayUnit}
+                        </Text>
+                      </View>
+                    ) : null}
                   </View>
 
                   <View style={styles.featureChips}>
@@ -524,9 +518,6 @@ export function SubscriptionScreen() {
                   </Text>
                   <Text style={styles.packagePrice} numberOfLines={1}>
                     {formatLocalizedCurrency(item.price, locale)}
-                  </Text>
-                  <Text style={styles.packageHint} numberOfLines={1}>
-                    {t("subscription.packageHint")}
                   </Text>
                 </View>
 
@@ -648,11 +639,11 @@ const createStyles = (theme: AppTheme) =>
     },
     currentCard: {
       padding: 14,
-      gap: 14,
-      borderRadius: radius.xl,
-      backgroundColor: theme.primaryLight,
+      gap: 13,
+      borderRadius: radius.lg,
+      backgroundColor: theme.surface,
       borderWidth: 1,
-      borderColor: `${theme.primary}28`,
+      borderColor: theme.tabBarBorder,
     },
     currentTop: {
       flexDirection: "row",
@@ -691,9 +682,9 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: 12,
       paddingVertical: 10,
       borderRadius: radius.lg,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.inputBackground,
       borderWidth: 1,
-      borderColor: `${theme.primary}10`,
+      borderColor: theme.tabBarBorder,
     },
     currentStat: {
       flex: 1,
@@ -736,7 +727,7 @@ const createStyles = (theme: AppTheme) =>
     currentStatDivider: {
       width: 1,
       height: 42,
-      backgroundColor: `${theme.primary}20`,
+      backgroundColor: theme.tabBarBorder,
     },
     currentCancellation: {
       ...typography.caption,
@@ -859,22 +850,6 @@ const createStyles = (theme: AppTheme) =>
       ...typography.caption,
       color: theme.textMuted,
     },
-    radio: {
-      width: 22,
-      height: 22,
-      flexShrink: 0,
-      borderRadius: 11,
-      borderWidth: 1.5,
-      borderColor: theme.textMuted,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    radioDot: {
-      width: 11,
-      height: 11,
-      borderRadius: 6,
-      backgroundColor: theme.primary,
-    },
     featureChips: {
       flexDirection: "row",
       flexWrap: "wrap",
@@ -923,19 +898,20 @@ const createStyles = (theme: AppTheme) =>
     },
     packageCard: {
       width: "48.7%",
-      minHeight: 104,
+      minHeight: 80,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
-      padding: 12,
+      gap: 9,
+      paddingHorizontal: 11,
+      paddingVertical: 9,
       borderRadius: radius.lg,
       backgroundColor: theme.surface,
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.tabBarBorder,
     },
     packageIcon: {
-      width: 44,
-      height: 44,
+      width: 38,
+      height: 38,
       flexShrink: 0,
       alignItems: "center",
       justifyContent: "center",
@@ -957,12 +933,6 @@ const createStyles = (theme: AppTheme) =>
       color: theme.primary,
       fontWeight: "800",
     },
-    packageHint: {
-      ...typography.caption,
-      color: theme.textMuted,
-      fontSize: 10,
-      lineHeight: 13,
-    },
     infoBox: {
       minHeight: 58,
       flexDirection: "row",
@@ -970,7 +940,9 @@ const createStyles = (theme: AppTheme) =>
       gap: 9,
       padding: 12,
       borderRadius: radius.lg,
-      backgroundColor: theme.inputBackground,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.tabBarBorder,
     },
     infoText: {
       flex: 1,
@@ -987,7 +959,7 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: radius.lg,
       backgroundColor: theme.surface,
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.tabBarBorder,
     },
     muted: {
       ...typography.bodySmall,
