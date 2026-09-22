@@ -46,7 +46,7 @@ const SCREEN_COPY = {
     standardDescription: "Kengaytirilgan imkoniyatlar bilan",
     premiumDescription: "To‘liq imkoniyatlar, maksimal qulaylik",
     unlimitedOrganizations: "Cheksiz tashkilot",
-    autoSms: "Avto SMS",
+    autoSms: "Tranzaksiyalar uchun avto SMS",
     support247: "24/7 qo‘llab-quvvatlash",
     noBlacklist: "Qora ro‘yxat",
     telegram: "Telegram bot",
@@ -67,7 +67,7 @@ const SCREEN_COPY = {
     standardDescription: "Расширенные возможности для работы",
     premiumDescription: "Все возможности и максимальный комфорт",
     unlimitedOrganizations: "Безлимит организаций",
-    autoSms: "Авто SMS",
+    autoSms: "Авто SMS о транзакциях",
     support247: "Поддержка 24/7",
     noBlacklist: "Чёрный список",
     telegram: "Telegram-бот",
@@ -351,9 +351,7 @@ export function SubscriptionScreen() {
                 },
               ];
 
-              const visibleFeatures = isFree
-                ? features.filter((feature) => feature.key !== "sms").slice(0, 3)
-                : features;
+              const visibleFeatures = isFree ? features.slice(0, 3) : features;
 
               return (
                 <Pressable
@@ -405,7 +403,6 @@ export function SubscriptionScreen() {
                         <Text style={styles.planName}>
                           {getPlanName(plan.code, plan.name)}
                         </Text>
-
                         {isCurrent ? (
                           <View style={styles.currentPill}>
                             <Text style={styles.currentPillText}>
@@ -437,17 +434,25 @@ export function SubscriptionScreen() {
                         {getPlanDescription(plan.code, plan.description)}
                       </Text>
                     </View>
-
-                    {!isFree ? (
-                      <View style={styles.priceWrap}>
-                        <Text style={styles.priceAmount}>
-                          {formatLocalizedCurrency(plan.price, locale)}
-                        </Text>
-                        <Text style={styles.pricePeriod}>
-                          / {duration} {copy.dayUnit}
-                        </Text>
-                      </View>
-                    ) : null}
+                    <View>
+                      {!isFree ? (
+                        <View style={styles.priceWrap}>
+                          <Text style={styles.priceAmount}>
+                            {formatLocalizedCurrency(plan.price, locale)}
+                          </Text>
+                          <Text style={styles.pricePeriod}>
+                            / {duration} {copy.dayUnit}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    {/* {!isCurrent && !isFree ? (
+                      <Ionicons
+                        name="chevron-forward"
+                        size={20}
+                        color={theme.textMuted}
+                      />
+                    ) : null} */}
                   </View>
 
                   <View style={styles.featureChips}>
@@ -531,7 +536,9 @@ export function SubscriptionScreen() {
           </View>
         ) : (
           <View style={styles.loadingCard}>
-            <Text style={styles.muted}>{t("subscription.packageNotFound")}</Text>
+            <Text style={styles.muted}>
+              {t("subscription.packageNotFound")}
+            </Text>
           </View>
         )}
 
@@ -587,10 +594,7 @@ function FeatureChip({
         />
       </View>
       <Text
-        style={[
-          styles.featureChipText,
-          !enabled && { color: theme.textMuted },
-        ]}
+        style={[styles.featureChipText, !enabled && { color: theme.textMuted }]}
         numberOfLines={1}
       >
         {text}
@@ -679,7 +683,7 @@ const createStyles = (theme: AppTheme) =>
       minHeight: 78,
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 12,
+      paddingHorizontal: 8,
       paddingVertical: 10,
       borderRadius: radius.lg,
       backgroundColor: theme.inputBackground,
@@ -898,7 +902,7 @@ const createStyles = (theme: AppTheme) =>
     },
     packageCard: {
       width: "48.7%",
-      minHeight: 80,
+      minHeight: 70,
       flexDirection: "row",
       alignItems: "center",
       gap: 9,
@@ -969,4 +973,3 @@ const createStyles = (theme: AppTheme) =>
       opacity: 0.72,
     },
   });
-

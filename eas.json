@@ -17,7 +17,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://nasiya-test-api.crmuz.uz/api",
+        "EXPO_PUBLIC_API_BASE_URL": "https://nasiya-api.crmuz.uz/api",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "631239329456-erpr2q3lp3vgukp1obakv0f80pgbhpg9.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "631239329456-g29v8t5i1plcv5slda9cdto1prqrhe2i.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "631239329456-tmj0hfii9ncuuktm9tirpqrslr6rqmet.apps.googleusercontent.com"
@@ -26,7 +26,7 @@
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_BASE_URL": "https://nasiya-test-api.crmuz.uz/api",
+        "EXPO_PUBLIC_API_BASE_URL": "https://nasiya-api.crmuz.uz/api",
         "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "631239329456-erpr2q3lp3vgukp1obakv0f80pgbhpg9.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "631239329456-g29v8t5i1plcv5slda9cdto1prqrhe2i.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "631239329456-tmj0hfii9ncuuktm9tirpqrslr6rqmet.apps.googleusercontent.com"

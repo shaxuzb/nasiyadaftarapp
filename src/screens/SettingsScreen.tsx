@@ -156,8 +156,7 @@ export function SettingsScreen() {
     useState<SubscriptionUpgradeReason | null>(null);
   const subscriptionQuery = useCurrentSubscription();
   const subscription = subscriptionQuery.data ?? user?.subscription;
-  const isAdministrator =
-    user?.role === "Administrator" && user?.roleId === 2;
+  const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const pushPermissionDescription =
     pushPermission === "granted"
       ? t("notifications.permissionGranted")
@@ -191,11 +190,11 @@ export function SettingsScreen() {
     : null;
 
   const phoneVerified = hasVerifiedPhone(user);
-  const organizationStatusLabel = currentOrganization
-    ? currentOrganization.stateId === 1
-      ? t("profile.organizationActive")
-      : currentOrganization.state || t("profile.organizationStatusUnknown")
-    : t("profile.organizationNotSelected");
+  // const organizationStatusLabel = currentOrganization
+  //   ? currentOrganization.stateId === 1
+  //     ? t("profile.organizationActive")
+  //     : currentOrganization.state || t("profile.organizationStatusUnknown")
+  //   : t("profile.organizationNotSelected");
 
   const handleOrganizationSwitch = useCallback(async () => {
     try {
@@ -307,21 +306,26 @@ export function SettingsScreen() {
               style={styles.organizationAvatar}
               accessibilityLabel={t("profile.organizationAvatarLabel")}
             >
-              <Ionicons name="business-outline" size={27} color={theme.primary} />
+              <Ionicons
+                name="business-outline"
+                size={27}
+                color={theme.primary}
+              />
             </View>
             <View style={styles.organizationIdentity}>
               <Text style={styles.organizationEyebrow}>
                 {t("profile.currentOrganization")}
               </Text>
               <Text style={styles.profileName} numberOfLines={2}>
-                {currentOrganization?.name || t("profile.organizationNotSelected")}
+                {currentOrganization?.name ||
+                  t("profile.organizationNotSelected")}
               </Text>
-              <View style={styles.organizationStatusRow}>
+              {/* <View style={styles.organizationStatusRow}>
                 <View style={styles.organizationStatusDot} />
                 <Text style={styles.organizationStatusText}>
                   {organizationStatusLabel}
                 </Text>
-              </View>
+              </View> */}
             </View>
             <Pressable
               accessibilityRole="button"
@@ -458,7 +462,11 @@ export function SettingsScreen() {
             ]}
           >
             <View style={styles.paymentHistoryIcon}>
-              <Ionicons name="receipt-outline" size={20} color={theme.primary} />
+              <Ionicons
+                name="receipt-outline"
+                size={20}
+                color={theme.primary}
+              />
             </View>
             <View style={styles.paymentHistoryCopy}>
               <Text style={styles.paymentHistoryTitle}>
@@ -532,9 +540,7 @@ export function SettingsScreen() {
                 : () => setUpgradeReason("telegram")
             }
             loading={telegramEnabled && isOpeningBot}
-            badge={
-              telegramEnabled ? undefined : t("subscription.standardPlan")
-            }
+            badge={telegramEnabled ? undefined : t("subscription.standardPlan")}
           />
           <ProfileMenuRow
             icon="chatbubble-ellipses-outline"

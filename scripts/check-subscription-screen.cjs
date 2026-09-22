@@ -30,6 +30,18 @@ assert.match(screen, /AdminContactButton/);
 assert.doesNotMatch(screen, /openAdminContact\(\)/);
 assert.match(screen, /plan\.transactionSmsEnabled/);
 assert.match(screen, /plan\.prioritySupportEnabled/);
+assert.match(
+  screen,
+  /const visibleFeatures = isFree\s*\?\s*features\.slice\(0,\s*3\)\s*:\s*features/,
+  "FREE must show organization, SMS and blacklist limits",
+);
+assert.match(screen, /name="chevron-forward"/);
+assert.match(screen, /styles\.planMetaRow/);
+assert.match(
+  screen,
+  /<View style=\{styles\.planMetaRow\}>[\s\S]*?styles\.priceWrap[\s\S]*?styles\.currentPill/,
+  "Plan price and current badge must share the metadata row",
+);
 assert.doesNotMatch(screen, /normalized === "PRO"/);
 assert.match(settings, /navigation\.navigate\("Subscription"\)/);
 assert.match(navigation, /name="Subscription"/);
