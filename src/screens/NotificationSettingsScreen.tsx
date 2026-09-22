@@ -180,7 +180,11 @@ export function NotificationSettingsScreen() {
           />
         ) : null}
 
-        {lastError ? <Text style={styles.error}>{lastError}</Text> : null}
+        {lastError ? (
+          <Text style={styles.error}>
+            {__DEV__ ? lastError : t("notifications.registrationError")}
+          </Text>
+        ) : null}
         {isRegistering ? (
           <ActivityIndicator color={theme.primary} style={styles.loader} />
         ) : null}

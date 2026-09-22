@@ -120,6 +120,9 @@ export function NotificationsScreen() {
         keyExtractor={(item) => String(item.id)}
         renderItem={renderItem}
         contentContainerStyle={[styles.list, !items.length && styles.listEmpty]}
+        initialNumToRender={12}
+        maxToRenderPerBatch={10}
+        windowSize={5}
         refreshControl={
           <RefreshControl
             refreshing={query.isRefetching}

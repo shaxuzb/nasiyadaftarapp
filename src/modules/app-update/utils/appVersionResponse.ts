@@ -85,11 +85,28 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function isHttpsUrl(value: unknown): value is string {
+// A forced update shows a blocking prompt that sends the user straight to the
+// given URL. Restricting it to the official stores keeps a compromised or
+// spoofed backend from redirecting that prompt at an attacker-controlled page.
+const ALLOWED_STORE_HOSTS: Record<AppUpdatePlatform, readonly string[]> = {
+  android: ["play.google.com", "market.android.com"],
+  ios: ["apps.apple.com", "itunes.apple.com"],
+};
+
+function isAllowedStoreUrl(
+  value: unknown,
+  platform: AppUpdatePlatform,
+): value is string {
   if (!isNonEmptyString(value)) return false;
 
   try {
-    return new URL(value).protocol === "https:";
+    const url = new URL(value.trim());
+    if (url.protocol !== "https:") return false;
+
+    const host = url.hostname.toLowerCase();
+    return ALLOWED_STORE_HOSTS[platform].some(
+      (allowed) => host === allowed || host.endsWith(`.${allowed}`),
+    );
   } catch {
     return false;
   }
@@ -126,7 +143,7 @@ export function parseAppVersionCheckResponse(
     typeof forceUpdate !== "boolean" ||
     !isNonEmptyString(title) ||
     !isNonEmptyString(message) ||
-    !isHttpsUrl(storeUrl) ||
+    !isAllowedStoreUrl(storeUrl, expectedPlatform) ||
     compareSemanticVersions(latestVersion, minimumVersion) < 0
   ) {
     return null;

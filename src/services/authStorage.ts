@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Crypto from "expo-crypto";
 import * as SecureStore from "expo-secure-store";
 import { AuthSession, AuthUser } from "../modules/auth/types";
 
@@ -9,8 +10,9 @@ const AUTH_UNIQUE_ID_KEY = "auth_unique_id_v1";
 let authSessionCache: AuthSession | null = null;
 
 function createUniqueId() {
-  const randomPart = Math.random().toString(36).slice(2, 10);
-  return `${Date.now()}-${randomPart}`;
+  // This identifier binds the refresh token to the install, so it is generated
+  // from the platform CSPRNG rather than Math.random, which is predictable.
+  return Crypto.randomUUID();
 }
 
 export async function hydrateAuthSession(): Promise<AuthSession | null> {
@@ -98,12 +100,28 @@ export async function clearAuthSession(): Promise<void> {
 }
 
 export async function getOrCreateUniqueId(): Promise<string> {
-  const existing = await AsyncStorage.getItem(AUTH_UNIQUE_ID_KEY);
-  if (existing) {
-    return existing;
+  const secureValue = await SecureStore.getItemAsync(AUTH_UNIQUE_ID_KEY).catch(
+    () => null,
+  );
+  if (secureValue) {
+    return secureValue;
   }
 
-  const uniqueId = createUniqueId();
-  await AsyncStorage.setItem(AUTH_UNIQUE_ID_KEY, uniqueId);
+  // Existing installs keep the identifier they already have: the backend has
+  // bound their refresh token to it, so regenerating one here would invalidate
+  // the session. Only a fresh install gets a newly generated value.
+  const legacyValue = await AsyncStorage.getItem(AUTH_UNIQUE_ID_KEY);
+  const uniqueId = legacyValue ?? createUniqueId();
+
+  try {
+    await SecureStore.setItemAsync(AUTH_UNIQUE_ID_KEY, uniqueId);
+    await AsyncStorage.removeItem(AUTH_UNIQUE_ID_KEY);
+  } catch {
+    // Keystore writes can fail on a small number of devices. Falling back to
+    // AsyncStorage is weaker but keeps the install usable, whereas throwing
+    // here would break the auth bootstrap and sign the user out.
+    await AsyncStorage.setItem(AUTH_UNIQUE_ID_KEY, uniqueId);
+  }
+
   return uniqueId;
 }

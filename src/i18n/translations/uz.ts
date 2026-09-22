@@ -218,6 +218,7 @@ export const uzTranslations = {
     toggleDescription: "Yangiliklar va muhim e’lonlarni qabul qilish",
     enable: "Bildirishnomalarni yoqish",
     openSettings: "Sozlamalarni ochish",
+    registrationError: "Bildirishnomalarni ulab bo‘lmadi. Qayta urinib ko‘ring",
     permissionError: "Bildirishnoma ruxsatini sozlab bo‘lmadi",
     readError: "Bildirishnomani o‘qilgan deb belgilab bo‘lmadi",
     markRead: "O‘qilgan deb belgilash",

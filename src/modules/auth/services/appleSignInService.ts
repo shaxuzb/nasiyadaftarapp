@@ -37,7 +37,6 @@ export async function requestAppleCredential(): Promise<AppleLoginRequest> {
         AppleAuthentication.AppleAuthenticationScope.EMAIL,
       ],
     });
-    console.log(credential);
 
     const formattedName = credential.fullName
       ? AppleAuthentication.formatFullName(credential.fullName).trim() || null

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -39,6 +39,12 @@ export function PaymentHistoryScreen() {
   const { openSheet } = useBottomSheet();
   const query = usePaymentHistory(30);
   const items = query.data ?? [];
+  // Memoised so the list keeps a single separator component type across
+  // renders instead of remounting every separator.
+  const Separator = useCallback(
+    () => <View style={styles.separator} />,
+    [styles.separator],
+  );
   const renderItem = ({ item }: { item: PaymentOrder }) => (
     <Pressable
       accessibilityRole="button"
@@ -106,7 +112,11 @@ export function PaymentHistoryScreen() {
             styles.list,
             !items.length && styles.listEmpty,
           ]}
-          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ItemSeparatorComponent={Separator}
+          initialNumToRender={12}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews
           refreshControl={
             <RefreshControl
               refreshing={query.isRefetching}

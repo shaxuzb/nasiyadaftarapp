@@ -220,6 +220,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     toggleDescription: "Получать новости и важные объявления",
     enable: "Включить уведомления",
     openSettings: "Открыть настройки",
+    registrationError: "Не удалось подключить уведомления. Попробуйте снова",
     permissionError: "Не удалось настроить разрешение уведомлений",
     readError: "Не удалось отметить уведомление прочитанным",
     markRead: "Отметить прочитанным",

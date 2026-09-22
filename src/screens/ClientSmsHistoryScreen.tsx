@@ -35,6 +35,17 @@ const statuses = [
   { labelKey: "sms.statusSkipped", value: "skipped" },
 ] as const;
 
+// Defined at module scope so the list keeps one separator component type.
+// An inline arrow here produced a new type on every render, which unmounted
+// and remounted every separator in the list.
+const historyListStyles = StyleSheet.create({
+  separator: { height: spacing.sm },
+});
+
+function HistorySeparator() {
+  return <View style={historyListStyles.separator} />;
+}
+
 export function ClientSmsHistoryScreen() {
   const navigation = useNavigation<Nav>();
   const theme = useTheme();
@@ -148,7 +159,11 @@ function HistoryContent() {
             styles.list,
             !history.data?.results.length && styles.empty,
           ]}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
+          ItemSeparatorComponent={HistorySeparator}
+          initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={5}
+          removeClippedSubviews
           ListEmptyComponent={
             <EmptyState
               iconName="time-outline"

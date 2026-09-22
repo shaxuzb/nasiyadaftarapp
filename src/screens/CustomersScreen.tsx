@@ -43,7 +43,10 @@ import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { AppInput } from "../components/AppInput";
 import { createBalanceMap } from "../modules/clients/utils/clientCalculations";
-import { sortCustomerList } from "../modules/clients/utils/clientList";
+import {
+  sortCustomerList,
+  type CustomerListItem,
+} from "../modules/clients/utils/clientList";
 import { useClientSearch } from "../modules/clients/hooks/useClientSearch";
 import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
 import { AppTheme, RootStackParamList } from "../types";
@@ -60,11 +63,36 @@ import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQue
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+// Rendered between every row. Building the full themed stylesheet here would
+// repeat that work once per gap, and the only value it needs is a fixed height.
+const listStyles = StyleSheet.create({
+  separator: { height: 12 },
+});
+
 function ListSeparator() {
-  const theme = useTheme();
-  const styles = useMemo(() => createStyles(theme), [theme]);
-  return <View style={styles.listSeparator} />;
+  return <View style={listStyles.separator} />;
 }
+
+// Keeps the memo on CustomerCard effective: without this wrapper the inline
+// onPress closure was rebuilt on every parent render (each keystroke in the
+// search field), so every visible card re-rendered with it.
+const CustomerRow = React.memo(function CustomerRow({
+  item,
+  onSelect,
+}: {
+  item: CustomerListItem;
+  onSelect: (item: CustomerListItem) => void;
+}) {
+  const handlePress = useCallback(() => onSelect(item), [item, onSelect]);
+
+  return (
+    <CustomerCard
+      customer={item.customer}
+      balance={item.balance}
+      onPress={handlePress}
+    />
+  );
+});
 
 const SHEET_SPRING = {
   damping: 80,
@@ -340,28 +368,29 @@ export function CustomersScreen() {
     [],
   );
 
+  const handleSelectCustomer = useCallback(
+    (item: ListItem) => {
+      hapticTap();
+      openSheet("transaction", {
+        customerId: item.customer.id,
+        type: "debt",
+        customerName: item.customer.fullName,
+        customerPhone: item.customer.phone,
+        currentBalance: item.balance,
+        onOpenProfile: () =>
+          navigation.navigate("CustomerDetail", {
+            customerId: item.customer.id,
+          }),
+      });
+    },
+    [navigation, openSheet],
+  );
+
   const renderItem = useCallback(
     ({ item }: { item: ListItem }) => (
-      <CustomerCard
-        customer={item.customer}
-        balance={item.balance}
-        onPress={() => {
-          hapticTap();
-          openSheet("transaction", {
-            customerId: item.customer.id,
-            type: "debt",
-            customerName: item.customer.fullName,
-            customerPhone: item.customer.phone,
-            currentBalance: item.balance,
-            onOpenProfile: () =>
-              navigation.navigate("CustomerDetail", {
-                customerId: item.customer.id,
-              }),
-          });
-        }}
-      />
+      <CustomerRow item={item} onSelect={handleSelectCustomer} />
     ),
-    [navigation, openSheet],
+    [handleSelectCustomer],
   );
 
   return (
@@ -828,9 +857,6 @@ const createStyles = (theme: AppTheme) =>
       paddingTop: 5,
       paddingBottom: 28,
       flexGrow: 1,
-    },
-    listSeparator: {
-      height: 12,
     },
     sheetBackground: {
       backgroundColor: theme.surface,

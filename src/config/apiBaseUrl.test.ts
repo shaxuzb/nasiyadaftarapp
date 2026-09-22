@@ -33,4 +33,22 @@ assert(
   'HTTP fallback is allowed for development and normalized',
 );
 
+assert(
+  resolveApiBaseUrl(
+    'http://api.example.com/api',
+    'https://fallback.example.com/api/',
+    { requireHttps: true },
+  ) === 'https://fallback.example.com/api',
+  'cleartext configured URL must be rejected when HTTPS is required',
+);
+
+assert(
+  resolveApiBaseUrl(
+    'https://api.example.com/api',
+    'https://fallback.example.com/api/',
+    { requireHttps: true },
+  ) === 'https://api.example.com/api',
+  'HTTPS configured URL is accepted when HTTPS is required',
+);
+
 console.log('API base URL resolution tests passed');

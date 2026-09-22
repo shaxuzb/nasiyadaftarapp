@@ -16,7 +16,7 @@
     "check:language-sheet": "node scripts/check-language-sheet-opening.cjs",
     "check:sheet-keyboard": "node scripts/check-bottom-sheet-keyboard.cjs",
     "doctor": "expo-doctor",
-    "audit:production": "npm audit --omit=dev --audit-level=moderate"
+    "audit:production": "node scripts/audit-production.cjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

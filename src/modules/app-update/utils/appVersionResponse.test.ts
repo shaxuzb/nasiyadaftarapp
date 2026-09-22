@@ -56,6 +56,34 @@ assert(
   ) === null,
   'latest version below minimum version is rejected',
 );
+assert(
+  parseAppVersionCheckResponse(
+    { ...valid, storeUrl: 'https://evil.example.com/store' },
+    'android',
+  ) === null,
+  'store URL outside the official stores is rejected',
+);
+assert(
+  parseAppVersionCheckResponse(
+    { ...valid, storeUrl: 'https://play.google.com.evil.example/app' },
+    'android',
+  ) === null,
+  'store host suffix spoofing is rejected',
+);
+assert(
+  parseAppVersionCheckResponse(
+    { ...valid, storeUrl: 'https://apps.apple.com/app/id123' },
+    'android',
+  ) === null,
+  'iOS store URL is rejected for the Android platform',
+);
+assert(
+  parseAppVersionCheckResponse(
+    { ...valid, platform: 'ios', storeUrl: 'https://apps.apple.com/app/id123' },
+    'ios',
+  )?.storeUrl === 'https://apps.apple.com/app/id123',
+  'official App Store URL is accepted on iOS',
+);
 
 const forced = parseAppVersionCheckResponse(
   { ...valid, updateAvailable: false, updateRequired: true },

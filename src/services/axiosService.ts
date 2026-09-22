@@ -26,6 +26,18 @@ export const apiClient = axios.create({
 let refreshPromise: Promise<string | null> | null = null;
 let unauthorizedHandler: (() => void) | undefined;
 
+// The stored session is only invalid when the refresh endpoint explicitly
+// rejects it. Network failures, timeouts and 5xx responses are transient, so
+// clearing the session there would sign the user out on a brief connectivity
+// drop instead of letting the next request recover.
+const SESSION_REJECTED_STATUSES = new Set([400, 401, 403]);
+
+function isSessionRejected(error: unknown): boolean {
+  if (!axios.isAxiosError(error)) return false;
+  const status = error.response?.status;
+  return typeof status === "number" && SESSION_REJECTED_STATUSES.has(status);
+}
+
 export function setUnauthorizedHandler(handler?: () => void) {
   unauthorizedHandler = handler;
 }
@@ -116,8 +128,10 @@ apiClient.interceptors.response.use(
       originalRequest.headers.Authorization = `Bearer ${newToken}`;
       return apiClient(originalRequest);
     } catch (refreshError) {
-      await clearAuthSession();
-      unauthorizedHandler?.();
+      if (isSessionRejected(refreshError)) {
+        await clearAuthSession();
+        unauthorizedHandler?.();
+      }
       return Promise.reject(refreshError);
     }
   },
