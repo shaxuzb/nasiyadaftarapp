@@ -37,6 +37,7 @@ const SCREEN_COPY = {
     subtitle: "Ehtiyojingizga mos tarifni tanlang",
     oneMonth: "1 oylik tariflar",
     currentBadge: "Joriy tarif",
+    dayUnit: "kun",
     bestChoice: "Eng yaxshi tanlov",
     renewsIn: (days: number) => `Tarifingiz ${days} kundan so‘ng yangilanadi`,
     renewsToday: "Tarifingiz bugun yangilanadi",
@@ -56,6 +57,7 @@ const SCREEN_COPY = {
     subtitle: "Выберите тариф под свои задачи",
     oneMonth: "Тарифы на 1 месяц",
     currentBadge: "Текущий тариф",
+    dayUnit: "дн.",
     bestChoice: "Лучший выбор",
     renewsIn: (days: number) => `Тариф обновится через ${days} дн.`,
     renewsToday: "Тариф обновится сегодня",
@@ -196,7 +198,7 @@ export function SubscriptionScreen() {
 
             <View style={styles.flexCopy}>
               <Text style={styles.currentEyebrow}>
-                {t("subscription.currentPlan")}
+                {copy.currentBadge}
               </Text>
               <Text style={styles.currentName}>
                 {getPlanName(current.planCode, current.planName)}
@@ -375,7 +377,7 @@ export function SubscriptionScreen() {
                       <Text style={styles.priceAmount}>
                         {formatLocalizedCurrency(plan.price, locale)}
                       </Text>
-                      <Text style={styles.pricePeriod}>/ {duration} kun</Text>
+                      <Text style={styles.pricePeriod}>/ {duration} {copy.dayUnit}</Text>
                     </View>
 
                     <View
