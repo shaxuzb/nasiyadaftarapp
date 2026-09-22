@@ -5,6 +5,12 @@ const screen = fs.readFileSync("src/screens/SubscriptionScreen.tsx", "utf8");
 const settings = fs.readFileSync("src/screens/SettingsScreen.tsx", "utf8");
 const navigation = fs.readFileSync("src/navigation/index.tsx", "utf8");
 
+assert.doesNotMatch(
+  screen,
+  /^(<<<<<<<|=======|>>>>>>>)/m,
+  "Subscription screen must not contain unresolved merge markers",
+);
+
 assert.match(screen, /t\("subscription\.screenTitle"\)/);
 assert.match(screen, /t\("subscription\.packages"\)/);
 assert.match(screen, /openSheet\("paymentCheckout"/);
