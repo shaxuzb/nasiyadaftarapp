@@ -23,10 +23,9 @@ import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import {
   formatLocalizedCurrency,
-  formatLocalizedDate,
   useTranslation,
 } from "../i18n";
-import { getPlanPurchaseStep } from "../modules/subscription/utils/planPurchase";
+import { getPlanPurchaseAvailability } from "../modules/subscription/utils/planPurchase";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -102,14 +101,6 @@ export function SubscriptionScreen() {
   };
 
   const openPlanPayment = (plan: (typeof plans)[number]) => {
-    if (current && getPlanPurchaseStep(current, plan) === "cancel-current") {
-      openSheet("subscriptionCancellation", {
-        currentSubscription: current,
-        targetPlan: plan,
-      });
-      return;
-    }
-
     openSheet("paymentCheckout", {
       productType: "subscription",
       plan,
@@ -190,20 +181,6 @@ export function SubscriptionScreen() {
                 </Text>
               </View>
             </View>
-            {current.cancellationRequestedAt && current.endAt ? (
-              <View style={styles.cancellationNotice}>
-                <Ionicons
-                  name="information-circle-outline"
-                  size={17}
-                  color={theme.warningColor}
-                />
-                <Text style={styles.cancellationNoticeText}>
-                  {t("subscription.cancellationNotice", {
-                    date: formatLocalizedDate(current.endAt, locale),
-                  })}
-                </Text>
-              </View>
-            ) : null}
           </View>
         ) : currentQuery.isPending ? (
           <View style={styles.loadingCard}>
@@ -222,6 +199,7 @@ export function SubscriptionScreen() {
           plans.map((plan) => {
             const isCurrent =
               plan.code.toUpperCase() === current?.planCode.toUpperCase();
+            const availability = getPlanPurchaseAvailability(current, plan);
             return (
               <View
                 key={plan.id}
@@ -315,24 +293,40 @@ export function SubscriptionScreen() {
                   />
                 </View>
                 {!isCurrent && plan.price > 0 ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`${getPlanName(plan.code, plan.name)} ${paymentCopy.buyPlan}`}
-                    onPress={() => openPlanPayment(plan)}
-                    style={({ pressed }) => [
-                      styles.planAction,
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Text style={styles.planActionText}>
-                      {paymentCopy.buyPlan}
-                    </Text>
-                    <Ionicons
-                      name="arrow-forward"
-                      size={16}
-                      color={theme.primary}
-                    />
-                  </Pressable>
+                  availability.allowed ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`${getPlanName(plan.code, plan.name)} ${paymentCopy.buyPlan}`}
+                      onPress={() => openPlanPayment(plan)}
+                      style={({ pressed }) => [
+                        styles.planAction,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Text style={styles.planActionText}>
+                        {paymentCopy.buyPlan}
+                      </Text>
+                      <Ionicons
+                        name="arrow-forward"
+                        size={16}
+                        color={theme.primary}
+                      />
+                    </Pressable>
+                  ) : (
+                    <View
+                      accessibilityRole="text"
+                      style={styles.planBlocked}
+                    >
+                      <Ionicons
+                        name="time-outline"
+                        size={16}
+                        color={theme.textSecondary}
+                      />
+                      <Text style={styles.planBlockedText}>
+                        {t("subscription.downgradeBlocked")}
+                      </Text>
+                    </View>
+                  )
                 ) : null}
               </View>
             );
@@ -515,15 +509,15 @@ const createStyles = (theme: AppTheme) =>
       height: 30,
       backgroundColor: `${theme.primary}22`,
     },
-    cancellationNotice: {
+    planBlocked: {
       flexDirection: "row",
       alignItems: "center",
       gap: 7,
       padding: 10,
       borderRadius: radius.md,
-      backgroundColor: `${theme.warningColor}12`,
+      backgroundColor: `${theme.textSecondary}12`,
     },
-    cancellationNoticeText: {
+    planBlockedText: {
       flex: 1,
       ...typography.caption,
       color: theme.textSecondary,

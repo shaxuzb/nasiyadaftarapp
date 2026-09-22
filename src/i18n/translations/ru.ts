@@ -489,25 +489,11 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     moreSms: "Больше",
     packageNote:
       "Оплата выбранного пакета продолжится на защищённой внешней странице.",
-    cancellationNotice: "Тариф активен до {date}. Можно выбрать новый тариф.",
-    cancelPlanTitle: "Смена тарифа",
-    cancelPlanDescription:
-      "Чтобы перейти на новый тариф, текущий тариф будет отменён.",
-    cancelPlanBenefitTitle: "Лимиты сохранятся",
-    cancelPlanBenefitDescription: "Вы перейдёте к новому тарифу.",
-    cancelPlanBack: "Назад",
+    downgradeBlocked:
+      "Чтобы перейти на более дешёвый тариф, дождитесь окончания текущего",
     currentPlanLabel: "Текущий тариф",
     selectedPlanLabel: "Выбранный тариф",
     planActiveUntil: "Активен до {date}",
-    cancelPlanNote:
-      "После отмены текущего тарифа откроется оплата выбранного тарифа.",
-    cancelAndContinue: "Продолжить",
-    cancellingPlan: "Тариф отменяется...",
-    cancelPlanError: "Не удалось отменить текущий тариф",
-    cancelPlanConfirmTitle: "Отменить текущий тариф?",
-    cancelPlanConfirmMessage:
-      "Это действие нельзя отменить. Текущие возможности сохранятся до окончания срока тарифа, затем продолжится оплата выбранного тарифа.",
-    cancelPlanConfirmAction: "Отменить тариф",
     upgrade: { viewPlans: "Посмотреть тарифы" },
   },
   organization: {

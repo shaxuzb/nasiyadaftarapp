@@ -46,7 +46,6 @@ import {
   type PaidPlanCode,
   type SubscriptionUpgradeReason,
 } from "../utils/upgradeOptions";
-import { getPlanPurchaseStep } from "../utils/planPurchase";
 import {
   useBottomSheet,
   useBottomSheetBackHandler,
@@ -262,19 +261,6 @@ export function SubscriptionUpgradeModal({
 
   const openPlanPayment = useCallback(
     (plan: SubscriptionPlan) => {
-      if (
-        subscription &&
-        getPlanPurchaseStep(subscription, plan) === "cancel-current"
-      ) {
-        closeSheet(() =>
-          openSheet("subscriptionCancellation", {
-            currentSubscription: subscription,
-            targetPlan: plan,
-          }),
-        );
-        return;
-      }
-
       closeSheet(() =>
         openSheet("paymentCheckout", {
           productType: "subscription",
@@ -282,7 +268,7 @@ export function SubscriptionUpgradeModal({
         }),
       );
     },
-    [closeSheet, openSheet, subscription],
+    [closeSheet, openSheet],
   );
 
   const openPackagePayment = useCallback(

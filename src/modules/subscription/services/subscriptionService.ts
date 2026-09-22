@@ -17,14 +17,6 @@ export async function getCurrentSubscription(
   return parseCurrentSubscription(response.data);
 }
 
-export async function cancelCurrentSubscription(): Promise<CurrentSubscription> {
-  const response = await apiClient.post(
-    "/subscriptions/current/cancel",
-    undefined,
-  );
-  return parseCurrentSubscription(response.data);
-}
-
 export async function getSubscriptionPlans(
   signal?: AbortSignal,
 ): Promise<SubscriptionPlan[]> {

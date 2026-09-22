@@ -485,26 +485,11 @@ export const uzTranslations = {
     moreSms: "Ko'proq",
     packageNote:
       "Tanlangan paket uchun to'lov xavfsiz tashqi sahifada davom etadi.",
-    cancellationNotice:
-      "Tarif {date} gacha faol. Yangi tarif tanlashingiz mumkin.",
-    cancelPlanTitle: "Tarifni almashtirish",
-    cancelPlanDescription:
-      "Yangi tarifga o'tish uchun avval joriy tarif bekor qilinadi.",
-    cancelPlanBenefitTitle: "Limitlaringiz saqlanadi",
-    cancelPlanBenefitDescription: "Yangi tarifga o'tasiz.",
-    cancelPlanBack: "Orqaga",
+    downgradeBlocked:
+      "Arzonroq tarifga o'tish uchun joriy tarif muddati tugashini kuting",
     currentPlanLabel: "Joriy tarif",
     selectedPlanLabel: "Tanlangan tarif",
     planActiveUntil: "{date} gacha faol",
-    cancelPlanNote:
-      "Joriy tarif bekor qilingandan keyin tanlangan tarif uchun to'lov oynasi ochiladi.",
-    cancelAndContinue: "Davom etish",
-    cancellingPlan: "Tarif bekor qilinmoqda...",
-    cancelPlanError: "Joriy tarifni bekor qilib bo'lmadi",
-    cancelPlanConfirmTitle: "Joriy tarifni bekor qilasizmi?",
-    cancelPlanConfirmMessage:
-      "Bu amalni qaytarib bo'lmaydi. Amaldagi imkoniyatlaringiz tarif muddati tugaguncha saqlanadi, keyin tanlangan tarif uchun to'lov davom etadi.",
-    cancelPlanConfirmAction: "Tarifni bekor qilish",
     upgrade: { viewPlans: "Tariflarni ko'rish" },
   },
   organization: {

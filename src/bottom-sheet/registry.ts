@@ -6,7 +6,6 @@ import {
 import { TransactionDetailSheet } from "./sheets/TransactionDetailSheet";
 import { LanguageSheet } from "./sheets/LanguageSheet";
 import { OrganizationProfileSheet } from "./sheets/OrganizationProfileSheet";
-import { SubscriptionCancellationSheet } from "./sheets/SubscriptionCancellationSheet";
 import { PaymentCheckoutSheet } from "./sheets/PaymentCheckoutSheet";
 import { PaymentStatusSheet } from "./sheets/PaymentStatusSheet";
 import { PaymentDetailSheet } from "./sheets/PaymentDetailSheet";
@@ -35,11 +34,6 @@ export const sheetRegistry: SheetRegistry = {
     enableDynamicSizing: true,
     enablePanDownToClose: true,
     dismissKeyboardOnOpen: false,
-  },
-  subscriptionCancellation: {
-    component: SubscriptionCancellationSheet,
-    enableDynamicSizing: true,
-    enablePanDownToClose: true,
   },
   paymentCheckout: {
     component: PaymentCheckoutSheet,

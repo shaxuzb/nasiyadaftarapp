@@ -166,12 +166,6 @@ const recoveryCore = createPaymentLifecycleCore({
     return { ...baseOrder, status: "paid", isFulfilled: false };
   },
   cancelPayment: async () => baseOrder,
-  cancelCurrentSubscription: async () => {
-    recoveryEvents.push("cancel-current-subscription");
-  },
-  onSubscriptionCancellation: async () => {
-    recoveryEvents.push("refresh-current-subscription");
-  },
   getCheckoutUrl: () => null,
   shouldPersistPending: () => true,
   isFulfilled: () => false,
@@ -181,13 +175,12 @@ const recoveryCore = createPaymentLifecycleCore({
 
 await recoveryCore.syncOrder(7, 15);
 assert(
-  recoverySyncCalls === 2,
-  "Paid but unfulfilled subscription must be synced again after cancellation",
+  recoverySyncCalls === 1,
+  "A paid but unfulfilled subscription must be synced once: the backend owns fulfilment",
 );
 assert(
-  recoveryEvents.join(",") ===
-    "sync:1,cancel-current-subscription,refresh-current-subscription,sync:2",
-  "Subscription cancellation recovery must happen before the second sync",
+  recoveryEvents.join(",") === "sync:1",
+  "The client must not run a subscription cancellation step during sync",
 );
 
 await core.cancelOrder(7, 15);
