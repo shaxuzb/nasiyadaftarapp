@@ -32,12 +32,10 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
 const PAYMENT_COPY = {
   uz: {
     buyPlan: "Tarifni tanlash",
-    packageHint: "Sotib olish uchun bosing",
     info: "Tarif yoki SMS paketni tanlang. To‘lov xavfsiz tashqi sahifada davom etadi.",
   },
   ru: {
     buyPlan: "Выбрать тариф",
-    packageHint: "Нажмите для покупки",
     info: "Выберите тариф или пакет SMS. Оплата продолжится на защищённой внешней странице.",
   },
 } as const;
@@ -199,6 +197,7 @@ export function SubscriptionScreen() {
           plans.map((plan) => {
             const isCurrent =
               plan.code.toUpperCase() === current?.planCode.toUpperCase();
+            const isFree = plan.code.toUpperCase() === "FREE";
             const availability = getPlanPurchaseAvailability(current, plan);
             return (
               <View
@@ -220,15 +219,17 @@ export function SubscriptionScreen() {
                     </Text>
                   ) : null}
                 </View>
-                <Text style={styles.price}>
-                  {priceLabel(
-                    plan.price,
-                    plan.durationDays,
-                    locale,
-                    t("subscription.freePrice"),
-                    (params) => t("subscription.priceForDays", params),
-                  )}
-                </Text>
+                {!isFree ? (
+                  <Text style={styles.price}>
+                    {priceLabel(
+                      plan.price,
+                      plan.durationDays,
+                      locale,
+                      t("subscription.freePrice"),
+                      (params) => t("subscription.priceForDays", params),
+                    )}
+                  </Text>
+                ) : null}
                 <View style={styles.featureList}>
                   <FeatureRow
                     text={limitLabel(
@@ -240,17 +241,19 @@ export function SubscriptionScreen() {
                     theme={theme}
                     styles={styles}
                   />
-                  <FeatureRow
-                    text={
-                      plan.monthlySmsLimit === null
-                        ? `${t("subscription.unlimited")} SMS`
-                        : t("subscription.smsPerMonth", {
-                            count: plan.monthlySmsLimit,
-                          })
-                    }
-                    theme={theme}
-                    styles={styles}
-                  />
+                  {!isFree ? (
+                    <FeatureRow
+                      text={
+                        plan.monthlySmsLimit === null
+                          ? `${t("subscription.unlimited")} SMS`
+                          : t("subscription.smsPerMonth", {
+                              count: plan.monthlySmsLimit,
+                            })
+                      }
+                      theme={theme}
+                      styles={styles}
+                    />
+                  ) : null}
                   <FeatureRow
                     text={
                       plan.blacklistEnabled
@@ -372,7 +375,6 @@ export function SubscriptionScreen() {
                   (params) => t("subscription.priceForDays", params),
                 )}
               </Text>
-              <Text style={styles.packageHint}>{paymentCopy.packageHint}</Text>
             </Pressable>
           ))}
         </View>
@@ -459,21 +461,21 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.sm,
     },
     currentCard: {
-      padding: 15,
-      gap: 15,
-      borderRadius: radius.xl,
-      backgroundColor: theme.primaryLight,
+      padding: 14,
+      gap: 13,
+      borderRadius: radius.lg,
+      backgroundColor: theme.surface,
       borderWidth: 1,
-      borderColor: `${theme.primary}55`,
+      borderColor: theme.tabBarBorder,
     },
-    currentTop: { flexDirection: "row", alignItems: "center", gap: 11 },
+    currentTop: { flexDirection: "row", alignItems: "center", gap: 10 },
     planIcon: {
       width: 46,
       height: 46,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 15,
-      backgroundColor: theme.surface,
+      backgroundColor: theme.primaryLight,
     },
     eyebrow: {
       ...typography.caption,
@@ -499,11 +501,15 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: "space-around",
       paddingTop: 13,
       borderTopWidth: 1,
-      borderTopColor: `${theme.primary}22`,
+      borderTopColor: theme.tabBarBorder,
     },
-    quotaItem: { alignItems: "center", gap: 2 },
+    quotaItem: { flex: 1, alignItems: "center", gap: 2 },
     quotaValue: { ...typography.headingMedium, color: theme.text },
-    quotaLabel: { ...typography.caption, color: theme.textSecondary },
+    quotaLabel: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      textAlign: "center",
+    },
     quotaDivider: {
       width: 1,
       height: 30,
@@ -528,7 +534,7 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: radius.lg,
       backgroundColor: theme.surface,
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.tabBarBorder,
     },
     planCardActive: {
       borderColor: theme.primary,
@@ -570,23 +576,24 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: radius.lg,
       backgroundColor: theme.surface,
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.tabBarBorder,
     },
     muted: { ...typography.bodySmall, color: theme.textMuted },
     packageGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     packageCard: {
       width: "48%",
-      minHeight: 122,
-      padding: 13,
-      gap: 4,
+      minHeight: 92,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      gap: 3,
       borderRadius: radius.lg,
       backgroundColor: theme.surface,
       borderWidth: 1,
-      borderColor: theme.border,
+      borderColor: theme.tabBarBorder,
     },
     packageIcon: {
-      width: 32,
-      height: 32,
+      width: 28,
+      height: 28,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: 10,
@@ -598,13 +605,14 @@ const createStyles = (theme: AppTheme) =>
       color: theme.primary,
       fontWeight: "700",
     },
-    packageHint: { ...typography.caption, color: theme.textMuted },
     infoBox: {
       flexDirection: "row",
       gap: 8,
       padding: 12,
       borderRadius: radius.md,
-      backgroundColor: theme.inputBackground,
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.tabBarBorder,
     },
     infoText: { flex: 1, ...typography.caption, color: theme.textSecondary },
     pressed: { opacity: 0.7 },
