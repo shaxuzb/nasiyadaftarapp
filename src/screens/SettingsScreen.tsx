@@ -441,7 +441,7 @@ export function SettingsScreen() {
             title={t("notifications.permissionTitle")}
             description={pushPermissionDescription}
             onPress={() => navigation.navigate("NotificationSettings")}
-            isLast={isAdministrator}
+            isLast={!showSubscriptionUi}
           />
           {showSubscriptionUi ? (
             <ProfileMenuRow
@@ -502,6 +502,7 @@ export function SettingsScreen() {
             }}
             isLast={false}
           />
+{isPaidSubscription || regionalCapabilities.upgradePromptsVisible ? (
           <ProfileMenuRow
             icon={
               isPaidSubscription ? "warning-outline" : "lock-closed-outline"
@@ -522,10 +523,12 @@ export function SettingsScreen() {
             }
             isLast
           />
+          ) : null}
         </View>
 
         <SectionTitle title={t("profile.helpSection")} />
         <View style={styles.card}>
+{telegramEnabled || regionalCapabilities.upgradePromptsVisible ? (
           <ProfileMenuRow
             icon={telegramEnabled ? "send-outline" : "lock-closed-outline"}
             iconColor={telegramEnabled ? theme.primary : theme.textSecondary}
@@ -548,6 +551,7 @@ export function SettingsScreen() {
             loading={telegramEnabled && isOpeningBot}
             badge={telegramEnabled ? undefined : t("subscription.standardPlan")}
           />
+          ) : null}
           <ProfileMenuRow
             icon="chatbubble-ellipses-outline"
             iconColor={theme.primary}
