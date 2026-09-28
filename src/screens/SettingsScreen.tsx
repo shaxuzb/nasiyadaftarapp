@@ -36,6 +36,7 @@ import { useBottomSheet } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import type { TranslateKey } from "../i18n";
 import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
+import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -156,7 +157,12 @@ export function SettingsScreen() {
     useState<SubscriptionUpgradeReason | null>(null);
   const subscriptionQuery = useCurrentSubscription();
   const subscription = subscriptionQuery.data ?? user?.subscription;
+  const regionalCapabilities = useRegionalProductCapabilities();
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
+  const showSubscriptionUi =
+    !isAdministrator && regionalCapabilities.subscriptionVisible;
+  const showPaymentHistory =
+    !isAdministrator && regionalCapabilities.paymentHistoryVisible;
   const pushPermissionDescription =
     pushPermission === "granted"
       ? t("notifications.permissionGranted")
@@ -371,7 +377,7 @@ export function SettingsScreen() {
             </View>
           </View>
 
-          {!isAdministrator && subscription ? (
+          {showSubscriptionUi && subscription ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("profile.planLimits")}
@@ -437,7 +443,7 @@ export function SettingsScreen() {
             onPress={() => navigation.navigate("NotificationSettings")}
             isLast={isAdministrator}
           />
-          {!isAdministrator ? (
+          {showSubscriptionUi ? (
             <ProfileMenuRow
               icon="pricetags-outline"
               iconColor={theme.primary}
@@ -450,7 +456,7 @@ export function SettingsScreen() {
           ) : null}
         </View>
 
-        {!isAdministrator ? (
+        {showPaymentHistory ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("profile.paymentHistory")}
@@ -620,12 +626,14 @@ export function SettingsScreen() {
           <Text style={styles.logoutText}>{t("profile.logout")}</Text>
         </Pressable>
       </ScrollView>
-      <SubscriptionUpgradeModal
-        visible={upgradeReason !== null}
-        reason={upgradeReason ?? "telegram"}
-        subscription={subscription}
-        onClose={() => setUpgradeReason(null)}
-      />
+      {regionalCapabilities.upgradePromptsVisible ? (
+        <SubscriptionUpgradeModal
+          visible={upgradeReason !== null}
+          reason={upgradeReason ?? "telegram"}
+          subscription={subscription}
+          onClose={() => setUpgradeReason(null)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
