@@ -36,6 +36,7 @@ import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
+import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 import { SearchBar } from "../components/SearchBar";
 import { CustomerCard } from "../modules/clients/components/CustomerCard";
 import { CustomerCardSkeleton } from "../modules/clients/components/CustomerCardSkeleton";
@@ -121,6 +122,7 @@ export function CustomersScreen() {
     dataError,
   } = useApp();
   const { user } = useAuth();
+  const regionalCapabilities = useRegionalProductCapabilities();
   const { showToast } = useToast();
   const { openSheet } = useBottomSheet();
   const unreadNotifications = useUnreadPushNotificationCount();
@@ -129,7 +131,10 @@ export function CustomersScreen() {
     user?.role === "Administrator" && user?.roleId === 2;
   const isPremium =
     user?.subscription?.planCode?.trim().toUpperCase() === "PREMIUM";
-  const showProBadge = !isAdministrator && !isPremium;
+  const showProBadge =
+    regionalCapabilities.subscriptionVisible &&
+    !isAdministrator &&
+    !isPremium;
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const phoneInputRef = useRef<TextInput>(null);
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
