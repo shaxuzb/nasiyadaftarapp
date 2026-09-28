@@ -32,9 +32,21 @@ assert.match(screen, /plan\.transactionSmsEnabled/);
 assert.match(screen, /plan\.prioritySupportEnabled/);
 assert.match(
   screen,
-  /const visibleFeatures = isFree\s*\?\s*features\.slice\(0,\s*3\)\s*:\s*features/,
-  "FREE must show organization, SMS and blacklist limits",
+  /const visibleFeatures = features\.filter\(\s*\(feature\) => feature\.enabled,?\s*\)/,
+  "A plan card must list only the capabilities its plan includes",
 );
+assert.doesNotMatch(
+  screen,
+  /!feature\.enabled/,
+  "A card must not spell out what a plan leaves out; that reads as a warning on the card asking to be chosen",
+);
+// Unlimited clients and reports belong to every plan, including FREE.
+assert.match(screen, /key: "clients"/, "Every plan card must show the client allowance");
+assert.match(screen, /key: "reports"/, "Every plan card must show reports");
+assert.match(screen, /unlimitedClients: "Cheksiz mijoz"/);
+assert.match(screen, /unlimitedClients: "Безлимит клиентов"/);
+assert.match(screen, /reports: "Hisobotlar"/);
+assert.match(screen, /reports: "Отчёты"/);
 assert.match(screen, /name="chevron-forward"/);
 assert.match(screen, /styles\.planMetaRow/);
 assert.match(

@@ -10,6 +10,7 @@ import { PaymentCheckoutSheet } from "./sheets/PaymentCheckoutSheet";
 import { PaymentStatusSheet } from "./sheets/PaymentStatusSheet";
 import { PaymentDetailSheet } from "./sheets/PaymentDetailSheet";
 import { PendingPaymentsSheet } from "./sheets/PendingPaymentsSheet";
+import { SupportSheet } from "./sheets/SupportSheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
@@ -52,6 +53,11 @@ export const sheetRegistry: SheetRegistry = {
   },
   pendingPayments: {
     component: PendingPaymentsSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+  },
+  support: {
+    component: SupportSheet,
     enableDynamicSizing: true,
     enablePanDownToClose: true,
   },

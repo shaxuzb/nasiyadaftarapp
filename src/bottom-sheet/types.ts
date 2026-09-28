@@ -19,7 +19,8 @@ export type SheetType =
   | "paymentCheckout"
   | "paymentStatus"
   | "paymentDetail"
-  | "pendingPayments";
+  | "pendingPayments"
+  | "support";
 
 export interface TransactionSheetProps {
   customerId: number;
@@ -36,6 +37,8 @@ export interface TransactionDetailSheetProps {
 }
 
 export type LanguageSheetProps = Record<never, never>;
+
+export type SupportSheetProps = Record<never, never>;
 
 export interface OrganizationProfileSheetProps {
   organization: OrganizationMembership;
@@ -74,6 +77,7 @@ export interface SheetPropsMap {
   paymentStatus: PaymentStatusSheetProps;
   paymentDetail: PaymentDetailSheetProps;
   pendingPayments: PendingPaymentsSheetProps;
+  support: SupportSheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {

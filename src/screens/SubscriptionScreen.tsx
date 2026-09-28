@@ -46,6 +46,8 @@ const SCREEN_COPY = {
     standardDescription: "Kengaytirilgan imkoniyatlar bilan",
     premiumDescription: "To‘liq imkoniyatlar, maksimal qulaylik",
     unlimitedOrganizations: "Cheksiz tashkilot",
+    unlimitedClients: "Cheksiz mijoz",
+    reports: "Hisobotlar",
     autoSms: "Tranzaksiyalar uchun avto SMS",
     support247: "24/7 qo‘llab-quvvatlash",
     noBlacklist: "Qora ro‘yxat",
@@ -67,6 +69,8 @@ const SCREEN_COPY = {
     standardDescription: "Расширенные возможности для работы",
     premiumDescription: "Все возможности и максимальный комфорт",
     unlimitedOrganizations: "Безлимит организаций",
+    unlimitedClients: "Безлимит клиентов",
+    reports: "Отчёты",
     autoSms: "Авто SMS о транзакциях",
     support247: "Поддержка 24/7",
     noBlacklist: "Чёрный список",
@@ -320,6 +324,13 @@ export function SubscriptionScreen() {
                       : `${plan.maxOrganizations} ${t("subscription.organizations")}`,
                 },
                 {
+                  // Every plan carries an unlimited client list, so this is not
+                  // read from plan.maxClients.
+                  key: "clients",
+                  enabled: true,
+                  text: copy.unlimitedClients,
+                },
+                {
                   key: "sms",
                   enabled: true,
                   text:
@@ -328,6 +339,13 @@ export function SubscriptionScreen() {
                       : t("subscription.smsPerMonth", {
                           count: plan.monthlySmsLimit,
                         }),
+                },
+                {
+                  // Reports are part of every plan. The plans endpoint has no
+                  // field for them yet; wire this to the API once it does.
+                  key: "reports",
+                  enabled: true,
+                  text: copy.reports,
                 },
                 {
                   key: "blacklist",
@@ -351,7 +369,14 @@ export function SubscriptionScreen() {
                 },
               ];
 
-              const visibleFeatures = isFree ? features.slice(0, 3) : features;
+              // Each card lists only what its plan includes. A crossed-out
+              // entry states what the reader does not get on the very card that
+              // asks them to choose it, and the plans already read as a ladder
+              // through what each one does list: four capabilities on free, six
+              // on standard, all eight on premium.
+              const visibleFeatures = features.filter(
+                (feature) => feature.enabled,
+              );
 
               return (
                 <Pressable
@@ -459,7 +484,6 @@ export function SubscriptionScreen() {
                     {visibleFeatures.map((feature) => (
                       <FeatureChip
                         key={feature.key}
-                        enabled={feature.enabled}
                         text={feature.text}
                         theme={theme}
                         styles={styles}
@@ -557,14 +581,15 @@ export function SubscriptionScreen() {
   );
 }
 
+// Only capabilities a plan includes reach a card, so a chip is always a
+// positive statement. Restore the muted variant here if a card ever needs to
+// show what a plan leaves out again.
 function FeatureChip({
   text,
-  enabled,
   theme,
   styles,
 }: {
   text: string;
-  enabled: boolean;
   theme: AppTheme;
   styles: ReturnType<typeof createStyles>;
 }) {
@@ -572,31 +597,18 @@ function FeatureChip({
     <View
       style={[
         styles.featureChip,
-        {
-          backgroundColor: enabled
-            ? `${theme.successColor}0B`
-            : `${theme.textMuted}0A`,
-        },
+        { backgroundColor: `${theme.successColor}0B` },
       ]}
     >
       <View
         style={[
           styles.featureStatus,
-          {
-            backgroundColor: enabled ? theme.successColor : theme.textMuted,
-          },
+          { backgroundColor: theme.successColor },
         ]}
       >
-        <Ionicons
-          name={enabled ? "checkmark" : "close"}
-          size={10}
-          color={theme.surface}
-        />
+        <Ionicons name="checkmark" size={10} color={theme.surface} />
       </View>
-      <Text
-        style={[styles.featureChipText, !enabled && { color: theme.textMuted }]}
-        numberOfLines={1}
-      >
+      <Text style={styles.featureChipText} numberOfLines={1}>
         {text}
       </Text>
     </View>
