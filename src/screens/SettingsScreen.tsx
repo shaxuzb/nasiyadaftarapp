@@ -37,6 +37,7 @@ import { useBottomSheet } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import type { TranslateKey } from "../i18n";
 import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
+import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -177,7 +178,12 @@ export function SettingsScreen() {
     useState<SubscriptionUpgradeReason | null>(null);
   const subscriptionQuery = useCurrentSubscription();
   const subscription = subscriptionQuery.data ?? user?.subscription;
+  const regionalCapabilities = useRegionalProductCapabilities();
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
+  const showSubscriptionUi =
+    !isAdministrator && regionalCapabilities.subscriptionVisible;
+  const showPaymentHistory =
+    !isAdministrator && regionalCapabilities.paymentHistoryVisible;
   const pushPermissionDescription =
     pushPermission === "granted"
       ? t("notifications.permissionGranted")
@@ -417,7 +423,7 @@ export function SettingsScreen() {
             </View>
           </View>
 
-          {!isAdministrator && subscription ? (
+          {showSubscriptionUi && subscription ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("profile.planLimits")}
@@ -481,9 +487,9 @@ export function SettingsScreen() {
             title={t("notifications.permissionTitle")}
             description={pushPermissionDescription}
             onPress={() => navigation.navigate("NotificationSettings")}
-            isLast={isAdministrator}
+            isLast={!showSubscriptionUi}
           />
-          {!isAdministrator ? (
+          {showSubscriptionUi ? (
             <ProfileMenuRow
               icon="pricetags-outline"
               iconColor={theme.primary}
@@ -496,7 +502,7 @@ export function SettingsScreen() {
           ) : null}
         </View>
 
-        {!isAdministrator ? (
+        {showPaymentHistory ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("profile.paymentHistory")}
@@ -542,6 +548,7 @@ export function SettingsScreen() {
             }}
             isLast={false}
           />
+{isPaidSubscription || regionalCapabilities.upgradePromptsVisible ? (
           <ProfileMenuRow
             icon={
               isPaidSubscription ? "warning-outline" : "lock-closed-outline"
@@ -562,10 +569,12 @@ export function SettingsScreen() {
             }
             isLast
           />
+          ) : null}
         </View>
 
         <SectionTitle title={t("profile.helpSection")} />
         <View style={styles.card}>
+{telegramEnabled || regionalCapabilities.upgradePromptsVisible ? (
           <ProfileMenuRow
             icon={telegramEnabled ? "send-outline" : "lock-closed-outline"}
             iconColor={telegramEnabled ? theme.primary : theme.textSecondary}
@@ -588,6 +597,7 @@ export function SettingsScreen() {
             loading={telegramEnabled && isOpeningBot}
             badge={telegramEnabled ? undefined : t("subscription.standardPlan")}
           />
+          ) : null}
           <ProfileMenuRow
             icon="headset-outline"
             iconColor={theme.primary}
@@ -665,12 +675,14 @@ export function SettingsScreen() {
           <Text style={styles.logoutText}>{t("profile.logout")}</Text>
         </Pressable>
       </ScrollView>
-      <SubscriptionUpgradeModal
-        visible={upgradeReason !== null}
-        reason={upgradeReason ?? "telegram"}
-        subscription={subscription}
-        onClose={() => setUpgradeReason(null)}
-      />
+      {regionalCapabilities.upgradePromptsVisible ? (
+        <SubscriptionUpgradeModal
+          visible={upgradeReason !== null}
+          reason={upgradeReason ?? "telegram"}
+          subscription={subscription}
+          onClose={() => setUpgradeReason(null)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -34,6 +34,7 @@ import {
   getOrganizationLimitLabel,
 } from "../modules/subscription/utils/entitlements";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
+import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 import { useBottomSheetBackHandler } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 
@@ -51,6 +52,7 @@ export function OrganizationSelectScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const regionalCapabilities = useRegionalProductCapabilities();
   const { showToast } = useToast();
   const {
     user,
@@ -249,7 +251,7 @@ export function OrganizationSelectScreen() {
             }}
             variant="outline"
           />
-        ) : (
+        ) : regionalCapabilities.upgradePromptsVisible ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("subscription.upgrade.viewPlans")}
@@ -276,7 +278,7 @@ export function OrganizationSelectScreen() {
             </View>
             <Text style={styles.proBadge}>{t("subscription.standardPlan")}</Text>
           </Pressable>
-        )}
+        ) : null}
         <Text style={styles.limitHint}>
           {t("organization.limitHint", { limit: organizationLimitLabel })}
         </Text>
@@ -343,12 +345,14 @@ export function OrganizationSelectScreen() {
           onSubmit={handleCreateOrganization}
         />
       </BottomSheetModal>
-      <SubscriptionUpgradeModal
-        visible={isUpgradeModalOpen}
-        reason="organization-limit"
-        subscription={user?.subscription}
-        onClose={() => setIsUpgradeModalOpen(false)}
-      />
+      {regionalCapabilities.upgradePromptsVisible ? (
+        <SubscriptionUpgradeModal
+          visible={isUpgradeModalOpen}
+          reason="organization-limit"
+          subscription={user?.subscription}
+          onClose={() => setIsUpgradeModalOpen(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
