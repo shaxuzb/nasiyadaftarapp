@@ -13,7 +13,10 @@ import {
 } from "@gorhom/bottom-sheet";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { KeyboardController } from "react-native-keyboard-controller";
+import {
+  KeyboardController,
+  useKeyboardState,
+} from "react-native-keyboard-controller";
 
 import { ConfirmDialogProvider } from "../context/ConfirmDialogContext";
 import { useTheme } from "../hooks/useTheme";
@@ -54,6 +57,7 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
   const [activeEntry, setActiveEntry] = useState<ActiveSheetEntry | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [dismissLocked, setLocked] = useState(false);
+  const { isVisible: isKeyboardVisible } = useKeyboardState();
   const dismissLockedRef = useRef(false);
   const setDismissLocked = useCallback((locked: boolean) => {
     dismissLockedRef.current = locked;
@@ -116,17 +120,33 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  // While the keyboard is up, a backdrop press only puts the keyboard away and
+  // leaves the sheet open.
+  //
+  // Two reasons. The obvious one is that dismissing a half-filled form on the
+  // first tap outside a field is hostile. The other is that the backdrop's tap
+  // gesture also fired during a keyboard change — switching from the amount
+  // field (number pad) to the note field (text keyboard) closed the sheet
+  // outright, even though the press had landed on the note field. Ignoring
+  // backdrop presses while the keyboard is on screen removes that whole window.
   const renderBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
       <BottomSheetBackdrop
         {...props}
         appearsOnIndex={0}
         disappearsOnIndex={-1}
-        pressBehavior={dismissLocked ? "none" : "close"}
+        pressBehavior={dismissLocked || isKeyboardVisible ? "none" : "close"}
+        onPress={
+          isKeyboardVisible
+            ? () => {
+                void KeyboardController.dismiss();
+              }
+            : undefined
+        }
         opacity={0.45}
       />
     ),
-    [dismissLocked],
+    [dismissLocked, isKeyboardVisible],
   );
 
   const handleChange = useCallback((index: number) => {

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import {
@@ -18,6 +18,10 @@ import { useAppLock } from "../context/AppLockContext";
 import { useConfirmDialog } from "../../../context/ConfirmDialogContext";
 import { useTranslation } from "../../../i18n";
 import { PIN_LENGTH, validatePin } from "../utils/pinValidation";
+import {
+  formatLockoutCountdown,
+  getLockoutSeconds,
+} from "../utils/pinLockout";
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "back"];
 const wait = (duration: number) =>
@@ -32,6 +36,7 @@ export function PinGateScreen() {
     displayName,
     biometric,
     biometricEnabled,
+    pinLockedUntilMs,
     submitSetupPin,
     submitUnlockPin,
     unlockWithBiometrics,
@@ -41,6 +46,7 @@ export function PinGateScreen() {
   const [value, setValue] = useState("");
   const [firstPin, setFirstPin] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [lockSeconds, setLockSeconds] = useState(0);
   const [passed, setPassed] = useState(false);
   const [busy, setBusy] = useState(false);
   const autoPrompted = React.useRef(false);
@@ -132,8 +138,14 @@ export function PinGateScreen() {
       const result = await submitUnlockPin(pin);
       if (result.status === "invalid")
         animateError(t("security.pinInvalidAttempts", { count: result.attemptsRemaining }));
-      else if (result.status === "logged-out")
-        animateError(t("security.securityLoggedOut"));
+      else if (result.status === "locked")
+        animateError(
+          t("security.pinLockedOut", {
+            time: formatLockoutCountdown(
+              getLockoutSeconds(result.lockedUntilMs, Date.now()),
+            ),
+          }),
+        );
       else
         void Haptics.notificationAsync(
           Haptics.NotificationFeedbackType.Success,
@@ -151,8 +163,34 @@ export function PinGateScreen() {
     }
   };
 
+  // The deadline is stored, so a lockout survives closing the app. Ticking it
+  // down here keeps the countdown honest without polling storage.
+  useEffect(() => {
+    if (pinLockedUntilMs === null) {
+      setLockSeconds(0);
+      return undefined;
+    }
+
+    const tick = () =>
+      setLockSeconds(getLockoutSeconds(pinLockedUntilMs, Date.now()));
+    tick();
+    const timer = setInterval(tick, 1000);
+    return () => clearInterval(timer);
+  }, [pinLockedUntilMs]);
+
+  const isLockedOut = lockSeconds > 0;
+  const lockMessage = isLockedOut
+    ? t("security.pinLockedOut", {
+        time: formatLockoutCountdown(lockSeconds),
+      })
+    : "";
+
+  useEffect(() => {
+    if (isLockedOut) setValue("");
+  }, [isLockedOut]);
+
   const press = (digit: string) => {
-    if (busy) return;
+    if (busy || isLockedOut) return;
     if (digit === "back") {
       setValue((current) => current.slice(0, -1));
       return;
@@ -165,6 +203,8 @@ export function PinGateScreen() {
     if (next.length === PIN_LENGTH) void submit(next);
   };
 
+  // Biometrics stay open during a PIN lockout: a fingerprint cannot be
+  // guessed, and the OS rate-limits it on its own.
   const onBiometric = async () => {
     if (busy || !biometricEnabled) return;
     setBusy(true);
@@ -311,14 +351,14 @@ export function PinGateScreen() {
             />
           ))}
         </Animated.View>
-        {message ? (
+        {lockMessage || message ? (
           <Text
             style={[
               styles.message,
               { color: passed ? theme.successColor : theme.dangerColor },
             ]}
           >
-            {message}
+            {lockMessage || message}
           </Text>
         ) : (
           <View style={styles.messageSpacer} />

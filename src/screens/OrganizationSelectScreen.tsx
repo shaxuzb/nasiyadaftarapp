@@ -17,8 +17,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetBackdrop, BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -26,7 +24,7 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../hooks/useTheme";
-import type { AppTheme, OrganizationStackParamList } from "../types";
+import type { AppTheme } from "../types";
 import { useToast } from "../context/ToastContext";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { OrganizationCreateSheetContent } from "../modules/organization/components/OrganizationCreateSheetContent";
@@ -38,8 +36,6 @@ import {
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 import { useBottomSheetBackHandler } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
-
-type Navigation = NativeStackNavigationProp<OrganizationStackParamList>;
 
 const SHEET_SPRING = {
   damping: 80,
@@ -53,7 +49,6 @@ const SHEET_SPRING = {
 export function OrganizationSelectScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { showToast } = useToast();

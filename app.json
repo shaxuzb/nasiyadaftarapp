@@ -2,7 +2,7 @@
   "expo": {
     "name": "Qarz Daftar",
     "slug": "NasiyaDaftari",
-    "version": "1.1.1",
+    "version": "1.1.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -12,7 +12,7 @@
       "backgroundColor": "#092A59"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "usesAppleSignIn": true,
       "bundleIdentifier": "com.rbsx.nasiyadaftarapp",
       "googleServicesFile": "./GoogleService-Info.plist",
@@ -24,10 +24,10 @@
         "NSContactsUsageDescription": "Mijozni kontaktlardan tez qo'shish uchun kontaktlarga ruxsat bering.",
         "NSFaceIDUsageDescription": "Qarz Daftar hisobingizni himoyalash uchun Face ID’dan foydalanadi."
       },
-      "buildNumber": "3"
+      "buildNumber": "15"
     },
     "android": {
-      "versionCode": 12,
+      "versionCode": 13,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#092A59"
@@ -49,7 +49,7 @@
       [
         "react-native-nitro-google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.631239329456-tmj0hfii9ncuuktm9tirpqrslr6rqmet"
+          "iosUrlScheme": "com.googleusercontent.apps.631239329456-vv959n3vuhm1pvdfr0kfh22u2om7rkt7"
         }
       ],
       [

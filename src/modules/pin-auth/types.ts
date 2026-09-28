@@ -4,6 +4,8 @@ export interface PinRecord {
   digest: string;
   biometricEnabled: boolean;
   attempts: number;
+  /** ISO deadline while entry is locked out, null while it is open. */
+  lockedUntil: string | null;
   displayName: string;
   maskedContact: string | null;
 }

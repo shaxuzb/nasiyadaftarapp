@@ -278,23 +278,38 @@ export function CustomerDetailScreen() {
   }
 
   const deleteLabel = t("transactions.delete");
+  const hasPhone = Boolean(customer.phone.trim());
+  const addPhoneLabel = t("customers.addPhone");
+
+  // Without a number, calling and messaging have nothing to act on: the dialer
+  // would open empty and WhatsApp would ask who to send to. Rather than
+  // disabling the buttons — which would leave no way forward from this screen —
+  // they stay pressable and take the user to the one step that unblocks them.
+  // They are muted so it is clear the call itself is not happening yet, and
+  // they are not marked disabled, because they do respond.
   const footerActions: {
     label: string;
     icon: React.ComponentProps<typeof Ionicons>["name"];
     color: string;
     onPress: () => void;
+    accessibilityLabel?: string;
+    muted?: boolean;
   }[] = [
     {
       label: t("transactions.call"),
       icon: "call",
-      color: theme.primary,
-      onPress: () => void openContact(),
+      color: hasPhone ? theme.primary : theme.textMuted,
+      muted: !hasPhone,
+      accessibilityLabel: hasPhone ? undefined : addPhoneLabel,
+      onPress: hasPhone ? () => void openContact() : () => setEditing(true),
     },
     {
       label: t("transactions.whatsapp"),
       icon: "logo-whatsapp",
-      color: theme.paymentColor,
-      onPress: () => void openContact(true),
+      color: hasPhone ? theme.paymentColor : theme.textMuted,
+      muted: !hasPhone,
+      accessibilityLabel: hasPhone ? undefined : addPhoneLabel,
+      onPress: hasPhone ? () => void openContact(true) : () => setEditing(true),
     },
     {
       label: t("transactions.share"),
@@ -352,6 +367,22 @@ export function CustomerDetailScreen() {
                 >
                   {customer.phone.trim() || t("customers.phoneMissing")}
                 </Text>
+                {/* {hasPhone ? null : (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${addPhoneLabel}: ${displayName}`}
+                    hitSlop={6}
+                    onPress={() => setEditing(true)}
+                    style={styles.phoneAction}
+                  >
+                    <Ionicons
+                      name="create-outline"
+                      size={13}
+                      color={theme.primary}
+                    />
+                    <Text style={styles.phoneActionText}>{addPhoneLabel}</Text>
+                  </Pressable>
+                )} */}
                 {showBlacklistBadge ? (
                   <View
                     accessible
@@ -404,20 +435,20 @@ export function CustomerDetailScreen() {
             )}
             <View style={styles.stats}>
               {[
-                {
-                  label: t("transactions.totalDebt"),
-                  value: history.data
-                    ? formatLocalizedCurrency(totalDebt, locale)
-                    : "—",
-                  color: theme.debtColor,
-                },
-                {
-                  label: t("transactions.totalPayment"),
-                  value: history.data
-                    ? formatLocalizedCurrency(totalPaid, locale)
-                    : "—",
-                  color: theme.paymentColor,
-                },
+                // {
+                //   label: t("transactions.totalDebt"),
+                //   value: history.data
+                //     ? formatLocalizedCurrency(totalDebt, locale)
+                //     : "—",
+                //   color: theme.debtColor,
+                // },
+                // {
+                //   label: t("transactions.totalPayment"),
+                //   value: history.data
+                //     ? formatLocalizedCurrency(totalPaid, locale)
+                //     : "—",
+                //   color: theme.paymentColor,
+                // },
                 {
                   label: t("transactions.balance"),
                   value:
@@ -648,7 +679,7 @@ export function CustomerDetailScreen() {
           <Pressable
             key={action.label}
             accessibilityRole="button"
-            accessibilityLabel={action.label}
+            accessibilityLabel={action.accessibilityLabel ?? action.label}
             accessibilityState={{ disabled: deleting }}
             disabled={deleting}
             onPress={action.onPress}
@@ -666,6 +697,7 @@ export function CustomerDetailScreen() {
               style={[
                 styles.footerLabel,
                 action.label === deleteLabel && { color: theme.dangerColor },
+                action.muted && { color: theme.textMuted },
               ]}
             >
               {action.label}
@@ -733,7 +765,7 @@ const createStyles = (theme: AppTheme) =>
       alignItems: "center",
       gap: 12,
       paddingTop: 12,
-      paddingBottom: 24,
+      paddingBottom: 12,
     },
     avatar: {
       width: 62,
@@ -758,6 +790,19 @@ const createStyles = (theme: AppTheme) =>
       fontVariant: ["tabular-nums"],
     },
     phoneMissing: { color: theme.textMuted },
+    phoneAction: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 4,
+      marginTop: 2,
+      paddingVertical: 2,
+    },
+    phoneActionText: {
+      color: theme.primary,
+      fontSize: 11,
+      fontWeight: "600",
+    },
     badge: {
       paddingHorizontal: 9,
       paddingVertical: 5,
@@ -773,7 +818,7 @@ const createStyles = (theme: AppTheme) =>
     },
     stats: {
       flexDirection: "row",
-      paddingVertical: 20,
+      paddingVertical: 10,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderColor: theme.tabBarBorder,

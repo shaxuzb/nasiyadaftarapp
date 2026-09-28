@@ -18,11 +18,10 @@ import { useTheme } from "../hooks/useTheme";
 import { buildOrganizationSetupPayload } from "../modules/organization/utils/organizationSetup";
 import type { OrganizationRequest } from "../modules/organization/types";
 import { radius, spacing, typography } from "../theme";
-import type { AppTheme } from "../types";
 
 export function OrganizationSetupScreen() {
   const theme = useTheme();
-  const styles = useStyles(theme);
+  const styles = organizationSetupStyles;
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { logout, createOrganizationForCurrentUser } = useAuth();
@@ -168,8 +167,9 @@ export function OrganizationSetupScreen() {
   );
 }
 
-const useStyles = (theme: AppTheme) =>
-  StyleSheet.create({
+// None of these values depend on the theme, so the sheet is built once at
+// module load instead of on every render.
+const organizationSetupStyles = StyleSheet.create({
     screen: { flex: 1 },
     flex: { flex: 1 },
     scrollContent: {

@@ -259,6 +259,7 @@ export const uzTranslations = {
     phoneRequired: "Telefon *",
     phoneOptional: "Telefon (ixtiyoriy)",
     phoneMissing: "Telefon raqami kiritilmagan",
+    addPhone: "Telefonni qo'shish",
     phonePlaceholder: "+998 XX XXX XX XX",
     contactPicker: "Kontaktdan tanlash",
     contactPickerHint: "Mijoz ismi va telefonini kontaktlardan to'ldirish",
@@ -627,8 +628,9 @@ export const uzTranslations = {
     pinSaving: "PIN-kod saqlanmoqda…",
     pinConfirming: "Tasdiqlanmoqda…",
     pinChecking: "Tekshirilmoqda…",
+    pinLockedOut:
+      "Juda ko‘p noto‘g‘ri urinish. {time} dan so‘ng qayta urinib ko‘ring",
     pinInvalidAttempts: "PIN noto‘g‘ri. {count} urinish qoldi.",
-    securityLoggedOut: "Xavfsizlik uchun hisobdan chiqarildingiz.",
     pinSaveError: "PIN-kodni saqlab bo‘lmadi",
     biometricDeclined: "{label} tasdiqlanmadi",
     forgotPinTitle: "PIN-kodni unutdingizmi?",

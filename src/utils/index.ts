@@ -18,13 +18,6 @@ export function formatDisplayedBalance(amount: number): string {
   return formatBalance(-amount);
 }
 
-export function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString("uz-UZ", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
 
 export function getFullName(customer: Customer): string {
   return customer.fullName.trim() || customer.phone || "Noma'lum mijoz";

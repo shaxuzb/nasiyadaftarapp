@@ -46,6 +46,7 @@ import {
 import { getCurrentSubscription } from "../modules/subscription/services/subscriptionService";
 import { canCreateOrganization } from "../modules/subscription/utils/entitlements";
 import { clearPaymentLifecycleForUser } from "../modules/payments/services/paymentStorage";
+import { clearPinForUser } from "../modules/pin-auth/services/pinStorage";
 import {
   clearOrganizationQueries,
   invalidateAccountDependentQueries,
@@ -77,7 +78,17 @@ interface AuthContextValue {
   cancelOrganizationSelection: () => Promise<void>;
   organizationSelectionReturnTab: "Settings" | null;
   updateUserProfile: (patch: Partial<AuthUser>) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (options?: LogoutOptions) => Promise<void>;
+}
+
+export interface LogoutOptions {
+  /**
+   * Keeps the device PIN in place. Set when the session ended on its own — an
+   * expired refresh token or a revoked session — rather than because the user
+   * asked to sign out. Wiping the PIN there would make a dropped connection
+   * look like a security event and force the owner to set it up again.
+   */
+  preservePin?: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -360,7 +371,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyOrganizationSelection, user],
   );
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (options?: LogoutOptions) => {
     const session = getAuthSessionSync() ?? (await hydrateAuthSession());
     const paymentUserId = user?.id ?? session?.user.id ?? null;
 
@@ -381,6 +392,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (paymentUserId) {
       await clearPaymentLifecycleForUser(paymentUserId).catch(() => undefined);
+      if (!options?.preservePin) {
+        await clearPinForUser(paymentUserId).catch(() => undefined);
+      }
     }
     queryClient.removeQueries({ queryKey: queryKeys.paymentsRoot() });
     queryClient.removeQueries({ queryKey: ["push"] });
@@ -501,7 +515,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      void logout();
+      // The server ended the session; the user did not ask to sign out, so the
+      // device PIN stays put.
+      void logout({ preservePin: true });
     });
 
     return () => {

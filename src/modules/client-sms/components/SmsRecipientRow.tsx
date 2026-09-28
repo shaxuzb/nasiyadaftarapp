@@ -85,7 +85,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
           ]}
         >
           {selected && canSend ? (
-            <Ionicons name="checkmark" size={15} color="#fff" />
+            <Ionicons name="checkmark" size={12} color="#fff" />
           ) : null}
         </View>
       ) : null}
@@ -180,10 +180,10 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     card: {
-      minHeight: 78,
+      minHeight: 64,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
+      gap: 6,
       padding: 11,
       borderWidth: 1,
       borderColor: theme.border,
@@ -197,9 +197,9 @@ const createStyles = (theme: AppTheme) =>
     },
     pressed: { opacity: 0.7 },
     check: {
-      width: 22,
-      height: 22,
-      borderRadius: 7,
+      width: 14,
+      height: 14,
+      borderRadius: 2,
       borderWidth: 1.5,
       borderColor: theme.border,
       alignItems: "center",

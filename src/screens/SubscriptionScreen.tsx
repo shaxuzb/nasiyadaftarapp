@@ -165,7 +165,7 @@ export function SubscriptionScreen() {
   })();
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
@@ -220,14 +220,14 @@ export function SubscriptionScreen() {
 
             <View style={styles.currentStats}>
               <View style={styles.currentStat}>
-                <View style={styles.currentStatIcon}>
+                {/* <View style={styles.currentStatIcon}>
                   <Ionicons
                     name="chatbubble-ellipses-outline"
                     size={19}
                     color={theme.primary}
                   />
-                </View>
-                <View>
+                </View> */}
+                <View style={styles.currentStatCentered}>
                   <Text style={styles.currentStatValue}>
                     {current.sms.totalRemaining === null
                       ? "∞"
@@ -465,11 +465,11 @@ export function SubscriptionScreen() {
                         styles={styles}
                       />
                     ))}
-                    {isFree ? (
+                    {/* {isFree ? (
                       <View style={styles.moreChip}>
                         <Text style={styles.moreChipText}>{copy.more}</Text>
                       </View>
-                    ) : null}
+                    ) : null} */}
                   </View>
                 </Pressable>
               );
@@ -712,7 +712,7 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.primaryLight,
     },
     currentStatValue: {
-      ...typography.headingMedium,
+      ...typography.headingLarge,
       color: theme.text,
       fontWeight: "800",
       fontVariant: ["tabular-nums"],

@@ -262,6 +262,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     phoneRequired: "Телефон *",
     phoneOptional: "Телефон (необязательно)",
     phoneMissing: "Номер телефона не указан",
+    addPhone: "Добавить телефон",
     phonePlaceholder: "+998 XX XXX XX XX",
     contactPicker: "Выбрать контакт",
     contactPickerHint: "Заполнить имя и телефон клиента из контактов",
@@ -631,8 +632,9 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     pinSaving: "Сохранение PIN-кода…",
     pinConfirming: "Подтверждение…",
     pinChecking: "Проверка…",
+    pinLockedOut:
+      "Слишком много неверных попыток. Повторите через {time}",
     pinInvalidAttempts: "Неверный PIN. Осталось попыток: {count}.",
-    securityLoggedOut: "Вы вышли из аккаунта в целях безопасности.",
     pinSaveError: "Не удалось сохранить PIN-код",
     biometricDeclined: "Подтверждение через {label} не выполнено",
     forgotPinTitle: "Забыли PIN-код?",

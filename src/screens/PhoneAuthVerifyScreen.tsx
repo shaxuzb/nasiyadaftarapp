@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -26,7 +32,7 @@ import { maskUzPhoneForDisplay } from "../utils/masks";
 import { spacing, typography } from "../theme";
 
 const OTP_LENGTH = 6;
-const DEFAULT_CODE_EXPIRY_SECONDS = 300;
+const DEFAULT_CODE_EXPIRY_SECONDS = 120;
 
 interface Props {
   phoneNumber: string;
@@ -56,10 +62,7 @@ export function PhoneAuthVerifyScreen({
     maskedPhone || maskUzPhoneForDisplay(phoneNumber),
   );
   const [secondsLeft, setSecondsLeft] = useState(
-    Math.max(
-      0,
-      Math.floor(expiresInSeconds || DEFAULT_CODE_EXPIRY_SECONDS),
-    ),
+    Math.max(0, Math.floor(expiresInSeconds || DEFAULT_CODE_EXPIRY_SECONDS)),
   );
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -169,7 +172,15 @@ export function PhoneAuthVerifyScreen({
         setVerifying(false);
       }
     },
-    [code, loginWithPhoneCode, phoneNumber, resetOtpInput, resending, showToast, t],
+    [
+      code,
+      loginWithPhoneCode,
+      phoneNumber,
+      resetOtpInput,
+      resending,
+      showToast,
+      t,
+    ],
   );
 
   useEffect(() => {

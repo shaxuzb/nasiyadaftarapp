@@ -284,7 +284,6 @@ export function AppNavigator() {
   const { resolvedScheme } = useThemeContext();
   const {
     user,
-    organizations,
     currentOrganization,
     isBootstrapping,
     isOrganizationLoading,

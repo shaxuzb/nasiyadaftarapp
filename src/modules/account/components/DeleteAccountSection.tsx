@@ -28,6 +28,7 @@ const COPY = {
     reauthTitle: "Shaxsingizni tasdiqlang",
     reauthDescription: "Akkauntni o‘chirishdan oldin PIN yoki biometrika bilan tasdiqlang.",
     invalidPin: "PIN-kod noto‘g‘ri. {count} urinish qoldi.",
+    pinLockedOut: "Juda ko‘p urinish. Biroz kutib, qayta urinib ko‘ring.",
     error: "Akkauntni o‘chirib bo‘lmadi",
   },
   ru: {
@@ -40,6 +41,7 @@ const COPY = {
     reauthTitle: "Подтвердите личность",
     reauthDescription: "Перед удалением аккаунта подтвердите действие PIN-кодом или биометрией.",
     invalidPin: "Неверный PIN-код. Осталось попыток: {count}.",
+    pinLockedOut: "Слишком много попыток. Подождите и попробуйте снова.",
     error: "Не удалось удалить аккаунт",
   },
 } as const;
@@ -161,8 +163,8 @@ export function DeleteAccountSection() {
           setReauthVisible(false);
           return;
         }
-        if (result.status === "logged-out") {
-          setReauthVisible(false);
+        if (result.status === "locked") {
+          setReauthError(copy.pinLockedOut);
           return;
         }
         setReauthError(
@@ -172,7 +174,7 @@ export function DeleteAccountSection() {
         setSubmitting(false);
       }
     },
-    [copy.invalidPin, finalizeDeletion, submitUnlockPin],
+    [copy.invalidPin, copy.pinLockedOut, finalizeDeletion, submitUnlockPin],
   );
 
   return (
