@@ -201,6 +201,7 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
             index={0}
             snapPoints={activeDefinition.snapPoints}
             enableDynamicSizing={activeDefinition.enableDynamicSizing ?? false}
+            stackBehavior={activeDefinition.stackBehavior ?? "switch"}
             maxDynamicContentSize={Math.max(1, height - insets.top - 16)}
             enablePanDownToClose={
               !dismissLocked && (activeDefinition.enablePanDownToClose ?? true)

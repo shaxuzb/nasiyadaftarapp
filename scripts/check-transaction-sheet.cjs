@@ -117,6 +117,10 @@ function createHarness({
     "../../core/query/organizationScope": organizationScope,
     "../../hooks/useTheme": {},
     "../../utils/apiError": { getApiErrorMessage: () => "Saqlanmadi" },
+    "../../modules/clients/components/BlacklistBadge": {},
+    "../../modules/clients/utils/blacklist": {
+      isCustomerBlacklisted: (customer) => customer.isBlacklisted === true,
+    },
   };
   const exports = {};
   vm.runInNewContext(code, {
@@ -148,6 +152,11 @@ function createHarness({
 async function main() {
   const debt = createHarness();
   assert.equal(debt.controller.nextBalance, 700000);
+  assert.equal(
+    debt.controller.blacklisted,
+    false,
+    "A customer who is not blacklisted must not get the warning",
+  );
   assert.equal(debt.format("000200000"), "200 000");
   const pending = debt.controller.save("debt");
   await debt.controller.save("payment");

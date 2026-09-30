@@ -25,6 +25,22 @@ export function selectEligibleRecipients(
   );
 }
 
+/**
+ * The recipients with the given clients marked as having had today's SMS.
+ * Returns the same array when none of them is on this page, so an untouched
+ * cached page keeps its identity and nothing re-renders for it.
+ */
+export function markRecipientsSentToday<
+  T extends { id: number; canSend: boolean; smsSentToday: boolean },
+>(recipients: T[], ids: ReadonlySet<number>): T[] {
+  if (!recipients.some((recipient) => ids.has(recipient.id))) return recipients;
+  return recipients.map((recipient) =>
+    ids.has(recipient.id)
+      ? { ...recipient, smsSentToday: true, canSend: false }
+      : recipient,
+  );
+}
+
 export function reconcileRecipientSelection(
   _selection: Set<number>,
   _visible: Set<number>,

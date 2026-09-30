@@ -36,6 +36,11 @@ export interface SmsRecipient {
   blacklistedOrganizationCount: number;
   canSend: boolean;
   cannotSendReason?: string;
+  /**
+   * Each client gets at most one SMS a day. When true the backend has already
+   * set canSend to false, so selection needs no extra rule; this only says why.
+   */
+  smsSentToday: boolean;
 }
 
 export interface SmsHistoryItem {

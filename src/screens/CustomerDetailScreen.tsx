@@ -269,6 +269,7 @@ export function CustomerDetailScreen() {
       customerId,
       customerName: displayName,
       customerPhone: customer.phone,
+      isBlacklisted: showBlacklistBadge,
       onOpenProfile: () =>
         navigation.navigate("CustomerDetail", {
           customerId,
@@ -501,6 +502,7 @@ export function CustomerDetailScreen() {
                           type,
                           customerName: displayName,
                           customerPhone: customer.phone,
+                          isBlacklisted: showBlacklistBadge,
                           onOpenProfile: () =>
                             navigation.navigate("CustomerDetail", {
                               customerId,

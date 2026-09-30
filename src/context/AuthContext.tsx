@@ -436,12 +436,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [completeAuth],
   );
 
+  // Linking a phone changes the account, not the organization. It used to go
+  // through completeAuth, which replays sign-in: the organization was cleared,
+  // the navigator fell back to its loading screen and came back on Customers,
+  // so the user lost the screen they were on and the action they had started.
   const linkPhoneWithCode = useCallback(
     async (phoneNumber: string, code: string) => {
+      if (!user) throw new Error("Raqamni biriktirish uchun tizimga kiring");
+
       const response = await confirmProfilePhone({ phoneNumber, code });
-      await completeAuth(response);
+      const session = getAuthSessionSync() ?? (await hydrateAuthSession());
+      const uniqueId = session?.uniqueId ?? (await getOrCreateUniqueId());
+      let token = response.token || session?.token || "";
+      let refreshToken = response.refreshToken || session?.refreshToken || "";
+      let nextUser: AuthUser = { ...user, ...response.user };
+      await setAuthSession({ token, refreshToken, user: nextUser, uniqueId });
+
+      // Sign-in asks for an organization-scoped token when the one it got is
+      // for another organization; do the same, quietly, for the current one.
+      if (
+        currentOrganization &&
+        response.user?.organizationId !== currentOrganization.id
+      ) {
+        const scoped: OrganizationSelectResponse =
+          (await selectOrganizationAccount(currentOrganization.id)) ?? {};
+        token = scoped.token ?? token;
+        refreshToken = scoped.refreshToken ?? refreshToken;
+        nextUser = { ...nextUser, ...scoped.user };
+      }
+
+      // The phone just confirmed is the account's phone, whatever the later
+      // responses carry; an organization response can hold it as null.
+      nextUser = {
+        ...nextUser,
+        organizations: nextUser.organizations ?? user.organizations,
+        ...(currentOrganization
+          ? {
+              hasOrganization: true,
+              organizationId: currentOrganization.id,
+              organizationName: currentOrganization.name,
+            }
+          : {}),
+        phoneNumber: response.user?.phoneNumber?.trim() || phoneNumber,
+        hasPhoneNumber: true,
+        phoneVerified: true,
+        // A phone does not change the plan; keep the one already synced.
+        subscription: user.subscription ?? nextUser.subscription,
+      };
+      await setAuthSession({ token, refreshToken, user: nextUser, uniqueId });
+      setUser(nextUser);
+
+      // Who may send SMS depends on this phone, so the SMS lists refetch.
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clientSmsRoot(),
+      });
     },
-    [completeAuth],
+    [currentOrganization, user],
   );
 
   const loginWithGoogleIdToken = useCallback(

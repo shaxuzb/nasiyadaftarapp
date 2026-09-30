@@ -20,13 +20,16 @@ export type SheetType =
   | "paymentStatus"
   | "paymentDetail"
   | "pendingPayments"
-  | "support";
+  | "support"
+  | "datePicker";
 
 export interface TransactionSheetProps {
   customerId: number;
   type?: "debt" | "payment";
   customerName?: string;
   customerPhone?: string;
+  /** Shows the blacklist warning even when the client list is not loaded. */
+  isBlacklisted?: boolean;
   onOpenProfile?: () => void;
   currentBalance?: number;
 }
@@ -39,6 +42,15 @@ export interface TransactionDetailSheetProps {
 export type LanguageSheetProps = Record<never, never>;
 
 export type SupportSheetProps = Record<never, never>;
+
+export interface DatePickerSheetProps {
+  /** The currently chosen day, "YYYY-MM-DD". */
+  value: string;
+  /** The latest pickable day, "YYYY-MM-DD"; today when omitted. */
+  maxDate?: string;
+  title: string;
+  onSelect: (value: string) => void;
+}
 
 export interface OrganizationProfileSheetProps {
   organization: OrganizationMembership;
@@ -78,6 +90,7 @@ export interface SheetPropsMap {
   paymentDetail: PaymentDetailSheetProps;
   pendingPayments: PendingPaymentsSheetProps;
   support: SupportSheetProps;
+  datePicker: DatePickerSheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {
@@ -95,6 +108,13 @@ export interface SheetDefinition<T extends SheetType> {
   enablePanDownToClose?: boolean;
   /** Keyboard dismissal is needed only for sheets that can open from text input flows. */
   dismissKeyboardOnOpen?: boolean;
+  /**
+   * What happens to a sheet already on screen when this one opens. gorhom's
+   * default, "switch", slides the other sheet away until this one closes. A
+   * sheet that edits one field of a form sheet beneath it uses "push" instead,
+   * so the form stays where it is and this sheet opens on top of it.
+   */
+  stackBehavior?: "switch" | "push" | "replace";
 }
 
 export type SheetRegistry = {

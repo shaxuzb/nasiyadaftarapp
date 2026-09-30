@@ -283,7 +283,7 @@ export function SettingsScreen() {
           );
         })
         .finally(() => setIsOpeningBot(false));
-    });
+    }, "telegram");
   }, [isOpeningBot, requireVerifiedPhone, showToast, t]);
 
   const handleOpenBlacklist = useCallback(() => {

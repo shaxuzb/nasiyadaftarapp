@@ -5,7 +5,9 @@ import { getOtpAutofillConfig } from "./otpInputConfig.ts";
 const iosConfig = getOtpAutofillConfig("ios");
 
 assert.equal(iosConfig.textContentType, "oneTimeCode");
-assert.equal(iosConfig.autoComplete, "sms-otp");
+// React Native never forwards autoComplete to iOS, so setting it there only
+// made the config look like it was doing something it was not.
+assert.equal("autoComplete" in iosConfig, false);
 
 const androidConfig = getOtpAutofillConfig("android");
 

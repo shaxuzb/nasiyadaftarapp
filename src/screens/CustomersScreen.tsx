@@ -11,6 +11,7 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   Linking,
   RefreshControl,
   TextInput,
@@ -40,6 +41,7 @@ import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapab
 import { SearchBar } from "../components/SearchBar";
 import { CustomerCard } from "../modules/clients/components/CustomerCard";
 import { CustomerCardSkeleton } from "../modules/clients/components/CustomerCardSkeleton";
+import { isCustomerBlacklisted } from "../modules/clients/utils/blacklist";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { AppInput } from "../components/AppInput";
@@ -58,7 +60,15 @@ import {
   isOptionalUzPhoneValid,
   toOptionalStoredUzPhone,
 } from "../utils/masks";
-import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
+import {
+  getLocalizedApiErrorMessage,
+  useTranslation,
+  type TranslateKey,
+} from "../i18n";
+import { formatDateOnly, formatRelativeDateOnly } from "../i18n/calendarLabels";
+import { formatAmountInput, parseAmountInput } from "../utils/amountInput";
+import { todayDateOnly, type DateOnly } from "../utils/dateOnly";
+import { radius, spacing } from "../theme";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
 import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
 
@@ -106,6 +116,16 @@ const SHEET_SPRING = {
 
 const EMPTY_BALANCE_MAP = new Map<number, number>();
 
+type BalanceDirection = "debt" | "advance";
+
+const BALANCE_DIRECTIONS: ReadonlyArray<{
+  value: BalanceDirection;
+  labelKey: TranslateKey;
+}> = [
+  { value: "debt", labelKey: "customers.balanceDebt" },
+  { value: "advance", labelKey: "customers.balanceAdvance" },
+];
+
 export function CustomersScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -127,14 +147,11 @@ export function CustomersScreen() {
   const { openSheet } = useBottomSheet();
   const unreadNotifications = useUnreadPushNotificationCount();
   const unreadNotificationCount = unreadNotifications.data ?? 0;
-  const isAdministrator =
-    user?.role === "Administrator" && user?.roleId === 2;
+  const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const isPremium =
     user?.subscription?.planCode?.trim().toUpperCase() === "PREMIUM";
   const showProBadge =
-    regionalCapabilities.subscriptionVisible &&
-    !isAdministrator &&
-    !isPremium;
+    regionalCapabilities.subscriptionVisible && !isAdministrator && !isPremium;
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const phoneInputRef = useRef<TextInput>(null);
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
@@ -147,6 +164,16 @@ export function CustomersScreen() {
   const [phoneInputKey, setPhoneInputKey] = useState(0);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const [errors, setErrors] = useState<{ phone?: string }>({});
+  const [balanceDirection, setBalanceDirection] =
+    useState<BalanceDirection>("debt");
+  // null stands for "today", resolved when read. A concrete default would go
+  // stale on a screen that stays mounted overnight.
+  const [balanceDate, setBalanceDate] = useState<DateOnly | null>(null);
+  const [balanceInputKey, setBalanceInputKey] = useState(0);
+  // Nothing on screen depends on the amount while it is being typed, so it lives
+  // in a ref: as state it would re-render this whole screen, list included, on
+  // every keystroke. It is read once, on submit.
+  const balanceAmountRef = useRef("");
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -172,6 +199,20 @@ export function CustomersScreen() {
   const handleAddPhoneSubmit = useCallback(() => {
     void KeyboardController.dismiss();
   }, []);
+
+  const handleBalanceAmountChange = useCallback((value: string) => {
+    balanceAmountRef.current = value;
+  }, []);
+
+  const openBalanceDatePicker = useCallback(() => {
+    // Opens on top of the add-customer sheet, which stays in place underneath
+    // (the calendar is registered with stackBehavior "push").
+    openSheet("datePicker", {
+      value: balanceDate ?? todayDateOnly(),
+      title: t("customers.initialBalanceDate"),
+      onSelect: setBalanceDate,
+    });
+  }, [balanceDate, openSheet, t]);
 
   const scope = user?.organizationId ?? user?.id ?? "anonymous";
   const isSearchActive = debouncedQuery.length > 0;
@@ -269,6 +310,10 @@ export function CustomersScreen() {
     setFullName("");
     setPhone("+998 ");
     setPhoneInputKey((key) => key + 1);
+    setBalanceDirection("debt");
+    setBalanceDate(null);
+    balanceAmountRef.current = "";
+    setBalanceInputKey((key) => key + 1);
     setErrors({});
     setIsCreatingCustomer(false);
   }
@@ -294,10 +339,20 @@ export function CustomersScreen() {
 
     try {
       setIsCreatingCustomer(true);
+      const balanceAmount = parseAmountInput(balanceAmountRef.current);
       await addCustomer({
         fullName: fullName.trim().replace(/\s+/g, " "),
         phone: toOptionalStoredUzPhone(phone),
         note: "",
+        // An empty or zero amount sends neither field, and no date either: a
+        // date with no balance behind it means nothing to the backend.
+        ...(balanceAmount === null
+          ? {}
+          : {
+              initialBalance:
+                balanceDirection === "debt" ? balanceAmount : -balanceAmount,
+              initialBalanceDate: balanceDate ?? todayDateOnly(),
+            }),
       });
 
       resetCustomerForm();
@@ -381,6 +436,7 @@ export function CustomersScreen() {
         type: "debt",
         customerName: item.customer.fullName,
         customerPhone: item.customer.phone,
+        isBlacklisted: isCustomerBlacklisted(item.customer),
         currentBalance: item.balance,
         onOpenProfile: () =>
           navigation.navigate("CustomerDetail", {
@@ -412,7 +468,7 @@ export function CustomersScreen() {
               </Text> */}
             </View>
             <View style={styles.headerActions}>
-          {showProBadge ? (
+              {showProBadge ? (
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={t("subscription.openPlans")}
@@ -702,6 +758,104 @@ export function CustomersScreen() {
                 </TouchableOpacity>
               }
             />
+
+            <View>
+              <View style={styles.balanceLabelRow}>
+                <Text style={styles.balanceLabel} numberOfLines={1}>
+                  {t("customers.initialBalanceLabel")}
+                </Text>
+                <View
+                  accessibilityRole="radiogroup"
+                  accessibilityLabel={t("customers.balanceDirection")}
+                  style={styles.directionToggle}
+                >
+                  {BALANCE_DIRECTIONS.map((option) => {
+                    const selected = option.value === balanceDirection;
+                    const isDebt = option.value === "debt";
+                    return (
+                      <Pressable
+                        key={option.value}
+                        accessibilityRole="radio"
+                        accessibilityState={{
+                          selected,
+                          disabled: isCreatingCustomer,
+                        }}
+                        disabled={isCreatingCustomer}
+                        onPress={() => setBalanceDirection(option.value)}
+                        style={[
+                          styles.directionOption,
+                          selected && {
+                            backgroundColor: isDebt
+                              ? theme.debtBg
+                              : theme.paymentBg,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.directionText,
+                            selected && {
+                              color: isDebt
+                                ? theme.debtColor
+                                : theme.paymentColor,
+                            },
+                          ]}
+                        >
+                          {t(option.labelKey)}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+              <AppInput
+                variant="sheet"
+                compact
+                inputResetKey={balanceInputKey}
+                uncontrolled
+                defaultValue=""
+                transformText={formatAmountInput}
+                onChangeText={handleBalanceAmountChange}
+                placeholder={t("customers.initialBalancePlaceholder")}
+                editable={!isCreatingCustomer}
+                keyboardType="number-pad"
+                returnKeyType="none"
+                onSubmitEditing={handleAddPhoneSubmit}
+                trailingAccessory={
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("customers.initialBalanceDateA11y", {
+                      date: formatDateOnly(balanceDate ?? todayDateOnly(), t),
+                    })}
+                    disabled={isCreatingCustomer}
+                    hitSlop={6}
+                    onPress={openBalanceDatePicker}
+                    style={({ pressed }) => [
+                      styles.dateChip,
+                      pressed && styles.dateChipPressed,
+                    ]}
+                  >
+                    <Ionicons
+                      name="calendar-outline"
+                      size={15}
+                      color={theme.primary}
+                    />
+                    <Text style={styles.dateChipText} numberOfLines={1}>
+                      {formatRelativeDateOnly(
+                        balanceDate ?? todayDateOnly(),
+                        todayDateOnly(),
+                        t,
+                      )}
+                    </Text>
+                    <Ionicons
+                      name="chevron-down"
+                      size={13}
+                      color={theme.primary}
+                    />
+                  </Pressable>
+                }
+              />
+            </View>
           </View>
 
           <PrimaryButton
@@ -909,6 +1063,58 @@ const createStyles = (theme: AppTheme) =>
     },
     sheetFields: {
       gap: 16,
+    },
+    balanceLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      marginBottom: spacing.xs,
+    },
+    // Matches AppInput's sheet label, which this row replaces so the toggle can
+    // share its line instead of adding one of its own.
+    balanceLabel: {
+      flexShrink: 1,
+      fontSize: 13,
+      lineHeight: 18,
+      fontWeight: "700",
+      letterSpacing: 0.2,
+      color: theme.textSecondary,
+    },
+    directionToggle: {
+      flexDirection: "row",
+      padding: 2,
+      borderRadius: radius.full,
+      backgroundColor: theme.inputBackground,
+    },
+    directionOption: {
+      minHeight: 26,
+      justifyContent: "center",
+      paddingHorizontal: 12,
+      borderRadius: radius.full,
+    },
+    directionText: {
+      fontSize: 12,
+      fontWeight: "700",
+      color: theme.textSecondary,
+    },
+    dateChip: {
+      maxWidth: 150,
+      minHeight: 32,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginRight: -6,
+      paddingHorizontal: 10,
+      borderRadius: radius.full,
+      backgroundColor: theme.primaryLight,
+    },
+    dateChipPressed: { opacity: 0.72 },
+    dateChipText: {
+      flexShrink: 1,
+      fontSize: 12,
+      fontWeight: "700",
+      color: theme.primary,
     },
     sheetSaveButton: {
       minHeight: 50,

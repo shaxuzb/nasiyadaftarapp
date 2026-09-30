@@ -22,6 +22,28 @@ assert.match(
   /autoComplete:\s*"sms-otp"/,
   "Android OTP input must keep sms-otp while iOS uses textContentType",
 );
+
+// React Native does not forward autoComplete to iOS, so an iOS value there does
+// nothing and suggests a conflict that is not happening. Keep each platform's
+// config to what that platform reads.
+// The iOS branch runs from its `if` to the Android-only importantForAutofill.
+const iosBranch = config.slice(
+  config.indexOf('if (platform === "ios")'),
+  config.indexOf("importantForAutofill"),
+);
+assert.ok(iosBranch.includes("oneTimeCode"), "The iOS branch must be found");
+// Up to the first "}" is the object the iOS branch returns. The pattern needs
+// the colon, so it matches a property and not the word in the comment above.
+assert.doesNotMatch(
+  iosBranch.slice(0, iosBranch.indexOf("}")),
+  /autoComplete\s*:/,
+  "The iOS OTP config must rely on textContentType alone",
+);
+assert.match(
+  config,
+  /importantForAutofill:\s*"yes"/,
+  "Android OTP input must keep opting into autofill",
+);
 assert.doesNotMatch(
   source,
   /opacity:\s*0|width:\s*1,|height:\s*1,/,
