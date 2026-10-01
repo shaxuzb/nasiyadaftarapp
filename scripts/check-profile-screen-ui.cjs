@@ -48,15 +48,52 @@ assert.doesNotMatch(
   /<AdminContactButton\s+variant="card"/,
   "Admin contact must use the profile grouped-card layout",
 );
+// Contacting the admin moved behind one row in the help section, alongside the
+// community group, because two near-identical Telegram rows read as duplicates.
+// It still has to be one tap from the profile screen.
 assert.match(
   screen,
-  /openAdminContact/,
-  "Admin contact action must remain wired after the profile redesign",
+  /title=\{t\("profile\.supportRowTitle"\)\}/,
+  "The help section must offer a single contact-and-support row",
 );
 assert.match(
   screen,
-  /title=\{t\("common\.adminContactTitle"\)\}/,
-  "Admin contact must remain visible in the help section",
+  /onPress=\{\(\) => openSheet\("support", \{\}\)\}/,
+  "The contact row must open the support sheet",
+);
+
+const supportSheet = fs.readFileSync(
+  "src/bottom-sheet/sheets/SupportSheet.tsx",
+  "utf8",
+);
+assert.match(
+  supportSheet,
+  /useAdminContact/,
+  "The support sheet must keep the admin contact reachable",
+);
+assert.match(
+  supportSheet,
+  /support\.communityTitle/,
+  "The support sheet must offer the discussion group",
+);
+// Android reserves the strip along the bottom edge for its navigation bar or
+// gesture handle, and a sheet that ignores it puts its last row underneath.
+assert.match(
+  supportSheet,
+  /paddingBottom: Math\.max\(insets\.bottom, 12\)/,
+  "The support sheet must clear the Android bottom inset",
+);
+
+// The public profiles belong in the header, away from the functional rows.
+assert.match(
+  screen,
+  /const SOCIAL_LINKS = \[/,
+  "The profile header must list the public profiles in one place",
+);
+assert.match(
+  screen,
+  /accessibilityRole="link"/,
+  "A social icon must announce itself as a link",
 );
 assert.match(
   screen,

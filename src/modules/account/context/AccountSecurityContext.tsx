@@ -8,15 +8,25 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { Platform } from "react-native";
 
 import { useAuth } from "../../../context/AuthContext";
 import { hasVerifiedPhone } from "../utils/accountStatus";
-import { PhoneVerificationModal } from "../components/PhoneVerificationModal";
+import {
+  PhoneVerificationModal,
+  PhoneVerificationPurpose,
+} from "../components/PhoneVerificationModal";
 import { useAppLock } from "../../pin-auth/context/AppLockContext";
 
 interface AccountSecurityContextValue {
-  openPhoneVerification: (afterVerified?: () => void) => void;
-  requireVerifiedPhone: (onVerified: () => void) => boolean;
+  openPhoneVerification: (
+    afterVerified?: () => void,
+    purpose?: PhoneVerificationPurpose,
+  ) => void;
+  requireVerifiedPhone: (
+    onVerified: () => void,
+    purpose?: PhoneVerificationPurpose,
+  ) => boolean;
 }
 
 const AccountSecurityContext = createContext<
@@ -27,25 +37,44 @@ export function AccountSecurityProvider({ children }: { children: ReactNode }) {
   const { user, linkPhoneWithCode } = useAuth();
   const { isResolving, setupRequired, isLocked } = useAppLock();
   const [visible, setVisible] = useState(false);
+  // Kept after close so the text does not change while the modal fades out;
+  // every open sets it again.
+  const [purpose, setPurpose] = useState<PhoneVerificationPurpose>();
   const afterVerifiedRef = useRef<(() => void) | undefined>(undefined);
+  // What to continue with once verification succeeded and the modal is gone.
+  const afterClosedRef = useRef<(() => void) | undefined>(undefined);
+
+  const runAfterClosed = useCallback(() => {
+    const afterClosed = afterClosedRef.current;
+    afterClosedRef.current = undefined;
+    afterClosed?.();
+  }, []);
 
   const closePhoneVerification = useCallback(() => {
     setVisible(false);
     afterVerifiedRef.current = undefined;
-  }, []);
+    // What follows usually opens its own modal (the SMS send confirmation).
+    // iOS cannot present it while this one is still animating out, so there
+    // it continues from the modal's onDismiss, which Android does not fire.
+    if (Platform.OS !== "ios") runAfterClosed();
+  }, [runAfterClosed]);
 
-  const openPhoneVerification = useCallback((afterVerified?: () => void) => {
-    afterVerifiedRef.current = afterVerified;
-    setVisible(true);
-  }, []);
+  const openPhoneVerification = useCallback(
+    (afterVerified?: () => void, nextPurpose?: PhoneVerificationPurpose) => {
+      afterVerifiedRef.current = afterVerified;
+      setPurpose(nextPurpose);
+      setVisible(true);
+    },
+    [],
+  );
 
   const requireVerifiedPhone = useCallback(
-    (onVerified: () => void) => {
+    (onVerified: () => void, nextPurpose?: PhoneVerificationPurpose) => {
       if (hasVerifiedPhone(user)) {
         onVerified();
         return true;
       }
-      openPhoneVerification(onVerified);
+      openPhoneVerification(onVerified, nextPurpose);
       return false;
     },
     [openPhoneVerification, user],
@@ -60,9 +89,9 @@ export function AccountSecurityProvider({ children }: { children: ReactNode }) {
   const handleVerified = useCallback(
     async (phoneNumber: string, code: string) => {
       await linkPhoneWithCode(phoneNumber, code);
-      const afterVerified = afterVerifiedRef.current;
+      // The modal closes right after this resolves; the action continues then.
+      afterClosedRef.current = afterVerifiedRef.current;
       afterVerifiedRef.current = undefined;
-      afterVerified?.();
     },
     [linkPhoneWithCode],
   );
@@ -77,8 +106,10 @@ export function AccountSecurityProvider({ children }: { children: ReactNode }) {
       {children}
       <PhoneVerificationModal
         visible={visible}
+        purpose={purpose}
         currentPhone={user?.phoneNumber}
         onDismiss={closePhoneVerification}
+        onClosed={runAfterClosed}
         onVerified={handleVerified}
       />
     </AccountSecurityContext.Provider>

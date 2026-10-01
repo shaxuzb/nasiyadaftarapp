@@ -18,10 +18,6 @@ export function setCurrentNetworkStatus(status: NetworkStatus): void {
   currentNetworkStatus = status;
 }
 
-export function getCurrentNetworkStatus(): NetworkStatus {
-  return currentNetworkStatus;
-}
-
 export function setOfflineMutationMessage(message: string): void {
   const normalized = message.trim();
   if (normalized) offlineMutationMessage = normalized;

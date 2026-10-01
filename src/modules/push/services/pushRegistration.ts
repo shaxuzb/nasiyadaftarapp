@@ -8,7 +8,6 @@ import {
 } from "@react-native-firebase/messaging";
 import { getOrCreateUniqueId } from "../../../services/authStorage";
 import { registerPushDevice, unregisterPushDevice } from "./pushService";
-import { getNotificationIdFromData } from "../utils/notificationPayload";
 import {
   createPushDevicePayload,
   getPushPlatform,

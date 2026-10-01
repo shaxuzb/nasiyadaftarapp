@@ -46,6 +46,7 @@ import {
 import { getCurrentSubscription } from "../modules/subscription/services/subscriptionService";
 import { canCreateOrganization } from "../modules/subscription/utils/entitlements";
 import { clearPaymentLifecycleForUser } from "../modules/payments/services/paymentStorage";
+import { clearPinForUser } from "../modules/pin-auth/services/pinStorage";
 import {
   clearOrganizationQueries,
   invalidateAccountDependentQueries,
@@ -77,7 +78,17 @@ interface AuthContextValue {
   cancelOrganizationSelection: () => Promise<void>;
   organizationSelectionReturnTab: "Settings" | null;
   updateUserProfile: (patch: Partial<AuthUser>) => Promise<void>;
-  logout: () => Promise<void>;
+  logout: (options?: LogoutOptions) => Promise<void>;
+}
+
+export interface LogoutOptions {
+  /**
+   * Keeps the device PIN in place. Set when the session ended on its own — an
+   * expired refresh token or a revoked session — rather than because the user
+   * asked to sign out. Wiping the PIN there would make a dropped connection
+   * look like a security event and force the owner to set it up again.
+   */
+  preservePin?: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -360,7 +371,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyOrganizationSelection, user],
   );
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (options?: LogoutOptions) => {
     const session = getAuthSessionSync() ?? (await hydrateAuthSession());
     const paymentUserId = user?.id ?? session?.user.id ?? null;
 
@@ -381,6 +392,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (paymentUserId) {
       await clearPaymentLifecycleForUser(paymentUserId).catch(() => undefined);
+      if (!options?.preservePin) {
+        await clearPinForUser(paymentUserId).catch(() => undefined);
+      }
     }
     queryClient.removeQueries({ queryKey: queryKeys.paymentsRoot() });
     queryClient.removeQueries({ queryKey: ["push"] });
@@ -422,12 +436,62 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [completeAuth],
   );
 
+  // Linking a phone changes the account, not the organization. It used to go
+  // through completeAuth, which replays sign-in: the organization was cleared,
+  // the navigator fell back to its loading screen and came back on Customers,
+  // so the user lost the screen they were on and the action they had started.
   const linkPhoneWithCode = useCallback(
     async (phoneNumber: string, code: string) => {
+      if (!user) throw new Error("Raqamni biriktirish uchun tizimga kiring");
+
       const response = await confirmProfilePhone({ phoneNumber, code });
-      await completeAuth(response);
+      const session = getAuthSessionSync() ?? (await hydrateAuthSession());
+      const uniqueId = session?.uniqueId ?? (await getOrCreateUniqueId());
+      let token = response.token || session?.token || "";
+      let refreshToken = response.refreshToken || session?.refreshToken || "";
+      let nextUser: AuthUser = { ...user, ...response.user };
+      await setAuthSession({ token, refreshToken, user: nextUser, uniqueId });
+
+      // Sign-in asks for an organization-scoped token when the one it got is
+      // for another organization; do the same, quietly, for the current one.
+      if (
+        currentOrganization &&
+        response.user?.organizationId !== currentOrganization.id
+      ) {
+        const scoped: OrganizationSelectResponse =
+          (await selectOrganizationAccount(currentOrganization.id)) ?? {};
+        token = scoped.token ?? token;
+        refreshToken = scoped.refreshToken ?? refreshToken;
+        nextUser = { ...nextUser, ...scoped.user };
+      }
+
+      // The phone just confirmed is the account's phone, whatever the later
+      // responses carry; an organization response can hold it as null.
+      nextUser = {
+        ...nextUser,
+        organizations: nextUser.organizations ?? user.organizations,
+        ...(currentOrganization
+          ? {
+              hasOrganization: true,
+              organizationId: currentOrganization.id,
+              organizationName: currentOrganization.name,
+            }
+          : {}),
+        phoneNumber: response.user?.phoneNumber?.trim() || phoneNumber,
+        hasPhoneNumber: true,
+        phoneVerified: true,
+        // A phone does not change the plan; keep the one already synced.
+        subscription: user.subscription ?? nextUser.subscription,
+      };
+      await setAuthSession({ token, refreshToken, user: nextUser, uniqueId });
+      setUser(nextUser);
+
+      // Who may send SMS depends on this phone, so the SMS lists refetch.
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.clientSmsRoot(),
+      });
     },
-    [completeAuth],
+    [currentOrganization, user],
   );
 
   const loginWithGoogleIdToken = useCallback(
@@ -501,7 +565,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      void logout();
+      // The server ended the session; the user did not ask to sign out, so the
+      // device PIN stays put.
+      void logout({ preservePin: true });
     });
 
     return () => {

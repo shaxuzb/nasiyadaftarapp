@@ -1,6 +1,5 @@
 import { Linking } from "react-native";
 
-export const ADMIN_TELEGRAM_USERNAME = "@richdev_1";
 
 const ADMIN_TELEGRAM_URL = "https://t.me/richdev_1";
 

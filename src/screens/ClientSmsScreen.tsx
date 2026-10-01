@@ -30,6 +30,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { useAuth } from "../context/AuthContext";
 import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { useToast } from "../context/ToastContext";
+import { useAccountSecurity } from "../modules/account/context/AccountSecurityContext";
 import { useTheme } from "../hooks/useTheme";
 import { SmsRecipientRow } from "../modules/client-sms/components/SmsRecipientRow";
 import { CustomerEditSheet } from "../modules/clients/components/CustomerEditSheet";
@@ -52,6 +53,10 @@ import {
   selectEligibleRecipients,
   toggleRecipientSelection,
 } from "../modules/client-sms/utils/recipientSelection";
+import {
+  getBulkResultTone,
+  groupSmsIssues,
+} from "../modules/client-sms/utils/smsResults";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import type { Customer } from "../modules/clients/types";
@@ -69,6 +74,9 @@ type BooleanFilter = "blacklisted" | "hasDebt" | "canSend";
 function isBottomTabNavigation(navigation: Nav) {
   return (navigation.getState() as unknown as { type?: string }).type === "tab";
 }
+
+// The result card is a summary; the full list is in the SMS history.
+const MAX_ISSUE_LINES = 3;
 
 export function ClientSmsScreen() {
   const navigation = useNavigation<Nav>();
@@ -112,6 +120,7 @@ function ClientSmsContent({
   const { confirm } = useConfirmDialog();
   const { user, currentOrganization } = useAuth();
   const { showToast } = useToast();
+  const { requireVerifiedPhone } = useAccountSecurity();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filters, setFilters] = useState<
@@ -119,10 +128,21 @@ function ClientSmsContent({
   >({});
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkSummary, setBulkSummary] = useState<BulkSmsResponse | null>(null);
+  // Skipped and failed recipients grouped by reason, so a batch where thirty
+  // clients already had today's SMS reads as one line, not the first of thirty.
+  const issueGroups = useMemo(
+    () => (bulkSummary ? groupSmsIssues(bulkSummary.results) : []),
+    [bulkSummary],
+  );
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [phoneEditorRecipient, setPhoneEditorRecipient] =
     useState<SmsRecipient | null>(null);
   const submitting = useRef(false);
+  // The ref blocks a second tap synchronously; this state is what the buttons
+  // render, since a ref change never repaints them.
+  const [sendingTarget, setSendingTarget] = useState<number | "bulk" | null>(
+    null,
+  );
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(timer);
@@ -192,19 +212,15 @@ function ClientSmsContent({
     },
     [locale, organizationName],
   );
-  const sendToOne = useCallback(
+  // Runs only once the owner's phone is known to be verified. It must not ask
+  // again: after verification it is invoked from a closure created before the
+  // user object updated, which would still read as unverified and reopen the
+  // verification modal.
+  const performSendOne = useCallback(
     async (recipient: SmsRecipient) => {
-      if (smsLimitReached) {
-        setIsUpgradeModalOpen(true);
-        return;
-      }
-      if (
-        submitting.current ||
-        !capabilities.canSendOne ||
-        !isSmsRecipientSelectable(recipient)
-      )
-        return;
+      if (submitting.current) return;
       submitting.current = true;
+      setSendingTarget(recipient.id);
       try {
         const template = await getTemplateForConfirmation();
         const accepted = await confirm({
@@ -217,41 +233,77 @@ function ClientSmsContent({
         await sendOne.mutateAsync(recipient.id);
         showToast(t("sms.sendAccepted"), "success");
       } catch (error) {
+        // A client who already had today's SMS comes back as a 400 whose detail
+        // says so; getLocalizedApiErrorMessage shows that text as is.
         showToast(getLocalizedApiErrorMessage(error, "sms.sendError", t), "error");
       } finally {
         submitting.current = false;
+        setSendingTarget(null);
       }
     },
     [
-      capabilities.canSendOne,
       confirm,
       getPreviewMessage,
       getTemplateForConfirmation,
       sendOne,
       showToast,
-      smsLimitReached,
       t,
       locale,
     ],
   );
-  const submitBulk = async () => {
+
+  const sendToOne = useCallback(
+    (recipient: SmsRecipient) => {
+      if (smsLimitReached) {
+        setIsUpgradeModalOpen(true);
+        return;
+      }
+      if (
+        submitting.current ||
+        !capabilities.canSendOne ||
+        !isSmsRecipientSelectable(recipient)
+      )
+        return;
+      // SMS go out only for an organization whose owner has a verified phone.
+      // Unverified, this opens the verification modal and continues to the send
+      // confirmation once the code is accepted; closing the modal sends nothing.
+      requireVerifiedPhone(() => void performSendOne(recipient), "sms");
+    },
+    [
+      capabilities.canSendOne,
+      performSendOne,
+      requireVerifiedPhone,
+      smsLimitReached,
+    ],
+  );
+  const submitBulk = () => {
     if (smsLimitReached) {
       setIsUpgradeModalOpen(true);
       return;
     }
     if (submitting.current || !capabilities.canSendBulk || !selected.size)
       return;
+    // Same rule as a single send. The selection is captured now, so what gets
+    // sent after verification is exactly what was selected when tapped.
+    const recipientIds = [...selected];
+    requireVerifiedPhone(() => void performBulkSend(recipientIds), "sms");
+  };
+
+  // Must not re-check verification; see performSendOne.
+  const performBulkSend = async (recipientIds: number[]) => {
+    if (submitting.current) return;
     submitting.current = true;
+    setSendingTarget("bulk");
     try {
       const template = await getTemplateForConfirmation();
       const accepted = await confirm({
         title: t("sms.templateTitle"),
-        message: `${getPreviewMessage(template)}\n\n${t("sms.bulkConfirmation", { count: selected.size })}`,
+        message: `${getPreviewMessage(template)}\n\n${t("sms.bulkConfirmation", { count: recipientIds.length })}`,
         confirmText: t("sms.sendAction"),
         cancelText: t("common.cancel"),
       });
       if (!accepted) return;
-      const result = await sendBulk.mutateAsync([...selected]);
+      const result = await sendBulk.mutateAsync(recipientIds);
       setBulkSummary(result);
       showToast(
         t("sms.sentSummary", {
@@ -259,15 +311,23 @@ function ClientSmsContent({
           failed: result.failedCount,
           skipped: result.skippedCount,
         }),
-        result.failedCount ? "error" : "success",
+        getBulkResultTone(result),
       );
       setSelected(new Set());
     } catch (error) {
       showToast(getLocalizedApiErrorMessage(error, "sms.bulkSendError", t), "error");
     } finally {
       submitting.current = false;
+      setSendingTarget(null);
     }
   };
+  // Stable handlers: inline arrows here were new on every render and defeated
+  // the memo on SmsRecipientRow, repainting every visible row each time.
+  const handleSend = useCallback(
+    (recipient: SmsRecipient) => void sendToOne(recipient),
+    [sendToOne],
+  );
+  const openUpgradeModal = useCallback(() => setIsUpgradeModalOpen(true), []);
   const renderRecipient = useCallback(
     ({ item }: { item: SmsRecipient }) => (
       <SmsRecipientRow
@@ -276,20 +336,20 @@ function ClientSmsContent({
         selectable={capabilities.canSendBulk}
         canSendOne={capabilities.canSendOne}
         onToggle={toggle}
-        onSend={(value) => void sendToOne(value)}
+        onSend={handleSend}
         onAddPhone={setPhoneEditorRecipient}
-        onQuotaReached={
-          smsLimitReached
-            ? () => setIsUpgradeModalOpen(true)
-            : undefined
-        }
+        onQuotaReached={smsLimitReached ? openUpgradeModal : undefined}
+        sending={sendingTarget === item.id}
+        sendDisabled={sendingTarget !== null}
       />
     ),
     [
       capabilities.canSendBulk,
       capabilities.canSendOne,
+      handleSend,
+      openUpgradeModal,
       selected,
-      sendToOne,
+      sendingTarget,
       smsLimitReached,
       toggle,
     ],
@@ -445,18 +505,15 @@ function ClientSmsContent({
                   skipped: bulkSummary.skippedCount,
                 })}
               </Text>
-              {bulkSummary.results.find((item) => item.errorMessage)
-                ?.errorMessage ? (
-                <Text style={styles.resultError} numberOfLines={2}>
-                  {bulkSummary.results.find((item) => item.errorMessage)
-                    ?.fullName ?? t("sms.clientFallback")}
-                  :{" "}
-                  {
-                    bulkSummary.results.find((item) => item.errorMessage)
-                      ?.errorMessage
-                  }
+              {issueGroups.slice(0, MAX_ISSUE_LINES).map((group) => (
+                <Text
+                  key={group.reason}
+                  style={styles.resultError}
+                  numberOfLines={1}
+                >
+                  {group.reason} · {group.count}
                 </Text>
-              ) : null}
+              ))}
             </View>
             <Pressable
               accessibilityRole="button"
@@ -537,7 +594,8 @@ function ClientSmsContent({
             </View>
             <PrimaryButton
               label={t("sms.sendBulk")}
-              loading={sendBulk.isPending}
+              loading={sendingTarget === "bulk"}
+              disabled={sendingTarget !== null}
               onPress={() => void submitBulk()}
               style={styles.footerButton}
             />

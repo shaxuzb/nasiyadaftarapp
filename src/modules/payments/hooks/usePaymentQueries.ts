@@ -19,14 +19,7 @@ export function usePendingPayments() {
     staleTime: 0,
     refetchOnMount: "always",
   });
-}
-
-export function usePendingPayment() {
-  const query = usePendingPayments();
-  return { ...query, data: query.data?.[0] ?? null };
-}
-
-export function usePaymentHistory(limit = 30) {
+}export function usePaymentHistory(limit = 30) {
   const { user } = useAuth();
   return useQuery({
     queryKey: queryKeys.paymentsHistory(limit),

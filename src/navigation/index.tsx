@@ -51,6 +51,7 @@ import {
   navigationRef,
 } from "./navigationRef";
 import { shouldMountMainNavigator } from "./appNavigatorState";
+import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -111,7 +112,10 @@ function TabNavigator({
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { user } = useAuth();
-  const canViewClientSms = getClientSmsCapabilities(user?.permissions).canView;
+  const regionalCapabilities = useRegionalProductCapabilities();
+  const canViewClientSms =
+    regionalCapabilities.clientSmsVisible &&
+    getClientSmsCapabilities(user?.permissions).canView;
   const resolvedInitialRouteName =
     initialRouteName === "ClientSms" && !canViewClientSms
       ? "Customers"
@@ -190,6 +194,8 @@ function TabNavigator({
 }
 
 function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
+  const regionalCapabilities = useRegionalProductCapabilities();
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="MainTabs">
@@ -198,17 +204,25 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <Stack.Screen name="PinChange" component={PinChangeScreen} />
-      <Stack.Screen name="ClientSms" component={ClientSmsScreen} />
-      <Stack.Screen
-        name="ClientSmsHistory"
-        component={ClientSmsHistoryScreen}
-      />
+      {regionalCapabilities.clientSmsVisible ? (
+        <>
+          <Stack.Screen name="ClientSms" component={ClientSmsScreen} />
+          <Stack.Screen
+            name="ClientSmsHistory"
+            component={ClientSmsHistoryScreen}
+          />
+        </>
+      ) : null}
       <Stack.Screen
         name="BlacklistSettings"
         component={BlacklistSettingsScreen}
       />
-      <Stack.Screen name="Subscription" component={SubscriptionScreen} />
-      <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+      {regionalCapabilities.subscriptionVisible ? (
+        <Stack.Screen name="Subscription" component={SubscriptionScreen} />
+      ) : null}
+      {regionalCapabilities.paymentHistoryVisible ? (
+        <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+      ) : null}
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen
         name="NotificationSettings"
@@ -252,6 +266,8 @@ function OrganizationNavigator({
 }: {
   hasOrganizations: boolean;
 }) {
+  const regionalCapabilities = useRegionalProductCapabilities();
+
   return (
     <OrganizationStack.Navigator
       screenOptions={{ headerShown: false }}
@@ -267,14 +283,18 @@ function OrganizationNavigator({
         name="OrganizationSetup"
         component={OrganizationSetupScreen}
       />
-      <OrganizationStack.Screen
-        name="Subscription"
-        component={SubscriptionScreen}
-      />
-      <OrganizationStack.Screen
-        name="PaymentHistory"
-        component={PaymentHistoryScreen}
-      />
+      {regionalCapabilities.subscriptionVisible ? (
+        <OrganizationStack.Screen
+          name="Subscription"
+          component={SubscriptionScreen}
+        />
+      ) : null}
+      {regionalCapabilities.paymentHistoryVisible ? (
+        <OrganizationStack.Screen
+          name="PaymentHistory"
+          component={PaymentHistoryScreen}
+        />
+      ) : null}
     </OrganizationStack.Navigator>
   );
 }
@@ -284,7 +304,6 @@ export function AppNavigator() {
   const { resolvedScheme } = useThemeContext();
   const {
     user,
-    organizations,
     currentOrganization,
     isBootstrapping,
     isOrganizationLoading,

@@ -17,8 +17,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetBackdrop, BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -26,7 +24,7 @@ import {
 
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../hooks/useTheme";
-import type { AppTheme, OrganizationStackParamList } from "../types";
+import type { AppTheme } from "../types";
 import { useToast } from "../context/ToastContext";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { OrganizationCreateSheetContent } from "../modules/organization/components/OrganizationCreateSheetContent";
@@ -36,10 +34,9 @@ import {
   getOrganizationLimitLabel,
 } from "../modules/subscription/utils/entitlements";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
+import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 import { useBottomSheetBackHandler } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
-
-type Navigation = NativeStackNavigationProp<OrganizationStackParamList>;
 
 const SHEET_SPRING = {
   damping: 80,
@@ -53,9 +50,9 @@ const SHEET_SPRING = {
 export function OrganizationSelectScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const navigation = useNavigation<Navigation>();
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const regionalCapabilities = useRegionalProductCapabilities();
   const { showToast } = useToast();
   const {
     user,
@@ -254,7 +251,7 @@ export function OrganizationSelectScreen() {
             }}
             variant="outline"
           />
-        ) : (
+        ) : regionalCapabilities.upgradePromptsVisible ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("subscription.upgrade.viewPlans")}
@@ -281,7 +278,7 @@ export function OrganizationSelectScreen() {
             </View>
             <Text style={styles.proBadge}>{t("subscription.standardPlan")}</Text>
           </Pressable>
-        )}
+        ) : null}
         <Text style={styles.limitHint}>
           {t("organization.limitHint", { limit: organizationLimitLabel })}
         </Text>
@@ -348,12 +345,14 @@ export function OrganizationSelectScreen() {
           onSubmit={handleCreateOrganization}
         />
       </BottomSheetModal>
-      <SubscriptionUpgradeModal
-        visible={isUpgradeModalOpen}
-        reason="organization-limit"
-        subscription={user?.subscription}
-        onClose={() => setIsUpgradeModalOpen(false)}
-      />
+      {regionalCapabilities.upgradePromptsVisible ? (
+        <SubscriptionUpgradeModal
+          visible={isUpgradeModalOpen}
+          reason="organization-limit"
+          subscription={user?.subscription}
+          onClose={() => setIsUpgradeModalOpen(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }

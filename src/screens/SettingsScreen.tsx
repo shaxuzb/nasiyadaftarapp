@@ -24,7 +24,8 @@ import { radius, spacing, typography } from "../theme";
 import { AppTheme, RootStackParamList } from "../types";
 import { useCurrentSubscription } from "../modules/subscription/hooks/useSubscription";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
-import { useAdminContact } from "../modules/support/hooks/useAdminContact";
+import { useSocialLinks } from "../modules/support/hooks/useSocialLinks";
+import type { SocialLink } from "../modules/support/hooks/useSocialLinks";
 import {
   isPaidPlanCode,
   normalizePlanCode,
@@ -36,9 +37,30 @@ import { useBottomSheet } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import type { TranslateKey } from "../i18n";
 import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
+import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
+
+// Ionicons ships the Instagram mark but no Telegram one, so the community link
+// uses a paper plane. Adding FontAwesome purely for that single glyph would put
+// another 162 KB font in the bundle.
+const SOCIAL_LINKS = [
+  {
+    link: "instagram",
+    icon: "logo-instagram",
+    labelKey: "support.instagram",
+  },
+  {
+    link: "community",
+    icon: "paper-plane-outline",
+    labelKey: "support.telegram",
+  },
+] as const satisfies ReadonlyArray<{
+  link: SocialLink;
+  icon: React.ComponentProps<typeof Ionicons>["name"];
+  labelKey: TranslateKey;
+}>;
 
 const THEME_OPTIONS: ReadonlyArray<{
   mode: ThemeMode;
@@ -149,14 +171,19 @@ export function SettingsScreen() {
   const { openPhoneVerification, requireVerifiedPhone } = useAccountSecurity();
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();
-  const { isOpening: isOpeningAdminContact, openAdminContact } =
-    useAdminContact();
+  const { opening: openingSocialLink, open: openSocialLink } =
+    useSocialLinks();
   const [isOpeningBot, setIsOpeningBot] = useState(false);
   const [upgradeReason, setUpgradeReason] =
     useState<SubscriptionUpgradeReason | null>(null);
   const subscriptionQuery = useCurrentSubscription();
   const subscription = subscriptionQuery.data ?? user?.subscription;
+  const regionalCapabilities = useRegionalProductCapabilities();
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
+  const showSubscriptionUi =
+    !isAdministrator && regionalCapabilities.subscriptionVisible;
+  const showPaymentHistory =
+    !isAdministrator && regionalCapabilities.paymentHistoryVisible;
   const pushPermissionDescription =
     pushPermission === "granted"
       ? t("notifications.permissionGranted")
@@ -256,7 +283,7 @@ export function SettingsScreen() {
           );
         })
         .finally(() => setIsOpeningBot(false));
-    });
+    }, "telegram");
   }, [isOpeningBot, requireVerifiedPhone, showToast, t]);
 
   const handleOpenBlacklist = useCallback(() => {
@@ -293,6 +320,31 @@ export function SettingsScreen() {
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <View style={styles.header}>
         <Text style={styles.screenTitle}>{t("profile.screenTitle")}</Text>
+        <View style={styles.headerActions}>
+          {SOCIAL_LINKS.map((social) => (
+            <Pressable
+              key={social.link}
+              accessibilityRole="link"
+              accessibilityLabel={t(social.labelKey)}
+              accessibilityState={{
+                busy: openingSocialLink === social.link,
+                disabled: openingSocialLink !== null,
+              }}
+              disabled={openingSocialLink !== null}
+              onPress={() => void openSocialLink(social.link)}
+              style={({ pressed }) => [
+                styles.socialButton,
+                pressed && styles.pressed,
+              ]}
+            >
+              {openingSocialLink === social.link ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                <Ionicons name={social.icon} size={20} color={theme.primary} />
+              )}
+            </Pressable>
+          ))}
+        </View>
       </View>
 
       <ScrollView
@@ -371,7 +423,7 @@ export function SettingsScreen() {
             </View>
           </View>
 
-          {!isAdministrator && subscription ? (
+          {showSubscriptionUi && subscription ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("profile.planLimits")}
@@ -435,9 +487,9 @@ export function SettingsScreen() {
             title={t("notifications.permissionTitle")}
             description={pushPermissionDescription}
             onPress={() => navigation.navigate("NotificationSettings")}
-            isLast={isAdministrator}
+            isLast={!showSubscriptionUi}
           />
-          {!isAdministrator ? (
+          {showSubscriptionUi ? (
             <ProfileMenuRow
               icon="pricetags-outline"
               iconColor={theme.primary}
@@ -450,7 +502,7 @@ export function SettingsScreen() {
           ) : null}
         </View>
 
-        {!isAdministrator ? (
+        {showPaymentHistory ? (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("profile.paymentHistory")}
@@ -496,6 +548,7 @@ export function SettingsScreen() {
             }}
             isLast={false}
           />
+{isPaidSubscription || regionalCapabilities.upgradePromptsVisible ? (
           <ProfileMenuRow
             icon={
               isPaidSubscription ? "warning-outline" : "lock-closed-outline"
@@ -516,10 +569,12 @@ export function SettingsScreen() {
             }
             isLast
           />
+          ) : null}
         </View>
 
         <SectionTitle title={t("profile.helpSection")} />
         <View style={styles.card}>
+{telegramEnabled || regionalCapabilities.upgradePromptsVisible ? (
           <ProfileMenuRow
             icon={telegramEnabled ? "send-outline" : "lock-closed-outline"}
             iconColor={telegramEnabled ? theme.primary : theme.textSecondary}
@@ -542,14 +597,14 @@ export function SettingsScreen() {
             loading={telegramEnabled && isOpeningBot}
             badge={telegramEnabled ? undefined : t("subscription.standardPlan")}
           />
+          ) : null}
           <ProfileMenuRow
-            icon="chatbubble-ellipses-outline"
+            icon="headset-outline"
             iconColor={theme.primary}
             iconBackground={theme.primaryLight}
-            title={t("common.adminContactTitle")}
-            description={t("common.adminContactDescription")}
-            onPress={() => void openAdminContact()}
-            loading={isOpeningAdminContact}
+            title={t("profile.supportRowTitle")}
+            description={t("profile.supportRowDescription")}
+            onPress={() => openSheet("support", {})}
             isLast
           />
         </View>
@@ -620,12 +675,14 @@ export function SettingsScreen() {
           <Text style={styles.logoutText}>{t("profile.logout")}</Text>
         </Pressable>
       </ScrollView>
-      <SubscriptionUpgradeModal
-        visible={upgradeReason !== null}
-        reason={upgradeReason ?? "telegram"}
-        subscription={subscription}
-        onClose={() => setUpgradeReason(null)}
-      />
+      {regionalCapabilities.upgradePromptsVisible ? (
+        <SubscriptionUpgradeModal
+          visible={upgradeReason !== null}
+          reason={upgradeReason ?? "telegram"}
+          subscription={subscription}
+          onClose={() => setUpgradeReason(null)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -634,9 +691,26 @@ const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.background },
     header: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
       paddingHorizontal: spacing.md,
       paddingTop: spacing.sm,
       paddingBottom: spacing.xs,
+    },
+    headerActions: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: spacing.xs,
+    },
+    socialButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radius.full,
+      backgroundColor: theme.inputBackground,
     },
     screenTitle: { ...typography.displayMedium, color: theme.text },
     content: {

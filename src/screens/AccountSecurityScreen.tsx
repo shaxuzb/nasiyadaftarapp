@@ -411,18 +411,24 @@ export function AccountSecurityScreen({ navigation }: Props) {
           ) : null}
         </View>
 
-        <Text style={styles.sectionTitle}>{t("security.appLockSection")}</Text>
-        <View style={styles.card}>
-          <ActionRow
-            icon="lock-closed-outline"
-            iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
-            title={t("security.appLock")}
-            description={t("security.appLockDescription")}
-            onPress={lockNow}
-            isLast
-          />
-        </View>
+        {pinEnabled ? (
+          <>
+            <Text style={styles.sectionTitle}>
+              {t("security.appLockSection")}
+            </Text>
+            <View style={styles.card}>
+              <ActionRow
+                icon="lock-closed-outline"
+                iconColor={theme.primary}
+                iconBackground={theme.primaryLight}
+                title={t("security.appLock")}
+                description={t("security.appLockDescription")}
+                onPress={lockNow}
+                isLast
+              />
+            </View>
+          </>
+        ) : null}
 
         <DeleteAccountSection />
       </ScrollView>

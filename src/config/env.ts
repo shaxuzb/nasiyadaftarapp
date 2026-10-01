@@ -1,6 +1,7 @@
 import { isValidPublicApiBaseUrl, resolveApiBaseUrl } from "./apiBaseUrl";
 
 const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+// process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
 // Despite the host name, nasiya-test-api.crmuz.uz IS the production backend;
 // there is no separate staging deployment today. The two constants stay split

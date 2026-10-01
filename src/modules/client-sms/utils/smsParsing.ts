@@ -122,6 +122,10 @@ export function parseSmsRecipients(input: unknown): PagedResult<SmsRecipient> {
             Math.trunc(number(item.blacklistedOrganizationCount)),
           ),
           canSend: item.canSend === true,
+          smsSentToday:
+            item.smsSentToday === true ||
+            item.isSmsSentToday === true ||
+            item.sentToday === true,
           cannotSendReason:
             text(item.cannotSendReason, item.skipReason, item.reason) ||
             undefined,

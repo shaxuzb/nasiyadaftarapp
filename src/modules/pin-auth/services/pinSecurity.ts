@@ -1,11 +1,25 @@
 import type { PinStorage } from "./pinStorageFactory";
 import type { PinValidationResult } from "../utils/pinValidation";
 import type { PinErrorCode } from "../utils/pinErrors";
+/**
+ * Supplied by the caller rather than imported, so this module stays free of
+ * runtime imports and a test can control the clock. See
+ * `defaultPinLockoutPolicy` in ../utils/pinLockout.
+ */
+export interface PinLockoutPolicy {
+  maxAttempts: number;
+  getLockoutDurationMs(attempts: number): number | null;
+  getAttemptsRemaining(attempts: number): number;
+  isLockoutActive(lockedUntilMs: number | null, now: number): boolean;
+  parseLockedUntil(value: string | null | undefined): number | null;
+  now(): number;
+}
 
 export type PinCheckResult = {
   success: boolean;
-  mustLogout: boolean;
   attemptsRemaining: number;
+  /** Epoch milliseconds until entry reopens, or null while it is open. */
+  lockedUntilMs: number | null;
 };
 
 export type SecurityActionResult = {
@@ -15,34 +29,59 @@ export type SecurityActionResult = {
 };
 
 type Authenticate = () => Promise<boolean>;
-const MAX_PIN_ATTEMPTS = 5;
-
-function failedPinState(previousAttempts: number) {
-  const attempts = Math.min(previousAttempts + 1, MAX_PIN_ATTEMPTS);
-  return { attemptsRemaining: Math.max(MAX_PIN_ATTEMPTS - attempts, 0), mustLogout: attempts >= MAX_PIN_ATTEMPTS };
-}
 
 export function createPinSecurity(
   storage: PinStorage,
   validatePin: (pin: string) => PinValidationResult,
   authenticate: Authenticate,
+  lockout: PinLockoutPolicy,
 ) {
   async function checkPin(userId: number, pin: string): Promise<PinCheckResult> {
     const record = await storage.getPinRecord(userId);
-    if (!record) return { success: false, mustLogout: false, attemptsRemaining: 0 };
+    if (!record) {
+      return { success: false, attemptsRemaining: 0, lockedUntilMs: null };
+    }
+
+    const currentTime = lockout.now();
+    const storedLock = lockout.parseLockedUntil(record.lockedUntil);
+
+    // While a lockout is running the PIN is rejected without spending an
+    // attempt, so guesses made during the wait cannot push the ladder higher.
+    if (lockout.isLockoutActive(storedLock, currentTime)) {
+      return {
+        success: false,
+        attemptsRemaining: 0,
+        lockedUntilMs: storedLock,
+      };
+    }
 
     if (await storage.verifyPin(userId, pin)) {
       await storage.resetAttempts(userId);
-      return { success: true, mustLogout: false, attemptsRemaining: 5 };
+      return {
+        success: true,
+        attemptsRemaining: lockout.maxAttempts,
+        lockedUntilMs: null,
+      };
     }
 
-    const state = failedPinState(record.attempts);
-    await storage.incrementAttempts(userId);
-    return {
-      success: false,
-      mustLogout: state.mustLogout,
-      attemptsRemaining: state.attemptsRemaining,
-    };
+    const updated = await storage.incrementAttempts(userId);
+    const attempts = updated?.attempts ?? record.attempts + 1;
+    const lockoutMs = lockout.getLockoutDurationMs(attempts);
+
+    if (lockoutMs === null) {
+      return {
+        success: false,
+        attemptsRemaining: lockout.getAttemptsRemaining(attempts),
+        lockedUntilMs: null,
+      };
+    }
+
+    const lockedUntilMs = currentTime + lockoutMs;
+    await storage.setLockedUntil(
+      userId,
+      new Date(lockedUntilMs).toISOString(),
+    );
+    return { success: false, attemptsRemaining: 0, lockedUntilMs };
   }
 
   async function verifyPin(userId: number, pin: string): Promise<boolean> {
@@ -111,6 +150,10 @@ export function createPinSecurity(
     const record = await storage.getPinRecord(userId);
     if (!record?.biometricEnabled) return false;
     if (!(await authenticate())) return false;
+    // Deliberately available during a PIN lockout. The lockout exists to stop
+    // someone guessing a 4-digit PIN, which a fingerprint or face cannot be
+    // guessed into; the OS rate-limits biometric attempts on its own. Blocking
+    // it here would only strand the owner. Succeeding clears the lockout.
     await storage.resetAttempts(userId);
     return true;
   }

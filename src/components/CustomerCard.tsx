@@ -5,6 +5,8 @@ import { AppTheme, Customer } from "../types";
 import { formatDisplayedBalance, getFullName, getInitials } from "../utils";
 import { useTheme } from "../hooks/useTheme";
 import { useTranslation } from "../i18n";
+import { BlacklistBadge } from "../modules/clients/components/BlacklistBadge";
+import { isCustomerBlacklisted } from "../modules/clients/utils/blacklist";
 
 interface Props {
   customer: Customer;
@@ -20,10 +22,13 @@ export const CustomerCard = memo(function CustomerCard({
   const theme = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const blacklisted = isCustomerBlacklisted(customer);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${getFullName(customer)}, ${formatDisplayedBalance(balance)}`}
+      accessibilityLabel={`${getFullName(customer)}, ${formatDisplayedBalance(balance)}${
+        blacklisted ? `. ${t("customers.blacklistWarning")}` : ""
+      }`}
       accessibilityHint={t("common.openTransactionSheet")}
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
@@ -54,6 +59,7 @@ export const CustomerCard = memo(function CustomerCard({
         {formatDisplayedBalance(balance)}
       </Text>
       <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+      {blacklisted ? <BlacklistBadge style={styles.blacklistCorner} /> : null}
     </Pressable>
   );
 });
@@ -83,6 +89,9 @@ const createStyles = (theme: AppTheme) =>
     },
     initials: { fontSize: 16, fontWeight: "800", color: theme.primary },
     info: { flex: 1, minWidth: 0, gap: 2 },
+    // Sits on the top edge, clear of the name, balance and chevron. -5 matches
+    // the list's top padding, so the first card's badge is not clipped.
+    blacklistCorner: { position: "absolute", top: -5, right: 12 },
     name: {
       color: theme.text,
       fontSize: 15,

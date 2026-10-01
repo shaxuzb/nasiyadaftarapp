@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Customer, Transaction } from "../types";
+import type { NewCustomerInput } from "../modules/clients/types";
 import { invalidateClientDomain } from "../core/query/clientInvalidation";
 import { getOrganizationQueryScope } from "../core/query/organizationScope";
 import { useClientQueries } from "../modules/clients/hooks/useClientQueries";
@@ -23,7 +24,7 @@ interface AppContextValue {
   dataError: unknown;
 
   refreshCustomers: (search?: string) => Promise<void>;
-  addCustomer: (data: Omit<Customer, "id" | "createdAt">) => Promise<Customer>;
+  addCustomer: (data: NewCustomerInput) => Promise<Customer>;
   deleteCustomer: (customerId: number) => Promise<void>;
 
   loadCustomerDetail: (id: number) => Promise<Customer | undefined>;
@@ -84,7 +85,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [queryClient, scope]);
 
   const addCustomer = useCallback(
-    async (data: Omit<Customer, "id" | "createdAt">) => addClient(data),
+    async (data: NewCustomerInput) => addClient(data),
     [addClient],
   );
 

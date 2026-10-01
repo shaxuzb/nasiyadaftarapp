@@ -123,9 +123,7 @@ export function ReportsScreen() {
     : hasOverpayment
       ? t("reports.heroOverpaymentCaption")
       : t("reports.heroSettledCaption");
-  const heroCardTone = hasDebt
-    ? styles.heroDebtCard
-    : styles.heroSuccessCard;
+  const heroCardTone = hasDebt ? styles.heroDebtCard : styles.heroSuccessCard;
   const isInitialLoading = isLoading && !report;
   const handleRefresh = React.useCallback(async () => {
     const result = await refetch();
@@ -176,11 +174,7 @@ export function ReportsScreen() {
           {isExporting ? (
             <ActivityIndicator size="small" color={theme.primary} />
           ) : (
-            <Ionicons
-              name="download-outline"
-              size={18}
-              color={theme.primary}
-            />
+            <Ionicons name="download-outline" size={18} color={theme.primary} />
           )}
           <Text style={styles.headerExportText}>{t("reports.export")}</Text>
         </Pressable>
@@ -266,7 +260,7 @@ export function ReportsScreen() {
             </View>
 
             <View style={styles.metricGrid}>
-              <View style={styles.metricRow}>
+              {/* <View style={styles.metricRow}>
                 <MetricCard
                   icon="arrow-down"
                   label={t("reports.totalDebt")}
@@ -281,7 +275,7 @@ export function ReportsScreen() {
                   color={theme.paymentColor}
                   backgroundColor={theme.paymentBg}
                 />
-              </View>
+              </View> */}
               {/* <View style={styles.metricRow}>
                 <MetricCard
                   icon="people"
@@ -371,7 +365,9 @@ export function ReportsScreen() {
 
             <View style={styles.sectionHeader}>
               <View>
-                <Text style={styles.sectionTitle}>{t("reports.topDebtors")}</Text>
+                <Text style={styles.sectionTitle}>
+                  {t("reports.topDebtors")}
+                </Text>
                 <Text style={styles.sectionSubtitle}>
                   {t("reports.topDebtorsSubtitle")}
                 </Text>
@@ -393,7 +389,9 @@ export function ReportsScreen() {
                       color={theme.paymentColor}
                     />
                   </View>
-                  <Text style={styles.emptyTitle}>{t("reports.activeDebtorsEmpty")}</Text>
+                  <Text style={styles.emptyTitle}>
+                    {t("reports.activeDebtorsEmpty")}
+                  </Text>
                   <Text style={styles.emptyDescription}>
                     {t("reports.allSettled")}
                   </Text>
@@ -445,7 +443,9 @@ export function ReportsScreen() {
                       >
                         {formatLocalizedCurrency(entry.balance, locale)}
                       </Text>
-                      <Text style={styles.debtorCaption}>{t("reports.debtCaption")}</Text>
+                      <Text style={styles.debtorCaption}>
+                        {t("reports.debtCaption")}
+                      </Text>
                     </View>
                     <Ionicons
                       name="chevron-forward"

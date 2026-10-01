@@ -1,4 +1,4 @@
-import { Mask, createNumberMask } from "react-native-mask-input";
+import { Mask } from "react-native-mask-input";
 
 export const uzPhoneMask: Mask = [
   "+",
@@ -19,12 +19,6 @@ export const uzPhoneMask: Mask = [
   /\d/,
   /\d/,
 ];
-
-export const amountMask: Mask = createNumberMask({
-  delimiter: " ",
-  precision: 0,
-  separator: ".",
-});
 
 export function normalizeUzPhoneDigits(input: string): string {
   const digits = input.replace(/\D/g, "");

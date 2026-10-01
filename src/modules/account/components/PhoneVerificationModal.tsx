@@ -26,10 +26,22 @@ import { useOtpAutoFill } from "../../auth/hooks/useOtpAutoFill";
 import { useTranslation } from "../../../i18n";
 import { getLocalizedApiErrorMessage } from "../../../i18n/apiErrors";
 
+// What the user was doing when verification was asked for, so the modal can
+// say why it opened. Without one it shows the general explanation.
+export type PhoneVerificationPurpose = "sms" | "telegram";
+
+const PURPOSE_DESCRIPTION_KEYS = {
+  sms: "security.phoneVerificationSmsDescription",
+  telegram: "security.phoneVerificationTelegramDescription",
+} as const;
+
 interface Props {
   visible: boolean;
+  purpose?: PhoneVerificationPurpose;
   currentPhone?: string | null;
   onDismiss: () => void;
+  /** iOS only: the modal has finished animating out. */
+  onClosed?: () => void;
   onVerified: (phoneNumber: string, code: string) => Promise<void> | void;
 }
 
@@ -46,8 +58,10 @@ function PhoneOtpAutoFill({
 
 export function PhoneVerificationModal({
   visible,
+  purpose,
   currentPhone,
   onDismiss,
+  onClosed,
   onVerified,
 }: Props) {
   const theme = useTheme();
@@ -137,6 +151,7 @@ export function PhoneVerificationModal({
       animationType="fade"
       statusBarTranslucent
       onRequestClose={onDismiss}
+      onDismiss={onClosed}
     >
       <KeyboardAwareScrollView
         contentContainerStyle={styles.overlay}
@@ -157,7 +172,11 @@ export function PhoneVerificationModal({
           </Text>
           <Text style={styles.description}>
             {stage === "phone"
-              ? t("security.phoneVerificationDescription")
+              ? t(
+                  purpose
+                    ? PURPOSE_DESCRIPTION_KEYS[purpose]
+                    : "security.phoneVerificationDescription",
+                )
               : t("security.enterCodeForPhone", {
                   phone: maskedPhone || requestedPhone,
                 })}

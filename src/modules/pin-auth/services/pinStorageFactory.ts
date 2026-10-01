@@ -37,6 +37,12 @@ function isPinRecord(value: unknown): value is PinRecord {
     typeof record.attempts === "number" &&
     Number.isInteger(record.attempts) &&
     record.attempts >= 0 &&
+    // Records written before lockouts existed carry no deadline. Rejecting
+    // them here would delete a working PIN on upgrade, so absent is accepted
+    // and normalised to null on read.
+    (record.lockedUntil === undefined ||
+      record.lockedUntil === null ||
+      typeof record.lockedUntil === "string") &&
     typeof record.displayName === "string" &&
     (typeof record.maskedContact === "string" || record.maskedContact === null)
   );
@@ -55,16 +61,20 @@ export function createPinStorage({
     try {
       const parsed: unknown = JSON.parse(raw);
       if (isPinRecord(parsed)) {
+        const record: PinRecord = {
+          ...parsed,
+          lockedUntil: parsed.lockedUntil ?? null,
+        };
         const biometricPreference = await secureStore.getItemAsync(
           biometricPreferenceKey(userId),
         );
         if (biometricPreference === "1") {
-          return { ...parsed, biometricEnabled: true };
+          return { ...record, biometricEnabled: true };
         }
         if (biometricPreference === "0") {
-          return { ...parsed, biometricEnabled: false };
+          return { ...record, biometricEnabled: false };
         }
-        return parsed;
+        return record;
       }
     } catch {
       // Invalid data is cleared below and treated as absent.
@@ -106,6 +116,7 @@ export function createPinStorage({
         digest: await digest(input.pin, salt),
         biometricEnabled: input.biometricEnabled ?? false,
         attempts: 0,
+        lockedUntil: null,
         displayName: input.displayName,
         maskedContact: input.maskedContact,
       };
@@ -132,10 +143,21 @@ export function createPinStorage({
       await savePinRecord(userId, next);
       return next;
     },
+    async setLockedUntil(
+      userId: number,
+      lockedUntil: string | null,
+    ): Promise<PinRecord | null> {
+      const record = await getPinRecord(userId);
+      if (!record) return null;
+      const next = { ...record, lockedUntil };
+      await savePinRecord(userId, next);
+      return next;
+    },
     async resetAttempts(userId: number): Promise<PinRecord | null> {
       const record = await getPinRecord(userId);
       if (!record) return null;
-      const next = { ...record, attempts: 0 };
+      // A correct PIN clears the lockout along with the failure count.
+      const next = { ...record, attempts: 0, lockedUntil: null };
       await savePinRecord(userId, next);
       return next;
     },

@@ -1,4 +1,3 @@
-export const DEFAULT_BLACKLIST_AFTER_DAYS = 30;
 
 export function parseBlacklistDays(input: string): number | null {
   if (!/^\d+$/.test(input.trim())) return null;

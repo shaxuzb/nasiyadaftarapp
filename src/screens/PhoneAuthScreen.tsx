@@ -282,12 +282,7 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
       </KeyboardAvoidingView>
     </ScreenContainer>
   );
-}
-
-export const phoneAuthInputFormatter = (value: string): string =>
-  formatUzPhoneFromDigits(value);
-
-const styles = StyleSheet.create({
+}const styles = StyleSheet.create({
   screenInner: { flex: 1 },
   scrollContent: {
     flexGrow: 1,

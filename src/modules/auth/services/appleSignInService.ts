@@ -66,7 +66,3 @@ export async function requestAppleCredential(): Promise<AppleLoginRequest> {
     throw new AppleSignInFlowError("unexpected");
   }
 }
-
-export function getAppleSignInReason(error: unknown): AppleSignInReason {
-  return error instanceof AppleSignInFlowError ? error.reason : "unexpected";
-}

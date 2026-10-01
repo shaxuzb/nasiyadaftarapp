@@ -10,6 +10,8 @@ import { PaymentCheckoutSheet } from "./sheets/PaymentCheckoutSheet";
 import { PaymentStatusSheet } from "./sheets/PaymentStatusSheet";
 import { PaymentDetailSheet } from "./sheets/PaymentDetailSheet";
 import { PendingPaymentsSheet } from "./sheets/PendingPaymentsSheet";
+import { SupportSheet } from "./sheets/SupportSheet";
+import { DatePickerSheet } from "./sheets/DatePickerSheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
@@ -54,5 +56,18 @@ export const sheetRegistry: SheetRegistry = {
     component: PendingPaymentsSheet,
     enableDynamicSizing: true,
     enablePanDownToClose: true,
+  },
+  support: {
+    component: SupportSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+  },
+  datePicker: {
+    component: DatePickerSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+    // Opens from inside the add-customer sheet; with the default "switch" that
+    // sheet slid out of view the moment the calendar appeared.
+    stackBehavior: "push",
   },
 };

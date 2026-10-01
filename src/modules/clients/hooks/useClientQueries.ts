@@ -9,7 +9,7 @@ import {
   getClientById,
   getClients,
 } from "../services/clientsService";
-import { Customer } from "../types";
+import type { Customer, NewCustomerInput } from "../types";
 
 const EMPTY_CUSTOMERS: Customer[] = [];
 
@@ -23,18 +23,31 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
   });
 
   const addCustomerMutation = useMutation({
-    mutationFn: (data: Omit<Customer, "id" | "createdAt">) =>
+    mutationFn: (data: NewCustomerInput) =>
       createClient({
         fullName: data.fullName,
         phoneNumber: data.phone,
         note: data.note ?? "",
+        ...(data.initialBalance
+          ? {
+              initialBalance: data.initialBalance,
+              initialBalanceDate: data.initialBalanceDate,
+            }
+          : {}),
       }),
-    onSuccess: (created) => {
+    onSuccess: (created, data) => {
       queryClient.setQueryData<Customer[]>(queryKeys.clients(scope), (prev = []) => [
         created,
         ...prev,
       ]);
-      void invalidateClientDomain(queryClient, scope, "created", created.id);
+      // The backend stores an initial balance as the customer's first
+      // transaction, so anything built from transactions has to refetch too.
+      void invalidateClientDomain(
+        queryClient,
+        scope,
+        data.initialBalance ? "transaction" : "created",
+        created.id,
+      );
     },
   });
 
@@ -73,8 +86,7 @@ export function useClientQueries(scope: QueryScope, enabled: boolean) {
   );
 
   const addCustomer = useCallback(
-    (data: Omit<Customer, "id" | "createdAt">) =>
-      addCustomerMutation.mutateAsync(data),
+    (data: NewCustomerInput) => addCustomerMutation.mutateAsync(data),
     [addCustomerMutation],
   );
 

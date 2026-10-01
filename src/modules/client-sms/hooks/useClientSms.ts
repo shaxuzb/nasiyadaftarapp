@@ -14,7 +14,13 @@ import {
   sendBulkDebtSms,
   sendDebtSms,
 } from "../services/clientSmsService";
-import type { SmsHistoryFilters, SmsRecipientFilters } from "../types";
+import type {
+  PagedResult,
+  SmsHistoryFilters,
+  SmsRecipient,
+  SmsRecipientFilters,
+} from "../types";
+import { markRecipientsSentToday } from "../utils/recipientSelection";
 import { getClientSmsCapabilities } from "../utils/smsPermissions";
 
 function useSmsScope() {
@@ -88,8 +94,32 @@ function useSmsInvalidation() {
 }
 
 export function useSendDebtSms() {
+  const queryClient = useQueryClient();
+  const { scope } = useSmsScope();
   const invalidate = useSmsInvalidation();
-  return useMutation({ mutationFn: sendDebtSms, onSuccess: invalidate });
+  return useMutation({
+    mutationFn: sendDebtSms,
+    onSuccess: (_result, clientId) => {
+      // One SMS per client per day: badge the client and drop their send button
+      // now, not when the refetch lands, so a second tap has nothing to hit.
+      queryClient.setQueriesData<PagedResult<SmsRecipient>>(
+        { queryKey: queryKeys.clientSmsRecipientsRoot(scope) },
+        (page) =>
+          page && {
+            ...page,
+            results: markRecipientsSentToday(page.results, new Set([clientId])),
+          },
+      );
+      return invalidate();
+    },
+    // A rejection usually means the list was stale and the client already had
+    // today's SMS; refetching makes the badge appear.
+    onError: () => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.clientSmsRecipientsRoot(scope),
+      });
+    },
+  });
 }
 
 export function useSendBulkDebtSms() {

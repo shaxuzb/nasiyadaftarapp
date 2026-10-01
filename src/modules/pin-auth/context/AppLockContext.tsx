@@ -19,19 +19,30 @@ import { createPinSecurity } from "../services/pinSecurity";
 import type { BiometricCapability } from "../types";
 import { validatePin } from "../utils/pinValidation";
 import { shouldLockAfterInactivity } from "../utils/appInactivity";
+import {
+  defaultPinLockoutPolicy,
+  parseLockedUntil,
+} from "../utils/pinLockout";
 import type { PinErrorCode } from "../utils/pinErrors";
 import { getAuthDisplayName } from "../utils/userDisplay";
 import { useTranslation } from "../../../i18n";
 
 type UnlockResult = {
-  status: "unlocked" | "invalid" | "logged-out";
+  status: "unlocked" | "invalid" | "locked";
   attemptsRemaining: number;
+  /** Epoch milliseconds until entry reopens, set only when status is "locked". */
+  lockedUntilMs: number | null;
 };
 interface AppLockValue {
   isResolving: boolean;
   setupRequired: boolean;
   pinEnabled: boolean;
   isLocked: boolean;
+  /**
+   * Epoch milliseconds until PIN entry reopens after too many wrong tries, or
+   * null while it is open. Read on mount so a lockout survives a restart.
+   */
+  pinLockedUntilMs: number | null;
   biometric: BiometricCapability | null;
   biometricEnabled: boolean;
   displayName: string;
@@ -68,6 +79,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
   const [setupRequired, setSetupRequired] = useState(false);
   const [pinEnabled, setPinEnabled] = useState(false);
   const [isLocked, setLocked] = useState(false);
+  const [pinLockedUntilMs, setPinLockedUntilMs] = useState<number | null>(null);
   const [biometric, setBiometric] = useState<BiometricCapability | null>(null);
   const [biometricEnabled, setBiometricEnabledState] = useState(false);
   const userIdRef = useRef<number | null>(null);
@@ -82,7 +94,13 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     [t],
   );
   const security = useMemo(
-    () => createPinSecurity(pinStorage, validatePin, authenticate),
+    () =>
+      createPinSecurity(
+        pinStorage,
+        validatePin,
+        authenticate,
+        defaultPinLockoutPolicy,
+      ),
     [authenticate],
   );
   useEffect(() => {
@@ -96,6 +114,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
           setSetupRequired(false);
           setPinEnabled(false);
           setLocked(false);
+          setPinLockedUntilMs(null);
           setBiometric(null);
           setBiometricEnabledState(false);
           setResolvedUserId(null);
@@ -119,8 +138,11 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         setSetupRequired(!hasPin && !pinSetupComplete);
         setPinEnabled(hasPin);
         setLocked(hasPin);
+        setPinLockedUntilMs(
+          parseLockedUntil(updatedRecord?.lockedUntil ?? record?.lockedUntil),
+        );
         setBiometric(capability);
-        setBiometricEnabled(
+        setBiometricEnabledState(
           updatedRecord?.biometricEnabled ?? record?.biometricEnabled ?? false,
         );
         setResolvedUserId(user.id);
@@ -183,29 +205,39 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       setSetupRequired(false);
       setPinEnabled(true);
       setLocked(false);
+      setPinLockedUntilMs(null);
       setBiometricEnabledState(enabled);
     },
     [authenticate, biometric, user],
   );
   const submitUnlockPin = useCallback(
     async (pin: string): Promise<UnlockResult> => {
-      if (!user) return { status: "invalid", attemptsRemaining: 0 };
+      if (!user) {
+        return { status: "invalid", attemptsRemaining: 0, lockedUntilMs: null };
+      }
+
       const result = await security.checkPin(user.id, pin);
+      setPinLockedUntilMs(result.lockedUntilMs);
+
       if (result.success) {
         await wait(220);
         setLocked(false);
         return {
           status: "unlocked",
           attemptsRemaining: result.attemptsRemaining,
+          lockedUntilMs: null,
         };
       }
-      if (result.mustLogout) {
-        await logout();
-        return { status: "logged-out", attemptsRemaining: 0 };
-      }
-      return { status: "invalid", attemptsRemaining: result.attemptsRemaining };
+
+      // Too many wrong tries pause entry instead of signing the user out, so
+      // nobody loses their session to a child holding the phone.
+      return {
+        status: result.lockedUntilMs === null ? "invalid" : "locked",
+        attemptsRemaining: result.attemptsRemaining,
+        lockedUntilMs: result.lockedUntilMs,
+      };
     },
-    [logout, security, user],
+    [security, user],
   );
   const verifyCurrentPin = useCallback(
     (pin: string) => {
@@ -219,6 +251,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     if (await security.unlockBiometric(user.id)) {
       await wait(220);
       setLocked(false);
+      setPinLockedUntilMs(null);
       return true;
     }
     return false;
@@ -277,6 +310,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
     setPinEnabled(false);
     setSetupRequired(false);
     setLocked(false);
+    setPinLockedUntilMs(null);
     return { success: true };
   }, [user]);
   const resetPinAndLogout = useCallback(async () => {
@@ -293,6 +327,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       setupRequired,
       pinEnabled,
       isLocked,
+      pinLockedUntilMs,
       biometric,
       biometricEnabled,
       displayName: user?.fullName ?? "Foydalanuvchi",
@@ -308,7 +343,13 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
         setSetupRequired(true);
         setLocked(true);
       },
-      lockNow: () => setLocked(true),
+      lockNow: () => {
+        // Locking without a stored PIN would raise a gate that nothing can
+        // open: the unlock screen rejects every entry when there is no record,
+        // leaving signing out as the only way back into the app.
+        if (!pinEnabled) return;
+        setLocked(true);
+      },
     }),
     [
       biometric,
@@ -316,6 +357,7 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
       changePin,
       gateResolving,
       isLocked,
+      pinLockedUntilMs,
       pinEnabled,
       setupRequired,
       submitSetupPin,

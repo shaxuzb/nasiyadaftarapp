@@ -1,4 +1,3 @@
-import type { AuthUser } from "../../auth/types";
 import type { CurrentSubscription } from "../types";
 
 export type SubscriptionCapability = "telegram" | "blacklist" | "sms";
@@ -29,18 +28,4 @@ export function getOrganizationLimitLabel(
     return `${count}/cheksiz`;
   }
   return `${count}/${subscription.maxOrganizations}`;
-}
-
-export function hasSubscriptionCapability(
-  user: Pick<AuthUser, "subscription"> | null | undefined,
-  capability: SubscriptionCapability,
-): boolean {
-  const subscription = user?.subscription;
-  if (!subscription) return true;
-  if (capability === "telegram") return subscription.telegramBotEnabled;
-  if (capability === "blacklist") return subscription.blacklistEnabled;
-  return (
-    subscription.sms.totalRemaining === null ||
-    subscription.sms.totalRemaining > 0
-  );
 }

@@ -1,15 +1,21 @@
 import axios from "axios";
-import { OFFLINE_MUTATION_ERROR_CODE } from "../core/network/networkState";
 
-function getDetailMessage(payload: unknown): string | undefined {
+/**
+ * Reads the part of an error body that was written for a person.
+ *
+ * ProblemDetails puts that in `detail` ("SMS allaqachon yuborildi..."), while
+ * `title` only names the status ("Bad request"). `title` is deliberately not
+ * consulted here, because this value is shown in a toast; getDetailMessage
+ * below still falls back to it for the cases that just need any description.
+ */
+function readProblemDetail(payload: unknown): string | undefined {
   if (!payload || typeof payload !== "object") return undefined;
 
   const candidate = payload as Record<string, unknown>;
   const detail = candidate.detail;
   const message = candidate.message;
-  const title = candidate.title;
 
-  for (const value of [detail, message, title]) {
+  for (const value of [detail, message]) {
     if (typeof value !== "string") continue;
     const text = value.trim();
     if (text.length > 0) return text;
@@ -35,17 +41,10 @@ function getDetailMessage(payload: unknown): string | undefined {
   return undefined;
 }
 
-export function getApiErrorMessage(
-  error: unknown,
-  fallbackMessage: string,
-): string {
-  if (error instanceof Error && error.name === OFFLINE_MUTATION_ERROR_CODE) {
-    return error.message;
-  }
-
-  if (!axios.isAxiosError(error)) return fallbackMessage;
-
-  return getDetailMessage(error.response?.data) ?? fallbackMessage;
+/** The human-readable reason from an error body, excluding the status name. */
+export function getApiErrorDetail(error: unknown): string | undefined {
+  if (!axios.isAxiosError(error)) return undefined;
+  return readProblemDetail(error.response?.data);
 }
 
 export function getApiErrorStatus(error: unknown): number | undefined {

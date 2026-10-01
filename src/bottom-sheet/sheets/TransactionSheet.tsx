@@ -38,6 +38,9 @@ import { hapticError, hapticSuccess } from "../../utils/haptics";
 import { createClientTransaction } from "../../modules/transactions/services/transactionsService";
 import { invalidateClientDomain } from "../../core/query/clientInvalidation";
 import { getOrganizationQueryScope } from "../../core/query/organizationScope";
+import { BlacklistBadge } from "../../modules/clients/components/BlacklistBadge";
+import { isCustomerBlacklisted } from "../../modules/clients/utils/blacklist";
+import { noteSuccessfulTransaction } from "../../modules/app-review/services/reviewPrompt";
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme, TransactionType } from "../../types";
 import {
@@ -142,6 +145,9 @@ function useTransactionController({
     t("transactions.customerFallback");
   const phone = customer?.phone ?? props.customerPhone ?? "";
   const initials = getInitials({ id: props.customerId, fullName: name, phone });
+  const blacklisted =
+    props.isBlacklisted === true ||
+    (customer ? isCustomerBlacklisted(customer) : false);
 
   async function save(type: TransactionType) {
     if (submitting.current) return;
@@ -188,6 +194,9 @@ function useTransactionController({
       );
       setDismissLocked(false);
       closeSheet();
+      // A saved transaction is the moment the app has just been useful; the
+      // store rating dialog is considered from here, later and off this path.
+      noteSuccessfulTransaction();
     } catch (error) {
       hapticError();
       showToast(
@@ -215,6 +224,7 @@ function useTransactionController({
     name,
     phone,
     initials,
+    blacklisted,
     save,
   };
 }
@@ -416,6 +426,9 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
             <Ionicons name="chevron-forward" size={16} color={theme.primary} />
           </Pressable>
         )}
+        {tx.blacklisted ? (
+          <BlacklistBadge style={styles.blacklistCorner} />
+        ) : null}
       </View>
       <Pressable
         onPress={() => amountRef.current?.focus()}
@@ -519,6 +532,8 @@ const createStyles = (theme: AppTheme) =>
     },
     initials: { fontSize: 22, fontWeight: "800", color: theme.primary },
     identity: { flex: 1, minWidth: 0, gap: 2 },
+    // On the top edge, above the profile button and clear of the name.
+    blacklistCorner: { position: "absolute", top: -5, right: 12 },
     name: { fontSize: 16, fontWeight: "700", color: theme.text },
     phone: {
       fontSize: 12,

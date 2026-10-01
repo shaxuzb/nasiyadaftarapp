@@ -1,5 +1,5 @@
 import React, { memo, useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import type { AppTheme } from "../../../types";
@@ -20,6 +20,10 @@ interface Props {
   onAddPhone?: (recipient: SmsRecipient) => void;
   onToggle: (id: number) => void;
   onSend: (recipient: SmsRecipient) => void;
+  /** This row's own send is in flight. */
+  sending: boolean;
+  /** Some send is in flight, this row's or a bulk one; sends go one at a time. */
+  sendDisabled: boolean;
 }
 
 export const SmsRecipientRow = memo(function SmsRecipientRow({
@@ -31,6 +35,8 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
   onAddPhone,
   onToggle,
   onSend,
+  sending,
+  sendDisabled,
 }: Props) {
   const theme = useTheme();
   const { locale, t } = useTranslation();
@@ -85,7 +91,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
           ]}
         >
           {selected && canSend ? (
-            <Ionicons name="checkmark" size={15} color="#fff" />
+            <Ionicons name="checkmark" size={12} color="#fff" />
           ) : null}
         </View>
       ) : null}
@@ -122,6 +128,16 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
               {t("sms.addRecipientPhone")}
             </Text>
           </Pressable>
+        ) : recipient.smsSentToday ? (
+          // Already sent today is a fact, not a fault: it takes the reason line
+          // in green instead of the generic warning, which would read as if
+          // something were wrong with this client.
+          <View style={styles.sentTodayLine}>
+            <Ionicons name="checkmark-done" size={12} color={theme.paymentColor} />
+            <Text numberOfLines={1} style={styles.sentTodayText}>
+              {t("sms.sentToday")}
+            </Text>
+          </View>
         ) : !recipient.canSend ? (
           <Text numberOfLines={1} style={styles.reason}>
             {recipient.cannotSendReason || t("sms.cannotSend")}
@@ -157,19 +173,28 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
                 ? t("sms.sendToClient", { name: displayName })
                 : t("sms.increaseLimit")
             }
+            accessibilityState={{ disabled: sendDisabled, busy: sending }}
+            disabled={sendDisabled}
             hitSlop={8}
             onPress={(event) => {
               event.stopPropagation();
               if (canSendOne) onSend(recipient);
               else onQuotaReached?.();
             }}
-            style={styles.sendButton}
+            style={[
+              styles.sendButton,
+              sendDisabled && !sending && styles.sendButtonDimmed,
+            ]}
           >
-            <Ionicons
-              name={canSendOne ? "paper-plane-outline" : "lock-closed-outline"}
-              size={18}
-              color={theme.primary}
-            />
+            {sending ? (
+              <ActivityIndicator size="small" color={theme.primary} />
+            ) : (
+              <Ionicons
+                name={canSendOne ? "paper-plane-outline" : "lock-closed-outline"}
+                size={18}
+                color={theme.primary}
+              />
+            )}
           </Pressable>
         ) : null}
       </View>
@@ -180,10 +205,10 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     card: {
-      minHeight: 78,
+      minHeight: 64,
       flexDirection: "row",
       alignItems: "center",
-      gap: 10,
+      gap: 6,
       padding: 11,
       borderWidth: 1,
       borderColor: theme.border,
@@ -197,9 +222,9 @@ const createStyles = (theme: AppTheme) =>
     },
     pressed: { opacity: 0.7 },
     check: {
-      width: 22,
-      height: 22,
-      borderRadius: 7,
+      width: 14,
+      height: 14,
+      borderRadius: 2,
       borderWidth: 1.5,
       borderColor: theme.border,
       alignItems: "center",
@@ -254,6 +279,14 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.debtBg,
     },
     blacklistText: { color: theme.dangerColor, fontSize: 9, fontWeight: "700" },
+    sentTodayLine: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 3,
+      marginTop: 1,
+    },
+    sentTodayText: { color: theme.paymentColor, fontSize: 10, fontWeight: "700" },
     trailing: { maxWidth: "37%", alignItems: "flex-end", gap: 2 },
     balance: { fontSize: 12, fontWeight: "800" },
     overdue: { color: theme.warningColor, fontSize: 9 },
@@ -265,4 +298,5 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 9,
       backgroundColor: theme.primaryLight,
     },
+    sendButtonDimmed: { opacity: 0.45 },
   });
