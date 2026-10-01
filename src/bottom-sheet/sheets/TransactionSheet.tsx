@@ -40,6 +40,7 @@ import { invalidateClientDomain } from "../../core/query/clientInvalidation";
 import { getOrganizationQueryScope } from "../../core/query/organizationScope";
 import { BlacklistBadge } from "../../modules/clients/components/BlacklistBadge";
 import { isCustomerBlacklisted } from "../../modules/clients/utils/blacklist";
+import { noteSuccessfulTransaction } from "../../modules/app-review/services/reviewPrompt";
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme, TransactionType } from "../../types";
 import {
@@ -193,6 +194,9 @@ function useTransactionController({
       );
       setDismissLocked(false);
       closeSheet();
+      // A saved transaction is the moment the app has just been useful; the
+      // store rating dialog is considered from here, later and off this path.
+      noteSuccessfulTransaction();
     } catch (error) {
       hapticError();
       showToast(

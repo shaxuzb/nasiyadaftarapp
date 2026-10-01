@@ -53,6 +53,7 @@ function createHarness({
   const locks = [];
   const invalidations = [];
   let closes = 0;
+  let reviewNotes = 0;
   let release;
   const gate = new Promise((resolve) => {
     release = resolve;
@@ -118,6 +119,11 @@ function createHarness({
     "../../hooks/useTheme": {},
     "../../utils/apiError": { getApiErrorMessage: () => "Saqlanmadi" },
     "../../modules/clients/components/BlacklistBadge": {},
+    "../../modules/app-review/services/reviewPrompt": {
+      noteSuccessfulTransaction: () => {
+        reviewNotes++;
+      },
+    },
     "../../modules/clients/utils/blacklist": {
       isCustomerBlacklisted: (customer) => customer.isBlacklisted === true,
     },
@@ -145,6 +151,7 @@ function createHarness({
     invalidations,
     release,
     closed: () => closes,
+    reviewNotes: () => reviewNotes,
     format: exports.formatUnderTest,
   };
 }
@@ -171,6 +178,11 @@ async function main() {
   debt.release();
   await pending;
   assert.equal(debt.closed(), 1);
+  assert.equal(
+    debt.reviewNotes(),
+    1,
+    "A saved transaction counts once towards the store rating prompt",
+  );
   assert.deepEqual(debt.locks, [true, false]);
   assert.ok(
     debt.invalidations.length > 0 && debt.invalidations.every((key) => key[1] === 7),
@@ -212,6 +224,12 @@ async function main() {
   failed.release();
   await failed.controller.save("debt");
   assert.equal(failed.closed(), 0, "Failed saves must keep the form open");
+  assert.equal(
+    failed.reviewNotes(),
+    0,
+    "A failed save must never lead to a rating prompt",
+  );
+  assert.equal(invalid.reviewNotes(), 0);
   assert.equal(failed.locks.at(-1), false);
   await failed.controller.save("debt");
   assert.equal(failed.calls.length, 2, "Allow a retry after failure");
