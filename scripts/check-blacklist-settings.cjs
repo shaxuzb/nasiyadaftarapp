@@ -17,11 +17,25 @@ function load(file, mocks = {}) {
   return out;
 }
 const validation = load("src/modules/organization/utils/blacklistSettings.ts");
+assert.equal(validation.MIN_BLACKLIST_DAYS, 30);
+assert.equal(validation.MAX_BLACKLIST_DAYS, 3650);
 assert.equal(validation.parseBlacklistDays("30"), 30);
-assert.equal(validation.parseBlacklistDays("1"), 1);
 assert.equal(validation.parseBlacklistDays("3650"), 3650);
-for (const value of ["", "0", "1.5", "-1", "3651", "abc"])
+// Below 30 the server answers 400, so the form must stop it first.
+for (const value of ["", "0", "1", "29", "1.5", "-1", "3651", "abc"])
   assert.equal(validation.parseBlacklistDays(value), null);
+const screen = fs.readFileSync("src/screens/BlacklistSettingsScreen.tsx", "utf8");
+assert.match(
+  screen,
+  /t\("organization\.blacklistValidation", \{\s*min: MIN_BLACKLIST_DAYS,\s*max: MAX_BLACKLIST_DAYS,\s*\}\)/,
+  "The validation message must name the real limits",
+);
+for (const file of ["uz", "ru"])
+  assert.match(
+    fs.readFileSync(`src/i18n/translations/${file}.ts`, "utf8"),
+    /blacklistValidation: "[^"]*\{min\}[^"]*\{max\}/,
+    `${file}: the limits come from the code, not from the sentence`,
+  );
 let put;
 const api = load("src/services/organizationsApi.ts", {
   "./axiosService": {

@@ -12,7 +12,7 @@ import { useTheme } from "../../../hooks/useTheme";
 import { useTranslation } from "../../../i18n";
 import { typography, spacing, radius } from "../../../theme";
 import { usePushNotifications } from "../hooks/usePushNotifications";
-import { navigateToPushNotification } from "../../../navigation/navigationRef";
+import { useOpenNotification } from "../hooks/useOpenNotification";
 
 export function PushInAppBanner() {
   const theme = useTheme();
@@ -20,6 +20,7 @@ export function PushInAppBanner() {
   const { t } = useTranslation();
   const { foregroundMessage, dismissForegroundMessage } =
     usePushNotifications();
+  const openNotification = useOpenNotification();
   const translateY = useRef(new Animated.Value(-24)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -46,9 +47,9 @@ export function PushInAppBanner() {
   if (!foregroundMessage) return null;
 
   const open = () => {
-    const notificationId = foregroundMessage.notificationId;
+    const { notificationId, link } = foregroundMessage;
     dismissForegroundMessage();
-    navigateToPushNotification(notificationId);
+    void openNotification({ notificationId, link });
   };
 
   return (

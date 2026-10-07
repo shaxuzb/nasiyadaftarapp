@@ -391,7 +391,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           <Text style={styles.initials}>{tx.initials}</Text>
         </View>
         <View style={styles.identity}>
-          <Text style={styles.name} numberOfLines={1}>
+          <Text style={styles.name} numberOfLines={2}>
             {tx.name}
           </Text>
           {!!tx.phone && (

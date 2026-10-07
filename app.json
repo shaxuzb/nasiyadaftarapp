@@ -2,7 +2,7 @@
   "expo": {
     "name": "Qarz Daftar",
     "slug": "NasiyaDaftari",
-    "version": "1.1.5",
+    "version": "1.1.6",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -23,11 +23,10 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSContactsUsageDescription": "Mijozni kontaktlardan tez qo'shish uchun kontaktlarga ruxsat bering.",
         "NSFaceIDUsageDescription": "Qarz Daftar hisobingizni himoyalash uchun Face ID’dan foydalanadi."
-      },
-      "buildNumber": "19"
+      }
     },
     "android": {
-      "versionCode": 16,
+      "versionCode": 17,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#092A59"

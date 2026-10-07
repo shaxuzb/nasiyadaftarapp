@@ -51,10 +51,23 @@ function mapBlacklistedOrganizations(input: unknown) {
     if (!name) return [];
     const rawId = item.id ?? item.organizationId;
     const id = Number(rawId);
+    // The detail endpoint adds these; the list sends names only. A value that
+    // is missing or makes no sense is left out rather than shown as zero. What
+    // the customer owes there also arrives, and is deliberately not read.
+    const since =
+      typeof item.blacklistedSince === "string" &&
+      /^\d{4}-\d{2}-\d{2}/.test(item.blacklistedSince)
+        ? item.blacklistedSince.slice(0, 10)
+        : undefined;
+    const blacklistAfterDays = Number(item.blacklistAfterDays);
     return [
       {
         ...(Number.isInteger(id) && id > 0 ? { id } : {}),
         name,
+        ...(since ? { blacklistedSince: since } : {}),
+        ...(Number.isInteger(blacklistAfterDays) && blacklistAfterDays > 0
+          ? { blacklistAfterDays }
+          : {}),
       },
     ];
   });

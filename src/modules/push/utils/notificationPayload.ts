@@ -7,6 +7,19 @@ export function parseNotificationId(value: unknown): number | null {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
+/** A usable `link` value, or null when there is none. */
+export function parseNotificationLinkValue(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const link = value.trim();
+  return link ? link : null;
+}
+
+export function getNotificationLinkFromData(
+  data: Record<string, unknown> | undefined,
+): string | null {
+  return parseNotificationLinkValue(data?.link);
+}
+
 export function getNotificationIdFromData(
   data: Record<string, unknown> | undefined,
 ): number | null {

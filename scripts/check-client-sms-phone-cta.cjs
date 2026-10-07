@@ -28,6 +28,21 @@ assert.match(screen, /onAddPhone/);
 assert.match(customerCard, /customers\.phoneMissing/);
 assert.match(customerDetail, /customers\.phoneMissing/);
 assert.match(customers, /isOptionalUzPhoneValid/);
+// Editing follows the same rule as adding: a customer may have no phone, and
+// one without a phone must still be editable (name, note) without adding one.
+assert.match(editSheet, /if \(!isOptionalUzPhoneValid\(phone\)\) \{/);
+assert.match(editSheet, /phoneNumber: toOptionalStoredUzPhone\(phone\),/);
+assert.match(
+  editSheet,
+  /toOptionalStoredUzPhone\(phone\) !== customer\.phone/,
+  "An untouched empty phone must not count as a change",
+);
+assert.match(editSheet, /label=\{t\("customers\.phoneOptional"\)\}/);
+assert.doesNotMatch(
+  editSheet,
+  /\bisValidUzPhone\b|\btoStoredUzPhone\(/,
+  "The edit form must not require a phone",
+);
 assert.match(customers, /toOptionalStoredUzPhone/);
 assert.match(editSheet, /onSave/);
 assert.match(uz, /recipientPhoneMissing:\s*"Telefon raqami kiritilmagan"/);

@@ -6,8 +6,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../hooks/useTheme";
 import { useTranslation } from "../../i18n";
-import { useAdminContact } from "../../modules/support/hooks/useAdminContact";
-import { useSocialLinks } from "../../modules/support/hooks/useSocialLinks";
+import {
+  useAppLinks,
+  useLinkOpener,
+} from "../../modules/support/hooks/useAppLinks";
+import {
+  getAppLinkDescription,
+  getAppLinkIcon,
+  getAppLinkTitle,
+} from "../../modules/support/utils/appLinkPresentation";
+import { getSupportSheetLinks } from "../../modules/support/utils/appLinks";
 import { radius, spacing, typography } from "../../theme";
 import { AppTheme } from "../../types";
 import type { SheetRenderProps } from "../types";
@@ -17,33 +25,27 @@ export function SupportSheet({ closeSheet }: SheetRenderProps<"support">) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const { isOpening: isOpeningAdmin, openAdminContact } = useAdminContact();
-  const { opening, open } = useSocialLinks();
+  const links = useAppLinks();
+  const { openingKey, open } = useLinkOpener();
 
+  // The admin contact and the discussion group, plus any link the server adds
+  // later; the two public profiles are icons in the profile header instead. A
+  // key the app has no wording for yet still appears here, with the server's
+  // title and a generic icon.
   const options = useMemo(
     () =>
-      [
-        {
-          key: "admin",
-          icon: "chatbubble-ellipses-outline",
-          title: t("support.adminTitle"),
-          description: t("support.adminDescription"),
-          loading: isOpeningAdmin,
-          onPress: () => void openAdminContact(),
-        },
-        {
-          key: "community",
-          icon: "people-outline",
-          title: t("support.communityTitle"),
-          description: t("support.communityDescription"),
-          loading: opening === "community",
-          onPress: () => void open("community"),
-        },
-      ] as const,
-    [isOpeningAdmin, open, openAdminContact, opening, t],
+      getSupportSheetLinks(links).map((link) => ({
+        key: link.key,
+        icon: getAppLinkIcon(link.key),
+        title: getAppLinkTitle(link, t),
+        description: getAppLinkDescription(link, t),
+        loading: openingKey === link.key,
+        onPress: () => void open(link),
+      })),
+    [links, open, openingKey, t],
   );
 
-  const busy = isOpeningAdmin || opening !== null;
+  const busy = openingKey !== null;
 
   return (
     <BottomSheetView
@@ -72,12 +74,15 @@ export function SupportSheet({ closeSheet }: SheetRenderProps<"support">) {
       </View>
 
       <View style={styles.options}>
+        {options.length === 0 ? (
+          <Text style={styles.empty}>{t("support.empty")}</Text>
+        ) : null}
         {options.map((option) => (
           <Pressable
             key={option.key}
-            accessibilityRole="button"
+            accessibilityRole="link"
             accessibilityLabel={option.title}
-            accessibilityHint={option.description}
+            accessibilityHint={option.description || undefined}
             accessibilityState={{ disabled: busy, busy: option.loading }}
             disabled={busy}
             onPress={option.onPress}
@@ -94,9 +99,11 @@ export function SupportSheet({ closeSheet }: SheetRenderProps<"support">) {
               <Text style={styles.optionTitle} numberOfLines={1}>
                 {option.title}
               </Text>
-              <Text style={styles.optionDescription} numberOfLines={2}>
-                {option.description}
-              </Text>
+              {option.description ? (
+                <Text style={styles.optionDescription} numberOfLines={2}>
+                  {option.description}
+                </Text>
+              ) : null}
             </View>
             {option.loading ? (
               <ActivityIndicator size="small" color={theme.primary} />
@@ -179,6 +186,12 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "700",
     },
     optionDescription: { ...typography.caption, color: theme.textSecondary },
+    empty: {
+      ...typography.bodyMedium,
+      color: theme.textSecondary,
+      textAlign: "center",
+      paddingVertical: spacing.lg,
+    },
     pressed: { opacity: 0.72 },
     dimmed: { opacity: 0.5 },
   });

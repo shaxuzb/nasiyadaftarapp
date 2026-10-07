@@ -27,6 +27,10 @@ import {
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import type { PushNotification } from "../modules/push/types";
+import {
+  describeNotificationLink,
+  openNotificationLink,
+} from "../modules/push/services/notificationNavigation";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 type ScreenRoute = RouteProp<RootStackParamList, "Notifications">;
@@ -54,44 +58,79 @@ export function NotificationsScreen() {
     return () => clearTimeout(timeout);
   }, [highlightId, items]);
 
-  const renderItem = ({ item }: { item: PushNotification }) => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${item.title}. ${item.body}`}
-      onPress={() => {
-        if (!item.isRead) {
-          markRead.mutate(item.id, {
-            onError: () => showToast(t("notifications.readError"), "error"),
+  const renderItem = ({ item }: { item: PushNotification }) => {
+    const linkInfo = describeNotificationLink(item.link);
+
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${item.title}. ${item.body}`}
+        accessibilityHint={linkInfo ? t("notifications.openLinkHint") : undefined}
+        onPress={() => {
+          if (!item.isRead) {
+            markRead.mutate(item.id, {
+              onError: () => showToast(t("notifications.readError"), "error"),
+            });
+          }
+          // No link is the ordinary case: the tap only marks it read. A link
+          // the app could not follow must say so, or the tap looks broken.
+          const link = item.link;
+          if (!link) return;
+          void openNotificationLink(link).then((opened) => {
+            if (opened) return;
+            const message = t("notifications.linkOpenError");
+            // While developing, show what actually arrived: a missing scheme or
+            // an http:// address is the usual reason.
+            showToast(__DEV__ ? `${message}: ${link}` : message, "error");
           });
-        }
-      }}
-      style={({ pressed }) => [
-        styles.row,
-        !item.isRead && styles.unreadRow,
-        pressed && styles.pressed,
-      ]}
-    >
-      <View style={[styles.icon, !item.isRead && styles.unreadIcon]}>
-        <Ionicons
-          name={item.isRead ? "notifications-outline" : "notifications"}
-          size={20}
-          color={theme.primary}
-        />
-      </View>
-      <View style={styles.copy}>
-        <View style={styles.titleLine}>
-          <Text numberOfLines={1} style={styles.title}>
-            {item.title || t("notifications.screenTitle")}
-          </Text>
-          {!item.isRead ? <View style={styles.dot} /> : null}
+        }}
+        style={({ pressed }) => [
+          styles.row,
+          !item.isRead && styles.unreadRow,
+          pressed && styles.pressed,
+        ]}
+      >
+        <View style={[styles.icon, !item.isRead && styles.unreadIcon]}>
+          <Ionicons
+            name={item.isRead ? "notifications-outline" : "notifications"}
+            size={20}
+            color={theme.primary}
+          />
         </View>
-        <Text style={styles.body}>{item.body}</Text>
-        <Text style={styles.date}>
-          {formatLocalizedDate(item.createdDate, locale)}
-        </Text>
-      </View>
-    </Pressable>
-  );
+        <View style={styles.copy}>
+          <View style={styles.titleLine}>
+            <Text numberOfLines={1} style={styles.title}>
+              {item.title || t("notifications.screenTitle")}
+            </Text>
+            {!item.isRead ? <View style={styles.dot} /> : null}
+          </View>
+          <Text style={styles.body}>{item.body}</Text>
+          <Text style={styles.date}>
+            {formatLocalizedDate(item.createdDate, locale)}
+          </Text>
+          {/* Says in words that the card leads somewhere, and where. The whole
+              card is the button; this is what makes that visible. */}
+          {linkInfo ? (
+            <View style={styles.linkAction}>
+              <Ionicons
+                name={linkInfo.kind === "external" ? "open-outline" : "arrow-forward"}
+                size={15}
+                color={theme.primary}
+              />
+              <Text style={styles.linkActionText} numberOfLines={1}>
+                {t("notifications.openLink")}
+              </Text>
+              {linkInfo.kind === "external" && linkInfo.host ? (
+                <Text style={styles.linkHost} numberOfLines={1}>
+                  {linkInfo.host}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+      </Pressable>
+    );
+  };
 
   const content =
     query.isPending && !items.length ? (
@@ -222,6 +261,28 @@ const createStyles = (theme: AppTheme) =>
     unreadIcon: { backgroundColor: theme.primaryLight },
     copy: { flex: 1, minWidth: 0, gap: 3 },
     titleLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+    linkAction: {
+      alignSelf: "flex-start",
+      maxWidth: "100%",
+      minHeight: 32,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      marginTop: 6,
+      paddingHorizontal: 12,
+      borderRadius: radius.full,
+      backgroundColor: theme.primaryLight,
+    },
+    linkActionText: {
+      ...typography.caption,
+      color: theme.primary,
+      fontWeight: "700",
+    },
+    linkHost: {
+      flexShrink: 1,
+      ...typography.caption,
+      color: theme.textSecondary,
+    },
     title: { flex: 1, ...typography.bodyMedium, color: theme.text, fontWeight: "800" },
     body: { ...typography.bodySmall, color: theme.textSecondary },
     date: { ...typography.caption, color: theme.textMuted },

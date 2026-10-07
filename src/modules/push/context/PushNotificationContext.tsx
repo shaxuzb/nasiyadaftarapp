@@ -30,12 +30,16 @@ import {
   unregisterCurrentPushDevice,
   type PushPermissionState,
 } from "../services/pushRegistration";
-import { getNotificationIdFromData } from "../utils/notificationPayload";
+import {
+  getNotificationIdFromData,
+  getNotificationLinkFromData,
+} from "../utils/notificationPayload";
 
 export interface PushForegroundMessage {
   title: string;
   body: string;
   notificationId: number | null;
+  link: string | null;
 }
 
 export interface PushNotificationContextValue {
@@ -45,6 +49,7 @@ export interface PushNotificationContextValue {
   lastError: string | null;
   foregroundMessage: PushForegroundMessage | null;
   pendingNotificationId: number | null;
+  pendingNotificationLink: string | null;
   hasPendingNotification: boolean;
   requestPermissionAndRegister: () => Promise<boolean>;
   retryRegistration: () => Promise<boolean>;
@@ -70,6 +75,7 @@ function messagePresentation(message: RemoteMessage): PushForegroundMessage {
     title: message.notification?.title ?? title,
     body: message.notification?.body ?? body,
     notificationId: getNotificationIdFromData(message.data),
+    link: getNotificationLinkFromData(message.data),
   };
 }
 
@@ -87,6 +93,9 @@ export function PushNotificationProvider({ children }: { children: ReactNode }) 
     useState<PushForegroundMessage | null>(null);
   const [pendingNotificationId, setPendingNotificationId] = useState<
     number | null
+  >(null);
+  const [pendingNotificationLink, setPendingNotificationLink] = useState<
+    string | null
   >(null);
   const [hasPendingNotification, setHasPendingNotification] = useState(false);
   const activeRef = useRef(true);
@@ -174,6 +183,7 @@ export function PushNotificationProvider({ children }: { children: ReactNode }) 
 
   const clearPendingNotification = useCallback(() => {
     setPendingNotificationId(null);
+    setPendingNotificationLink(null);
     setHasPendingNotification(false);
   }, []);
 
@@ -186,6 +196,7 @@ export function PushNotificationProvider({ children }: { children: ReactNode }) 
       setIsRegistering(false);
       setLastError(null);
       setPendingNotificationId(null);
+      setPendingNotificationLink(null);
       setHasPendingNotification(false);
       setForegroundMessage(null);
       return () => {
@@ -208,6 +219,7 @@ export function PushNotificationProvider({ children }: { children: ReactNode }) 
       invalidatePushQueries();
       setHasPendingNotification(true);
       setPendingNotificationId(getNotificationIdFromData(message.data));
+      setPendingNotificationLink(getNotificationLinkFromData(message.data));
     };
 
     const unsubscribeMessage = onMessage(instance, handleForegroundMessage);
@@ -239,6 +251,9 @@ export function PushNotificationProvider({ children }: { children: ReactNode }) 
           setHasPendingNotification(true);
           setPendingNotificationId(
             getNotificationIdFromData(initialMessage.data),
+          );
+          setPendingNotificationLink(
+            getNotificationLinkFromData(initialMessage.data),
           );
         }
 
@@ -279,6 +294,7 @@ export function PushNotificationProvider({ children }: { children: ReactNode }) 
       lastError,
       foregroundMessage,
       pendingNotificationId,
+      pendingNotificationLink,
       hasPendingNotification,
       requestPermissionAndRegister,
       retryRegistration: requestPermissionAndRegister,

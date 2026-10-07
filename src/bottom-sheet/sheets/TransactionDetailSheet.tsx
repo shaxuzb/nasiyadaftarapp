@@ -72,7 +72,7 @@ export function TransactionDetailSheet({
           />
         </View>
         <Text style={styles.title}>{title}</Text>
-        <Text selectable style={styles.customerName} numberOfLines={1}>
+        <Text selectable style={styles.customerName} numberOfLines={2}>
           {props.customerName}
         </Text>
       </View>

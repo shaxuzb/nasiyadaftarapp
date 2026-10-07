@@ -32,6 +32,7 @@ import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { useToast } from "../context/ToastContext";
 import { useAccountSecurity } from "../modules/account/context/AccountSecurityContext";
 import { useTheme } from "../hooks/useTheme";
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import { SmsRecipientRow } from "../modules/client-sms/components/SmsRecipientRow";
 import { CustomerEditSheet } from "../modules/clients/components/CustomerEditSheet";
 import { useClientDetail } from "../modules/clients/hooks/useClientDetail";
@@ -373,17 +374,20 @@ function ClientSmsContent({
               : () => navigation.goBack()
           }
           action={
-            capabilities.canViewHistory ? (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={t("sms.history")}
-                onPress={() => navigation.navigate("ClientSmsHistory")}
-                style={styles.headerAction}
-              >
-                <Ionicons name="time-outline" size={21} color={theme.primary} />
-                <Text style={styles.headerActionText}>{t("sms.historyAction")}</Text>
-              </Pressable>
-            ) : null
+            <View style={styles.headerActions}>
+              <VideoLessonButton lessonId="sms" />
+              {capabilities.canViewHistory ? (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t("sms.history")}
+                  onPress={() => navigation.navigate("ClientSmsHistory")}
+                  style={styles.headerAction}
+                >
+                  <Ionicons name="time-outline" size={21} color={theme.primary} />
+                  <Text style={styles.headerActionText}>{t("sms.historyAction")}</Text>
+                </Pressable>
+              ) : null}
+            </View>
           }
         />
         <View style={styles.search}>
@@ -698,6 +702,7 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: "center",
     },
     title: { flex: 1, ...typography.displayMedium, color: theme.text },
+    headerActions: { flexDirection: "row", alignItems: "center", gap: 6 },
     headerAction: {
       minHeight: 38,
       flexDirection: "row",

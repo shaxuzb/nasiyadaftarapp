@@ -1,6 +1,6 @@
 import { isValidPublicApiBaseUrl, resolveApiBaseUrl } from "./apiBaseUrl";
 
-const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+const configuredApiBaseUrl = "https://nasiya-test-api.crmuz.uz/api";
 // process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
 // Despite the host name, nasiya-test-api.crmuz.uz IS the production backend;
@@ -8,8 +8,8 @@ const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 // so that introducing one later only means changing the development value.
 // Both are also pinned per build profile in eas.json, so a release never
 // depends on a .env file reaching the build machine.
-const DEFAULT_DEVELOPMENT_API_BASE_URL = "https://nasiya-api.crmuz.uz/api";
-const DEFAULT_PRODUCTION_API_BASE_URL = "https://nasiya-api.crmuz.uz/api";
+const DEFAULT_DEVELOPMENT_API_BASE_URL = "https://nasiya-test-api.crmuz.uz/api";
+const DEFAULT_PRODUCTION_API_BASE_URL = "https://nasiya-test-api.crmuz.uz/api";
 
 const fallbackApiBaseUrl = __DEV__
   ? DEFAULT_DEVELOPMENT_API_BASE_URL

@@ -10,6 +10,7 @@ import type {
   SubscriptionPlan,
 } from "../modules/subscription/types";
 import type { PendingPaymentReference } from "../modules/payments/types";
+import type { BlacklistedOrganization } from "../modules/clients/types";
 
 export type SheetType =
   | "transaction"
@@ -21,7 +22,8 @@ export type SheetType =
   | "paymentDetail"
   | "pendingPayments"
   | "support"
-  | "datePicker";
+  | "datePicker"
+  | "blacklistOrganizations";
 
 export interface TransactionSheetProps {
   customerId: number;
@@ -42,6 +44,11 @@ export interface TransactionDetailSheetProps {
 export type LanguageSheetProps = Record<never, never>;
 
 export type SupportSheetProps = Record<never, never>;
+
+export interface BlacklistOrganizationsSheetProps {
+  customerName: string;
+  organizations: BlacklistedOrganization[];
+}
 
 export interface DatePickerSheetProps {
   /** The currently chosen day, "YYYY-MM-DD". */
@@ -91,6 +98,7 @@ export interface SheetPropsMap {
   pendingPayments: PendingPaymentsSheetProps;
   support: SupportSheetProps;
   datePicker: DatePickerSheetProps;
+  blacklistOrganizations: BlacklistOrganizationsSheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {

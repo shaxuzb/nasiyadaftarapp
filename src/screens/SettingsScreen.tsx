@@ -24,8 +24,15 @@ import { radius, spacing, typography } from "../theme";
 import { AppTheme, RootStackParamList } from "../types";
 import { useCurrentSubscription } from "../modules/subscription/hooks/useSubscription";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
-import { useSocialLinks } from "../modules/support/hooks/useSocialLinks";
-import type { SocialLink } from "../modules/support/hooks/useSocialLinks";
+import {
+  useAppLinks,
+  useLinkOpener,
+} from "../modules/support/hooks/useAppLinks";
+import {
+  getAppLinkIcon,
+  getAppLinkTitle,
+} from "../modules/support/utils/appLinkPresentation";
+import { getHeaderAppLinks } from "../modules/support/utils/appLinks";
 import {
   isPaidPlanCode,
   normalizePlanCode,
@@ -42,25 +49,6 @@ import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapab
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
-// Ionicons ships the Instagram mark but no Telegram one, so the community link
-// uses a paper plane. Adding FontAwesome purely for that single glyph would put
-// another 162 KB font in the bundle.
-const SOCIAL_LINKS = [
-  {
-    link: "instagram",
-    icon: "logo-instagram",
-    labelKey: "support.instagram",
-  },
-  {
-    link: "community",
-    icon: "paper-plane-outline",
-    labelKey: "support.telegram",
-  },
-] as const satisfies ReadonlyArray<{
-  link: SocialLink;
-  icon: React.ComponentProps<typeof Ionicons>["name"];
-  labelKey: TranslateKey;
-}>;
 
 const THEME_OPTIONS: ReadonlyArray<{
   mode: ThemeMode;
@@ -171,8 +159,10 @@ export function SettingsScreen() {
   const { openPhoneVerification, requireVerifiedPhone } = useAccountSecurity();
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();
-  const { opening: openingSocialLink, open: openSocialLink } =
-    useSocialLinks();
+  const appLinks = useAppLinks();
+  const { openingKey: openingLinkKey, open: openLink } = useLinkOpener();
+  // Instagram and the Telegram channel; the support sheet has the rest.
+  const headerLinks = useMemo(() => getHeaderAppLinks(appLinks), [appLinks]);
   const [isOpeningBot, setIsOpeningBot] = useState(false);
   const [upgradeReason, setUpgradeReason] =
     useState<SubscriptionUpgradeReason | null>(null);
@@ -321,26 +311,30 @@ export function SettingsScreen() {
       <View style={styles.header}>
         <Text style={styles.screenTitle}>{t("profile.screenTitle")}</Text>
         <View style={styles.headerActions}>
-          {SOCIAL_LINKS.map((social) => (
+          {headerLinks.map((link) => (
             <Pressable
-              key={social.link}
+              key={link.key}
               accessibilityRole="link"
-              accessibilityLabel={t(social.labelKey)}
+              accessibilityLabel={getAppLinkTitle(link, t)}
               accessibilityState={{
-                busy: openingSocialLink === social.link,
-                disabled: openingSocialLink !== null,
+                busy: openingLinkKey === link.key,
+                disabled: openingLinkKey !== null,
               }}
-              disabled={openingSocialLink !== null}
-              onPress={() => void openSocialLink(social.link)}
+              disabled={openingLinkKey !== null}
+              onPress={() => void openLink(link)}
               style={({ pressed }) => [
                 styles.socialButton,
                 pressed && styles.pressed,
               ]}
             >
-              {openingSocialLink === social.link ? (
+              {openingLinkKey === link.key ? (
                 <ActivityIndicator size="small" color={theme.primary} />
               ) : (
-                <Ionicons name={social.icon} size={20} color={theme.primary} />
+                <Ionicons
+                  name={getAppLinkIcon(link.key)}
+                  size={20}
+                  color={theme.primary}
+                />
               )}
             </Pressable>
           ))}
@@ -598,6 +592,14 @@ export function SettingsScreen() {
             badge={telegramEnabled ? undefined : t("subscription.standardPlan")}
           />
           ) : null}
+          <ProfileMenuRow
+            icon="school-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title={t("videoLessons.profileRowTitle")}
+            description={t("videoLessons.profileRowDescription")}
+            onPress={() => navigation.navigate("VideoLessons")}
+          />
           <ProfileMenuRow
             icon="headset-outline"
             iconColor={theme.primary}

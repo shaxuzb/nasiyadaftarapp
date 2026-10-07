@@ -17,6 +17,7 @@ import { useReports } from "../modules/reports/hooks/useReports";
 import { ReportsResponse } from "../modules/reports/types";
 import { AppTheme, RootStackParamList } from "../types";
 import { useTheme } from "../hooks/useTheme";
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useToast } from "../context/ToastContext";
@@ -157,6 +158,7 @@ export function ReportsScreen() {
         <View style={styles.headerCopy}>
           <Text style={styles.screenTitle}>{t("reports.screenTitle")}</Text>
         </View>
+        <VideoLessonButton lessonId="reports" />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("reports.exportA11y")}
@@ -422,7 +424,7 @@ export function ReportsScreen() {
                       </Text>
                     </View>
                     <View style={styles.debtorIdentity}>
-                      <Text style={styles.debtorName} numberOfLines={1}>
+                      <Text style={styles.debtorName} numberOfLines={3}>
                         {entry.fullName}
                       </Text>
                       <Text

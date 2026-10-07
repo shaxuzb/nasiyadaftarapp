@@ -42,6 +42,7 @@ import { SearchBar } from "../components/SearchBar";
 import { CustomerCard } from "../modules/clients/components/CustomerCard";
 import { CustomerCardSkeleton } from "../modules/clients/components/CustomerCardSkeleton";
 import { isCustomerBlacklisted } from "../modules/clients/utils/blacklist";
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { AppInput } from "../components/AppInput";
@@ -460,7 +461,12 @@ export function CustomersScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={styles.titleBlock}>
-              <Text style={styles.screenTitle}>
+              <Text
+                style={styles.screenTitle}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
                 {t("customers.screenTitle")}
               </Text>
               {/* <Text style={styles.screenSubtitle}>
@@ -484,6 +490,10 @@ export function CustomersScreen() {
                   <Text style={styles.proButtonText}>PRO</Text>
                 </TouchableOpacity>
               ) : null}
+              <VideoLessonButton
+                lessonId="customers"
+                style={styles.videoLessonBtn}
+              />
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={t("notifications.unreadA11y", {
@@ -941,6 +951,8 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.primary,
       boxShadow: theme.cardShadow,
     },
+    // Same size as the bell beside it.
+    videoLessonBtn: { width: 44, height: 44 },
     notificationBtn: {
       width: 44,
       height: 44,

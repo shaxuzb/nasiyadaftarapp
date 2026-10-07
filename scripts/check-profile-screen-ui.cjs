@@ -68,13 +68,13 @@ const supportSheet = fs.readFileSync(
 );
 assert.match(
   supportSheet,
-  /useAdminContact/,
-  "The support sheet must keep the admin contact reachable",
+  /const links = useAppLinks\(\);[\s\S]*getSupportSheetLinks\(links\)\.map\(\(link\) => \(\{/,
+  "The support sheet must list the admin contact, the group and any later link",
 );
-assert.match(
+assert.doesNotMatch(
   supportSheet,
-  /support\.communityTitle/,
-  "The support sheet must offer the discussion group",
+  /https?:\/\//,
+  "No address may be written into the sheet; they come from the server",
 );
 // Android reserves the strip along the bottom edge for its navigation bar or
 // gesture handle, and a sheet that ignores it puts its last row underneath.
@@ -86,9 +86,14 @@ assert.match(
 
 // The public profiles belong in the header, away from the functional rows.
 assert.match(
+  fs.readFileSync("src/modules/support/utils/appLinks.ts", "utf8"),
+  /export const HEADER_APP_LINK_KEYS = \["instagram", "telegram_channel"\] as const;/,
+  "The profile header's public profiles are named in one place",
+);
+assert.match(
   screen,
-  /const SOCIAL_LINKS = \[/,
-  "The profile header must list the public profiles in one place",
+  /const headerLinks = useMemo\(\(\) => getHeaderAppLinks\(appLinks\), \[appLinks\]\);/,
+  "A header icon appears only for a link the server actually lists",
 );
 assert.match(
   screen,

@@ -245,6 +245,7 @@ export function CustomerDetailScreen() {
       : balance > 0
         ? theme.debtColor
         : theme.paymentColor;
+  const blacklistedOrganizations = customer.blacklistedOrganizations ?? [];
   const blacklistedOrganizationNames = [
     ...new Set(
       (customer.blacklistedOrganizations ?? [])
@@ -355,7 +356,7 @@ export function CustomerDetailScreen() {
                 <Text style={styles.initials}>{getInitials(customer)}</Text>
               </View>
               <View style={styles.identityText}>
-                <Text style={styles.name} numberOfLines={2}>
+                <Text style={styles.name}>
                   {displayName}
                 </Text>
                 <Text
@@ -385,8 +386,10 @@ export function CustomerDetailScreen() {
                   </Pressable>
                 )} */}
                 {showBlacklistBadge ? (
-                  <View
-                    accessible
+                  <Pressable
+                    accessibilityRole={
+                      blacklistedOrganizations.length > 0 ? "button" : "text"
+                    }
                     accessibilityLabel={`${t("transactions.otherOrganizationsBlacklist")}${
                       blacklistedOrganizationCount > 0
                         ? t("transactions.organizationsCount", {
@@ -394,7 +397,25 @@ export function CustomerDetailScreen() {
                           })
                         : ""
                     }`}
-                    style={styles.blacklistBadge}
+                    accessibilityHint={
+                      blacklistedOrganizations.length > 0
+                        ? t("customers.blacklistDetailsHint")
+                        : undefined
+                    }
+                    // Without the list there is nothing more to show, so the
+                    // badge stays a plain label.
+                    disabled={blacklistedOrganizations.length === 0}
+                    hitSlop={8}
+                    onPress={() =>
+                      openSheet("blacklistOrganizations", {
+                        customerName: displayName,
+                        organizations: blacklistedOrganizations,
+                      })
+                    }
+                    style={({ pressed }) => [
+                      styles.blacklistBadge,
+                      pressed && styles.blacklistBadgePressed,
+                    ]}
                   >
                     <Ionicons
                       name="warning-outline"
@@ -408,7 +429,14 @@ export function CustomerDetailScreen() {
                     >
                       {t("transactions.otherOrganizationsBlacklist")}
                     </Text>
-                  </View>
+                    {blacklistedOrganizations.length > 0 ? (
+                      <Ionicons
+                        name="chevron-forward"
+                        size={12}
+                        color={theme.dangerColor}
+                      />
+                    ) : null}
+                  </Pressable>
                 ) : null}
               </View>
               {balance !== undefined && (
@@ -849,6 +877,7 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.debtColor,
       backgroundColor: theme.debtBg,
     },
+    blacklistBadgePressed: { opacity: 0.6 },
     blacklistBadgeText: {
       flexShrink: 1,
       color: theme.dangerColor,

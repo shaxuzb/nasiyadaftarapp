@@ -12,6 +12,8 @@ export interface PushNotification {
   body: string;
   createdDate: string;
   isRead: boolean;
+  /** Where tapping it leads: "/path" in the app or an outside address. */
+  link: string | null;
 }
 
 export interface PushNotificationPage {

@@ -12,6 +12,7 @@ import { PaymentDetailSheet } from "./sheets/PaymentDetailSheet";
 import { PendingPaymentsSheet } from "./sheets/PendingPaymentsSheet";
 import { SupportSheet } from "./sheets/SupportSheet";
 import { DatePickerSheet } from "./sheets/DatePickerSheet";
+import { BlacklistOrganizationsSheet } from "./sheets/BlacklistOrganizationsSheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
@@ -69,5 +70,10 @@ export const sheetRegistry: SheetRegistry = {
     // Opens from inside the add-customer sheet; with the default "switch" that
     // sheet slid out of view the moment the calendar appeared.
     stackBehavior: "push",
+  },
+  blacklistOrganizations: {
+    component: BlacklistOrganizationsSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
   },
 };

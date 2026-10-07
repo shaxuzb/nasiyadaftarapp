@@ -37,7 +37,9 @@ export const CustomerCard = memo(function CustomerCard({
         <Text style={styles.initials}>{getInitials(customer)}</Text>
       </View>
       <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>
+        {/* Wraps rather than cuts: a name such as "Sherzod aka Mahalla fuqaro
+            yig'inidan" is how the seller tells two customers apart. */}
+        <Text style={styles.name} numberOfLines={3}>
           {getFullName(customer)}
         </Text>
         <Text

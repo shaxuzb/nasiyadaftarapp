@@ -21,7 +21,11 @@ import {
   useCurrentOrganization,
   useUpdateBlacklistSettings,
 } from "../modules/organization/hooks/useBlacklistSettings";
-import { parseBlacklistDays } from "../modules/organization/utils/blacklistSettings";
+import {
+  MAX_BLACKLIST_DAYS,
+  MIN_BLACKLIST_DAYS,
+  parseBlacklistDays,
+} from "../modules/organization/utils/blacklistSettings";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import { EmptyState } from "../components/EmptyState";
@@ -171,7 +175,10 @@ export function BlacklistSettingsScreen() {
                   </Pressable>
                   {!valid ? (
                     <Text style={styles.error}>
-                      {t("organization.blacklistValidation")}
+                      {t("organization.blacklistValidation", {
+                        min: MIN_BLACKLIST_DAYS,
+                        max: MAX_BLACKLIST_DAYS,
+                      })}
                     </Text>
                   ) : (
                     <Text style={styles.help}>

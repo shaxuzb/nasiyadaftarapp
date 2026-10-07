@@ -1,4 +1,5 @@
 import { apiClient } from "../../../services/axiosService";
+import { parseNotificationLinkValue } from "../utils/notificationPayload";
 import type {
   PushDevicePayload,
   PushNotification,
@@ -19,6 +20,7 @@ function normalizeNotification(value: unknown): PushNotification | null {
     createdDate:
       typeof item.createdDate === "string" ? item.createdDate : "",
     isRead: item.isRead === true,
+    link: parseNotificationLinkValue(item.link),
   };
 }
 

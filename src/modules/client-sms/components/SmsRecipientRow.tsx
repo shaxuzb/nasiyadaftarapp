@@ -100,7 +100,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
       </View>
       <View style={styles.copy}>
         <View style={styles.titleLine}>
-          <Text numberOfLines={1} style={styles.name}>
+          <Text numberOfLines={3} style={styles.name}>
             {displayName}
           </Text>
           {recipient.isBlacklisted ? (

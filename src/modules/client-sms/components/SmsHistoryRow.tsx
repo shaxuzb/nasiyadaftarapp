@@ -52,7 +52,7 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
         />
       </View>
       <View style={styles.copy}>
-        <Text numberOfLines={1} style={styles.name}>
+        <Text numberOfLines={3} style={styles.name}>
           {displayName}
         </Text>
         <Text numberOfLines={1} style={styles.phone}>

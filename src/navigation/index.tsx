@@ -30,6 +30,7 @@ import { SubscriptionScreen } from "../screens/SubscriptionScreen";
 import { PaymentHistoryScreen } from "../screens/PaymentHistoryScreen";
 import { NotificationsScreen } from "../screens/NotificationsScreen";
 import { NotificationSettingsScreen } from "../screens/NotificationSettingsScreen";
+import { VideoLessonsScreen } from "../screens/VideoLessonsScreen";
 
 import {
   AuthStackParamList,
@@ -44,6 +45,7 @@ import { useAppLock } from "@/modules/pin-auth/context/AppLockContext";
 import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 import { useTranslation } from "../i18n";
 import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
+import { useOpenNotification } from "../modules/push/hooks/useOpenNotification";
 import { PushInAppBanner } from "../modules/push/components/PushInAppBanner";
 import {
   consumePendingPushNavigation,
@@ -228,6 +230,7 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
         name="NotificationSettings"
         component={NotificationSettingsScreen}
       />
+      <Stack.Screen name="VideoLessons" component={VideoLessonsScreen} />
     </Stack.Navigator>
   );
 }
@@ -312,9 +315,11 @@ export function AppNavigator() {
   const { isResolving: isPinResolving, setupRequired, isLocked } = useAppLock();
   const {
     pendingNotificationId,
+    pendingNotificationLink,
     hasPendingNotification,
     clearPendingNotification,
   } = usePushNotifications();
+  const openNotification = useOpenNotification();
   const [navigationReady, setNavigationReady] = React.useState(false);
   const [unlockedUserId, setUnlockedUserId] = React.useState<number | null>(
     null,
@@ -366,7 +371,10 @@ export function AppNavigator() {
       return;
     }
 
-    navigateToPushNotification(pendingNotificationId);
+    void openNotification({
+      notificationId: pendingNotificationId,
+      link: pendingNotificationLink,
+    });
     clearPendingNotification();
   }, [
     clearPendingNotification,
@@ -374,7 +382,9 @@ export function AppNavigator() {
     hasPendingNotification,
     isLocked,
     navigationReady,
+    openNotification,
     pendingNotificationId,
+    pendingNotificationLink,
     setupRequired,
     user,
   ]);

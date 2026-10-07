@@ -1,6 +1,10 @@
 export interface BlacklistedOrganization {
   id?: number;
   name: string;
+  /** The day the customer was blacklisted there, "YYYY-MM-DD". */
+  blacklistedSince?: string;
+  /** That organization's own limit: days overdue before it blacklists. */
+  blacklistAfterDays?: number;
 }
 
 export interface Customer {

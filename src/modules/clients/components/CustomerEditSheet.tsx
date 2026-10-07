@@ -31,8 +31,8 @@ import { useBottomSheetBackHandler } from "../../../bottom-sheet";
 import { AndroidSheetKeyboardBridge } from "../../../bottom-sheet/AndroidSheetKeyboardBridge";
 import {
   formatUzPhoneFromDigits,
-  isValidUzPhone,
-  toStoredUzPhone,
+  isOptionalUzPhoneValid,
+  toOptionalStoredUzPhone,
 } from "../../../utils/masks";
 import { hapticSuccess } from "../../../utils/haptics";
 import type { ClientUpdateRequest, Customer } from "../types";
@@ -69,9 +69,12 @@ export function CustomerEditSheet({
   const [note, setNote] = useState(customer.note ?? "");
   const [phoneError, setPhoneError] = useState<string>();
   const previousDataState = useRef(dataState);
+  // The phone is optional, as it is when a customer is added: empty is a
+  // valid value, and clearing the field removes the number. Only a number
+  // that was started and left unfinished is an error.
   const changed =
     name.trim() !== customer.fullName ||
-    toStoredUzPhone(phone) !== customer.phone ||
+    toOptionalStoredUzPhone(phone) !== customer.phone ||
     note.trim() !== (customer.note ?? "");
   const handlePhoneChange = useCallback((value: string) => {
     setPhone(formatUzPhoneFromDigits(value));
@@ -113,7 +116,7 @@ export function CustomerEditSheet({
 
   async function save() {
     if (submitting.current || !ready || dataState !== "ready") return;
-    if (!isValidUzPhone(phone)) {
+    if (!isOptionalUzPhoneValid(phone)) {
       setPhoneError(t("transactions.phoneIncomplete"));
       return;
     }
@@ -122,7 +125,7 @@ export function CustomerEditSheet({
     try {
       await onSave({
         fullName: name.trim().replace(/\s+/g, " "),
-        phoneNumber: toStoredUzPhone(phone),
+        phoneNumber: toOptionalStoredUzPhone(phone),
         note: note.trim(),
       });
       void KeyboardController.dismiss();
@@ -198,7 +201,7 @@ export function CustomerEditSheet({
           variant="sheet"
           compact
           inputRef={phoneRef}
-          label={t("customers.phoneRequired")}
+          label={t("customers.phoneOptional")}
           uncontrolled
           defaultValue={phone}
           transformText={formatUzPhoneFromDigits}
@@ -235,7 +238,7 @@ export function CustomerEditSheet({
             !ready ||
             dataState !== "ready" ||
             !changed ||
-            !isValidUzPhone(phone)
+            !isOptionalUzPhoneValid(phone)
           }
         />
       </BottomSheetScrollView>

@@ -22,6 +22,7 @@ export const queryKeys = {
     ["client-sms", scope, "history"] as const,
   clientSmsHistory: (scope: QueryScope, filters: object) =>
     ["client-sms", scope, "history", filters] as const,
+  appLinks: () => ["app", "links"] as const,
   organizationsRoot: () => ["organizations"] as const,
   currentOrganization: (scope: QueryScope) =>
     ["organizations", scope, "current"] as const,
