@@ -119,8 +119,10 @@ export function ReportsScreen() {
     : hasOverpayment
       ? t("reports.heroOverpayment")
       : t("reports.heroNoDebt");
+  // A debt needs no line under it: the label and the amount say it all. The
+  // other two states keep theirs, because a bare amount there reads oddly.
   const heroCaption = hasDebt
-    ? t("reports.heroDebtCaption")
+    ? null
     : hasOverpayment
       ? t("reports.heroOverpaymentCaption")
       : t("reports.heroSettledCaption");
@@ -241,7 +243,9 @@ export function ReportsScreen() {
               >
                 {formatLocalizedDisplayedBalance(remainingBalance, locale)}
               </Text>
-              <Text style={styles.heroCaption}>{heroCaption}</Text>
+              {heroCaption ? (
+                <Text style={styles.heroCaption}>{heroCaption}</Text>
+              ) : null}
 
               {/* <View style={styles.heroDivider} />
               <View style={styles.heroSummary}>

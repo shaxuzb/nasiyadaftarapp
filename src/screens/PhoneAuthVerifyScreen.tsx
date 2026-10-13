@@ -27,24 +27,30 @@ import { useTranslation } from "../i18n";
 import { getLocalizedApiErrorMessage } from "../i18n/apiErrors";
 import { useOtpAutoFill } from "../modules/auth/hooks/useOtpAutoFill";
 import { requestPhoneAuthCode } from "../services/authApi";
+import {
+  DEFAULT_RESEND_AFTER_SECONDS,
+  forgetCodeRequest,
+  readCodeRequestTimes,
+  rememberCodeRequest,
+} from "../modules/auth/utils/codeRequestCooldown";
 import { useTheme } from "../hooks/useTheme";
 import { maskUzPhoneForDisplay } from "../utils/masks";
 import { spacing, typography } from "../theme";
 
 const OTP_LENGTH = 6;
-const DEFAULT_CODE_EXPIRY_SECONDS = 120;
 
 interface Props {
   phoneNumber: string;
   maskedPhone: string;
-  expiresInSeconds: number;
+  /** Seconds until another code may be requested. */
+  resendAfterSeconds: number;
   onGoBack: () => void;
 }
 
 export function PhoneAuthVerifyScreen({
   phoneNumber,
   maskedPhone,
-  expiresInSeconds,
+  resendAfterSeconds,
   onGoBack,
 }: Props) {
   const theme = useTheme();
@@ -61,8 +67,10 @@ export function PhoneAuthVerifyScreen({
   const [phoneMaskedValue, setPhoneMaskedValue] = useState(
     maskedPhone || maskUzPhoneForDisplay(phoneNumber),
   );
+  // Counts down to when the server will accept another request, which is what
+  // the "resend" button waits for.
   const [secondsLeft, setSecondsLeft] = useState(
-    Math.max(0, Math.floor(expiresInSeconds || DEFAULT_CODE_EXPIRY_SECONDS)),
+    Math.max(0, Math.floor(resendAfterSeconds || DEFAULT_RESEND_AFTER_SECONDS)),
   );
   const [verifying, setVerifying] = useState(false);
   const [resending, setResending] = useState(false);
@@ -125,13 +133,10 @@ export function PhoneAuthVerifyScreen({
     try {
       await restartListening();
       const response = await requestPhoneAuthCode({ phoneNumber });
+      const times = readCodeRequestTimes(response);
+      rememberCodeRequest("login", phoneNumber, response.maskedPhone, times);
       setPhoneMaskedValue(response.maskedPhone);
-      setSecondsLeft(
-        Math.max(
-          0,
-          Math.floor(response.expiresInSeconds || DEFAULT_CODE_EXPIRY_SECONDS),
-        ),
-      );
+      setSecondsLeft(times.resendAfterSeconds);
       focusOtpInput();
       showToast(t("auth.smsVerify.resendSuccess"), "success");
     } catch (error) {
@@ -160,6 +165,8 @@ export function PhoneAuthVerifyScreen({
       setVerifying(true);
       try {
         await loginWithPhoneCode(phoneNumber, normalizedCode);
+        // Used; the number starts clean the next time someone signs in.
+        forgetCodeRequest("login", phoneNumber);
         showToast(t("auth.phoneAuth.success"), "success");
       } catch (error) {
         showToast(

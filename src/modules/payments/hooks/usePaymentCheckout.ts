@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { Linking } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../../../context/AuthContext";
@@ -22,6 +23,10 @@ import {
   type StartPaymentCheckoutInput,
   type StartPaymentCheckoutResult,
 } from "../services/paymentLifecycleCore";
+import {
+  awaitPaymentReturn,
+  takeAwaitedPaymentReturn,
+} from "../services/paymentReturn";
 import { getPaymentCheckoutUrl } from "../utils/paymentUrl";
 import {
   isPaymentFulfilled,
@@ -103,5 +108,47 @@ export function usePaymentCheckout() {
     [core, user],
   );
 
-  return { startCheckout, isCreating };
+  // Sends the user to the provider's page for the order just created.
+  //
+  // Everything the way back depends on is written before the page opens,
+  // because the system may suspend the app the moment it does: the order is
+  // stored as "being paid outside the app", and a note says which order to
+  // show the status of when the app is in front again.
+  const openCheckoutPage = useCallback(
+    async ({ order, checkoutUrl }: StartPaymentCheckoutResult) => {
+      if (!user) {
+        const error = new Error("PAYMENT_AUTH_REQUIRED");
+        error.name = "PAYMENT_AUTH_REQUIRED";
+        throw error;
+      }
+      if (!checkoutUrl) {
+        const error = new Error("PAYMENT_CHECKOUT_URL_MISSING");
+        error.name = "PAYMENT_CHECKOUT_URL_MISSING";
+        throw error;
+      }
+
+      if (shouldPersistPendingPayment(order)) {
+        await savePendingPayment({
+          version: 1,
+          userId: user.id,
+          orderId: order.id,
+          productType: order.productType,
+          productId: order.productId,
+          openedExternally: true,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+      awaitPaymentReturn(order.id);
+      try {
+        await Linking.openURL(checkoutUrl);
+      } catch (error) {
+        // Nobody left the app, so nobody is coming back.
+        takeAwaitedPaymentReturn();
+        throw error;
+      }
+    },
+    [user],
+  );
+
+  return { startCheckout, openCheckoutPage, isCreating };
 }

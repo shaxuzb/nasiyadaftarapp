@@ -10,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { useTheme } from "../../../hooks/useTheme";
+import { useDismissOnAppLock } from "../hooks/useDismissOnAppLock";
 import { radius, spacing, typography } from "../../../theme";
 import type { AppTheme } from "../../../types";
 import { useTranslation } from "../../../i18n";
@@ -47,6 +48,11 @@ export function SensitiveActionReauthModal({
   useEffect(() => {
     if (!visible) setPin("");
   }, [visible]);
+
+  // Locking the app abandons the sensitive action that was being confirmed.
+  useDismissOnAppLock(() => {
+    if (visible) onCancel();
+  });
 
   const canSubmit = /^\d{4}$/.test(pin) && !submitting;
 
@@ -141,6 +147,9 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: "rgba(0,0,0,0.48)",
     },
     card: {
+      width: "100%",
+      maxWidth: 440,
+      alignSelf: "center",
       borderRadius: radius.xl,
       borderWidth: 1,
       borderColor: theme.border,

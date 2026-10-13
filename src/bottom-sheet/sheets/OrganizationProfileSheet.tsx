@@ -71,6 +71,10 @@ export function OrganizationProfileSheet({
         address: address.trim(),
       });
       Keyboard.dismiss();
+      // The sheet is still locked against dismissal at this point: `saving`
+      // only turns off in `finally`, after this line, and a locked sheet
+      // ignores closeSheet(). Unlock first, then close.
+      setDismissLocked(false);
       closeSheet();
     } catch {
       // Parent callback owns API error presentation.

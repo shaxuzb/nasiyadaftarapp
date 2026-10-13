@@ -10,16 +10,12 @@ interface Props {
   value: string;
   onChangeText: (text: string) => void;
   placeholder?: string;
-  onFilterPress?: () => void;
-  filterActive?: boolean;
 }
 
 export function SearchBar({
   value,
   onChangeText,
   placeholder,
-  onFilterPress,
-  filterActive = false,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -33,8 +29,8 @@ export function SearchBar({
         styles.container,
         {
           backgroundColor: theme.surface,
-          borderColor: filterActive || focused ? theme.primary : theme.border,
-          borderWidth: filterActive || focused ? 1.5 : 1,
+          borderColor: focused ? theme.primary : theme.border,
+          borderWidth: focused ? 1.5 : 1,
         },
       ]}
     >
@@ -65,25 +61,6 @@ export function SearchBar({
           style={styles.iconButton}
         >
           <Ionicons name="close-circle" size={20} color={theme.textMuted} />
-        </Pressable>
-      ) : null}
-      {onFilterPress ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t("common.filterDebtors")}
-          accessibilityState={{ selected: filterActive }}
-          onPress={onFilterPress}
-          hitSlop={8}
-          style={[
-            styles.filterButton,
-            filterActive && { backgroundColor: theme.primaryLight },
-          ]}
-        >
-          <Ionicons
-            name="options-outline"
-            size={23}
-            color={filterActive ? theme.primary : theme.textSecondary}
-          />
         </Pressable>
       ) : null}
     </View>
@@ -117,13 +94,6 @@ const createStyles = (theme: AppTheme) =>
     iconButton: {
       width: 28,
       height: 40,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    filterButton: {
-      width: 38,
-      height: 38,
-      borderRadius: 12,
       alignItems: "center",
       justifyContent: "center",
     },

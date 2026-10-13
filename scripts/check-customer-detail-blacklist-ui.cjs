@@ -6,8 +6,13 @@ const source = fs.readFileSync(filename, "utf8");
 
 assert.match(
   source,
-  /t\("transactions\.otherOrganizationsBlacklist"\)/,
-  "Customer detail must show a compact cross-organization blacklist badge",
+  /\{t\("customers\.blacklistBadge"\)\}/,
+  "Customer detail must show the same plain 'blacklisted' wording as everywhere else",
+);
+assert.doesNotMatch(
+  source,
+  /otherOrganizationsBlacklist/,
+  "The badge must not say 'in other organizations'",
 );
 assert.match(
   source,

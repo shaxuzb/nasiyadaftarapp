@@ -11,6 +11,10 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "../hooks/useTheme";
 import { useThemeContext } from "../context/ThemeContext";
+import {
+  ResponsiveScreen,
+  renderResponsiveScreen,
+} from "../components/ResponsiveScreen";
 
 import { CustomersScreen } from "../screens/CustomersScreen";
 import { ReportsScreen } from "../screens/ReportsScreen";
@@ -127,6 +131,7 @@ function TabNavigator({
   return (
     <Tab.Navigator
       initialRouteName={resolvedInitialRouteName}
+      screenLayout={renderResponsiveScreen}
       screenOptions={({ route }) => ({
         headerShown: false,
         lazy: true,
@@ -195,11 +200,30 @@ function TabNavigator({
   );
 }
 
+// The tabs screen frames each of its own screens and leaves the tab bar at
+// full width, so it is passed through; every other screen gets the frame.
+function renderMainStackScreen({
+  route,
+  children,
+}: {
+  route: { name: string };
+  children: React.ReactNode;
+}) {
+  return route.name === "MainTabs" ? (
+    <>{children}</>
+  ) : (
+    <ResponsiveScreen>{children}</ResponsiveScreen>
+  );
+}
+
 function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
   const regionalCapabilities = useRegionalProductCapabilities();
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator
+      screenOptions={{ headerShown: false }}
+      screenLayout={renderMainStackScreen}
+    >
       <Stack.Screen name="MainTabs">
         {() => <TabNavigator initialRouteName={initialTab} />}
       </Stack.Screen>
@@ -239,6 +263,7 @@ function AuthNavigator() {
   return (
     <AuthStack.Navigator
       screenOptions={{ headerShown: false }}
+      screenLayout={renderResponsiveScreen}
       initialRouteName="Login"
     >
       <AuthStack.Screen name="Login">
@@ -255,7 +280,7 @@ function AuthNavigator() {
           <PhoneAuthVerifyScreen
             phoneNumber={route.params.phoneNumber}
             maskedPhone={route.params.maskedPhone}
-            expiresInSeconds={route.params.expiresInSeconds}
+            resendAfterSeconds={route.params.resendAfterSeconds}
             onGoBack={() => navigation.goBack()}
           />
         )}
@@ -274,6 +299,7 @@ function OrganizationNavigator({
   return (
     <OrganizationStack.Navigator
       screenOptions={{ headerShown: false }}
+      screenLayout={renderResponsiveScreen}
       initialRouteName={
         hasOrganizations ? "OrganizationSelect" : "OrganizationSetup"
       }

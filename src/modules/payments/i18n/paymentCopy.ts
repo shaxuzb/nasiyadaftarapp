@@ -3,12 +3,12 @@ import type { Locale } from "../../../i18n/types";
 export const PAYMENT_COPY = {
   uz: {
     checkout: {
-      planTitle: "Tarifni tasdiqlash",
-      packageTitle: "SMS paketni tasdiqlash",
       externalHint:
         "To‘lov xavfsiz tashqi sahifada davom etadi. Karta ma’lumotlari ilovaga kiritilmaydi.",
       freeHint:
         "Bu tarif bepul. Tasdiqlagandan keyin backend orqali faollashtirish boshlanadi.",
+      methodTitle: "To‘lov usuli",
+      methodHint: "Davom etish uchun to‘lov usulini tanlang",
       pay: "{amount} to‘lash",
       activate: "Tarifga o‘tish",
       buyPackage: "SMS paketni sotib olish",
@@ -100,12 +100,12 @@ export const PAYMENT_COPY = {
   },
   ru: {
     checkout: {
-      planTitle: "Подтверждение тарифа",
-      packageTitle: "Подтверждение пакета SMS",
       externalHint:
         "Оплата продолжится на защищённой внешней странице. Данные карты не вводятся в приложении.",
       freeHint:
         "Этот тариф бесплатный. После подтверждения активация начнётся через сервер.",
+      methodTitle: "Способ оплаты",
+      methodHint: "Выберите способ оплаты, чтобы продолжить",
       pay: "Оплатить {amount}",
       activate: "Перейти на тариф",
       buyPackage: "Купить пакет SMS",

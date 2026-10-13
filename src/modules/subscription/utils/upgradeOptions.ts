@@ -1,5 +1,10 @@
 export type SubscriptionUpgradeReason =
-  "sms-limit" | "telegram" | "organization-limit" | "blacklist";
+  | "sms-limit"
+  // The user asked to buy SMS: the package list and nothing else.
+  | "sms-packages"
+  | "telegram"
+  | "organization-limit"
+  | "blacklist";
 
 export type PaidPlanCode = "STANDARD" | "PREMIUM";
 
@@ -28,6 +33,9 @@ export function getSubscriptionUpgradeOptions(
 ): SubscriptionUpgradeOptions {
   const currentPlanCode = normalizePlanCode(subscription?.planCode);
   const isPaid = isPaidPlanCode(currentPlanCode);
+  if (reason === "sms-packages") {
+    return { showPlans: false, showPackages: true, recommendedPlanCode: "PREMIUM" };
+  }
   return {
     showPlans: reason === "sms-limit" ? currentPlanCode !== "PREMIUM" : !isPaid,
     showPackages: reason === "sms-limit",

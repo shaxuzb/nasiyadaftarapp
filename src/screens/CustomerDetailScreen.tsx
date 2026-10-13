@@ -387,28 +387,22 @@ export function CustomerDetailScreen() {
                 )} */}
                 {showBlacklistBadge ? (
                   <Pressable
-                    accessibilityRole={
-                      blacklistedOrganizations.length > 0 ? "button" : "text"
-                    }
-                    accessibilityLabel={`${t("transactions.otherOrganizationsBlacklist")}${
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t("customers.blacklistBadge")}${
                       blacklistedOrganizationCount > 0
                         ? t("transactions.organizationsCount", {
                             count: blacklistedOrganizationCount,
                           })
                         : ""
                     }`}
-                    accessibilityHint={
-                      blacklistedOrganizations.length > 0
-                        ? t("customers.blacklistDetailsHint")
-                        : undefined
-                    }
-                    // Without the list there is nothing more to show, so the
-                    // badge stays a plain label.
-                    disabled={blacklistedOrganizations.length === 0}
+                    accessibilityHint={t("customers.blacklistDetailsHint")}
                     hitSlop={8}
                     onPress={() =>
                       openSheet("blacklistOrganizations", {
+                        customerId,
                         customerName: displayName,
+                        // Already loaded with this screen, so the sheet shows
+                        // them without asking again.
                         organizations: blacklistedOrganizations,
                       })
                     }
@@ -427,15 +421,13 @@ export function CustomerDetailScreen() {
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
-                      {t("transactions.otherOrganizationsBlacklist")}
+                      {t("customers.blacklistBadge")}
                     </Text>
-                    {blacklistedOrganizations.length > 0 ? (
-                      <Ionicons
-                        name="chevron-forward"
-                        size={12}
-                        color={theme.dangerColor}
-                      />
-                    ) : null}
+                    <Ionicons
+                      name="chevron-forward"
+                      size={12}
+                      color={theme.dangerColor}
+                    />
                   </Pressable>
                 ) : null}
               </View>

@@ -61,7 +61,13 @@ export const CustomerCard = memo(function CustomerCard({
         {formatDisplayedBalance(balance)}
       </Text>
       <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
-      {blacklisted ? <BlacklistBadge style={styles.blacklistCorner} /> : null}
+      {blacklisted ? (
+        <BlacklistBadge
+          style={styles.blacklistCorner}
+          customerId={customer.id}
+          customerName={getFullName(customer)}
+        />
+      ) : null}
     </Pressable>
   );
 });

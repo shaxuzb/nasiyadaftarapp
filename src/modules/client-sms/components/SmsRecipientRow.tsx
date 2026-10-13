@@ -4,6 +4,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import type { AppTheme } from "../../../types";
 import type { SmsRecipient } from "../types";
+import { BlacklistBadge } from "../../clients/components/BlacklistBadge";
+import { isCustomerBlacklisted } from "../../clients/utils/blacklist";
 import { isSmsRecipientSelectable } from "../utils/recipientSelection";
 import {
   formatLocalizedCurrency,
@@ -103,11 +105,6 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
           <Text numberOfLines={3} style={styles.name}>
             {displayName}
           </Text>
-          {recipient.isBlacklisted ? (
-            <View style={styles.blacklistBadge}>
-              <Text style={styles.blacklistText}>{t("sms.blacklistBadge")}</Text>
-            </View>
-          ) : null}
         </View>
         <Text numberOfLines={1} style={styles.phone}>
           {displayPhone || t("sms.recipientPhoneMissing")}
@@ -198,6 +195,17 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
           </Pressable>
         ) : null}
       </View>
+      {/* Pinned to the card's top-right corner, exactly as on a customer card:
+          it takes nothing from the name, and looks the same on both lists.
+          Blacklisted here or in any other organization: the count alone is
+          enough. */}
+      {isCustomerBlacklisted(recipient) ? (
+        <BlacklistBadge
+          style={styles.blacklistCorner}
+          customerId={recipient.id}
+          customerName={displayName}
+        />
+      ) : null}
     </Pressable>
   );
 });
@@ -216,6 +224,9 @@ const createStyles = (theme: AppTheme) =>
       borderCurve: "continuous",
       backgroundColor: theme.surface,
     },
+    // Same place as on a customer card. -5 is covered by the list's top
+    // padding, so the first row's badge is not clipped.
+    blacklistCorner: { position: "absolute", top: -5, right: 12 },
     selected: {
       borderColor: theme.primary,
       backgroundColor: theme.primaryLight,
@@ -272,13 +283,6 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 11,
       fontWeight: "700",
     },
-    blacklistBadge: {
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      borderRadius: 999,
-      backgroundColor: theme.debtBg,
-    },
-    blacklistText: { color: theme.dangerColor, fontSize: 9, fontWeight: "700" },
     sentTodayLine: {
       flexDirection: "row",
       alignItems: "center",

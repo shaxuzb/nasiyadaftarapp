@@ -13,7 +13,10 @@ assert.match(checkout, /copy\.processing/);
 assert.match(checkout, /startCheckout\(/);
 assert.match(checkout, /closeSheet\(\(\) =>/);
 assert.match(checkout, /openSheet\("paymentStatus"/);
-assert.match(checkout, /openCheckoutOnMount/);
+// The payment page is opened from this sheet, while its button still shows
+// progress; the status sheet is no longer what sends the user out.
+assert.match(checkout, /await openCheckoutPage\(result\);/);
+assert.doesNotMatch(checkout, /openCheckoutOnMount/);
 assert.match(checkout, /PendingPaymentCheckoutError/);
 assert.match(checkout, /pendingPayment/);
 

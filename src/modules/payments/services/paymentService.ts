@@ -1,6 +1,22 @@
 import { apiClient } from "../../../services/axiosService";
 import type { PaymentOrder } from "../types";
 import { parsePaymentOrder, parsePaymentOrders } from "../utils/paymentParsing";
+import {
+  parsePaymentProviders,
+  type PaymentProvider,
+} from "../utils/paymentProviders";
+
+export async function getPaymentProviders(
+  signal?: AbortSignal,
+): Promise<PaymentProvider[]> {
+  const response = await apiClient.get("/payments/providers", { signal });
+  return parsePaymentProviders(response.data);
+}
+
+// The provider goes in the query string. Left out, the server uses its own
+// default, which is also what an app without the provider list does.
+const withProvider = (provider?: string | null) =>
+  provider ? { params: { provider } } : {};
 
 function normalizePaymentHistoryLimit(limit: number): number {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
@@ -12,11 +28,12 @@ function normalizePaymentHistoryLimit(limit: number): number {
 export async function createSubscriptionPayment(
   planId: number,
   idempotencyKey: string,
+  provider?: string | null,
 ): Promise<PaymentOrder> {
   const response = await apiClient.post(
     `/payments/subscriptions/${planId}`,
     undefined,
-    { headers: { "Idempotency-Key": idempotencyKey } },
+    { headers: { "Idempotency-Key": idempotencyKey }, ...withProvider(provider) },
   );
   return parsePaymentOrder(response.data);
 }
@@ -24,11 +41,12 @@ export async function createSubscriptionPayment(
 export async function createSmsPackagePayment(
   packageId: number,
   idempotencyKey: string,
+  provider?: string | null,
 ): Promise<PaymentOrder> {
   const response = await apiClient.post(
     `/payments/sms-packages/${packageId}`,
     undefined,
-    { headers: { "Idempotency-Key": idempotencyKey } },
+    { headers: { "Idempotency-Key": idempotencyKey }, ...withProvider(provider) },
   );
   return parsePaymentOrder(response.data);
 }

@@ -4,7 +4,7 @@ import {
   findAppLink,
   getHeaderAppLinks,
   getLinkHost,
-  getSupportSheetLinks,
+  getTelegramBotLinks,
   isKnownAppLinkKey,
   isOpenableLinkUrl,
   parseAppLinks,
@@ -15,35 +15,51 @@ import {
 /* The documented answer is read as is, in the server's order. */
 
 const documented = [
-  { key: "telegram_channel", title: "Telegram kanal", url: "https://t.me/qarzdaftar" },
   { key: "telegram_group", title: "Telegram guruh", url: "https://t.me/+abc" },
-  { key: "instagram", title: "Instagram", url: "https://www.instagram.com/qarzdaftar.rbsx/" },
-  { key: "support", title: "Yordam", url: "https://t.me/richdev_1" },
+  { key: "organization_bot", title: "Tashkilot uchun bot", url: "https://t.me/owner_bot" },
+  { key: "client_bot", title: "Mijozlar uchun bot", url: "https://t.me/customer_bot" },
+  { key: "instagram", title: "Instagram", url: "https://www.instagram.com/qarzdaftar_app" },
+  { key: "support", title: "Admin bilan bog'lanish", url: "https://t.me/richdev_1" },
 ];
 assert.deepEqual(parseAppLinks(documented), documented);
 
-/* The header gets the two public profiles; the sheet gets the rest, admin first. */
+/* The header gets Instagram and the Telegram group, in the header's order. */
 
 assert.deepEqual(
   getHeaderAppLinks(documented).map((link: { key: string }) => link.key),
-  ["instagram", "telegram_channel"],
+  ["instagram", "telegram_group"],
 );
 assert.deepEqual(
-  getSupportSheetLinks(documented).map((link: { key: string }) => link.key),
-  ["support", "telegram_group"],
-);
-assert.deepEqual(
-  getSupportSheetLinks([
-    ...documented,
-    { key: "youtube", title: "YouTube", url: "https://www.youtube.com/@rbsx" },
-  ]).map((link: { key: string }) => link.key),
-  ["support", "telegram_group", "youtube"],
-  "A key added later is listed in the sheet, not lost",
-);
-assert.deepEqual(
-  getHeaderAppLinks([documented[1], documented[3]]),
+  getHeaderAppLinks([documented[1], documented[4]]),
   [],
   "No icon for a link that was not sent",
+);
+
+/* The "Telegram bot" row leads to both bots: the owner's first. */
+
+assert.deepEqual(
+  getTelegramBotLinks(documented).map((link: { url: string }) => link.url),
+  ["https://t.me/owner_bot", "https://t.me/customer_bot"],
+);
+assert.deepEqual(
+  getTelegramBotLinks([documented[2], documented[1]]).map((link: { key: string }) => link.key),
+  ["organization_bot", "client_bot"],
+  "The order is the sheet's, not the server's",
+);
+// The server lists no bots: the owner's bot still opens, at its bundled
+// address; the customers' bot has none and is not invented.
+assert.deepEqual(
+  getTelegramBotLinks([documented[0], documented[4]]).map((link: { key: string }) => link.key),
+  ["organization_bot"],
+);
+assert.deepEqual(
+  getTelegramBotLinks([]).map((link: { url: string }) => link.url),
+  ["https://t.me/qarz_daftar_rbsx_bot"],
+);
+// The support link is not a bot and never shows up among them.
+assert.equal(
+  getTelegramBotLinks(documented).some((link: { key: string }) => link.key === "support"),
+  false,
 );
 
 /* Addresses are taken as sent. A handle or a bare username is not a link and
@@ -146,6 +162,10 @@ for (const untouched of [
 assert.deepEqual(parseAppLinks([...DEFAULT_APP_LINKS]), [...DEFAULT_APP_LINKS]);
 assert.ok(findAppLink(DEFAULT_APP_LINKS, "support"));
 assert.ok(findAppLink(DEFAULT_APP_LINKS, "instagram"));
+assert.ok(findAppLink(DEFAULT_APP_LINKS, "telegram_group"));
+assert.ok(findAppLink(DEFAULT_APP_LINKS, "organization_bot"));
+assert.equal(findAppLink(DEFAULT_APP_LINKS, "client_bot"), undefined);
+assert.equal(findAppLink(DEFAULT_APP_LINKS, "telegram_channel"), undefined);
 assert.equal(findAppLink(DEFAULT_APP_LINKS, "missing"), undefined);
 
 console.log("App links parsing and safety tests passed");

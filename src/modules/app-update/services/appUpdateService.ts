@@ -31,6 +31,8 @@ export async function fetchAppVersionCheck(
       headers: {
         Accept: "application/json",
         "Cache-Control": "no-cache",
+        "X-App-Version": currentVersion,
+        "X-Platform": platform,
       },
       signal: controller.signal,
     });

@@ -119,4 +119,23 @@ assert((await core.getPendingPayment(8))?.orderId === 17, "User cleanup must not
 const user8Retry = await core.getOrCreateCheckoutAttempt(8, "subscription", 2);
 assert(user8Retry.idempotencyKey === otherUser.idempotencyKey, "Other user attempt must remain intact");
 
+// The idempotency key says "the same request again". The same product through
+// another provider is a different request and must not reuse it.
+const viaPayme = await core.getOrCreateCheckoutAttempt(9, "subscription", 2, "payme");
+const viaPaymeRetry = await core.getOrCreateCheckoutAttempt(9, "subscription", 2, "payme");
+assert(viaPayme.provider === "payme", "The attempt remembers its provider");
+assert(viaPaymeRetry.idempotencyKey === viaPayme.idempotencyKey, "Retry with the same provider reuses the UUID");
+
+const viaClick = await core.getOrCreateCheckoutAttempt(9, "subscription", 2, "click");
+assert(viaClick.provider === "click", "Switching provider records the new one");
+assert(viaClick.idempotencyKey !== viaPayme.idempotencyKey, "Another provider needs its own UUID");
+const viaClickRetry = await core.getOrCreateCheckoutAttempt(9, "subscription", 2, "click");
+assert(viaClickRetry.idempotencyKey === viaClick.idempotencyKey, "The switched attempt survives a retry");
+
+const noProvider = await core.getOrCreateCheckoutAttempt(9, "subscription", 2);
+assert(noProvider.idempotencyKey !== viaClick.idempotencyKey, "No provider is not the same request as Click");
+assert(!("provider" in noProvider), "An attempt without a provider stores none");
+const noProviderRetry = await core.getOrCreateCheckoutAttempt(9, "subscription", 2, null);
+assert(noProviderRetry.idempotencyKey === noProvider.idempotencyKey, "null and absent both mean no provider");
+
 console.log("Payment storage tests passed");

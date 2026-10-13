@@ -4,6 +4,8 @@ export interface OrganizationRequest {
   name: string;
   address: string;
   note: string;
+  /** Present only when the user agreed to the public offer; never false. */
+  offerAccepted?: true;
 }
 
 export interface UpdateCurrentOrganizationRequest {

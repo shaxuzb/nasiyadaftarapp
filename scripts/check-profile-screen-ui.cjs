@@ -48,9 +48,8 @@ assert.doesNotMatch(
   /<AdminContactButton\s+variant="card"/,
   "Admin contact must use the profile grouped-card layout",
 );
-// Contacting the admin moved behind one row in the help section, alongside the
-// community group, because two near-identical Telegram rows read as duplicates.
-// It still has to be one tap from the profile screen.
+// Contacting the admin is one row in the help section, and it goes straight
+// to the admin: there is one person to write to, so no sheet in between.
 assert.match(
   screen,
   /title=\{t\("profile\.supportRowTitle"\)\}/,
@@ -58,36 +57,20 @@ assert.match(
 );
 assert.match(
   screen,
-  /onPress=\{\(\) => openSheet\("support", \{\}\)\}/,
-  "The contact row must open the support sheet",
+  /title=\{t\("profile\.supportRowTitle"\)\}[\s\S]{0,260}onPress=\{\(\) => void openAdminContact\(\)\}\s*loading=\{isOpeningAdmin\}/,
+  "The contact row opens the admin contact directly",
+);
+assert.equal(
+  fs.existsSync("src/bottom-sheet/sheets/SupportSheet.tsx"),
+  false,
+  "A sheet with a single row was an extra tap",
 );
 
-const supportSheet = fs.readFileSync(
-  "src/bottom-sheet/sheets/SupportSheet.tsx",
-  "utf8",
-);
-assert.match(
-  supportSheet,
-  /const links = useAppLinks\(\);[\s\S]*getSupportSheetLinks\(links\)\.map\(\(link\) => \(\{/,
-  "The support sheet must list the admin contact, the group and any later link",
-);
-assert.doesNotMatch(
-  supportSheet,
-  /https?:\/\//,
-  "No address may be written into the sheet; they come from the server",
-);
-// Android reserves the strip along the bottom edge for its navigation bar or
-// gesture handle, and a sheet that ignores it puts its last row underneath.
-assert.match(
-  supportSheet,
-  /paddingBottom: Math\.max\(insets\.bottom, 12\)/,
-  "The support sheet must clear the Android bottom inset",
-);
-
-// The public profiles belong in the header, away from the functional rows.
+// Instagram and the Telegram group belong in the header, away from the
+// functional rows.
 assert.match(
   fs.readFileSync("src/modules/support/utils/appLinks.ts", "utf8"),
-  /export const HEADER_APP_LINK_KEYS = \["instagram", "telegram_channel"\] as const;/,
+  /export const HEADER_APP_LINK_KEYS = \["instagram", "telegram_group"\] as const;/,
   "The profile header's public profiles are named in one place",
 );
 assert.match(

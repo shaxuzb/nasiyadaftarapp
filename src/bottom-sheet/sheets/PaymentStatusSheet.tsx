@@ -6,7 +6,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
+import { BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 
 import type { SheetRenderProps } from "../types";
@@ -32,7 +32,7 @@ export function PaymentStatusSheet({
   const copy = getPaymentCopy(locale).statusSheet;
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();
-  const openedOnMountRef = useRef(false);
+  const syncedOnMountRef = useRef(false);
   const {
     order,
     isLoading,
@@ -45,27 +45,22 @@ export function PaymentStatusSheet({
     openCheckout,
   } = usePaymentOrderLifecycle(props.orderId, { syncOnForeground: true });
   const busy = isSyncing || isCancelling || isOpeningCheckout;
+  const orderStatus = order?.status;
 
+  // Opened because the user is back from the payment page. What the app knows
+  // about the order is from before they left, so ask the server once. A
+  // failure shows in the sheet, next to the button that tries again.
   useEffect(() => {
     if (
-      !props.openCheckoutOnMount ||
-      openedOnMountRef.current ||
-      !order ||
-      order.status !== "pending"
+      !props.syncOnMount ||
+      syncedOnMountRef.current ||
+      orderStatus !== "pending"
     ) {
       return;
     }
-    openedOnMountRef.current = true;
-    void openCheckout().catch(() => {
-      showToast(copy.openError, "error");
-    });
-  }, [
-    copy.openError,
-    openCheckout,
-    order,
-    props.openCheckoutOnMount,
-    showToast,
-  ]);
+    syncedOnMountRef.current = true;
+    void sync().catch(() => undefined);
+  }, [orderStatus, props.syncOnMount, sync]);
 
   const handleSync = async () => {
     try {
@@ -91,9 +86,15 @@ export function PaymentStatusSheet({
     }
   };
 
+  // These two states are BottomSheetView, not a plain View, on purpose. The
+  // sheet sizes itself to its content, and only the library's own containers
+  // report their height to it. Behind a plain View the sheet has no height to
+  // open to: the backdrop darkens the screen and nothing else appears, until
+  // the order arrives and the scroll view below takes over. On a slow or
+  // failed request that never happens.
   if (isLoading && !order) {
     return (
-      <View
+      <BottomSheetView
         style={[
           styles.loading,
           { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
@@ -101,13 +102,13 @@ export function PaymentStatusSheet({
       >
         <ActivityIndicator color={theme.primary} />
         <Text style={styles.muted}>{copy.loading}</Text>
-      </View>
+      </BottomSheetView>
     );
   }
 
   if (!order) {
     return (
-      <View
+      <BottomSheetView
         style={[
           styles.loading,
           { paddingBottom: Math.max(insets.bottom + spacing.md, spacing.xl) },
@@ -122,7 +123,7 @@ export function PaymentStatusSheet({
         <Pressable onPress={() => closeSheet()} style={styles.secondaryButton}>
           <Text style={styles.secondaryText}>{copy.close}</Text>
         </Pressable>
-      </View>
+      </BottomSheetView>
     );
   }
 

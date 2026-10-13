@@ -42,6 +42,17 @@ const premiumSms = moduleExports.getSubscriptionUpgradeOptions(
 assert.equal(premiumSms.showPlans, false);
 assert.equal(premiumSms.showPackages, true);
 
+// "Buy SMS" from the SMS screen: the package list and nothing else, whatever
+// plan the user is on.
+for (const planCode of ["FREE", "STANDARD", "PREMIUM", undefined]) {
+  const packagesOnly = moduleExports.getSubscriptionUpgradeOptions(
+    { planCode },
+    "sms-packages",
+  );
+  assert.equal(packagesOnly.showPlans, false, String(planCode));
+  assert.equal(packagesOnly.showPackages, true, String(planCode));
+}
+
 const freeTelegram = moduleExports.getSubscriptionUpgradeOptions(
   { planCode: "FREE" },
   "telegram",

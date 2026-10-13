@@ -1,5 +1,6 @@
 import {
   CommonActions,
+  StackActions,
   createNavigationContainerRef,
 } from "@react-navigation/native";
 import type { InternalRoute } from "../modules/push/utils/notificationLink";
@@ -42,8 +43,11 @@ export function navigateToInternalRoute(route: InternalRoute): boolean {
     const tabNames = state.routes.find((item) => item.name === "MainTabs")
       ?.state?.routeNames;
     if (tabNames && !tabNames.includes(route.tab)) return false;
+    // popTo, not navigate: from a screen stacked above the tabs (the inbox,
+    // where most links are tapped) navigate would push a second copy of the
+    // tabs. popTo goes back to the one that is there and switches its tab.
     navigationRef.dispatch(
-      CommonActions.navigate({ name: "MainTabs", params: { screen: route.tab } }),
+      StackActions.popTo("MainTabs", { screen: route.tab }),
     );
     return true;
   }

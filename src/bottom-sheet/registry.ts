@@ -10,7 +10,8 @@ import { PaymentCheckoutSheet } from "./sheets/PaymentCheckoutSheet";
 import { PaymentStatusSheet } from "./sheets/PaymentStatusSheet";
 import { PaymentDetailSheet } from "./sheets/PaymentDetailSheet";
 import { PendingPaymentsSheet } from "./sheets/PendingPaymentsSheet";
-import { SupportSheet } from "./sheets/SupportSheet";
+import { TelegramBotsSheet } from "./sheets/TelegramBotsSheet";
+import { LegalSheet } from "./sheets/LegalSheet";
 import { DatePickerSheet } from "./sheets/DatePickerSheet";
 import { BlacklistOrganizationsSheet } from "./sheets/BlacklistOrganizationsSheet";
 
@@ -58,8 +59,13 @@ export const sheetRegistry: SheetRegistry = {
     enableDynamicSizing: true,
     enablePanDownToClose: true,
   },
-  support: {
-    component: SupportSheet,
+  telegramBots: {
+    component: TelegramBotsSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+  },
+  legal: {
+    component: LegalSheet,
     enableDynamicSizing: true,
     enablePanDownToClose: true,
   },

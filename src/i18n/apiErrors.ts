@@ -46,6 +46,27 @@ function getResponseCode(error: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * The server's own sentence for a failed request, or null when it has none
+ * worth showing. For callers whose fallback wording is not a translation key.
+ * Same rule as below: a 4xx other than 401 carries a `detail` meant for the
+ * user, such as "unknown payment provider".
+ */
+export function getApiErrorUserMessage(error: unknown): string | null {
+  if (error instanceof Error && error.name === OFFLINE_MUTATION_ERROR_CODE) {
+    return error.message;
+  }
+  const status = getApiErrorStatus(error);
+  const detail = getApiErrorDetail(error);
+  return isPresentableDetail(detail) &&
+    status !== undefined &&
+    status !== 401 &&
+    status >= 400 &&
+    status < 500
+    ? detail
+    : null;
+}
+
 export function getLocalizedApiErrorMessage(
   error: unknown,
   fallbackKey: TranslateKey,

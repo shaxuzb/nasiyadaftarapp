@@ -9,6 +9,7 @@ import React, {
 } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../hooks/useTheme";
+import { useDismissOnAppLock } from "../modules/pin-auth/hooks/useDismissOnAppLock";
 import { radius, spacing, typography } from "../theme";
 import { useTranslation } from "../i18n";
 
@@ -52,6 +53,12 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
     resolverRef.current?.(value);
     resolverRef.current = null;
   }, []);
+
+  // A question left open when the app locks is answered "no": nothing was
+  // confirmed, and the dialog must not sit on top of the PIN screen.
+  useDismissOnAppLock(() => {
+    if (resolverRef.current) closeWith(false);
+  });
 
   const confirm = useCallback((options: ConfirmOptions) => {
     return new Promise<boolean>((resolve) => {
@@ -164,6 +171,8 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "100%",
+    // A dialog is read in one glance; across a tablet it would not be.
+    maxWidth: 440,
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.lg,

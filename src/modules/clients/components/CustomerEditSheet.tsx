@@ -26,6 +26,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { AppInput } from "../../../components/AppInput";
 import { PrimaryButton } from "../../../components/PrimaryButton";
 import { useTheme } from "../../../hooks/useTheme";
+import { useSheetFrameStyle } from "../../../hooks/useSheetFrameStyle";
+import { useDismissSheetOnAppLock } from "../../../bottom-sheet/useDismissSheetOnAppLock";
 import { useToast } from "../../../context/ToastContext";
 import { useBottomSheetBackHandler } from "../../../bottom-sheet";
 import { AndroidSheetKeyboardBridge } from "../../../bottom-sheet/AndroidSheetKeyboardBridge";
@@ -61,6 +63,10 @@ export function CustomerEditSheet({
   const { height } = useWindowDimensions();
   const { showToast } = useToast();
   const sheet = useRef<BottomSheetModal>(null);
+  const sheetFrame = useSheetFrameStyle();
+  // Must not stay open on top of the PIN screen, and must not be "closed"
+  // while it is not open: see useDismissSheetOnAppLock.
+  const sheetControls = useDismissSheetOnAppLock(sheet);
   const phoneRef = useRef<TextInput>(null);
   const submitting = useRef(false);
   const [saving, setSaving] = useState(false);
@@ -92,14 +98,14 @@ export function CustomerEditSheet({
   }, [customer, dataState]);
 
   useEffect(() => {
-    const frame = requestAnimationFrame(() => sheet.current?.present());
+    const frame = requestAnimationFrame(() => sheetControls.present());
     return () => cancelAnimationFrame(frame);
-  }, []);
+  }, [sheetControls]);
   const close = useCallback(() => {
     if (submitting.current) return;
     void KeyboardController.dismiss();
-    sheet.current?.dismiss();
-  }, []);
+    sheetControls.dismiss();
+  }, [sheetControls]);
   useBottomSheetBackHandler(true, close);
   const backdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -131,7 +137,7 @@ export function CustomerEditSheet({
       void KeyboardController.dismiss();
       hapticSuccess();
       showToast(t("transactions.updated"), "success");
-      sheet.current?.dismiss();
+      sheetControls.dismiss();
     } catch (error) {
       showToast(
         getLocalizedApiErrorMessage(error, "transactions.updateError", t),
@@ -146,6 +152,8 @@ export function CustomerEditSheet({
   return (
     <BottomSheetModal
       ref={sheet}
+      // A centred column on a tablet, like the screen behind it.
+      style={sheetFrame}
       enableDynamicSizing
       maxDynamicContentSize={Math.max(1, height - insets.top - 24)}
       topInset={insets.top}
@@ -158,6 +166,7 @@ export function CustomerEditSheet({
       enableHandlePanningGesture={!saving}
       backdropComponent={backdrop}
       onDismiss={() => {
+        sheetControls.handleDismissed();
         void KeyboardController.dismiss();
         onClose();
       }}

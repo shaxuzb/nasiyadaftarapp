@@ -45,6 +45,8 @@ export interface PaymentCheckoutAttempt {
   userId: number;
   productType: PaymentProductType;
   productId: number;
+  /** The provider this attempt was made with; absent when none was chosen. */
+  provider?: string;
   idempotencyKey: string;
   createdAt: string;
 }

@@ -38,6 +38,8 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
 import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
+import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
+import { useDismissSheetOnAppLock } from "../bottom-sheet/useDismissSheetOnAppLock";
 import { SearchBar } from "../components/SearchBar";
 import { CustomerCard } from "../modules/clients/components/CustomerCard";
 import { CustomerCardSkeleton } from "../modules/clients/components/CustomerCardSkeleton";
@@ -154,16 +156,20 @@ export function CustomersScreen() {
   const showProBadge =
     regionalCapabilities.subscriptionVisible && !isAdministrator && !isPremium;
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const sheetFrame = useSheetFrameStyle();
+  // Must not stay open on top of the PIN screen, and must not be "closed"
+  // while it is not open: see useDismissSheetOnAppLock.
+  const addCustomerSheet = useDismissSheetOnAppLock(bottomSheetRef);
   const phoneInputRef = useRef<TextInput>(null);
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-  const [debtorOnly, setDebtorOnly] = useState(false);
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("+998 ");
   const [phoneInputKey, setPhoneInputKey] = useState(0);
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+  const creatingCustomerRef = useRef(false);
   const [errors, setErrors] = useState<{ phone?: string }>({});
   const [balanceDirection, setBalanceDirection] =
     useState<BalanceDirection>("debt");
@@ -238,39 +244,28 @@ export function CustomersScreen() {
     [requiresCalculatedBalances, transactions],
   );
 
-  const filteredCustomers = useMemo(() => {
-    if (!debtorOnly) return sourceCustomers;
-
-    return sourceCustomers.filter((customer) => {
-      const balance =
-        customer.currentBalance ?? balanceMap.get(customer.id) ?? 0;
-      return balance > 0;
-    });
-  }, [balanceMap, debtorOnly, sourceCustomers]);
-
+  // Every customer the list has, always. The list is never narrowed by a
+  // setting the user could leave switched on and forget: a customer added a
+  // moment ago has to be there to see.
   const listData = useMemo(() => {
     return sortCustomerList(
-      filteredCustomers.map((customer) => ({
+      sourceCustomers.map((customer) => ({
         customer,
         balance: customer.currentBalance ?? balanceMap.get(customer.id) ?? 0,
       })),
-      debtorOnly,
     );
-  }, [balanceMap, debtorOnly, filteredCustomers]);
+  }, [balanceMap, sourceCustomers]);
 
   const customerCountLabel = useMemo(
     () =>
-      debtorOnly
-        ? t("customers.countDebtors", { count: listData.length })
-        : debouncedQuery
-          ? t("customers.countResults", {
-              count: isSearchActive ? searchResult.count : customers.length,
-            })
-          : t("customers.countCustomers", { count: listData.length }),
+      debouncedQuery
+        ? t("customers.countResults", {
+            count: isSearchActive ? searchResult.count : customers.length,
+          })
+        : t("customers.countCustomers", { count: listData.length }),
     [
       customers.length,
       debouncedQuery,
-      debtorOnly,
       isSearchActive,
       listData.length,
       searchResult.count,
@@ -296,13 +291,13 @@ export function CustomersScreen() {
   function openAddCustomerSheet() {
     hapticTap();
     setIsAddCustomerSheetOpen(true);
-    bottomSheetRef.current?.present();
+    addCustomerSheet.present();
   }
 
   function closeAddCustomerSheet() {
     setIsAddCustomerSheetOpen(false);
     void KeyboardController.dismiss();
-    bottomSheetRef.current?.dismiss();
+    addCustomerSheet.dismiss();
   }
 
   useBottomSheetBackHandler(isAddCustomerSheetOpen, closeAddCustomerSheet);
@@ -329,7 +324,10 @@ export function CustomersScreen() {
   }
 
   async function handleCreateCustomer() {
-    if (isCreatingCustomer) return;
+    // The state flag is one render behind: several taps in a row all read it
+    // as false and each sent its own POST, which the server answered with 409.
+    // The ref is set the instant the first tap is handled.
+    if (creatingCustomerRef.current) return;
     if (!validateForm()) {
       hapticError();
       showToast(t("customers.formCheck"), "error");
@@ -338,6 +336,7 @@ export function CustomersScreen() {
 
     void KeyboardController.dismiss();
 
+    creatingCustomerRef.current = true;
     try {
       setIsCreatingCustomer(true);
       const balanceAmount = parseAmountInput(balanceAmountRef.current);
@@ -367,6 +366,7 @@ export function CustomersScreen() {
         "error",
       );
     } finally {
+      creatingCustomerRef.current = false;
       setIsCreatingCustomer(false);
     }
   }
@@ -417,6 +417,7 @@ export function CustomersScreen() {
   }
 
   function handleCustomerSheetDismiss() {
+    addCustomerSheet.handleDismissed();
     setIsAddCustomerSheetOpen(false);
     void KeyboardController.dismiss();
     resetCustomerForm();
@@ -538,34 +539,6 @@ export function CustomersScreen() {
           </View>
           <View style={styles.searchMeta}>
             <Text style={styles.customerCount}>{customerCountLabel}</Text>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("customers.debtorFilterA11y")}
-              accessibilityState={{ selected: debtorOnly }}
-              activeOpacity={0.76}
-              onPress={() => {
-                hapticTap();
-                setDebtorOnly((value) => !value);
-              }}
-              style={[
-                styles.debtorFilter,
-                debtorOnly && styles.debtorFilterActive,
-              ]}
-            >
-              <Ionicons
-                name="wallet-outline"
-                size={15}
-                color={debtorOnly ? theme.primary : theme.textSecondary}
-              />
-              <Text
-                style={[
-                  styles.debtorFilterLabel,
-                  debtorOnly && styles.debtorFilterLabelActive,
-                ]}
-              >
-                {t("customers.debtorFilter")}
-              </Text>
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -628,21 +601,17 @@ export function CustomersScreen() {
                 title={
                   isSearchActive
                     ? t("customers.emptySearchTitle")
-                    : debtorOnly
-                      ? t("customers.emptyDebtorsTitle")
-                      : t("customers.emptyTitle")
+                    : t("customers.emptyTitle")
                 }
                 description={
                   isSearchActive
                     ? t("customers.emptySearchDescription", {
                         query: debouncedQuery,
                       })
-                    : debtorOnly
-                      ? t("customers.emptyDebtorsDescription")
-                      : t("customers.emptyDescription")
+                    : t("customers.emptyDescription")
                 }
                 action={
-                  !isSearchActive && !debtorOnly ? (
+                  !isSearchActive ? (
                     <PrimaryButton
                       label={t("customers.addAction")}
                       onPress={openAddCustomerSheet}
@@ -677,6 +646,8 @@ export function CustomersScreen() {
       </View>
       <BottomSheetModal
         ref={bottomSheetRef}
+        // A centred column on a tablet, like the screen behind it.
+        style={sheetFrame}
         index={0}
         enableDynamicSizing
         maxDynamicContentSize={Math.max(1, windowHeight - insets.top - 24)}
@@ -988,8 +959,6 @@ const createStyles = (theme: AppTheme) =>
       minHeight: 30,
       flexDirection: "row",
       alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
       marginTop: -8,
     },
     customerCount: {
@@ -998,30 +967,6 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 12,
       lineHeight: 17,
       fontWeight: "600",
-    },
-    debtorFilter: {
-      minHeight: 30,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      paddingHorizontal: 10,
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.surface,
-    },
-    debtorFilterActive: {
-      borderColor: theme.primary,
-      backgroundColor: theme.primaryLight,
-    },
-    debtorFilterLabel: {
-      color: theme.textSecondary,
-      fontSize: 12,
-      lineHeight: 16,
-      fontWeight: "700",
-    },
-    debtorFilterLabelActive: {
-      color: theme.primary,
     },
     list: {
       paddingHorizontal: 16,

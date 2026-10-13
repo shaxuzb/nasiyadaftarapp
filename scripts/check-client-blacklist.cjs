@@ -104,9 +104,63 @@ assert.equal(
 const detailScreen = fs.readFileSync("src/screens/CustomerDetailScreen.tsx", "utf8");
 assert.match(
   detailScreen,
-  /disabled=\{blacklistedOrganizations\.length === 0\}[\s\S]{0,200}?openSheet\("blacklistOrganizations", \{\s*customerName: displayName,\s*organizations: blacklistedOrganizations,\s*\}\)/,
-  "The blacklist badge must open the organizations sheet",
+  /openSheet\("blacklistOrganizations", \{\s*customerId,\s*customerName: displayName,[\s\S]{0,400}?organizations: blacklistedOrganizations,\s*\}\)/,
+  "The profile's blacklist badge must open the organizations sheet",
 );
+
+// One rule and one pill everywhere a customer is listed. The lists send only a
+// count, with isBlacklisted false when the customer is blacklisted elsewhere:
+//   { isBlacklisted: false, blacklistedOrganizationCount: 3 }
+const rule = (() => {
+  const code = ts.transpileModule(
+    fs.readFileSync("src/modules/clients/utils/blacklist.ts", "utf8"),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+  ).outputText;
+  const out = {};
+  vm.runInNewContext(code, { exports: out, require: () => ({}) });
+  return out.isCustomerBlacklisted;
+})();
+assert.equal(rule({ isBlacklisted: false, blacklistedOrganizationCount: 3 }), true);
+assert.equal(rule({ isBlacklisted: false, blacklistedOrganizationCount: 0 }), false);
+
+const smsRow = fs.readFileSync("src/modules/client-sms/components/SmsRecipientRow.tsx", "utf8");
+assert.match(
+  smsRow,
+  /isCustomerBlacklisted\(recipient\) \? \(\s*<BlacklistBadge\s+style=\{styles\.blacklistCorner\}\s+customerId=\{recipient\.id\}/,
+  "The SMS list must show the badge from the count too, and open the sheet",
+);
+// Both lists pin the badge to the same corner of the card, and both lists
+// leave room above their first row for it.
+const corner = /blacklistCorner: \{ position: "absolute", top: -5, right: 12 \}/;
+assert.match(smsRow, corner, "The SMS row pins the badge like the customer card does");
+assert.match(fs.readFileSync("src/components/CustomerCard.tsx", "utf8"), corner);
+assert.match(
+  fs.readFileSync("src/screens/ClientSmsScreen.tsx", "utf8"),
+  /list: \{ paddingHorizontal: spacing\.md, paddingTop: 6 \}/,
+  "Without top padding the first SMS row's badge would be clipped",
+);
+assert.doesNotMatch(smsRow, /recipient\.isBlacklisted \?/, "isBlacklisted alone misses customers blacklisted elsewhere");
+
+const card = fs.readFileSync("src/components/CustomerCard.tsx", "utf8");
+assert.match(
+  card,
+  /<BlacklistBadge\s+style=\{styles\.blacklistCorner\}\s+customerId=\{customer\.id\}/,
+  "The customer list's badge must open the sheet",
+);
+
+// The lists do not carry the organizations, so the sheet reads the customer's
+// record when it was not handed them.
+const blacklistHook = fs.readFileSync("src/modules/clients/hooks/useClientBlacklist.ts", "utf8");
+assert.match(blacklistHook, /queryKey: queryKeys\.client\(scope, customerId\)/, "Shares the profile's cached record");
+assert.match(blacklistHook, /enabled: enabled && !hasKnown/, "No request when the organizations are already known");
+
+for (const file of ["src/i18n/translations/uz.ts", "src/i18n/translations/ru.ts"]) {
+  assert.doesNotMatch(
+    fs.readFileSync(file, "utf8"),
+    /otherOrganizationsBlacklist/,
+    `${file}: the 'other organizations' wording is gone`,
+  );
+}
 const sheet = fs.readFileSync("src/bottom-sheet/sheets/BlacklistOrganizationsSheet.tsx", "utf8");
 assert.match(
   sheet,

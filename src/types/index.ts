@@ -57,7 +57,8 @@ export type AuthStackParamList = {
   PhoneAuthVerify: {
     phoneNumber: string;
     maskedPhone: string;
-    expiresInSeconds: number;
+    /** Seconds until another code may be requested. */
+    resendAfterSeconds: number;
   };
 };
 

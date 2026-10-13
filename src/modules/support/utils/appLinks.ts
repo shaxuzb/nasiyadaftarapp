@@ -13,9 +13,10 @@ export interface AppLink {
 /** Keys the app has its own wording and icon for. Any other key still shows. */
 export const KNOWN_APP_LINK_KEYS = [
   "support",
-  "telegram_channel",
   "telegram_group",
   "instagram",
+  "organization_bot",
+  "client_bot",
 ] as const;
 
 export type KnownAppLinkKey = (typeof KNOWN_APP_LINK_KEYS)[number];
@@ -29,7 +30,6 @@ export function isKnownAppLinkKey(key: string): key is KnownAppLinkKey {
  * and for a key the server stops sending while a button still depends on it.
  */
 export const DEFAULT_APP_LINKS: readonly AppLink[] = [
-  { key: "telegram_channel", title: "Telegram", url: "https://t.me/rbsx_uz" },
   {
     key: "telegram_group",
     title: "Telegram",
@@ -41,13 +41,27 @@ export const DEFAULT_APP_LINKS: readonly AppLink[] = [
     url: "https://www.instagram.com/qarzdaftar.rbsx/",
   },
   { key: "support", title: "Admin", url: "https://t.me/richdev_1" },
+  // The owner's bot has always had this address. The customers' bot has no
+  // fallback: until the server names it, it is simply not offered.
+  {
+    key: "organization_bot",
+    title: "Telegram bot",
+    url: "https://t.me/qarz_daftar_rbsx_bot",
+  },
 ];
 
 /**
- * The two public profiles shown as icons in the profile header. Every other
- * link, including any key added later, is listed in the support sheet.
+ * Where each link the server sends is used:
+ *
+ *   instagram, telegram_group      icons in the profile header
+ *   support                        the profile's "contact and support" row,
+ *                                  and the admin contact buttons elsewhere
+ *   organization_bot, client_bot   the sheet behind the "Telegram bot" row
  */
-export const HEADER_APP_LINK_KEYS = ["instagram", "telegram_channel"] as const;
+export const HEADER_APP_LINK_KEYS = ["instagram", "telegram_group"] as const;
+
+/** The owner's daily-report bot first, then the bot customers talk to. */
+export const TELEGRAM_BOT_LINK_KEYS = ["organization_bot", "client_bot"] as const;
 
 /** Header icons, in the header's own order; only for links that were sent. */
 export function getHeaderAppLinks(links: readonly AppLink[]): AppLink[] {
@@ -55,18 +69,14 @@ export function getHeaderAppLinks(links: readonly AppLink[]): AppLink[] {
 }
 
 /**
- * The support sheet's rows: everything that is not a header icon. The admin
- * contact leads, since reaching a person is what the sheet is opened for; the
- * rest keep the server's order.
+ * The bots behind the profile's "Telegram bot" row, in the sheet's order. A
+ * bot the server did not list falls back to the bundled address when there is
+ * one, so the row never opens an empty sheet.
  */
-export function getSupportSheetLinks(links: readonly AppLink[]): AppLink[] {
-  const rows = links.filter(
-    (link) => !(HEADER_APP_LINK_KEYS as readonly string[]).includes(link.key),
+export function getTelegramBotLinks(links: readonly AppLink[]): AppLink[] {
+  return TELEGRAM_BOT_LINK_KEYS.flatMap(
+    (key) => findAppLink(links, key) ?? findAppLink(DEFAULT_APP_LINKS, key) ?? [],
   );
-  return [
-    ...rows.filter((link) => link.key === "support"),
-    ...rows.filter((link) => link.key !== "support"),
-  ];
 }
 
 /**

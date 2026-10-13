@@ -16,7 +16,8 @@ const summary = fs.readFileSync(
 
 assert.match(status, /usePaymentOrderLifecycle/);
 assert.match(status, /syncOnForeground:\s*true/);
-assert.match(status, /openCheckoutOnMount/);
+assert.match(status, /props\.syncOnMount/);
+assert.doesNotMatch(status, /openCheckoutOnMount/);
 assert.match(status, /useConfirmDialog/);
 assert.match(status, /order\.status === "pending"/);
 assert.match(status, /order\.status === "paid"/);

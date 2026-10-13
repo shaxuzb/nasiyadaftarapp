@@ -29,6 +29,14 @@ const amount = (value: unknown) => {
 const nullableInteger = (value: unknown) =>
   value === null || value === undefined ? null : integer(value);
 
+// For oldPrice and discountPercent: absent, null, zero or not a number all
+// mean "no discount to show".
+const positiveOrNull = (value: unknown) => {
+  if (value === null || value === undefined || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+};
+
 const bool = (value: unknown) => value === true;
 
 function unwrap(input: unknown): unknown {
@@ -106,6 +114,8 @@ export function parseSubscriptionPlans(input: unknown): SubscriptionPlan[] {
         name: text(value.name),
         description: text(value.description),
         price: amount(value.price),
+        oldPrice: positiveOrNull(value.oldPrice),
+        discountPercent: positiveOrNull(value.discountPercent),
         durationDays: nullableInteger(value.durationDays),
         maxOrganizations: nullableInteger(value.maxOrganizations),
         maxClients: nullableInteger(value.maxClients),
@@ -140,6 +150,8 @@ export function parseSmsPackages(input: unknown): SmsPackage[] {
         name: text(value.name, `${Math.max(0, integer(value.smsCount))} SMS`),
         smsCount: Math.max(0, integer(value.smsCount)),
         price: amount(value.price),
+        oldPrice: positiveOrNull(value.oldPrice),
+        discountPercent: positiveOrNull(value.discountPercent),
         stateId: integer(value.stateId),
         createdDate: text(value.createdDate),
         updatedDate: nullableText(value.updatedDate),

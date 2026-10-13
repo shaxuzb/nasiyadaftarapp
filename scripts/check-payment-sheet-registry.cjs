@@ -30,6 +30,33 @@ assert.match(types, /productType:\s*"subscription"/);
 assert.match(types, /productType:\s*"sms_package"/);
 assert.match(checkout, /usePaymentCheckout/);
 assert.match(checkout, /setDismissLocked\(true\)/);
+
+// A locked sheet ignores closeSheet(), so a sheet that locks itself while it
+// saves must unlock before it closes. (Locking no longer remounts the sheet's
+// content, which is what used to release the lock by accident.)
+const sheetProvider = fs.readFileSync("src/bottom-sheet/BottomSheetProvider.tsx", "utf8");
+assert.match(
+  sheetProvider,
+  /const closeSheet = useCallback\(\(afterDismiss\?: \(\) => void\) => \{\s*if \(dismissLockedRef\.current\) return;/,
+);
+const organizationProfile = fs.readFileSync(
+  "src/bottom-sheet/sheets/OrganizationProfileSheet.tsx",
+  "utf8",
+);
+assert.match(
+  organizationProfile,
+  /setDismissLocked\(false\);\s*closeSheet\(\);\s*\} catch \{/,
+  "The organization sheet unlocks itself before closing after a save",
+);
+for (const [name, source] of [["checkout", checkout]]) {
+  const closes = source.match(/closeSheet\(/g) ?? [];
+  const unlocksBeforeClose =
+    source.match(/setDismissLocked\(false\);\s*(?:submittingRef\.current = false;\s*)?(?:if \([^)]*\) \{\s*)?closeSheet\(/g) ?? [];
+  assert.ok(
+    unlocksBeforeClose.length >= 3,
+    name + ": each close after a locked submit is preceded by an unlock (" + unlocksBeforeClose.length + "/" + closes.length + ")",
+  );
+}
 assert.match(checkout, /closeSheet\(\(\)\s*=>/);
 assert.match(checkout, /openSheet\("paymentStatus"/);
 assert.doesNotMatch(checkout, /\bModal\b/);

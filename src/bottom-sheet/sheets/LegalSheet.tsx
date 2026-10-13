@@ -4,47 +4,42 @@ import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import {
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+} from "../../config/legalLinks";
 import { useTheme } from "../../hooks/useTheme";
 import { useTranslation } from "../../i18n";
-import {
-  useAppLinks,
-  useLinkOpener,
-} from "../../modules/support/hooks/useAppLinks";
-import {
-  getAppLinkDescription,
-  getAppLinkIcon,
-  getAppLinkTitle,
-} from "../../modules/support/utils/appLinkPresentation";
-import { getSupportSheetLinks } from "../../modules/support/utils/appLinks";
+import { useLinkOpener } from "../../modules/support/hooks/useAppLinks";
 import { radius, spacing, typography } from "../../theme";
 import { AppTheme } from "../../types";
 import type { SheetRenderProps } from "../types";
 
-export function SupportSheet({ closeSheet }: SheetRenderProps<"support">) {
+// The two documents the app is used under. Their addresses are fixed in the
+// app (config/legalLinks); nothing here comes from the server.
+const DOCUMENTS = [
+  {
+    key: "terms_of_service",
+    icon: "document-text-outline",
+    titleKey: "legal.terms.title",
+    descriptionKey: "legal.terms.description",
+    url: TERMS_OF_SERVICE_URL,
+  },
+  {
+    key: "privacy_policy",
+    icon: "shield-checkmark-outline",
+    titleKey: "legal.privacy.title",
+    descriptionKey: "legal.privacy.description",
+    url: PRIVACY_POLICY_URL,
+  },
+] as const;
+
+export function LegalSheet({ closeSheet }: SheetRenderProps<"legal">) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const links = useAppLinks();
   const { openingKey, open } = useLinkOpener();
-
-  // The admin contact and the discussion group, plus any link the server adds
-  // later; the two public profiles are icons in the profile header instead. A
-  // key the app has no wording for yet still appears here, with the server's
-  // title and a generic icon.
-  const options = useMemo(
-    () =>
-      getSupportSheetLinks(links).map((link) => ({
-        key: link.key,
-        icon: getAppLinkIcon(link.key),
-        title: getAppLinkTitle(link, t),
-        description: getAppLinkDescription(link, t),
-        loading: openingKey === link.key,
-        onPress: () => void open(link),
-      })),
-    [links, open, openingKey, t],
-  );
-
   const busy = openingKey !== null;
 
   return (
@@ -56,11 +51,15 @@ export function SupportSheet({ closeSheet }: SheetRenderProps<"support">) {
       <View style={styles.header}>
         <View style={styles.titleWrap}>
           <View style={styles.iconWrap}>
-            <Ionicons name="headset-outline" size={22} color={theme.primary} />
+            <Ionicons
+              name="document-text-outline"
+              size={22}
+              color={theme.primary}
+            />
           </View>
           <View style={styles.titleCopy}>
-            <Text style={styles.title}>{t("support.sheetTitle")}</Text>
-            <Text style={styles.subtitle}>{t("support.sheetSubtitle")}</Text>
+            <Text style={styles.title}>{t("legal.sheetTitle")}</Text>
+            <Text style={styles.subtitle}>{t("legal.sheetSubtitle")}</Text>
           </View>
         </View>
         <Pressable
@@ -74,53 +73,52 @@ export function SupportSheet({ closeSheet }: SheetRenderProps<"support">) {
       </View>
 
       <View style={styles.options}>
-        {options.length === 0 ? (
-          <Text style={styles.empty}>{t("support.empty")}</Text>
-        ) : null}
-        {options.map((option) => (
-          <Pressable
-            key={option.key}
-            accessibilityRole="link"
-            accessibilityLabel={option.title}
-            accessibilityHint={option.description || undefined}
-            accessibilityState={{ disabled: busy, busy: option.loading }}
-            disabled={busy}
-            onPress={option.onPress}
-            style={({ pressed }) => [
-              styles.option,
-              pressed && styles.pressed,
-              busy && !option.loading && styles.dimmed,
-            ]}
-          >
-            <View style={styles.optionIcon}>
-              <Ionicons name={option.icon} size={20} color={theme.primary} />
-            </View>
-            <View style={styles.optionCopy}>
-              <Text style={styles.optionTitle} numberOfLines={1}>
-                {option.title}
-              </Text>
-              {option.description ? (
-                <Text style={styles.optionDescription} numberOfLines={2}>
-                  {option.description}
+        {DOCUMENTS.map((document) => {
+          const loading = openingKey === document.key;
+          const title = t(document.titleKey);
+          const description = t(document.descriptionKey);
+          return (
+            <Pressable
+              key={document.key}
+              accessibilityRole="link"
+              accessibilityLabel={title}
+              accessibilityHint={description}
+              accessibilityState={{ disabled: busy, busy: loading }}
+              disabled={busy}
+              onPress={() => void open(document)}
+              style={({ pressed }) => [
+                styles.option,
+                pressed && styles.pressed,
+                busy && !loading && styles.dimmed,
+              ]}
+            >
+              <View style={styles.optionIcon}>
+                <Ionicons name={document.icon} size={20} color={theme.primary} />
+              </View>
+              <View style={styles.optionCopy}>
+                <Text style={styles.optionTitle} numberOfLines={1}>
+                  {title}
                 </Text>
-              ) : null}
-            </View>
-            {option.loading ? (
-              <ActivityIndicator size="small" color={theme.primary} />
-            ) : (
-              <Ionicons
-                name="chevron-forward"
-                size={20}
-                color={theme.textMuted}
-              />
-            )}
-          </Pressable>
-        ))}
+                <Text style={styles.optionDescription} numberOfLines={2}>
+                  {description}
+                </Text>
+              </View>
+              {loading ? (
+                <ActivityIndicator size="small" color={theme.primary} />
+              ) : (
+                // Leaves the app for the browser, unlike a row that goes
+                // deeper into the app.
+                <Ionicons name="open-outline" size={18} color={theme.textMuted} />
+              )}
+            </Pressable>
+          );
+        })}
       </View>
     </BottomSheetView>
   );
 }
 
+// The same frame as the Telegram bots sheet, so the two read as siblings.
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     container: {
@@ -186,12 +184,6 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "700",
     },
     optionDescription: { ...typography.caption, color: theme.textSecondary },
-    empty: {
-      ...typography.bodyMedium,
-      color: theme.textSecondary,
-      textAlign: "center",
-      paddingVertical: spacing.lg,
-    },
     pressed: { opacity: 0.72 },
     dimmed: { opacity: 0.5 },
   });

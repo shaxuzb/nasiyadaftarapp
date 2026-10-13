@@ -37,6 +37,9 @@ async function main() {
     },
     get: async (url, config) => {
       calls.push({ method: "get", url, config });
+      if (url === "/payments/providers") {
+        return { data: [{ code: "payme", title: "Payme", isDefault: true }] };
+      }
       return {
         data: url === "/payments" ? [{ raw: "history" }] : { raw: "order" },
       };
@@ -48,6 +51,9 @@ async function main() {
     "../utils/paymentParsing": {
       parsePaymentOrder: () => parsedOrder,
       parsePaymentOrders: () => parsedOrders,
+    },
+    "../utils/paymentProviders": {
+      parsePaymentProviders: (payload) => payload.map((item) => item.code),
     },
   });
 
@@ -77,6 +83,34 @@ async function main() {
   assert.equal(sms.method, "post");
   assert.equal(sms.body, undefined);
   assert.equal(sms.config.headers["Idempotency-Key"], "uuid-sms");
+
+  // Without a choice the request is what it always was: no provider at all,
+  // and the server pays through its default.
+  assert.equal("params" in subscription.config, false);
+  assert.equal("params" in sms.config, false);
+
+  // With one, it travels in the query string, next to the same headers.
+  await service.createSubscriptionPayment(3, "uuid-sub-click", "click");
+  await service.createSmsPackagePayment(4, "uuid-sms-payme", "payme");
+  await service.createSubscriptionPayment(5, "uuid-sub-none", null);
+  const viaClick = calls.find((call) => call.url === "/payments/subscriptions/3");
+  assert.equal(viaClick.config.params.provider, "click");
+  assert.equal(viaClick.config.headers["Idempotency-Key"], "uuid-sub-click");
+  assert.equal(viaClick.body, undefined);
+  const viaPayme = calls.find((call) => call.url === "/payments/sms-packages/4");
+  assert.equal(viaPayme.config.params.provider, "payme");
+  assert.equal(viaPayme.config.headers["Idempotency-Key"], "uuid-sms-payme");
+  const viaNone = calls.find((call) => call.url === "/payments/subscriptions/5");
+  assert.equal("params" in viaNone.config, false);
+
+  const controller = new AbortController();
+  assert.equal(
+    JSON.stringify(await service.getPaymentProviders(controller.signal)),
+    JSON.stringify(["payme"]),
+  );
+  const providers = calls.find((call) => call.url === "/payments/providers");
+  assert.equal(providers.method, "get");
+  assert.equal(providers.config.signal, controller.signal);
 
   assert.ok(
     calls.some(

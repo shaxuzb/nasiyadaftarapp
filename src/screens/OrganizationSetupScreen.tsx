@@ -15,9 +15,11 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import { useTheme } from "../hooks/useTheme";
+import { OfferConsent } from "../modules/organization/components/OfferConsent";
 import { buildOrganizationSetupPayload } from "../modules/organization/utils/organizationSetup";
 import type { OrganizationRequest } from "../modules/organization/types";
 import { radius, spacing, typography } from "../theme";
+import { hapticError } from "../utils/haptics";
 
 export function OrganizationSetupScreen() {
   const theme = useTheme();
@@ -28,6 +30,12 @@ export function OrganizationSetupScreen() {
   const { showToast } = useToast();
   const [name, setName] = useState("");
   const [nameError, setNameError] = useState<string>();
+  // A first organization is where a new user agrees to the public offer. The
+  // checkbox is always here and always required; that does not depend on any
+  // answer from the server. Agreeing is the user's own act: never ticked for
+  // them.
+  const [offerAccepted, setOfferAccepted] = useState(false);
+  const [offerError, setOfferError] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useFocusEffect(
@@ -58,7 +66,7 @@ export function OrganizationSetupScreen() {
   );
 
   const handleCreate = useCallback(async () => {
-    const payload = buildOrganizationSetupPayload(name);
+    const payload = buildOrganizationSetupPayload(name, offerAccepted);
 
     if (!payload) {
       setNameError(t("organization.nameError"));
@@ -66,6 +74,15 @@ export function OrganizationSetupScreen() {
     }
 
     setNameError(undefined);
+
+    // The button is off until the box is ticked, but the keyboard's "done"
+    // key still gets here; it says what is missing instead of doing nothing.
+    if (!offerAccepted) {
+      setOfferError(true);
+      void hapticError();
+      return;
+    }
+
     setIsSaving(true);
 
     try {
@@ -75,7 +92,12 @@ export function OrganizationSetupScreen() {
     } finally {
       setIsSaving(false);
     }
-  }, [handleCreateOrganization, name, t]);
+  }, [handleCreateOrganization, name, offerAccepted, t]);
+
+  const handleOfferChange = useCallback((accepted: boolean) => {
+    setOfferAccepted(accepted);
+    setOfferError(false);
+  }, []);
 
   return (
     <ScreenContainer style={styles.screen} scrollable={false} padded={false}>
@@ -136,11 +158,19 @@ export function OrganizationSetupScreen() {
                   onSubmitEditing={() => void handleCreate()}
                   error={nameError}
                 />
+                <View style={styles.consent}>
+                  <OfferConsent
+                    checked={offerAccepted}
+                    onChange={handleOfferChange}
+                    error={offerError ? t("organization.offerRequired") : undefined}
+                    disabled={isSaving}
+                  />
+                </View>
                 <PrimaryButton
                   label={t("organization.createAction")}
                   onPress={() => void handleCreate()}
                   loading={isSaving}
-                  disabled={!name.trim() || isSaving}
+                  disabled={!name.trim() || !offerAccepted || isSaving}
                 />
               </View>
 
@@ -207,6 +237,9 @@ const organizationSetupStyles = StyleSheet.create({
     },
     form: {
       marginTop: spacing.lg,
+    },
+    consent: {
+      marginBottom: spacing.md,
     },
     switchAccount: {
       alignSelf: "center",

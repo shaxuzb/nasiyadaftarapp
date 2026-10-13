@@ -1,5 +1,11 @@
 import React, { memo, useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
 import { formatLocalizedDate, useTranslation } from "../../i18n";
+import { useClientBlacklist } from "../../modules/clients/hooks/useClientBlacklist";
 import type { BlacklistedOrganization } from "../../modules/clients/types";
 import { radius, spacing, typography } from "../../theme";
 import { AppTheme } from "../../types";
@@ -15,8 +22,13 @@ import type { SheetRenderProps } from "../types";
 
 /**
  * Where a customer is blacklisted: each organization, the day it happened and
- * that organization's own limit. The profile's badge only says "blacklisted";
- * this is what a seller needs before deciding whether to sell on credit.
+ * that organization's own limit. The badge beside a customer only says
+ * "blacklisted"; this is what a seller needs before deciding whether to sell
+ * on credit.
+ *
+ * It opens from the customer list, the SMS list and the profile. Only the
+ * profile already has the organizations; from the lists the sheet reads the
+ * customer's record itself, so it opens at once and fills in a moment later.
  *
  * Amounts are deliberately not shown here, only where and since when.
  */
@@ -29,7 +41,11 @@ export function BlacklistOrganizationsSheet({
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const { currentOrganization } = useAuth();
-  const { customerName, organizations } = props;
+  const { customerId, customerName } = props;
+  const { organizations, isLoading, isError, retry } = useClientBlacklist(
+    customerId,
+    props.organizations,
+  );
 
   return (
     <BottomSheetScrollView
@@ -63,26 +79,56 @@ export function BlacklistOrganizationsSheet({
         </Pressable>
       </View>
 
-      <View style={styles.summary}>
-        <Text style={styles.summaryLabel}>
-          {t("customers.blacklistSheetCount", { count: organizations.length })}
-        </Text>
-      </View>
+      {isLoading ? (
+        <View style={styles.state}>
+          <ActivityIndicator color={theme.primary} />
+          <Text style={styles.stateText}>{t("common.loading")}</Text>
+        </View>
+      ) : isError ? (
+        <View style={styles.state}>
+          <Text style={styles.stateText}>
+            {t("customers.blacklistSheetLoadError")}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={retry}
+            style={({ pressed }) => [styles.retry, pressed && styles.pressed]}
+          >
+            <Text style={styles.retryText}>{t("customers.retry")}</Text>
+          </Pressable>
+        </View>
+      ) : organizations.length === 0 ? (
+        <View style={styles.state}>
+          <Text style={styles.stateText}>
+            {t("customers.blacklistSheetEmpty")}
+          </Text>
+        </View>
+      ) : (
+        <>
+          <View style={styles.summary}>
+            <Text style={styles.summaryLabel}>
+              {t("customers.blacklistSheetCount", {
+                count: organizations.length,
+              })}
+            </Text>
+          </View>
 
-      <View style={styles.list}>
-        {organizations.map((organization, index) => (
-          <OrganizationCard
-            key={organization.id ?? `${organization.name}-${index}`}
-            organization={organization}
-            isOwn={
-              organization.id !== undefined &&
-              organization.id === currentOrganization?.id
-            }
-          />
-        ))}
-      </View>
+          <View style={styles.list}>
+            {organizations.map((organization, index) => (
+              <OrganizationCard
+                key={organization.id ?? `${organization.name}-${index}`}
+                organization={organization}
+                isOwn={
+                  organization.id !== undefined &&
+                  organization.id === currentOrganization?.id
+                }
+              />
+            ))}
+          </View>
 
-      <Text style={styles.hint}>{t("customers.blacklistLimitHint")}</Text>
+          <Text style={styles.hint}>{t("customers.blacklistLimitHint")}</Text>
+        </>
+      )}
     </BottomSheetScrollView>
   );
 }
@@ -205,6 +251,32 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "700",
     },
     list: { gap: spacing.sm },
+    // Tall enough that the sheet does not jump when the list arrives.
+    state: {
+      minHeight: 140,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    stateText: {
+      ...typography.bodyMedium,
+      color: theme.textSecondary,
+      textAlign: "center",
+    },
+    retry: {
+      minHeight: 40,
+      justifyContent: "center",
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.full,
+      backgroundColor: theme.primaryLight,
+    },
+    retryText: {
+      ...typography.bodyMedium,
+      color: theme.primary,
+      fontWeight: "700",
+    },
+    pressed: { opacity: 0.7 },
     card: {
       gap: spacing.sm,
       padding: spacing.sm + 4,

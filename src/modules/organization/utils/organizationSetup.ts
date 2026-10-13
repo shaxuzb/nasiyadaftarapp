@@ -6,6 +6,7 @@ import type { OrganizationRequest } from "../types";
  */
 export function buildOrganizationSetupPayload(
   name: string,
+  offerAccepted = false,
 ): OrganizationRequest | null {
   const normalizedName = name.trim();
 
@@ -15,5 +16,8 @@ export function buildOrganizationSetupPayload(
     name: normalizedName,
     address: "",
     note: "",
+    // Sent only as an agreement. Without one the field is left out, and the
+    // server decides whether the organization may be created.
+    ...(offerAccepted ? { offerAccepted: true as const } : {}),
   };
 }

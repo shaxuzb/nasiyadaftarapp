@@ -9,6 +9,8 @@ export interface StartPaymentCheckoutInput {
   userId: number;
   productType: PaymentProductType;
   productId: number;
+  /** A code from the provider list; null or absent lets the server choose. */
+  provider?: string | null;
 }
 
 export interface StartPaymentCheckoutResult {
@@ -21,6 +23,7 @@ interface PaymentLifecycleDependencies {
     userId: number,
     productType: PaymentProductType,
     productId: number,
+    provider?: string | null,
   ): Promise<PaymentCheckoutAttempt>;
   clearCheckoutAttempt(
     userId: number,
@@ -36,10 +39,12 @@ interface PaymentLifecycleDependencies {
   createSubscriptionPayment(
     productId: number,
     idempotencyKey: string,
+    provider?: string | null,
   ): Promise<PaymentOrder>;
   createSmsPackagePayment(
     productId: number,
     idempotencyKey: string,
+    provider?: string | null,
   ): Promise<PaymentOrder>;
   syncPayment(orderId: number): Promise<PaymentOrder>;
   cancelPayment(orderId: number): Promise<PaymentOrder>;
@@ -100,10 +105,12 @@ export function createPaymentLifecycleCore({
   async function startCheckout(
     input: StartPaymentCheckoutInput,
   ): Promise<StartPaymentCheckoutResult> {
+    const provider = input.provider ?? null;
     const attempt = await getOrCreateCheckoutAttempt(
       input.userId,
       input.productType,
       input.productId,
+      provider,
     );
 
     const order =
@@ -111,10 +118,12 @@ export function createPaymentLifecycleCore({
         ? await createSubscriptionPayment(
             input.productId,
             attempt.idempotencyKey,
+            provider,
           )
         : await createSmsPackagePayment(
             input.productId,
             attempt.idempotencyKey,
+            provider,
           );
 
     await clearCheckoutAttempt(

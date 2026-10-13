@@ -99,7 +99,9 @@ export function VideoLessonsScreen() {
   }, [selected, showToast, t]);
 
   return (
-    <SafeAreaView style={styles.safe} edges={["top"]}>
+    // Top and bottom both. With only the top, the last lesson ended up under
+    // the home indicator on an iPhone and under the navigation bar on Android.
+    <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"

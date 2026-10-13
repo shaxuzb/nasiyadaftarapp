@@ -21,7 +21,8 @@ export type SheetType =
   | "paymentStatus"
   | "paymentDetail"
   | "pendingPayments"
-  | "support"
+  | "telegramBots"
+  | "legal"
   | "datePicker"
   | "blacklistOrganizations";
 
@@ -43,11 +44,15 @@ export interface TransactionDetailSheetProps {
 
 export type LanguageSheetProps = Record<never, never>;
 
-export type SupportSheetProps = Record<never, never>;
+export type TelegramBotsSheetProps = Record<never, never>;
+
+export type LegalSheetProps = Record<never, never>;
 
 export interface BlacklistOrganizationsSheetProps {
+  customerId: number;
   customerName: string;
-  organizations: BlacklistedOrganization[];
+  /** Pass when already known (the profile has them); otherwise the sheet loads them. */
+  organizations?: BlacklistedOrganization[];
 }
 
 export interface DatePickerSheetProps {
@@ -76,7 +81,11 @@ export type PaymentCheckoutSheetProps =
 
 export interface PaymentStatusSheetProps {
   orderId: number;
-  openCheckoutOnMount?: boolean;
+  /**
+   * The user has just come back from the payment page: ask the server how the
+   * payment went as soon as the sheet opens.
+   */
+  syncOnMount?: boolean;
 }
 
 export interface PaymentDetailSheetProps {
@@ -96,7 +105,8 @@ export interface SheetPropsMap {
   paymentStatus: PaymentStatusSheetProps;
   paymentDetail: PaymentDetailSheetProps;
   pendingPayments: PendingPaymentsSheetProps;
-  support: SupportSheetProps;
+  telegramBots: TelegramBotsSheetProps;
+  legal: LegalSheetProps;
   datePicker: DatePickerSheetProps;
   blacklistOrganizations: BlacklistOrganizationsSheetProps;
 }

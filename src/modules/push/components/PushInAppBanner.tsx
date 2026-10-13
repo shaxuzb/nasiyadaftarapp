@@ -100,8 +100,13 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       left: spacing.md,
       right: spacing.md,
       zIndex: 100,
+      // Centres the banner once it stops growing with the window.
+      alignItems: "center",
     },
     banner: {
+      width: "100%",
+      // Same limit as a toast, so the two line up on a tablet.
+      maxWidth: 520,
       minHeight: 72,
       flexDirection: "row",
       alignItems: "center",

@@ -12,14 +12,16 @@ import {
 type IconName = ComponentProps<typeof Ionicons>["name"];
 type Translate = (key: TranslateKey) => string;
 
-// Ionicons ships the Instagram mark but no Telegram one, so Telegram links use
-// a paper plane and a group. Adding FontAwesome for that single glyph would put
-// another 162 KB font in the bundle.
+// Ionicons ships the Instagram mark but no Telegram one, so the Telegram group
+// uses a paper plane. Adding FontAwesome for that single glyph would put
+// another 162 KB font in the bundle. The two bots are told apart by what they
+// are for: a report for the owner, people for the customers.
 const ICONS: Record<KnownAppLinkKey, IconName> = {
   support: "chatbubble-ellipses-outline",
-  telegram_channel: "paper-plane-outline",
-  telegram_group: "people-outline",
+  telegram_group: "paper-plane-outline",
   instagram: "logo-instagram",
+  organization_bot: "bar-chart-outline",
+  client_bot: "people-outline",
 };
 
 /** A key the app does not know yet still gets a row, with this icon. */

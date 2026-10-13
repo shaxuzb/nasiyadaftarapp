@@ -1,4 +1,5 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+import { APP_BUILD, APP_PLATFORM, APP_VERSION } from "../config/appInfo";
 import { API_BASE_URL } from "../config/env";
 import {
   assertOnlineForMutation,
@@ -6,6 +7,7 @@ import {
 } from "../core/network/networkState";
 import { AuthRefreshResponse } from "../modules/auth/types";
 import { isPublicAccountRoute } from "./accountRoute";
+import { buildAppRequestHeaders } from "./appHeaders";
 import {
   clearAuthSession,
   getAuthSessionSync,
@@ -88,15 +90,34 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-apiClient.interceptors.request.use((config) => {
+apiClient.interceptors.request.use(async (config) => {
   if (isServerMutationMethod(config.method)) {
     assertOnlineForMutation();
   }
 
+  // A refresh is under way. Sent now, this request would carry the token that
+  // is being replaced, come back 401 after the refresh has finished, and start
+  // a second refresh for the same expiry. It waits and leaves with the new
+  // token instead. Whether the refresh worked is not this request's concern.
+  if (refreshPromise && !isPublicAccountRoute(config.url)) {
+    await refreshPromise.catch(() => null);
+  }
+
   const session = getAuthSessionSync();
+  config.headers = config.headers ?? {};
   if (session?.token) {
-    config.headers = config.headers ?? {};
     config.headers.Authorization = `Bearer ${session.token}`;
+  }
+  // Which app is calling. The backend reads these from every request, so the
+  // version never has to be reported through a call of its own.
+  const appHeaders = buildAppRequestHeaders({
+    version: APP_VERSION,
+    platform: APP_PLATFORM,
+    build: APP_BUILD,
+    deviceId: session?.uniqueId,
+  });
+  for (const name of Object.keys(appHeaders)) {
+    config.headers[name] = appHeaders[name];
   }
   return config;
 });
@@ -117,6 +138,21 @@ apiClient.interceptors.response.use(
     }
 
     originalRequest._retry = true;
+
+    // This request left before a refresh that has since finished, so its 401
+    // is about a token nobody uses any more. Retrying with the current one is
+    // all it needs; refreshing again would send a second refresh for one
+    // expiry, which the server rejects.
+    const sentAuthorization = String(originalRequest.headers?.Authorization ?? "");
+    const currentToken = getAuthSessionSync()?.token;
+    if (
+      currentToken &&
+      sentAuthorization &&
+      sentAuthorization !== `Bearer ${currentToken}`
+    ) {
+      originalRequest.headers.Authorization = `Bearer ${currentToken}`;
+      return apiClient(originalRequest);
+    }
 
     try {
       const newToken = await refreshAccessToken();

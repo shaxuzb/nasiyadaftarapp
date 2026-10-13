@@ -14,7 +14,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useAccountSecurity } from "../modules/account/context/AccountSecurityContext";
 import { hasVerifiedPhone } from "../modules/account/utils/accountStatus";
-import { openTelegramBot } from "../modules/bot/services/telegramBotService";
 import { useAuth } from "../context/AuthContext";
 import { useConfirmDialog } from "../context/ConfirmDialogContext";
 import { ThemeMode, useThemeContext } from "../context/ThemeContext";
@@ -32,6 +31,7 @@ import {
   getAppLinkIcon,
   getAppLinkTitle,
 } from "../modules/support/utils/appLinkPresentation";
+import { useAdminContact } from "../modules/support/hooks/useAdminContact";
 import { getHeaderAppLinks } from "../modules/support/utils/appLinks";
 import {
   isPaidPlanCode,
@@ -163,7 +163,7 @@ export function SettingsScreen() {
   const { openingKey: openingLinkKey, open: openLink } = useLinkOpener();
   // Instagram and the Telegram channel; the support sheet has the rest.
   const headerLinks = useMemo(() => getHeaderAppLinks(appLinks), [appLinks]);
-  const [isOpeningBot, setIsOpeningBot] = useState(false);
+  const { isOpening: isOpeningAdmin, openAdminContact } = useAdminContact();
   const [upgradeReason, setUpgradeReason] =
     useState<SubscriptionUpgradeReason | null>(null);
   const subscriptionQuery = useCurrentSubscription();
@@ -260,21 +260,11 @@ export function SettingsScreen() {
     openSheet,
   ]);
 
+  // The bots know the owner by their phone number, so that is confirmed
+  // first, as before. Then the sheet says which bot is for what.
   const handleOpenBot = useCallback(() => {
-    if (isOpeningBot) return;
-
-    requireVerifiedPhone(() => {
-      setIsOpeningBot(true);
-      void openTelegramBot()
-        .catch((error: unknown) => {
-          showToast(
-            getLocalizedApiErrorMessage(error, "profile.botOpenError", t),
-            "error",
-          );
-        })
-        .finally(() => setIsOpeningBot(false));
-    }, "telegram");
-  }, [isOpeningBot, requireVerifiedPhone, showToast, t]);
+    requireVerifiedPhone(() => openSheet("telegramBots", {}), "telegram");
+  }, [openSheet, requireVerifiedPhone]);
 
   const handleOpenBlacklist = useCallback(() => {
     if (isPaidSubscription) {
@@ -588,7 +578,6 @@ export function SettingsScreen() {
                 ? handleOpenBot
                 : () => setUpgradeReason("telegram")
             }
-            loading={telegramEnabled && isOpeningBot}
             badge={telegramEnabled ? undefined : t("subscription.standardPlan")}
           />
           ) : null}
@@ -606,7 +595,17 @@ export function SettingsScreen() {
             iconBackground={theme.primaryLight}
             title={t("profile.supportRowTitle")}
             description={t("profile.supportRowDescription")}
-            onPress={() => openSheet("support", {})}
+            // One person to write to, so the row goes straight there.
+            onPress={() => void openAdminContact()}
+            loading={isOpeningAdmin}
+          />
+          <ProfileMenuRow
+            icon="document-text-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title={t("profile.legalRowTitle")}
+            description={t("profile.legalRowDescription")}
+            onPress={() => openSheet("legal", {})}
             isLast
           />
         </View>

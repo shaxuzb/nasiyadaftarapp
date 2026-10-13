@@ -17,7 +17,12 @@ import {
 import { AppInput } from "../../../components/AppInput";
 import { PrimaryButton } from "../../../components/PrimaryButton";
 import { useTheme } from "../../../hooks/useTheme";
+import {
+  isOfferAcceptedForOrganization,
+  type OrganizationOfferConsent,
+} from "../../offer/utils/offer";
 import { OrganizationRequest } from "../types";
+import { OfferConsent } from "./OfferConsent";
 import { AppTheme } from "../../../types";
 import { useTranslation } from "../../../i18n";
 
@@ -27,11 +32,17 @@ const KeyboardBottomSheetScrollView =
 interface Props {
   closeSheet: () => void;
   onSubmit: (payload: OrganizationRequest) => Promise<void>;
+  /** What this form shows and sends about the public offer. */
+  offerConsent: OrganizationOfferConsent;
+  /** The answer about the offer is still on its way; creating waits for it. */
+  offerLoading: boolean;
 }
 
 export function OrganizationCreateSheetContent({
   closeSheet,
   onSubmit,
+  offerConsent,
+  offerLoading,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -42,6 +53,10 @@ export function OrganizationCreateSheetContent({
   const [note, setNote] = useState("");
   const [nameError, setNameError] = useState<string | undefined>();
   const [saving, setSaving] = useState(false);
+  const [offerAccepted, setOfferAccepted] = useState(false);
+  // Where the checkbox is shown, it has to be ticked.
+  const waitingForOffer =
+    offerLoading || (offerConsent.visible && !offerAccepted);
 
   async function handleCreate() {
     const normalizedName = name.trim();
@@ -49,6 +64,7 @@ export function OrganizationCreateSheetContent({
       setNameError(t("organization.nameError"));
       return;
     }
+    if (waitingForOffer) return;
 
     setSaving(true);
     try {
@@ -56,6 +72,9 @@ export function OrganizationCreateSheetContent({
         name: normalizedName,
         address: address.trim(),
         note: note.trim(),
+        ...(isOfferAcceptedForOrganization(offerConsent, offerAccepted)
+          ? { offerAccepted: true as const }
+          : {}),
       });
       Keyboard.dismiss();
       closeSheet();
@@ -144,6 +163,15 @@ export function OrganizationCreateSheetContent({
           style={styles.noteInput}
         />
 
+        {/* Asked only of someone who has not accepted the offer yet. */}
+        {offerConsent.visible ? (
+          <OfferConsent
+            checked={offerAccepted}
+            onChange={setOfferAccepted}
+            disabled={saving}
+          />
+        ) : null}
+
         <View style={styles.actions}>
           <Text style={styles.requiredHint}>{t("organization.requiredHint")}</Text>
           <PrimaryButton
@@ -152,7 +180,7 @@ export function OrganizationCreateSheetContent({
               void handleCreate();
             }}
             loading={saving}
-            disabled={saving}
+            disabled={saving || waitingForOffer}
           />
           <TouchableOpacity
             accessibilityRole="button"

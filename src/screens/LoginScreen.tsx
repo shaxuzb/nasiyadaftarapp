@@ -6,7 +6,7 @@ interface Props {
   onGoToVerify: (params: {
     phoneNumber: string;
     maskedPhone: string;
-    expiresInSeconds: number;
+    resendAfterSeconds: number;
   }) => void;
 }
 

@@ -23,6 +23,12 @@ import {
   requestProfilePhoneCode,
 } from "../services/accountService";
 import { useOtpAutoFill } from "../../auth/hooks/useOtpAutoFill";
+import {
+  forgetCodeRequest,
+  getActiveCodeRequest,
+  readCodeRequestTimes,
+  rememberCodeRequest,
+} from "../../auth/utils/codeRequestCooldown";
 import { useTranslation } from "../../../i18n";
 import { getLocalizedApiErrorMessage } from "../../../i18n/apiErrors";
 
@@ -68,6 +74,7 @@ export function PhoneVerificationModal({
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const otpRef = useRef<OtpInputHandle>(null);
+  const requestingRef = useRef(false);
   const [phoneNumber, setPhoneNumber] = useState(currentPhone || "+998 ");
   const [requestedPhone, setRequestedPhone] = useState("");
   const [maskedPhone, setMaskedPhone] = useState("");
@@ -105,12 +112,33 @@ export function PhoneVerificationModal({
     }
 
     const normalizedPhone = toStoredUzPhone(phoneNumber);
+
+    // "Change number" and back again with the same number: the code already
+    // sent is still good and another would be refused, so go straight to it.
+    const active = getActiveCodeRequest("profile", normalizedPhone);
+    if (active) {
+      setRequestedPhone(normalizedPhone);
+      setMaskedPhone(active.maskedPhone);
+      setError(undefined);
+      setStage("code");
+      requestAnimationFrame(() => otpRef.current?.focus());
+      return;
+    }
+
+    if (requestingRef.current) return;
+    requestingRef.current = true;
     setLoading(true);
     setError(undefined);
     try {
       const response = await requestProfilePhoneCode({
         phoneNumber: normalizedPhone,
       });
+      rememberCodeRequest(
+        "profile",
+        normalizedPhone,
+        response.maskedPhone,
+        readCodeRequestTimes(response),
+      );
       setRequestedPhone(normalizedPhone);
       setMaskedPhone(response.maskedPhone);
       setStage("code");
@@ -118,6 +146,7 @@ export function PhoneVerificationModal({
     } catch (requestError) {
       setError(getLocalizedApiErrorMessage(requestError, "errors.generic", t));
     } finally {
+      requestingRef.current = false;
       setLoading(false);
     }
   }
@@ -132,6 +161,7 @@ export function PhoneVerificationModal({
     setError(undefined);
     try {
       await onVerified(requestedPhone, code.trim());
+      forgetCodeRequest("profile", requestedPhone);
       onDismiss();
     } catch (confirmError) {
       setError(

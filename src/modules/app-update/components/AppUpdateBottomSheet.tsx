@@ -21,6 +21,7 @@ import { useTranslation } from "../../../i18n";
 import { palette, radius, spacing, typography } from "../../../theme";
 import { AppTheme } from "../../../types";
 import { AvailableAppUpdate } from "../types/appUpdate.types";
+import { useSheetFrameStyle } from "../../../hooks/useSheetFrameStyle";
 
 interface AppUpdateBottomSheetProps {
   update: AvailableAppUpdate;
@@ -40,6 +41,7 @@ export function AppUpdateBottomSheet({
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const modalRef = useRef<BottomSheetModal>(null);
+  const sheetFrame = useSheetFrameStyle();
   const isIOS = update.platform === "ios";
   const styles = useMemo(() => createStyles(theme, isIOS), [isIOS, theme]);
 
@@ -138,6 +140,8 @@ export function AppUpdateBottomSheet({
   return (
     <BottomSheetModal
       ref={modalRef}
+      // A centred column on a tablet, like the screen behind it.
+      style={sheetFrame}
       index={0}
       enableDynamicSizing
       maxDynamicContentSize={Math.max(360, height - insets.top - spacing.md)}

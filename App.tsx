@@ -21,6 +21,7 @@ import { AppUpdateGate } from "./src/modules/app-update";
 import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
 import { AccountSecurityProvider } from "./src/modules/account/context/AccountSecurityContext";
 import { AppLockProvider } from "./src/modules/pin-auth/context/AppLockContext";
+import { OfferAcceptanceGate } from "./src/modules/offer/components/OfferAcceptanceGate";
 import { PaymentRecoveryGate } from "./src/modules/payments/components/PaymentRecoveryGate";
 import { LanguageProvider } from "./src/i18n";
 import { PushNotificationProvider } from "./src/modules/push/context/PushNotificationContext";
@@ -67,6 +68,7 @@ function ThemedApp() {
                                       backgroundColor={theme.background}
                                     />
                                     <AppNavigator />
+                                    <OfferAcceptanceGate />
                                   </AppUpdateGate>
                                 </BottomSheetProvider>
                               </ConfirmDialogProvider>

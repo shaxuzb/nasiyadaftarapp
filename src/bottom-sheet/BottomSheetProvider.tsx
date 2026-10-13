@@ -12,6 +12,8 @@ import {
   BottomSheetModal,
 } from "@gorhom/bottom-sheet";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
+import { useDismissOnAppLock } from "../modules/pin-auth/hooks/useDismissOnAppLock";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   KeyboardController,
@@ -53,6 +55,7 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
+  const sheetFrame = useSheetFrameStyle();
   const modalRef = useRef<BottomSheetModal>(null);
   const [activeEntry, setActiveEntry] = useState<ActiveSheetEntry | null>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -65,6 +68,28 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
   }, []);
   const afterDismissRef = useRef<(() => void) | undefined>(undefined);
   const openRequestRef = useRef(0);
+  // Whether present() has been called on the sheet that is mounted now. It is
+  // mounted a frame before it is presented, and until then it must not be
+  // told to dismiss: the library would mark it "dismissing" with nothing to
+  // animate away, and then refuse to draw it.
+  const presentedRef = useRef(false);
+
+  // The PIN screen has taken over: drop the sheet, whatever it was doing. A
+  // sheet still waiting to open is cancelled too, and nothing is run "after
+  // dismiss", since the user did not finish anything.
+  useDismissOnAppLock(() => {
+    openRequestRef.current += 1;
+    afterDismissRef.current = undefined;
+    setDismissLocked(false);
+    if (presentedRef.current) {
+      modalRef.current?.dismiss();
+    } else {
+      // Mounted but not presented yet: take it away instead. Clearing the
+      // entry also cancels the frame that was about to present it.
+      setActiveEntry(null);
+      setIsOpen(false);
+    }
+  });
 
   const closeSheet = useCallback((afterDismiss?: () => void) => {
     if (dismissLockedRef.current) return;
@@ -107,9 +132,13 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
+    presentedRef.current = false;
     if (!activeEntry) return;
     // Present only after React has committed the modal ref and its providers.
-    const frame = requestAnimationFrame(() => modalRef.current?.present());
+    const frame = requestAnimationFrame(() => {
+      presentedRef.current = true;
+      modalRef.current?.present();
+    });
     return () => cancelAnimationFrame(frame);
   }, [activeEntry]);
 
@@ -198,6 +227,8 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
         >
           <BottomSheetModal
             ref={modalRef}
+            // A centred column on a tablet, like the screen behind it.
+            style={sheetFrame}
             index={0}
             snapPoints={activeDefinition.snapPoints}
             enableDynamicSizing={activeDefinition.enableDynamicSizing ?? false}
@@ -207,9 +238,13 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
               !dismissLocked && (activeDefinition.enablePanDownToClose ?? true)
             }
             enableHandlePanningGesture={!dismissLocked}
-            enableContentPanningGesture={
-              activeEntry.type !== "transaction" && !dismissLocked
-            }
+            // Not tied to the dismiss lock. The library renders the content
+            // inside a different wrapper component depending on this flag, so
+            // flipping it while a sheet is open remounts the sheet: whatever
+            // the user had chosen is reset and its "saving" state is lost in
+            // the middle of the request. A locked sheet still cannot be
+            // closed: pan-to-close above is what the lock turns off.
+            enableContentPanningGesture={activeEntry.type !== "transaction"}
             // Keep the sheet anchored above the keyboard instead of expanding it
             // to the whole screen. This matches the native messaging UX.
             keyboardBehavior="interactive"

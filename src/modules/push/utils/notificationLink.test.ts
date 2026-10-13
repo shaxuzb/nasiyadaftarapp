@@ -93,9 +93,48 @@ for (const bad of [undefined, "", "0", "-1", "1.5", "4a", " 4", "999999999999999
   assert.equal(parseRouteId(bad), null);
 }
 
-/* The backend sends full addresses today; whatever rules are added must be well formed. */
+/* The real table: every path the backend may send. */
 
-assert.ok(Array.isArray(INTERNAL_ROUTE_RULES));
+for (const [path, expected] of [
+  ["/customers", { screen: "MainTabs", tab: "Customers" }],
+  ["/customers/427", { screen: "CustomerDetail", params: { customerId: 427 } }],
+  ["/reports", { screen: "MainTabs", tab: "Reports" }],
+  ["/sms", { screen: "MainTabs", tab: "ClientSms" }],
+  ["/sms/history", { screen: "ClientSmsHistory" }],
+  ["/profile", { screen: "MainTabs", tab: "Settings" }],
+  ["/subscription", { screen: "Subscription" }],
+  ["/payments", { screen: "PaymentHistory" }],
+  ["/security", { screen: "AccountSecurity" }],
+  ["/blacklist", { screen: "BlacklistSettings" }],
+  ["/notifications", { screen: "Notifications" }],
+  ["/notification-settings", { screen: "NotificationSettings" }],
+  ["/videos", { screen: "VideoLessons" }],
+  ["/videos/sms", { screen: "VideoLessons", params: { lessonId: "sms" } }],
+  ["/videos/no-such-lesson", { screen: "VideoLessons" }],
+  // Forgiving about case, a trailing slash and a query.
+  ["/Subscription/", { screen: "Subscription" }],
+  ["/sms?from=push", { screen: "MainTabs", tab: "ClientSms" }],
+] as const) {
+  assert.deepEqual(matchInternalRoute(path), expected, path);
+}
+
+for (const path of [
+  "/",
+  "/unknown",
+  "/customers/abc",
+  "/customers/0",
+  "/sms/history/extra",
+  "/pin",
+  "/pin-change",
+]) {
+  assert.equal(matchInternalRoute(path), null, path);
+}
+
+assert.equal(
+  new Set(INTERNAL_ROUTE_RULES.map((rule: { pattern: string }) => rule.pattern)).size,
+  INTERNAL_ROUTE_RULES.length,
+  "Two rules for one path: the second would never be reached",
+);
 for (const rule of INTERNAL_ROUTE_RULES) {
   assert.match(rule.pattern, /^\/[\w/:-]*$/, `Malformed pattern: ${rule.pattern}`);
 }

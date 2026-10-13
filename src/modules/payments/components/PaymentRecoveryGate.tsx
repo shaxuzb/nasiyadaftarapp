@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { AppState } from "react-native";
 
 import { useBottomSheet } from "../../../bottom-sheet";
 import { useAuth } from "../../../context/AuthContext";
 import { useAppLock } from "../../pin-auth/context/AppLockContext";
+import { takeAwaitedPaymentReturn } from "../services/paymentReturn";
 import { getPendingPayments } from "../services/paymentStorage";
 import { shouldRecoverPendingPayment } from "../utils/paymentRecovery";
 
@@ -18,6 +20,27 @@ export function PaymentRecoveryGate({ enabled }: PaymentRecoveryGateProps) {
   const [pendingOpenedExternally, setPendingOpenedExternally] =
     useState(false);
   const recoveredOrderId = useRef<number | null>(null);
+  const returnedOrderId = useRef<number | null>(null);
+
+  // The checkout sheet sent the user to a payment page and closed. When the
+  // app is in front again, that order becomes the one to show. Opening its
+  // sheet is left to the effect below, which also waits for the PIN screen
+  // and for any sheet still on its way out.
+  useEffect(() => {
+    let previousState = AppState.currentState;
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      const cameBack = nextState === "active" && previousState !== "active";
+      previousState = nextState;
+      if (!cameBack) return;
+
+      const orderId = takeAwaitedPaymentReturn();
+      if (orderId === null) return;
+      returnedOrderId.current = orderId;
+      setPendingOrderId(orderId);
+      setPendingOpenedExternally(true);
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -70,7 +93,10 @@ export function PaymentRecoveryGate({ enabled }: PaymentRecoveryGateProps) {
 
     const orderId = pendingOrderId as number;
     recoveredOrderId.current = orderId;
-    openSheet("paymentStatus", { orderId });
+    // Straight back from paying: what the app knows is from before the user
+    // left, so the sheet asks the server as it opens.
+    const justReturned = orderId === returnedOrderId.current;
+    openSheet("paymentStatus", justReturned ? { orderId, syncOnMount: true } : { orderId });
   }, [
     enabled,
     isBootstrapping,

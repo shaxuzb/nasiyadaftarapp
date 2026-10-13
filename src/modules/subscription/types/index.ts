@@ -34,7 +34,12 @@ export interface SubscriptionPlan {
   code: string;
   name: string;
   description: string;
+  /** What is charged. */
   price: number;
+  /** The price before the discount, for display only; null when there is none. */
+  oldPrice: number | null;
+  /** The discount as the server states it, for display only. */
+  discountPercent: number | null;
   durationDays: number | null;
   maxOrganizations: number | null;
   maxClients: number | null;
@@ -53,7 +58,12 @@ export interface SmsPackage {
   code: string;
   name: string;
   smsCount: number;
+  /** What is charged. */
   price: number;
+  /** The price before the discount, for display only; null when there is none. */
+  oldPrice: number | null;
+  /** The discount as the server states it, for display only. */
+  discountPercent: number | null;
   stateId: number;
   createdDate: string;
   updatedDate: string | null;

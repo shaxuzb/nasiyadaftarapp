@@ -230,4 +230,52 @@ assert(
   "Fulfilled order must clear pending, update canonical cache, then refresh entitlement",
 );
 
+const providerEvents: string[] = [];
+const providerCore = createPaymentLifecycleCore({
+  getOrCreateCheckoutAttempt: async (_userId, _type, _id, provider) => {
+    providerEvents.push(`attempt:${provider ?? "none"}`);
+    return attempt;
+  },
+  clearCheckoutAttempt: async () => undefined,
+  savePendingPayment: async () => undefined,
+  clearPendingPayment: async () => undefined,
+  createSubscriptionPayment: async (_id, _key, provider) => {
+    providerEvents.push(`subscription:${provider ?? "none"}`);
+    return baseOrder;
+  },
+  createSmsPackagePayment: async (_id, _key, provider) => {
+    providerEvents.push(`sms:${provider ?? "none"}`);
+    return baseOrder;
+  },
+  syncPayment: async () => baseOrder,
+  cancelPayment: async () => baseOrder,
+  getCheckoutUrl: () => null,
+  shouldPersistPending: () => false,
+  isFulfilled: () => false,
+  onCanonicalOrder: async () => undefined,
+  onFulfilled: async () => undefined,
+});
+await providerCore.startCheckout({
+  userId: 7,
+  productType: "subscription",
+  productId: 2,
+  provider: "click",
+});
+await providerCore.startCheckout({
+  userId: 7,
+  productType: "sms_package",
+  productId: 1,
+  provider: "payme",
+});
+await providerCore.startCheckout({
+  userId: 7,
+  productType: "subscription",
+  productId: 2,
+});
+assert(
+  providerEvents.join(",") ===
+    "attempt:click,subscription:click,attempt:payme,sms:payme,attempt:none,subscription:none",
+  "The chosen provider reaches both the idempotency attempt and the request; none stays none",
+);
+
 console.log("Payment lifecycle orchestration tests passed");

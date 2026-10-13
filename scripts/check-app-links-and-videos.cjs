@@ -122,7 +122,7 @@ async function main() {
   );
   for (const file of [
     "src/screens/SettingsScreen.tsx",
-    "src/bottom-sheet/sheets/SupportSheet.tsx",
+    "src/bottom-sheet/sheets/TelegramBotsSheet.tsx",
     "src/modules/support/hooks/useAdminContact.ts",
   ]) {
     assert.doesNotMatch(read(file), /https?:\/\/|t\.me\//, `${file} must not carry an address of its own`);
@@ -188,6 +188,11 @@ async function main() {
   /* 7. The player is paid for only when somebody watches. */
 
   const screen = read("src/screens/VideoLessonsScreen.tsx");
+  assert.match(
+    screen,
+    /<SafeAreaView style=\{styles\.safe\} edges=\{\["top", "bottom"\]\}>/,
+    "The lessons list must stay clear of the status bar and of the system bar at the bottom",
+  );
   assert.match(
     screen,
     /\{playback === "playing" \? \(\s*<YouTubePlayer/,

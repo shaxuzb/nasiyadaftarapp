@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Image,
@@ -31,6 +37,11 @@ import {
   requestGoogleIdToken,
 } from "../modules/auth/services/googleSignInService";
 import { requestPhoneAuthCode } from "../services/authApi";
+import {
+  getActiveCodeRequest,
+  readCodeRequestTimes,
+  rememberCodeRequest,
+} from "../modules/auth/utils/codeRequestCooldown";
 import { useTheme } from "../hooks/useTheme";
 import { APP_NAME } from "../constants";
 import { radius, spacing, typography } from "../theme";
@@ -45,7 +56,7 @@ interface Props {
   onGoToVerify: (params: {
     phoneNumber: string;
     maskedPhone: string;
-    expiresInSeconds: number;
+    resendAfterSeconds: number;
   }) => void;
 }
 
@@ -82,6 +93,7 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
     };
   }, []);
 
+  const requestingRef = useRef(false);
   const handlePhoneChange = useCallback((value: string) => {
     setPhoneNumber(value);
   }, []);
@@ -93,15 +105,36 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
     }
 
     const normalizedPhone = toStoredUzPhone(phoneNumber);
+
+    // A code was sent to this number moments ago and the server will not send
+    // another yet. Coming back from the code screen and tapping again used to
+    // fire a request that was bound to be refused; now it returns to the code
+    // that is already on its way.
+    const active = getActiveCodeRequest("login", normalizedPhone);
+    if (active) {
+      onGoToVerify({
+        phoneNumber: normalizedPhone,
+        maskedPhone: active.maskedPhone,
+        resendAfterSeconds: active.resendAfterSeconds,
+      });
+      showToast(t("auth.phoneAuth.codeAlreadySent"), "success");
+      return;
+    }
+
+    // State alone lets a second tap through before the button re-renders.
+    if (requestingRef.current) return;
+    requestingRef.current = true;
     setLoading(true);
     try {
       const response = await requestPhoneAuthCode({
         phoneNumber: normalizedPhone,
       });
+      const times = readCodeRequestTimes(response);
+      rememberCodeRequest("login", normalizedPhone, response.maskedPhone, times);
       onGoToVerify({
         phoneNumber: normalizedPhone,
         maskedPhone: response.maskedPhone,
-        expiresInSeconds: response.expiresInSeconds,
+        resendAfterSeconds: times.resendAfterSeconds,
       });
       showToast(t("auth.phoneAuth.smsSent"), "success");
     } catch (error) {
@@ -114,6 +147,7 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
         "error",
       );
     } finally {
+      requestingRef.current = false;
       setLoading(false);
     }
   }, [onGoToVerify, phoneNumber, showToast, t]);

@@ -1,4 +1,5 @@
 import type { MainTabParamList, RootStackParamList } from "../../../types";
+import type { VideoLessonId } from "../../video-lessons/utils/videoLessons";
 
 /**
  * Where a notification leads. The backend sends one string, `link`, with the
@@ -43,15 +44,69 @@ export interface InternalRouteRule {
   ) => InternalRoute | null;
 }
 
+const tab = (name: keyof MainTabParamList) => (): InternalRoute => ({
+  screen: "MainTabs",
+  tab: name,
+});
+
+const screen =
+  (name: Exclude<keyof RootStackParamList, "MainTabs">) => (): InternalRoute => ({
+    screen: name,
+  });
+
+// Kept here as plain text so this file stays free of runtime imports; the
+// type makes a misspelt or removed lesson a compile error.
+const VIDEO_LESSON_IDS: readonly VideoLessonId[] = [
+  "register",
+  "customers",
+  "reports",
+  "sms",
+  "profile",
+  "payment",
+];
+
 /**
- * The paths the backend sends, and the screen each one opens.
+ * The paths a notification may carry, and the screen each one opens. This
+ * list is the contract with the backend: it sends one of these as `link`.
  *
- * Empty on purpose: today the backend sends full https:// addresses, which
- * need no entry here. Add a rule when it starts sending a path; until then a
- * "/..." link opens the inbox, which is also what an older build does with a
- * path added after it shipped.
+ * A path that is not listed is not an error. The notification opens the inbox
+ * instead, which is also what an older build does with a path added after it
+ * shipped. The same happens when the screen is not offered on this device
+ * (some are left out by region or plan).
+ *
+ * Changing the PIN is deliberately not reachable from a notification.
  */
-export const INTERNAL_ROUTE_RULES: readonly InternalRouteRule[] = [];
+export const INTERNAL_ROUTE_RULES: readonly InternalRouteRule[] = [
+  { pattern: "/customers", build: tab("Customers") },
+  {
+    pattern: "/customers/:customerId",
+    build: ({ customerId }) => {
+      const id = parseRouteId(customerId);
+      return id ? { screen: "CustomerDetail", params: { customerId: id } } : null;
+    },
+  },
+  { pattern: "/reports", build: tab("Reports") },
+  { pattern: "/sms", build: tab("ClientSms") },
+  { pattern: "/sms/history", build: screen("ClientSmsHistory") },
+  { pattern: "/profile", build: tab("Settings") },
+  { pattern: "/subscription", build: screen("Subscription") },
+  { pattern: "/payments", build: screen("PaymentHistory") },
+  { pattern: "/security", build: screen("AccountSecurity") },
+  { pattern: "/blacklist", build: screen("BlacklistSettings") },
+  { pattern: "/notifications", build: screen("Notifications") },
+  { pattern: "/notification-settings", build: screen("NotificationSettings") },
+  { pattern: "/videos", build: screen("VideoLessons") },
+  {
+    pattern: "/videos/:lessonId",
+    build: ({ lessonId }) => {
+      const id = VIDEO_LESSON_IDS.find((item) => item === lessonId);
+      // An unknown lesson still opens the list; it just starts nothing.
+      return id
+        ? { screen: "VideoLessons", params: { lessonId: id } }
+        : { screen: "VideoLessons" };
+    },
+  },
+];
 
 function decode(segment: string): string {
   try {

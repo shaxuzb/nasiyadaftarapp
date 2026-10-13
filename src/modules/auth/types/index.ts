@@ -44,7 +44,10 @@ export interface PhoneAuthConfirmRequest extends PhoneAuthRequest {
 
 export interface PhoneAuthRequestResponse {
   maskedPhone: string;
+  /** How long the code works. */
   expiresInSeconds: number;
+  /** How soon another code may be requested; absent on an older server. */
+  resendAfterSeconds?: number;
 }
 
 export interface AppleLoginRequest {

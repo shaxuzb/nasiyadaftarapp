@@ -101,6 +101,9 @@ function createNavigationRef({ ready = true, routeNames, tabNames } = {}) {
     "@react-navigation/native": {
       createNavigationContainerRef: () => ref,
       CommonActions: { navigate: (payload) => ({ type: "NAVIGATE", payload }) },
+      StackActions: {
+        popTo: (name, params) => ({ type: "POP_TO", payload: { name, params } }),
+      },
     },
   });
   return { module, dispatched };
@@ -184,8 +187,10 @@ async function main() {
 
   const tabs = createNavigationRef({ tabNames: ["Customers", "Reports", "Settings"] });
   assert.equal(tabs.module.navigateToInternalRoute({ screen: "MainTabs", tab: "Reports" }), true);
+  // POP_TO, so a link tapped in the inbox returns to the existing tabs instead
+  // of pushing a second copy of them on top.
   assert.deepEqual(plain(tabs.dispatched), [
-    { type: "NAVIGATE", payload: { name: "MainTabs", params: { screen: "Reports" } } },
+    { type: "POP_TO", payload: { name: "MainTabs", params: { screen: "Reports" } } },
   ]);
   assert.equal(
     tabs.module.navigateToInternalRoute({ screen: "MainTabs", tab: "ClientSms" }),
@@ -233,6 +238,31 @@ async function main() {
   await fallback.open({ notificationId: 4, link: null });
   assert.deepEqual(fallback.env.inbox, [9, 4], "No usable link opens the inbox, as before");
   assert.deepEqual(fallback.env.read, [], "Opening the inbox does not mark anything read");
+
+  /* 6b. The real table reaches every screen it names. */
+
+  const real = load("src/modules/push/utils/notificationLink.ts", {});
+  const stackScreens = new Set();
+  const tabScreens = new Set();
+  for (const rule of real.INTERNAL_ROUTE_RULES) {
+    const sample = rule.pattern.replace(":customerId", "5").replace(":lessonId", "sms");
+    const route = real.matchInternalRoute(sample);
+    assert.ok(route, `${rule.pattern} must resolve`);
+    if (route.screen === "MainTabs") tabScreens.add(route.tab);
+    else stackScreens.add(route.screen);
+  }
+  const navigator = read("src/navigation/index.tsx");
+  for (const name of stackScreens) {
+    assert.match(navigator, new RegExp(`<Stack\\.Screen\\s+name="${name}"`), `${name} is not a screen`);
+  }
+  for (const name of tabScreens) {
+    assert.match(navigator, new RegExp(`<Tab\\.Screen\\s+name="${name}"`), `${name} is not a tab`);
+  }
+  assert.doesNotMatch(
+    read("src/modules/push/utils/notificationLink.ts").split("INTERNAL_ROUTE_RULES")[2] ?? "",
+    /PinChange/,
+    "Changing the PIN must not be reachable from a notification",
+  );
 
   /* 7. All three taps go through the same door. */
 

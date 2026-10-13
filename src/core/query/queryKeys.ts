@@ -7,6 +7,7 @@ export const queryKeys = {
   subscriptionPlans: () => ["subscription", "plans"] as const,
   subscriptionSmsPackages: () => ["subscription", "sms-packages"] as const,
   paymentsRoot: () => ["payments"] as const,
+  paymentProviders: () => ["payments", "providers"] as const,
   paymentsHistoryRoot: () => ["payments", "history"] as const,
   paymentsHistory: (limit: number) => ["payments", "history", limit] as const,
   pendingPayment: (userId: QueryScope) => ["payments", "pending", userId] as const,
@@ -23,6 +24,9 @@ export const queryKeys = {
   clientSmsHistory: (scope: QueryScope, filters: object) =>
     ["client-sms", scope, "history", filters] as const,
   appLinks: () => ["app", "links"] as const,
+  offer: () => ["offer", "info"] as const,
+  offerStatus: (userId: QueryScope, scope: QueryScope) =>
+    ["offer", "status", userId, scope] as const,
   organizationsRoot: () => ["organizations"] as const,
   currentOrganization: (scope: QueryScope) =>
     ["organizations", scope, "current"] as const,

@@ -13,17 +13,13 @@ const backHandlerHook = fs.readFileSync(
 assert.doesNotMatch(modal, /\bModal\b/);
 assert.match(modal, /BottomSheetModal/);
 assert.match(modal, /BottomSheetBackdrop/);
-assert.match(modal, /BottomSheetFooter/);
 assert.match(modal, /BottomSheetScrollView/);
-assert.match(modal, /enableFooterMarginAdjustment/);
-assert.match(modal, /footerComponent=\{renderFooter\}/);
+// The sheet has no footer any more: a package row goes straight on to payment,
+// so nothing is "selected" and nothing needs a sticky button under the list.
+assert.doesNotMatch(modal, /footerComponent|renderFooter|enableFooterMarginAdjustment/);
 assert.match(
   modal,
   /const contentBottomInset = Math\.max\(insets\.bottom, spacing\.md\) \+ 10/,
-);
-assert.match(
-  modal,
-  /<BottomSheetFooter \{\.\.\.footerProps\} bottomInset=\{0\}>/,
 );
 assert.match(modal, /paddingBottom:\s*spacing\.md/);
 assert.match(
@@ -39,7 +35,13 @@ assert.match(
 );
 assert.match(modal, /enablePanDownToClose/);
 assert.match(modal, /onDismiss=\{handleDismiss\}/);
-assert.match(modal, /styles\.stickyAction/);
+// Packages are one tappable row each, the same row the plans screen uses; a
+// tap goes on to payment, so there is no selected state and no sticky footer.
+assert.match(
+  modal,
+  /<SmsPackageRow\s+key=\{item\.id\}\s+item=\{item\}\s+onPress=\{openPackagePayment\}/,
+);
+assert.doesNotMatch(modal, /stickyAction|selectedPackage|BottomSheetFooter|packageGrid|packageCard/);
 assert.match(modal, /const paidPlanCatalog = useMemo/);
 assert.match(modal, /isPaidPlanCode/);
 assert.match(modal, /options\.showPlans/);
@@ -51,9 +53,11 @@ assert.match(
   modal,
   /<View style=\{styles\.header\}>\s*[\s\S]*?<Text style=\{styles\.title\}>[\s\S]*?<\/Text>/,
 );
+// The package list shows when the user asked for it, or straight away when
+// packages are all the sheet has to offer.
 assert.match(
   modal,
-  /const showingPackageCatalog = options\.showPackages && showPackageCatalog/,
+  /const showingPackageCatalog =\s*options\.showPackages && \(showPackageCatalog \|\| packagesOnly\);/,
 );
 assert.match(
   modal,
@@ -82,7 +86,12 @@ assert.doesNotMatch(modal, /viewSubscriptionAfterDismissRef/);
 assert.doesNotMatch(modal, /subscription\.upgrade\.viewPlans/);
 assert.doesNotMatch(modal, /subscription\.nowNot/);
 assert.match(modal, /transactionSmsEnabled/);
-assert.match(modal, /prioritySupportEnabled/);
+// 24/7 help comes with every plan, the free one included, so the comparison
+// ticks it for both columns instead of reading the server's switch.
+assert.match(
+  modal,
+  /label: t\("subscription\.featurePrioritySupport"\),\s*freeEnabled: true,\s*selectedEnabled: true,/,
+);
 assert.doesNotMatch(modal, /function proPlan/);
 assert.doesNotMatch(modal, /showPro/);
 assert.match(backHandlerHook, /BackHandler/);

@@ -27,6 +27,7 @@ import { useTheme } from "../hooks/useTheme";
 import type { AppTheme } from "../types";
 import { useToast } from "../context/ToastContext";
 import { PrimaryButton } from "../components/PrimaryButton";
+import { useOrganizationOffer } from "../modules/offer/hooks/useOffer";
 import { OrganizationCreateSheetContent } from "../modules/organization/components/OrganizationCreateSheetContent";
 import { OrganizationRequest } from "../modules/organization/types";
 import {
@@ -37,6 +38,8 @@ import { SubscriptionUpgradeModal } from "../modules/subscription/components/Sub
 import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 import { useBottomSheetBackHandler } from "../bottom-sheet";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
+import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
+import { useDismissSheetOnAppLock } from "../bottom-sheet/useDismissSheetOnAppLock";
 
 const SHEET_SPRING = {
   damping: 80,
@@ -66,8 +69,18 @@ export function OrganizationSelectScreen() {
   } = useAuth();
   const [selectingId, setSelectingId] = useState<number | null>(null);
   const createSheetRef = useRef<BottomSheetModal>(null);
+  const sheetFrame = useSheetFrameStyle();
+  // Must not stay open on top of the PIN screen, and must not be "closed"
+  // while it is not open: see useDismissSheetOnAppLock.
+  const createSheet = useDismissSheetOnAppLock(createSheetRef);
   const createSnapPoints = useMemo(() => ["68%", "100%"], []);
   const [isCreateSheetOpen, setIsCreateSheetOpen] = useState(false);
+  // Asked only once the form is open: most visits to this screen are to pick
+  // an organization, not to create one.
+  const organizationOffer = useOrganizationOffer({
+    checkAccepted: true,
+    enabled: isCreateSheetOpen,
+  });
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const canCreate = canCreateOrganization(
     user?.subscription,
@@ -97,8 +110,8 @@ export function OrganizationSelectScreen() {
   const closeCreateSheet = useCallback(() => {
     setIsCreateSheetOpen(false);
     Keyboard.dismiss();
-    createSheetRef.current?.dismiss();
-  }, []);
+    createSheet.dismiss();
+  }, [createSheet]);
 
   const handleBack = useCallback(() => {
     Keyboard.dismiss();
@@ -247,7 +260,7 @@ export function OrganizationSelectScreen() {
             label={t("organization.create")}
             onPress={() => {
               setIsCreateSheetOpen(true);
-              createSheetRef.current?.present();
+              createSheet.present();
             }}
             variant="outline"
           />
@@ -320,6 +333,8 @@ export function OrganizationSelectScreen() {
       </ScrollView>
       <BottomSheetModal
         ref={createSheetRef}
+        // A centred column on a tablet, like the screen behind it.
+        style={sheetFrame}
         index={0}
         snapPoints={createSnapPoints}
         enableDynamicSizing={false}
@@ -334,6 +349,7 @@ export function OrganizationSelectScreen() {
         animationConfigs={SHEET_SPRING}
         onChange={(index) => setIsCreateSheetOpen(index >= 0)}
         onDismiss={() => {
+          createSheet.handleDismissed();
           setIsCreateSheetOpen(false);
           Keyboard.dismiss();
         }}
@@ -343,6 +359,8 @@ export function OrganizationSelectScreen() {
         <OrganizationCreateSheetContent
           closeSheet={closeCreateSheet}
           onSubmit={handleCreateOrganization}
+          offerConsent={organizationOffer.consent}
+          offerLoading={organizationOffer.isLoading}
         />
       </BottomSheetModal>
       {regionalCapabilities.upgradePromptsVisible ? (

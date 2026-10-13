@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -14,44 +14,46 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
-import {
-  formatLocalizedCurrency,
-  formatLocalizedDate,
-  useTranslation,
-} from "../i18n";
+import { formatLocalizedCurrency, useTranslation } from "../i18n";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import {
   useCurrentSubscription,
   useSmsPackages,
   useSubscriptionPlans,
 } from "../modules/subscription/hooks/useSubscription";
+import { isMonthlyPlan } from "../modules/subscription/utils/planPeriod";
+import { getPlanTaglineKey } from "../modules/subscription/utils/planTagline";
 import { getPlanPurchaseAvailability } from "../modules/subscription/utils/planPurchase";
+import { DiscountSummary } from "../modules/subscription/components/PriceDiscount";
+import { SmsPackageRow } from "../modules/subscription/components/SmsPackageRow";
+import type { SmsPackage } from "../modules/subscription/types";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 type PlanIconName = React.ComponentProps<typeof Ionicons>["name"];
 
+/** One capability of a plan, as a chip on its card. */
+interface PlanFeature {
+  key: string;
+  enabled: boolean;
+  text: string;
+  icon: PlanIconName;
+  iconColor?: string;
+}
+
+// Telegram's own blue, so its two chips read as Telegram at a glance.
+const TELEGRAM_BLUE = "#229ED9";
+
 const SCREEN_COPY = {
   uz: {
     subtitle: "Ehtiyojingizga mos tarifni tanlang",
     oneMonth: "1 oylik tariflar",
     currentBadge: "Joriy tarif",
-    dayUnit: "kun",
     bestChoice: "Eng yaxshi tanlov",
-    renewsIn: (days: number) => `Tarifingiz ${days} kundan so‘ng yangilanadi`,
-    renewsToday: "Tarifingiz bugun yangilanadi",
-    activeNow: "Tarif hozir faol",
-    freeDescription: "Asosiy imkoniyatlar bilan tanishing",
-    standardDescription: "Kengaytirilgan imkoniyatlar bilan",
-    premiumDescription: "To‘liq imkoniyatlar, maksimal qulaylik",
     unlimitedOrganizations: "Cheksiz tashkilot",
     unlimitedClients: "Cheksiz mijoz",
     reports: "Hisobotlar",
-    autoSms: "Tranzaksiyalar uchun avto SMS",
-    support247: "24/7 qo‘llab-quvvatlash",
-    noBlacklist: "Qora ro‘yxat",
-    telegram: "Telegram bot",
     more: "+2",
     smsSubtitle: "Qo‘shimcha SMS oling",
     info: "Tarif yoki SMS paketni tanlang. To‘lov xavfsiz tashqi sahifada davom etadi.",
@@ -60,33 +62,15 @@ const SCREEN_COPY = {
     subtitle: "Выберите тариф под свои задачи",
     oneMonth: "Тарифы на 1 месяц",
     currentBadge: "Текущий тариф",
-    dayUnit: "дн.",
     bestChoice: "Лучший выбор",
-    renewsIn: (days: number) => `Тариф обновится через ${days} дн.`,
-    renewsToday: "Тариф обновится сегодня",
-    activeNow: "Тариф активен",
-    freeDescription: "Познакомьтесь с основными возможностями",
-    standardDescription: "Расширенные возможности для работы",
-    premiumDescription: "Все возможности и максимальный комфорт",
     unlimitedOrganizations: "Безлимит организаций",
     unlimitedClients: "Безлимит клиентов",
     reports: "Отчёты",
-    autoSms: "Авто SMS о транзакциях",
-    support247: "Поддержка 24/7",
-    noBlacklist: "Чёрный список",
-    telegram: "Telegram-бот",
     more: "+2",
     smsSubtitle: "Дополнительные SMS",
     info: "Выберите тариф или пакет SMS. Оплата продолжится на защищённой внешней странице.",
   },
 } as const;
-
-function daysUntil(date: string | null): number | null {
-  if (!date) return null;
-  const end = new Date(date).getTime();
-  if (!Number.isFinite(end)) return null;
-  return Math.max(0, Math.ceil((end - Date.now()) / 86_400_000));
-}
 
 function getPlanIcon(code: string): PlanIconName {
   const normalized = code.trim().toUpperCase();
@@ -141,11 +125,8 @@ export function SubscriptionScreen() {
   };
 
   const getPlanDescription = (code: string, fallback: string) => {
-    const normalized = code.toUpperCase();
-    if (normalized === "FREE") return copy.freeDescription;
-    if (normalized === "STANDARD") return copy.standardDescription;
-    if (normalized === "PREMIUM") return copy.premiumDescription;
-    return fallback;
+    const taglineKey = getPlanTaglineKey(code);
+    return taglineKey ? t(taglineKey) : fallback;
   };
 
   const openPlanPayment = (plan: (typeof plans)[number]) => {
@@ -155,18 +136,15 @@ export function SubscriptionScreen() {
     });
   };
 
-  const currentStatusText = (() => {
-    if (!current) return null;
-    if (current.cancellationRequestedAt && current.endAt) {
-      return t("subscription.planActiveUntil", {
-        date: formatLocalizedDate(current.endAt, locale),
+  const openPackagePayment = useCallback(
+    (item: SmsPackage) => {
+      openSheet("paymentCheckout", {
+        productType: "sms_package",
+        package: item,
       });
-    }
-
-    const days = daysUntil(current.endAt);
-    if (days === null) return copy.activeNow;
-    return days === 0 ? copy.renewsToday : copy.renewsIn(days);
-  })();
+    },
+    [openSheet],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -191,104 +169,6 @@ export function SubscriptionScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
-        {current ? (
-          <View style={styles.currentCard}>
-            <View style={styles.currentTop}>
-              <View style={styles.currentIcon}>
-                <Ionicons
-                  name="sparkles-outline"
-                  size={28}
-                  color={theme.primary}
-                />
-              </View>
-
-              <View style={styles.flexCopy}>
-                <Text style={styles.currentEyebrow}>
-                  {copy.currentBadge.toUpperCase()}
-                </Text>
-                <Text style={styles.currentName}>
-                  {getPlanName(current.planCode, current.planName)}
-                </Text>
-                <Text style={styles.currentDescription} numberOfLines={2}>
-                  {getPlanDescription(current.planCode, current.planName)}
-                </Text>
-              </View>
-
-              <View style={styles.activeBadge}>
-                <View style={styles.activeDot} />
-                <Text style={styles.activeBadgeText}>
-                  {t("subscription.active")}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.currentStats}>
-              <View style={styles.currentStat}>
-                {/* <View style={styles.currentStatIcon}>
-                  <Ionicons
-                    name="chatbubble-ellipses-outline"
-                    size={19}
-                    color={theme.primary}
-                  />
-                </View> */}
-                <View style={styles.currentStatCentered}>
-                  <Text style={styles.currentStatValue}>
-                    {current.sms.totalRemaining === null
-                      ? "∞"
-                      : current.sms.totalRemaining}
-                  </Text>
-                  <Text style={styles.currentStatLabel}>
-                    {t("subscription.remainingSms")}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.currentStatDivider} />
-
-              <View style={styles.currentStatCentered}>
-                <Text style={styles.currentStatSymbol}>
-                  {current.unlimitedOrganizations
-                    ? "∞"
-                    : (current.maxOrganizations ?? 0)}
-                </Text>
-                <Text style={styles.currentStatLabel}>
-                  {t("subscription.organizations")}
-                </Text>
-              </View>
-
-              <View style={styles.currentStatDivider} />
-
-              <View style={styles.currentStatCentered}>
-                <Ionicons
-                  name={
-                    current.blacklistEnabled
-                      ? "shield-checkmark-outline"
-                      : "shield-outline"
-                  }
-                  size={25}
-                  color={
-                    current.blacklistEnabled ? theme.primary : theme.textMuted
-                  }
-                />
-                <Text style={styles.currentStatLabel}>
-                  {t("subscription.blacklist")}
-                </Text>
-              </View>
-            </View>
-
-            {currentStatusText && current.cancellationRequestedAt ? (
-              <Text style={styles.currentCancellation} numberOfLines={1}>
-                {currentStatusText}
-              </Text>
-            ) : null}
-          </View>
-        ) : currentQuery.isPending ? (
-          <View style={styles.loadingCard}>
-            <ActivityIndicator color={theme.primary} />
-            <Text style={styles.muted}>{t("subscription.loadingCurrent")}</Text>
-          </View>
-        ) : null}
-
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>
             {t("subscription.availablePlans")}
@@ -312,16 +192,18 @@ export function SubscriptionScreen() {
               const availability = getPlanPurchaseAvailability(current, plan);
               const selectable = !isFree && !isCurrent && availability.allowed;
               const accent = getPlanAccent(plan.code, theme);
-              const duration = plan.durationDays ?? 30;
 
-              const features = [
+              const features: PlanFeature[] = [
                 {
                   key: "organizations",
                   enabled: true,
                   text:
                     plan.maxOrganizations === null
                       ? copy.unlimitedOrganizations
-                      : `${plan.maxOrganizations} ${t("subscription.organizations")}`,
+                      : t("subscription.organizationsPerPlan", {
+                          count: plan.maxOrganizations,
+                        }),
+                  icon: "business-outline",
                 },
                 {
                   // Every plan carries an unlimited client list, so this is not
@@ -329,6 +211,7 @@ export function SubscriptionScreen() {
                   key: "clients",
                   enabled: true,
                   text: copy.unlimitedClients,
+                  icon: "people-outline",
                 },
                 {
                   key: "sms",
@@ -339,6 +222,7 @@ export function SubscriptionScreen() {
                       : t("subscription.smsPerMonth", {
                           count: plan.monthlySmsLimit,
                         }),
+                  icon: "mail-outline",
                 },
                 {
                   // Reports are part of every plan. The plans endpoint has no
@@ -346,34 +230,60 @@ export function SubscriptionScreen() {
                   key: "reports",
                   enabled: true,
                   text: copy.reports,
+                  icon: "bar-chart-outline",
                 },
                 {
                   key: "blacklist",
                   enabled: plan.blacklistEnabled,
-                  text: copy.noBlacklist,
+                  text: t("subscription.featureBlacklist"),
+                  icon: "ban-outline",
                 },
+                // The Telegram bot is one switch on the server and two things
+                // to the shop owner: a daily report for them, and a message
+                // to the customer.
                 {
-                  key: "telegram",
+                  key: "telegramDailyReport",
                   enabled: plan.telegramBotEnabled,
-                  text: copy.telegram,
+                  text: t("subscription.featureTelegram"),
+                  icon: "paper-plane",
+                  iconColor: TELEGRAM_BLUE,
                 },
                 {
-                  key: "autoSms",
+                  key: "telegramMessage",
+                  enabled: plan.telegramBotEnabled,
+                  text: t("subscription.featureTelegramMessage"),
+                  icon: "paper-plane",
+                  iconColor: TELEGRAM_BLUE,
+                },
+                // Automatic SMS is likewise one switch and two occasions: each
+                // new debt, and a customer landing on the blacklist.
+                {
+                  key: "debtAutoSms",
                   enabled: plan.transactionSmsEnabled,
-                  text: copy.autoSms,
+                  text: t("subscription.featureTransactionSms"),
+                  icon: "time-outline",
                 },
                 {
+                  key: "blacklistAutoSms",
+                  enabled: plan.transactionSmsEnabled,
+                  text: t("subscription.featureBlacklistAutoSms"),
+                  icon: "settings-outline",
+                },
+                {
+                  // Every plan comes with 24/7 help, the free one included, so
+                  // this is not read from plan.prioritySupportEnabled.
                   key: "support",
-                  enabled: plan.prioritySupportEnabled,
-                  text: copy.support247,
+                  enabled: true,
+                  text: t("subscription.featurePrioritySupport"),
+                  icon: "headset-outline",
                 },
               ];
 
               // Each card lists only what its plan includes. A crossed-out
               // entry states what the reader does not get on the very card that
               // asks them to choose it, and the plans already read as a ladder
-              // through what each one does list: four capabilities on free, six
-              // on standard, all eight on premium.
+              // through what each one does list: five capabilities on free,
+              // eight on standard, all ten on premium.
               const visibleFeatures = features.filter(
                 (feature) => feature.enabled,
               );
@@ -462,11 +372,18 @@ export function SubscriptionScreen() {
                     <View>
                       {!isFree ? (
                         <View style={styles.priceWrap}>
+                          <DiscountSummary product={plan} />
                           <Text style={styles.priceAmount}>
                             {formatLocalizedCurrency(plan.price, locale)}
-                          </Text>
-                          <Text style={styles.pricePeriod}>
-                            / {duration} {copy.dayUnit}
+                            {/* Part of the same line of text, in small print:
+                                it says what the price is for without taking a
+                                line of its own. */}
+                            {isMonthlyPlan(plan.durationDays) ? (
+                              <Text style={styles.pricePeriod}>
+                                {" "}
+                                {t("subscription.pricePerMonth")}
+                              </Text>
+                            ) : null}
                           </Text>
                         </View>
                       ) : null}
@@ -484,6 +401,8 @@ export function SubscriptionScreen() {
                     {visibleFeatures.map((feature) => (
                       <FeatureChip
                         key={feature.key}
+                        icon={feature.icon}
+                        iconColor={feature.iconColor}
                         text={feature.text}
                         theme={theme}
                         styles={styles}
@@ -518,44 +437,11 @@ export function SubscriptionScreen() {
         ) : packages.length ? (
           <View style={styles.packageGrid}>
             {packages.map((item) => (
-              <Pressable
+              <SmsPackageRow
                 key={item.id}
-                accessibilityRole="button"
-                accessibilityLabel={item.name}
-                onPress={() =>
-                  openSheet("paymentCheckout", {
-                    productType: "sms_package",
-                    package: item,
-                  })
-                }
-                style={({ pressed }) => [
-                  styles.packageCard,
-                  pressed && styles.pressed,
-                ]}
-              >
-                <View style={styles.packageIcon}>
-                  <Ionicons
-                    name="chatbubble-ellipses-outline"
-                    size={20}
-                    color={theme.primary}
-                  />
-                </View>
-
-                <View style={styles.packageCopy}>
-                  <Text style={styles.packageName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Text style={styles.packagePrice} numberOfLines={1}>
-                    {formatLocalizedCurrency(item.price, locale)}
-                  </Text>
-                </View>
-
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={theme.textMuted}
-                />
-              </Pressable>
+                item={item}
+                onPress={openPackagePayment}
+              />
             ))}
           </View>
         ) : (
@@ -585,10 +471,15 @@ export function SubscriptionScreen() {
 // positive statement. Restore the muted variant here if a card ever needs to
 // show what a plan leaves out again.
 function FeatureChip({
+  icon,
+  iconColor,
   text,
   theme,
   styles,
 }: {
+  icon: PlanIconName;
+  /** Only where the icon stands for a brand; otherwise it follows the text. */
+  iconColor?: string;
   text: string;
   theme: AppTheme;
   styles: ReturnType<typeof createStyles>;
@@ -600,14 +491,14 @@ function FeatureChip({
         { backgroundColor: `${theme.successColor}0B` },
       ]}
     >
-      <View
-        style={[
-          styles.featureStatus,
-          { backgroundColor: theme.successColor },
-        ]}
-      >
-        <Ionicons name="checkmark" size={10} color={theme.surface} />
-      </View>
+      {/* The icon says what the capability is. Every chip on a card is
+          something the plan includes, so a tick in front of each one only
+          repeated itself. */}
+      <Ionicons
+        name={icon}
+        size={15}
+        color={iconColor ?? theme.textSecondary}
+      />
       <Text style={styles.featureChipText} numberOfLines={1}>
         {text}
       </Text>
@@ -620,10 +511,6 @@ const createStyles = (theme: AppTheme) =>
     safe: {
       flex: 1,
       backgroundColor: theme.background,
-    },
-    flexCopy: {
-      minWidth: 0,
-      flex: 1,
     },
     header: {
       minHeight: 76,
@@ -652,122 +539,6 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: spacing.md,
       paddingBottom: spacing.xl,
       gap: 14,
-    },
-    currentCard: {
-      padding: 14,
-      gap: 13,
-      borderRadius: radius.lg,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.tabBarBorder,
-    },
-    currentTop: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-    },
-    currentIcon: {
-      width: 58,
-      height: 58,
-      flexShrink: 0,
-      borderRadius: 18,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.surface,
-    },
-    currentEyebrow: {
-      ...typography.caption,
-      color: theme.primary,
-      fontWeight: "800",
-    },
-    currentName: {
-      ...typography.headingMedium,
-      color: theme.text,
-      marginTop: 1,
-    },
-    currentDescription: {
-      ...typography.bodySmall,
-      color: theme.textSecondary,
-      marginTop: 3,
-      lineHeight: 19,
-    },
-    currentStats: {
-      minHeight: 78,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 8,
-      paddingVertical: 10,
-      borderRadius: radius.lg,
-      backgroundColor: theme.inputBackground,
-      borderWidth: 1,
-      borderColor: theme.tabBarBorder,
-    },
-    currentStat: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-    },
-    currentStatCentered: {
-      flex: 1,
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 2,
-    },
-    currentStatIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: 11,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: theme.primaryLight,
-    },
-    currentStatValue: {
-      ...typography.headingLarge,
-      color: theme.text,
-      fontWeight: "800",
-      fontVariant: ["tabular-nums"],
-    },
-    currentStatSymbol: {
-      fontSize: 28,
-      lineHeight: 30,
-      color: theme.primary,
-      fontWeight: "700",
-    },
-    currentStatLabel: {
-      ...typography.caption,
-      color: theme.textSecondary,
-      textAlign: "center",
-    },
-    currentStatDivider: {
-      width: 1,
-      height: 42,
-      backgroundColor: theme.tabBarBorder,
-    },
-    currentCancellation: {
-      ...typography.caption,
-      color: theme.textSecondary,
-    },
-    activeBadge: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 5,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
-      borderRadius: radius.full,
-      backgroundColor: theme.paymentBg,
-    },
-    activeBadgeText: {
-      ...typography.caption,
-      color: theme.paymentColor,
-      fontWeight: "800",
-    },
-    activeDot: {
-      width: 7,
-      height: 7,
-      borderRadius: 4,
-      backgroundColor: theme.paymentColor,
     },
     sectionHeader: {
       minHeight: 28,
@@ -865,6 +636,7 @@ const createStyles = (theme: AppTheme) =>
     pricePeriod: {
       ...typography.caption,
       color: theme.textMuted,
+      fontWeight: "600",
     },
     featureChips: {
       flexDirection: "row",
@@ -873,23 +645,17 @@ const createStyles = (theme: AppTheme) =>
     },
     featureChip: {
       maxWidth: "100%",
-      minHeight: 28,
+      minHeight: 30,
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 8,
+      paddingHorizontal: 10,
       paddingVertical: 5,
       borderRadius: radius.full,
     },
-    featureStatus: {
-      width: 16,
-      height: 16,
-      flexShrink: 0,
-      borderRadius: 8,
-      alignItems: "center",
-      justifyContent: "center",
-    },
     featureChipText: {
+      // Shrinks before the icon does when a long name meets a narrow card.
+      flexShrink: 1,
       ...typography.caption,
       color: theme.textSecondary,
       fontWeight: "600",
@@ -906,49 +672,9 @@ const createStyles = (theme: AppTheme) =>
       color: theme.textMuted,
       fontWeight: "700",
     },
-    packageGrid: {
-      flexDirection: "row",
-      flexWrap: "wrap",
-      justifyContent: "space-between",
-      rowGap: 10,
-    },
-    packageCard: {
-      width: "48.7%",
-      minHeight: 70,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 9,
-      paddingHorizontal: 11,
-      paddingVertical: 9,
-      borderRadius: radius.lg,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.tabBarBorder,
-    },
-    packageIcon: {
-      width: 38,
-      height: 38,
-      flexShrink: 0,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 13,
-      backgroundColor: theme.primaryLight,
-    },
-    packageCopy: {
-      minWidth: 0,
-      flex: 1,
-      gap: 2,
-    },
-    packageName: {
-      ...typography.bodySmall,
-      color: theme.text,
-      fontWeight: "800",
-    },
-    packagePrice: {
-      ...typography.bodySmall,
-      color: theme.primary,
-      fontWeight: "800",
-    },
+    // One package per row: with a discount there is an old price, a price and
+    // a badge to show, which half a row could not hold.
+    packageGrid: { gap: 10 },
     infoBox: {
       minHeight: 58,
       flexDirection: "row",
