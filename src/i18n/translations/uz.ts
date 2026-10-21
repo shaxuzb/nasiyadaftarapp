@@ -452,6 +452,7 @@ export const uzTranslations = {
     statusFailed: "Xato",
     statusSkipped: "O'tkazildi",
     statusQueued: "Navbatda",
+    statusPending: "Yuborilmoqda",
     statusCancelled: "Bekor qilindi",
     sourceAuto: "Avto eslatma",
     queueDetail: "⏳ {position}-o‘rin, taxminan {date}",

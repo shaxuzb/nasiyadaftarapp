@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
@@ -19,11 +19,11 @@ export function AutoReminderCard() {
   const [balance, setBalance] = useState("");
 
   useEffect(() => {
-    if (!settings || update.isPending) return;
+    if (!settings) return;
     setEnabled(settings.enabled);
     setDays(String(settings.intervalDays));
     setBalance(String(settings.minBalance));
-  }, [settings, update.isPending]);
+  }, [settings]);
 
   const numericDays = Number(days.trim());
   const numericBalance = Number(balance.trim());

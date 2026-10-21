@@ -169,7 +169,8 @@ function ClientSmsContent({
     [rows],
   );
   const smsQuota = user?.subscription?.sms;
-  const smsLimitReached = smsQuota?.totalRemaining === 0;
+  // Queue capacity and eligibility are determined by the backend preview.
+  const smsLimitReached = false;
 
   const toggle = useCallback(
     (id: number) =>
@@ -194,9 +195,9 @@ function ClientSmsContent({
           confirmText: t("sms.sendAction"),
           cancelText: t("common.cancel"),
         });
-        if (!accepted) return;
+        if (!accepted || preview.eligible === 0) return;
         const result = await sendOne.mutateAsync(recipient.id);
-        showToast(result.status.toLowerCase() === "queued" ? t("sms.queuedSingle") : result.errorMessage || t("sms.sendAccepted"), result.status.toLowerCase() === "queued" ? "info" : "success");
+        showToast(result.status.toLowerCase() === "queued" ? t("sms.queuedSingle") : result.status.toLowerCase() === "failed" ? (result.errorMessage || t("sms.sendError")) : t("sms.sendAccepted"), result.status.toLowerCase() === "queued" ? "info" : result.status.toLowerCase() === "failed" ? "error" : "success");
       } catch (error) {
         // A client who already had today's SMS comes back as a 400 whose detail
         // says so; getLocalizedApiErrorMessage shows that text as is.
@@ -264,7 +265,7 @@ function ClientSmsContent({
         confirmText: t("sms.sendAction"),
         cancelText: t("common.cancel"),
       });
-      if (!accepted) return;
+      if (!accepted || preview.eligible === 0) return;
       const result = await sendBulk.mutateAsync(recipientIds);
       setBulkSummary(result);
       showToast(

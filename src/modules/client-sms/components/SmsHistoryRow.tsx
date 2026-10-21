@@ -30,6 +30,8 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
       ? t("sms.statusFailed")
       : item.normalizedStatus === "skipped"
         ? t("sms.statusSkipped")
+        : item.normalizedStatus === "pending"
+          ? t("sms.statusPending")
         : item.normalizedStatus === "queued"
           ? t("sms.statusQueued")
           : item.normalizedStatus === "cancelled"

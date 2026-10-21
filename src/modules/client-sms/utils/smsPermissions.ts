@@ -12,14 +12,10 @@ export function getClientSmsCapabilities(
   subscription?: CurrentSubscription,
 ) {
   const values = new Set(permissions ?? []);
-  const smsAvailable =
-    !subscription ||
-    subscription.sms.totalRemaining === null ||
-    subscription.sms.totalRemaining > 0;
   return {
     canView: values.has(CLIENT_SMS_PERMISSIONS.view),
-    canSendOne: values.has(CLIENT_SMS_PERMISSIONS.sendOne) && smsAvailable,
-    canSendBulk: values.has(CLIENT_SMS_PERMISSIONS.sendBulk) && smsAvailable,
+    canSendOne: values.has(CLIENT_SMS_PERMISSIONS.sendOne),
+    canSendBulk: values.has(CLIENT_SMS_PERMISSIONS.sendBulk),
     canViewHistory: values.has(CLIENT_SMS_PERMISSIONS.history),
   };
 }

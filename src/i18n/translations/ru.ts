@@ -456,6 +456,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     statusFailed: "Ошибка",
     statusSkipped: "Пропущено",
     statusQueued: "В очереди",
+    statusPending: "Отправляется",
     statusCancelled: "Отменено",
     sourceAuto: "Автонапоминание",
     queueDetail: "⏳ Место {position}, примерно {date}",
