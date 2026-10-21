@@ -13,6 +13,7 @@ export interface SmsIssueGroup {
 export function groupSmsIssues(results: readonly SmsSendResult[]): SmsIssueGroup[] {
   const counts = new Map<string, number>();
   for (const result of results) {
+    if (["queued", "sent", "success"].includes(result.status.toLowerCase())) continue;
     const reason = result.errorMessage?.trim();
     if (!reason) continue;
     counts.set(reason, (counts.get(reason) ?? 0) + 1);

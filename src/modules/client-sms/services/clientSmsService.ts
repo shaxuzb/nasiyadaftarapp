@@ -8,6 +8,7 @@ import {
   parseBulkSmsResponse,
   parseSmsHistory,
   parseSmsRecipients,
+  parseSmsPreview,
   parseSmsSendResult,
   parseSmsTemplate,
 } from "../utils/smsParsing";
@@ -72,4 +73,21 @@ export async function getDebtSmsHistory(
     }),
   });
   return parseSmsHistory(data);
+}
+
+export async function previewDebtSms(clientIds: number[]) {
+  const normalized = [...new Set(clientIds.filter((id) => Number.isInteger(id) && id > 0))];
+  if (!normalized.length || normalized.length !== clientIds.length) throw new Error("SMS uchun mijozlarni tekshiring");
+  const { data } = await apiClient.post<unknown>("/clients/debt-sms/preview", { clientIds: normalized });
+  return parseSmsPreview(data);
+}
+
+export async function getDebtSmsQueue(signal?: AbortSignal) {
+  const { data } = await apiClient.get<unknown>("/clients/debt-sms/queue", { signal });
+  return parseSmsHistory(data);
+}
+
+export async function cancelDebtSmsQueueItem(logId: number) {
+  if (!Number.isInteger(logId) || logId <= 0) throw new Error("SMS log ID noto'g'ri");
+  await apiClient.post(`/clients/debt-sms/queue/${logId}/cancel`);
 }

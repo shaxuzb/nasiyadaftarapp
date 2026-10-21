@@ -39,13 +39,11 @@ import {
   useSendBulkDebtSms,
   useSendDebtSms,
   useSmsRecipients,
-  useSmsTemplate,
 } from "../modules/client-sms/hooks/useClientSms";
 import type {
   BulkSmsResponse,
   SmsRecipient,
   SmsRecipientFilters,
-  SmsTemplate,
 } from "../modules/client-sms/types";
 import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 import {
@@ -61,11 +59,10 @@ import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import type { Customer } from "../modules/clients/types";
 import {
-  formatLocalizedCurrency,
   getLocalizedApiErrorMessage,
   useTranslation,
 } from "../i18n";
-import { renderSmsTemplate } from "../modules/client-sms/utils/smsParsing";
+import { previewDebtSms } from "../modules/client-sms/services/clientSmsService";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -114,10 +111,10 @@ function ClientSmsContent({
   const navigation = useNavigation<Nav>();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { locale, t } = useTranslation();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const { confirm } = useConfirmDialog();
-  const { user, currentOrganization } = useAuth();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const { requireVerifiedPhone } = useAccountSecurity();
   const [search, setSearch] = useState("");
@@ -163,7 +160,6 @@ function ClientSmsContent({
     [debouncedSearch],
   );
   const recipients = useSmsRecipients(queryFilters);
-  const smsTemplate = useSmsTemplate();
   const sendOne = useSendDebtSms();
   const sendBulk = useSendBulkDebtSms();
   const rows = recipients.data?.results ?? [];
@@ -181,35 +177,6 @@ function ClientSmsContent({
     [],
   );
   const keyExtractor = useCallback((item: SmsRecipient) => String(item.id), []);
-  const getTemplateForConfirmation = useCallback(async () => {
-    const template = smsTemplate.data ?? (await smsTemplate.refetch()).data;
-    if (!template) throw new Error(t("sms.templateLoadError"));
-    return template;
-  }, [smsTemplate.data, smsTemplate.refetch, t]);
-  const organizationName =
-    currentOrganization?.name ?? user?.organizationName ?? t("sms.organizationFallback");
-  const getPreviewMessage = useCallback(
-    (template: SmsTemplate, recipient?: SmsRecipient) => {
-      const values = recipient
-        ? {
-            organizationName,
-            balance: formatLocalizedCurrency(
-              Math.abs(recipient.currentBalance),
-              locale,
-            ),
-            fullName: recipient.fullName,
-            phoneNumber: recipient.phone,
-          }
-        : {
-            organizationName,
-            balance: "{balance}",
-            fullName: "{fullName}",
-            phoneNumber: "{phoneNumber}",
-          };
-      return renderSmsTemplate(template.template, values);
-    },
-    [locale, organizationName],
-  );
   // Runs only once the owner's phone is known to be verified. It must not ask
   // again: after verification it is invoked from a closure created before the
   // user object updated, which would still read as unverified and reopen the
@@ -220,16 +187,16 @@ function ClientSmsContent({
       submitting.current = true;
       setSendingTarget(recipient.id);
       try {
-        const template = await getTemplateForConfirmation();
+        const preview = await previewDebtSms([recipient.id]);
         const accepted = await confirm({
           title: t("sms.sendTitle"),
-          message: `${getPreviewMessage(template, recipient)}\n\n${t("sms.recipientConfirmation", { name: recipient.fullName })}`,
+          message: `${preview.message}\n\n${t("sms.recipientConfirmation", { name: recipient.fullName })}`,
           confirmText: t("sms.sendAction"),
           cancelText: t("common.cancel"),
         });
         if (!accepted) return;
-        await sendOne.mutateAsync(recipient.id);
-        showToast(t("sms.sendAccepted"), "success");
+        const result = await sendOne.mutateAsync(recipient.id);
+        showToast(result.status.toLowerCase() === "queued" ? t("sms.queuedSingle") : result.errorMessage || t("sms.sendAccepted"), result.status.toLowerCase() === "queued" ? "info" : "success");
       } catch (error) {
         // A client who already had today's SMS comes back as a 400 whose detail
         // says so; getLocalizedApiErrorMessage shows that text as is.
@@ -241,12 +208,9 @@ function ClientSmsContent({
     },
     [
       confirm,
-      getPreviewMessage,
-      getTemplateForConfirmation,
       sendOne,
       showToast,
       t,
-      locale,
     ],
   );
 
@@ -293,10 +257,10 @@ function ClientSmsContent({
     submitting.current = true;
     setSendingTarget("bulk");
     try {
-      const template = await getTemplateForConfirmation();
+      const preview = await previewDebtSms(recipientIds);
       const accepted = await confirm({
         title: t("sms.templateTitle"),
-        message: `${getPreviewMessage(template)}\n\n${t("sms.bulkConfirmation", { count: recipientIds.length })}`,
+        message: `${preview.message}\n\n${t("sms.bulkConfirmation", { count: recipientIds.length })}`,
         confirmText: t("sms.sendAction"),
         cancelText: t("common.cancel"),
       });
@@ -306,7 +270,7 @@ function ClientSmsContent({
       showToast(
         t("sms.sentSummary", {
           sent: result.sentCount,
-          failed: result.failedCount,
+          queued: result.queuedCount,
           skipped: result.skippedCount,
         }),
         getBulkResultTone(result),
@@ -480,7 +444,7 @@ function ClientSmsContent({
               <Text style={styles.resultTitle}>
                 {t("sms.sentSummary", {
                   sent: bulkSummary.sentCount,
-                  failed: bulkSummary.failedCount,
+                  queued: bulkSummary.queuedCount,
                   skipped: bulkSummary.skippedCount,
                 })}
               </Text>

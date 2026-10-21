@@ -30,7 +30,11 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
       ? t("sms.statusFailed")
       : item.normalizedStatus === "skipped"
         ? t("sms.statusSkipped")
-        : item.status || t("common.unexpectedError");
+        : item.normalizedStatus === "queued"
+          ? t("sms.statusQueued")
+          : item.normalizedStatus === "cancelled"
+            ? t("sms.statusCancelled")
+            : item.status || t("common.unexpectedError");
   return (
     <View style={styles.card}>
       <View
@@ -58,6 +62,8 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
         <Text numberOfLines={1} style={styles.phone}>
           {item.phone || t("sms.recipientPhoneMissing")}
         </Text>
+        {item.normalizedStatus === "queued" ? <Text style={styles.detail}>{t("sms.queueDetail", { position: item.queuePosition ?? "—", date: item.estimatedSendDate ? formatLocalizedDate(item.estimatedSendDate, locale) : "—" })}</Text> : null}
+        {item.source === "auto" ? <Text style={styles.detail}>{t("sms.sourceAuto")}</Text> : null}
         {item.errorMessage || item.message ? (
           <Text
             numberOfLines={2}

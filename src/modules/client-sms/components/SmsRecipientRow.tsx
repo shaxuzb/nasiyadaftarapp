@@ -9,6 +9,7 @@ import { isCustomerBlacklisted } from "../../clients/utils/blacklist";
 import { isSmsRecipientSelectable } from "../utils/recipientSelection";
 import {
   formatLocalizedCurrency,
+  formatLocalizedDate,
   formatLocalizedDisplayedBalance,
   useTranslation,
 } from "../../../i18n";
@@ -125,6 +126,10 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
               {t("sms.addRecipientPhone")}
             </Text>
           </Pressable>
+        ) : recipient.nextSmsAvailableDate ? (
+          <Text numberOfLines={1} style={styles.reason}>
+            {t("sms.nextAvailable", { date: formatLocalizedDate(recipient.nextSmsAvailableDate, locale) })}
+          </Text>
         ) : recipient.smsSentToday ? (
           // Already sent today is a fact, not a fault: it takes the reason line
           // in green instead of the generic warning, which would read as if
@@ -140,6 +145,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
             {recipient.cannotSendReason || t("sms.cannotSend")}
           </Text>
         ) : null}
+        {recipient.lastSmsAt ? <Text numberOfLines={1} style={styles.phone}>{t("sms.lastSent", { date: formatLocalizedDate(recipient.lastSmsAt, locale) })}</Text> : null}
       </View>
       <View style={styles.trailing}>
         <Text

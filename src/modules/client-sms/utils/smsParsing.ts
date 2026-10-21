@@ -7,6 +7,7 @@ import type {
   SmsSendQuota,
   SmsTemplate,
   SmsTemplateValues,
+  SmsPreview,
 } from "../types";
 
 type RecordValue = Record<string, unknown>;
@@ -122,6 +123,8 @@ export function parseSmsRecipients(input: unknown): PagedResult<SmsRecipient> {
             Math.trunc(number(item.blacklistedOrganizationCount)),
           ),
           canSend: item.canSend === true,
+          nextSmsAvailableDate: text(item.nextSmsAvailableDate) || undefined,
+          lastSmsAt: text(item.lastSmsAt) || undefined,
           smsSentToday:
             item.smsSentToday === true ||
             item.isSmsSentToday === true ||
@@ -147,6 +150,8 @@ export function parseSmsSendResult(value: unknown): SmsSendResult {
     fullName: text(item.fullName, item.clientName) || undefined,
     phone: text(item.phoneNumber, item.phone) || undefined,
     status: text(item.status) || "unknown",
+    queuePosition: positiveId(item.queuePosition),
+    estimatedSendDate: text(item.estimatedSendDate) || undefined,
     message: text(item.message) || undefined,
     errorMessage: text(item.errorMessage, item.error) || undefined,
     quotaSource: text(item.quotaSource) || undefined,
@@ -164,6 +169,7 @@ export function parseBulkSmsResponse(input: unknown): BulkSmsResponse {
   const rawResults = Array.isArray(value.results) ? value.results : [];
   return {
     sentCount: Math.max(0, Math.trunc(number(value.sentCount))),
+    queuedCount: Math.max(0, Math.trunc(number(value.queuedCount, rawResults.filter((item) => text(record(item).status).toLowerCase() === "queued").length))),
     failedCount: Math.max(0, Math.trunc(number(value.failedCount))),
     skippedCount: Math.max(0, Math.trunc(number(value.skippedCount))),
     results: rawResults.map(parseSmsSendResult),
@@ -180,12 +186,15 @@ export function parseSmsHistory(input: unknown): PagedResult<SmsHistoryItem> {
       const item = record(value);
       const status = text(item.status) || "unknown";
       return {
-        id: positiveId(item.id) ?? -(index + 1),
+        id: positiveId(item.id ?? item.logId) ?? -(index + 1),
         clientId: positiveId(item.clientId),
         fullName: text(item.fullName, item.clientName),
         phone: text(item.phoneNumber, item.phone),
         status,
         normalizedStatus: status.toLocaleLowerCase(),
+        source: text(item.source) || undefined,
+        queuePosition: positiveId(item.queuePosition),
+        estimatedSendDate: text(item.estimatedSendDate) || undefined,
         sentAt:
           text(item.sentDate, item.sentAt, item.createdDate, item.date) ||
           undefined,
@@ -194,4 +203,12 @@ export function parseSmsHistory(input: unknown): PagedResult<SmsHistoryItem> {
       };
     }),
   };
+}
+
+export function parseSmsPreview(input: unknown): SmsPreview {
+  const outer = record(input);
+  const inner = Object.keys(record(outer.data)).length ? record(outer.data) : Object.keys(record(outer.result)).length ? record(outer.result) : outer;
+  const message = text(inner.message);
+  if (!message) throw new Error("SMS preview javobi noto'g'ri formatda");
+  return { message };
 }

@@ -19,6 +19,8 @@ export const queryKeys = {
     ["client-sms", scope, "recipients"] as const,
   clientSmsRecipients: (scope: QueryScope, filters: object) =>
     ["client-sms", scope, "recipients", filters] as const,
+  clientSmsQueue: (scope: QueryScope) =>
+    ["client-sms", scope, "queue"] as const,
   clientSmsHistoryRoot: (scope: QueryScope) =>
     ["client-sms", scope, "history"] as const,
   clientSmsHistory: (scope: QueryScope, filters: object) =>

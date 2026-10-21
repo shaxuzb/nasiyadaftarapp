@@ -41,6 +41,8 @@ export interface SmsRecipient {
    * set canSend to false, so selection needs no extra rule; this only says why.
    */
   smsSentToday: boolean;
+  nextSmsAvailableDate?: string;
+  lastSmsAt?: string;
 }
 
 export interface SmsHistoryItem {
@@ -50,6 +52,9 @@ export interface SmsHistoryItem {
   phone: string;
   status: string;
   normalizedStatus: string;
+  source?: string;
+  queuePosition?: number;
+  estimatedSendDate?: string;
   sentAt?: string;
   message?: string;
   errorMessage?: string;
@@ -60,6 +65,8 @@ export interface SmsSendResult {
   fullName?: string;
   phone?: string;
   status: string;
+  queuePosition?: number;
+  estimatedSendDate?: string;
   message?: string;
   errorMessage?: string;
   quotaSource?: string;
@@ -76,9 +83,12 @@ export interface IndividualSmsResult extends SmsSendResult {}
 
 export interface BulkSmsResponse {
   sentCount: number;
+  queuedCount: number;
   failedCount: number;
   skippedCount: number;
   results: SmsSendResult[];
   quotaSource?: string;
   quota?: SmsSendQuota;
 }
+
+export interface SmsPreview { message: string }

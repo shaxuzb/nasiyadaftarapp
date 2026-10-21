@@ -9,6 +9,8 @@ import { getOrganizationQueryScope } from "../../../core/query/organizationScope
 import { queryKeys } from "../../../core/query/queryKeys";
 import {
   getDebtSmsHistory,
+  getDebtSmsQueue,
+  cancelDebtSmsQueueItem,
   getDebtSmsTemplate,
   getSmsRecipients,
   sendBulkDebtSms,
@@ -61,6 +63,21 @@ export function useSmsHistory(filters: SmsHistoryFilters) {
   });
 }
 
+export function useSmsQueue() {
+  const { enabled, scope, capabilities } = useSmsScope();
+  return useQuery({ queryKey: queryKeys.clientSmsQueue(scope), queryFn: ({ signal }) => getDebtSmsQueue(signal), enabled: enabled && capabilities.canViewHistory, staleTime: 30_000 });
+}
+
+export function useCancelQueuedSms() {
+  const queryClient = useQueryClient();
+  const { scope } = useSmsScope();
+  return useMutation({ mutationFn: cancelDebtSmsQueueItem, onSuccess: () => {
+    void queryClient.invalidateQueries({ queryKey: queryKeys.clientSmsQueue(scope) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.clientSmsHistoryRoot(scope) });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.clientSmsRecipientsRoot(scope) });
+  }});
+}
+
 export function useSmsTemplate() {
   const { enabled, scope, capabilities } = useSmsScope();
   return useQuery({
@@ -85,6 +102,7 @@ function useSmsInvalidation() {
     void queryClient.invalidateQueries({
       queryKey: queryKeys.clientSmsHistoryRoot(scope),
     });
+    void queryClient.invalidateQueries({ queryKey: queryKeys.clientSmsQueue(scope) });
     try {
       await refreshSubscription();
     } catch {
@@ -99,10 +117,10 @@ export function useSendDebtSms() {
   const invalidate = useSmsInvalidation();
   return useMutation({
     mutationFn: sendDebtSms,
-    onSuccess: (_result, clientId) => {
+    onSuccess: (result, clientId) => {
       // One SMS per client per day: badge the client and drop their send button
       // now, not when the refetch lands, so a second tap has nothing to hit.
-      queryClient.setQueriesData<PagedResult<SmsRecipient>>(
+      if (["sent", "success", "queued"].includes(result.status.toLowerCase())) queryClient.setQueriesData<PagedResult<SmsRecipient>>(
         { queryKey: queryKeys.clientSmsRecipientsRoot(scope) },
         (page) =>
           page && {
