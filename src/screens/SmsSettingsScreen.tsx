@@ -19,7 +19,8 @@ import { useTheme } from "../hooks/useTheme";
 import { useTranslation } from "../i18n";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 import { AutoReminderCard } from "../modules/client-sms/components/AutoReminderCard";
-import { SmsDevicesCard } from "../modules/client-sms/components/SmsDevicesCard";
+import { SmsGatewayControls } from "../modules/client-sms/components/SmsGatewayControls";
+import { useSmsDevices } from "../modules/client-sms/hooks/useSmsDevices";
 import { QrCode } from "../modules/support/components/QrCode";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme } from "../types";
@@ -42,11 +43,9 @@ const CONNECT_STEPS = [
  *
  *   Qarz Daftar SMS   the app's own provider: nothing to set up. This part is
  *                     live: the real balance, and buying more.
- *   My phone          the shop's own SIM, through a gateway app on an Android
- *                     phone, paired with a QR code or a code. The gateway app
- *                     can be downloaded already, but pairing is not built
- *                     yet: it is shown as a demo, with its buttons switched
- *                     off so nobody believes they have connected anything.
+ *   My phone          the shop's Android SMS Gateway, paired via its code
+ *                     either scanned as QR or entered manually. Both paths
+ *                     confirm the claim through the authenticated API.
  */
 export function SmsSettingsScreen() {
   const theme = useTheme();
@@ -56,6 +55,7 @@ export function SmsSettingsScreen() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const smsQuota = user?.subscription?.sms;
+  const devices = useSmsDevices();
   const [guideOpen, setGuideOpen] = useState(false);
   const [buyOpen, setBuyOpen] = useState(false);
 
@@ -149,9 +149,8 @@ export function SmsSettingsScreen() {
         </View>
 
         <AutoReminderCard />
-        <SmsDevicesCard />
 
-        {/* The shop's own phone. A demo: the guide is real, the actions are off. */}
+        {/* The existing own-phone card owns pairing, connected devices and unpairing. */}
         <View style={styles.card}>
           <Pressable
             accessibilityRole="button"
@@ -172,11 +171,13 @@ export function SmsSettingsScreen() {
                 <Text style={styles.cardTitle}>
                   {t("smsSettings.deviceTitle")}
                 </Text>
-                <View style={[styles.pill, styles.demoPill]}>
-                  <Text style={[styles.pillText, styles.demoPillText]}>
-                    {t("smsSettings.demoBadge")}
-                  </Text>
-                </View>
+                {!devices.isPending && !devices.isError ? (
+                  <View style={[styles.pill, { backgroundColor: (devices.data?.length ? theme.successColor : theme.warningColor) + "16" }]}>
+                    <Text style={[styles.pillText, { color: devices.data?.length ? theme.successColor : theme.warningColor }]}>
+                      {devices.data?.length ? t("smsSettings.deviceConnectedStatus") : t("smsSettings.deviceNotConnected")}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
               <Text style={styles.cardText}>
                 {t("smsSettings.deviceDescription")}
@@ -265,33 +266,7 @@ export function SmsSettingsScreen() {
                 </View>
               ))}
 
-              {/* Off until the gateway exists: pressing them must not look
-                  like a phone was connected. */}
-              <View style={styles.actions}>
-                <DisabledAction
-                  icon="qr-code-outline"
-                  label={t("smsSettings.scanQr")}
-                  theme={theme}
-                  styles={styles}
-                />
-                <DisabledAction
-                  icon="clipboard-outline"
-                  label={t("smsSettings.enterCode")}
-                  theme={theme}
-                  styles={styles}
-                />
-              </View>
-
-              <View style={styles.notice}>
-                <Ionicons
-                  name="time-outline"
-                  size={17}
-                  color={theme.warningColor}
-                />
-                <Text style={styles.noticeText}>
-                  {t("smsSettings.comingSoon")}
-                </Text>
-              </View>
+              <SmsGatewayControls />
               <Text style={styles.footnote}>{t("smsSettings.androidOnly")}</Text>
             </View>
           ) : null}
@@ -322,33 +297,6 @@ function CardIcon({
   return (
     <View style={[styles.cardIcon, { backgroundColor: background }]}>
       <Ionicons name={name} size={22} color={color} />
-    </View>
-  );
-}
-
-function DisabledAction({
-  icon,
-  label,
-  theme,
-  styles,
-}: {
-  icon: IconName;
-  label: string;
-  theme: AppTheme;
-  styles: ReturnType<typeof createStyles>;
-}) {
-  return (
-    <View
-      accessible
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      accessibilityState={{ disabled: true }}
-      style={styles.action}
-    >
-      <Ionicons name={icon} size={18} color={theme.textMuted} />
-      <Text style={styles.actionText} numberOfLines={1}>
-        {label}
-      </Text>
     </View>
   );
 }
@@ -441,8 +389,6 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 3,
       backgroundColor: theme.successColor,
     },
-    demoPill: { backgroundColor: `${theme.warningColor}18` },
-    demoPillText: { color: theme.warningColor },
     balanceRow: {
       minHeight: 44,
       flexDirection: "row",
@@ -561,40 +507,6 @@ const createStyles = (theme: AppTheme) =>
       ...typography.caption,
       lineHeight: 17,
       color: theme.textSecondary,
-    },
-    actions: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.xs },
-    action: {
-      flex: 1,
-      minHeight: 46,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 6,
-      paddingHorizontal: spacing.sm,
-      borderRadius: radius.md,
-      borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.inputBackground,
-      opacity: 0.6,
-    },
-    actionText: {
-      ...typography.labelSmall,
-      color: theme.textMuted,
-      fontWeight: "700",
-    },
-    notice: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-      padding: spacing.sm,
-      borderRadius: radius.md,
-      backgroundColor: `${theme.warningColor}12`,
-    },
-    noticeText: {
-      flex: 1,
-      ...typography.caption,
-      color: theme.text,
-      fontWeight: "700",
     },
     footnote: {
       ...typography.caption,

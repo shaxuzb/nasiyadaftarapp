@@ -45,6 +45,13 @@
     },
     "plugins": [
       "expo-contacts",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "QR kod orqali SMS Gateway telefonini ulash uchun kameraga ruxsat bering.",
+          "recordAudioAndroid": false
+        }
+      ],
       "expo-apple-authentication",
       [
         "react-native-nitro-google-signin",
