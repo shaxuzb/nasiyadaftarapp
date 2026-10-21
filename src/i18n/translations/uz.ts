@@ -390,6 +390,17 @@ export const uzTranslations = {
     paymentLabel: "To‘lov",
   },
   sms: {
+
+    queueTab: "Navbat",
+    queueCount: "Navbatda {count} ta SMS",
+    queueEmpty: "Navbat bo‘sh",
+    queueEmptyDescription: "Navbatdagi SMS’lar shu yerda ko‘rinadi.",
+    queueLoadError: "SMS navbatini yuklab bo‘lmadi",
+    cancelQueuedTitle: "Navbatdagi SMS’ni bekor qilish",
+    cancelQueuedDescription: "Bu SMS navbatdan olib tashlanadi. Davom etilsinmi?",
+    cancelQueuedAction: "Bekor qilish",
+    cancelQueuedSuccess: "SMS navbatdan olib tashlandi",
+    cancelQueuedError: "SMS’ni bekor qilib bo‘lmadi",
     screenTitle: "SMS",
     permissionTitle: "Ruxsat mavjud emas",
     permissionDescription:

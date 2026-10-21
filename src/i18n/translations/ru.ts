@@ -394,6 +394,17 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     paymentLabel: "Платёж",
   },
   sms: {
+
+    queueTab: "Очередь",
+    queueCount: "SMS в очереди: {count}",
+    queueEmpty: "Очередь пуста",
+    queueEmptyDescription: "Ожидающие SMS появятся здесь.",
+    queueLoadError: "Не удалось загрузить очередь SMS",
+    cancelQueuedTitle: "Отменить SMS в очереди",
+    cancelQueuedDescription: "SMS будет удалено из очереди. Продолжить?",
+    cancelQueuedAction: "Отменить",
+    cancelQueuedSuccess: "SMS удалено из очереди",
+    cancelQueuedError: "Не удалось отменить SMS",
     screenTitle: "SMS",
     permissionTitle: "Нет доступа",
     permissionDescription:

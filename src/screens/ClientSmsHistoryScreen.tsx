@@ -19,12 +19,14 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../hooks/useTheme";
 import { SmsHistoryRow } from "../modules/client-sms/components/SmsHistoryRow";
-import { useSmsHistory } from "../modules/client-sms/hooks/useClientSms";
+import { useSmsHistory, useSmsQueue, useCancelQueuedSms } from "../modules/client-sms/hooks/useClientSms";
 import type { SmsHistoryFilters } from "../modules/client-sms/types";
 import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
+import { useConfirmDialog } from "../context/ConfirmDialogContext";
+import { useToast } from "../context/ToastContext";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const PAGE_SIZE = 20;
@@ -74,6 +76,17 @@ function HistoryContent() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { t } = useTranslation();
+  const [tab, setTab] = useState<"history" | "queue">("history");
+  const queue = useSmsQueue();
+  const cancel = useCancelQueuedSms();
+  const { confirm } = useConfirmDialog();
+  const { showToast } = useToast();
+  const cancelQueued = async (id: number) => {
+    if (id <= 0 || cancel.isPending) return;
+    if (!(await confirm({ title: t("sms.cancelQueuedTitle"), message: t("sms.cancelQueuedDescription"), confirmText: t("sms.cancelQueuedAction"), cancelText: t("common.cancel") }))) return;
+    try { await cancel.mutateAsync(id); showToast(t("sms.cancelQueuedSuccess"), "success"); }
+    catch (error) { showToast(getLocalizedApiErrorMessage(error, "sms.cancelQueuedError", t), "error"); }
+  };
   const [search, setSearch] = useState("");
   const [debounced, setDebounced] = useState("");
   const [status, setStatus] = useState<string>();
@@ -98,6 +111,40 @@ function HistoryContent() {
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <Header onBack={() => navigation.goBack()} />
+      <View style={styles.queueTabs}>
+        {(["history", "queue"] as const).map((value) => (
+          <Pressable key={value} accessibilityRole="tab" accessibilityState={{ selected: tab === value }}
+            onPress={() => setTab(value)}
+            style={[styles.queueTab, { borderColor: theme.border, backgroundColor: tab === value ? theme.primaryLight : theme.surface }]}>
+            <Text style={{ color: tab === value ? theme.primary : theme.textSecondary, fontWeight: "700" }}>
+              {value === "history" ? t("sms.historyAction") : t("sms.queueTab")}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+      {tab === "queue" ? <View style={{ flex: 1 }}>
+        {queue.isPending ? <View style={styles.center}><ActivityIndicator color={theme.primary} /></View> :
+          queue.isError ? <EmptyState iconName="cloud-offline-outline" title={t("sms.queueLoadError")}
+            description={getLocalizedApiErrorMessage(queue.error, "sms.queueLoadError", t)}
+            action={<PrimaryButton label={t("customers.retry")} onPress={() => void queue.refetch()} />} /> :
+          <>
+            <Text style={styles.count}>{t("sms.queueCount", { count: queue.data?.queuedCount ?? 0 })}</Text>
+            <FlatList data={queue.data?.items ?? []} keyExtractor={(item, index) => `${item.id}-${index}`}
+              renderItem={({ item }) => <View style={{ gap: 8 }}>
+                <SmsHistoryRow item={item} />
+                {item.id > 0 ? <Pressable accessibilityRole="button" disabled={cancel.isPending}
+                  onPress={() => void cancelQueued(item.id)}
+                  style={[styles.cancelButton, { borderColor: theme.border, opacity: cancel.isPending ? 0.5 : 1 }]}>
+                  <Text style={{ color: theme.dangerColor, fontWeight: "700" }}>{t("sms.cancelQueuedAction")}</Text>
+                </Pressable> : null}
+              </View>}
+              ItemSeparatorComponent={HistorySeparator}
+              contentContainerStyle={[styles.list, !(queue.data?.items.length) && styles.empty]}
+              ListEmptyComponent={<EmptyState iconName="time-outline" title={t("sms.queueEmpty")} description={t("sms.queueEmptyDescription")} />}
+              refreshControl={<RefreshControl refreshing={queue.isRefetching} onRefresh={() => void queue.refetch()} tintColor={theme.primary} />}
+              initialNumToRender={10} maxToRenderPerBatch={8} windowSize={5} />
+          </>}
+      </View> : <>
       <View style={styles.search}>
         <SearchBar
           value={search}
@@ -213,6 +260,7 @@ function HistoryContent() {
           </Pressable>
         </View>
       ) : null}
+      </>}
     </SafeAreaView>
   );
 }
@@ -256,6 +304,9 @@ const createStyles = (theme: AppTheme) =>
       ...typography.headingLarge,
       color: theme.text,
     },
+    queueTabs: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.md },
+    queueTab: { flex: 1, minHeight: 42, alignItems: "center", justifyContent: "center", borderRadius: radius.md, borderWidth: 1 },
+    cancelButton: { minHeight: 36, justifyContent: "center", alignItems: "center", borderRadius: radius.md, borderWidth: 1 },
     search: { paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
     filters: {
       gap: spacing.sm,
