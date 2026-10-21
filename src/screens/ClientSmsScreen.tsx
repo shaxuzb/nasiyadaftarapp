@@ -169,8 +169,7 @@ function ClientSmsContent({
     [rows],
   );
   const smsQuota = user?.subscription?.sms;
-  // Queue capacity and eligibility are determined by the backend preview.
-  const smsLimitReached = false;
+  const smsLimitReached = smsQuota?.totalRemaining === 0;
 
   const toggle = useCallback(
     (id: number) =>
@@ -217,10 +216,6 @@ function ClientSmsContent({
 
   const sendToOne = useCallback(
     (recipient: SmsRecipient) => {
-      if (smsLimitReached) {
-        setIsUpgradeModalOpen(true);
-        return;
-      }
       if (
         submitting.current ||
         !capabilities.canSendOne ||
@@ -236,14 +231,9 @@ function ClientSmsContent({
       capabilities.canSendOne,
       performSendOne,
       requireVerifiedPhone,
-      smsLimitReached,
     ],
   );
   const submitBulk = () => {
-    if (smsLimitReached) {
-      setIsUpgradeModalOpen(true);
-      return;
-    }
     if (submitting.current || !capabilities.canSendBulk || !selected.size)
       return;
     // Same rule as a single send. The selection is captured now, so what gets
@@ -308,7 +298,7 @@ function ClientSmsContent({
         onToggle={toggle}
         onSend={handleSend}
         onAddPhone={setPhoneEditorRecipient}
-        onQuotaReached={smsLimitReached ? openUpgradeModal : undefined}
+        onQuotaReached={openUpgradeModal}
         sending={sendingTarget === item.id}
         sendDisabled={sendingTarget !== null}
       />
