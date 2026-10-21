@@ -243,7 +243,7 @@ export function SubscriptionScreen() {
                 {
                   key: "sms",
                   enabled: true,
-                  text:
+                  text: isFree ? t("subscription.noSms") :
                     plan.monthlySmsLimit === null
                       ? `${t("subscription.unlimited")} SMS`
                       : t("subscription.smsPerMonth", {
@@ -286,7 +286,7 @@ export function SubscriptionScreen() {
                 // new debt, and a customer landing on the blacklist.
                 {
                   key: "debtAutoSms",
-                  enabled: plan.transactionSmsEnabled,
+                  enabled: isPremium,
                   text: t("subscription.featureTransactionSms"),
                   icon: "time-outline",
                 },

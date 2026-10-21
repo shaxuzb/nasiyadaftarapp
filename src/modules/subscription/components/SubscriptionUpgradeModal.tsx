@@ -126,7 +126,7 @@ function planComparisonRows(
     },
     {
       label: t("subscription.featureSmsLimit"),
-      freeValue: planLimitValue(freePlan.monthlySmsLimit, t, "sms"),
+      freeValue: t("subscription.noSms"),
       selectedValue: planLimitValue(selectedPlan.monthlySmsLimit, t, "sms"),
     },
     {
@@ -151,8 +151,8 @@ function planComparisonRows(
     },
     {
       label: t("subscription.featureTransactionSms"),
-      freeEnabled: freePlan.transactionSmsEnabled,
-      selectedEnabled: selectedPlan.transactionSmsEnabled,
+      freeEnabled: false,
+      selectedEnabled: normalizePlanCode(selectedPlan.code) === "PREMIUM",
     },
     {
       label: t("subscription.featureBlacklistAutoSms"),

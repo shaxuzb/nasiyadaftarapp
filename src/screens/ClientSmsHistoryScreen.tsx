@@ -33,6 +33,8 @@ const statuses = [
   { labelKey: "sms.statusSent", value: "sent" },
   { labelKey: "sms.statusFailed", value: "failed" },
   { labelKey: "sms.statusSkipped", value: "skipped" },
+  { labelKey: "sms.statusQueued", value: "queued" },
+  { labelKey: "sms.statusCancelled", value: "cancelled" },
 ] as const;
 
 // Defined at module scope so the list keeps one separator component type.
