@@ -19,6 +19,7 @@ import { useTheme } from "../hooks/useTheme";
 import { useTranslation } from "../i18n";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 import { AutoReminderCard } from "../modules/client-sms/components/AutoReminderCard";
+import { SmsDevicesCard } from "../modules/client-sms/components/SmsDevicesCard";
 import { QrCode } from "../modules/support/components/QrCode";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme } from "../types";
@@ -148,6 +149,7 @@ export function SmsSettingsScreen() {
         </View>
 
         <AutoReminderCard />
+        <SmsDevicesCard />
 
         {/* The shop's own phone. A demo: the guide is real, the actions are off. */}
         <View style={styles.card}>
