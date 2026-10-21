@@ -8,6 +8,8 @@ import type {
   SmsTemplate,
   SmsTemplateValues,
   SmsPreview,
+  SmsQueue,
+  AutoReminderSettings,
 } from "../types";
 
 type RecordValue = Record<string, unknown>;
@@ -211,4 +213,35 @@ export function parseSmsPreview(input: unknown): SmsPreview {
   const message = text(inner.message);
   if (!message) throw new Error("SMS preview javobi noto'g'ri formatda");
   return { message };
+}
+
+// Only the queue envelope is confirmed. Items reuse known history fields;
+ // cancellation must be hidden if an item has no valid positive log ID.
+export function parseSmsQueue(input: unknown): SmsQueue {
+  const outer = record(input);
+  const data = Object.keys(record(outer.data)).length ? record(outer.data) : outer;
+  if (!Array.isArray(data.items) ||
+      typeof data.queuedCount !== "number" || !Number.isSafeInteger(data.queuedCount) || data.queuedCount < 0 ||
+      typeof data.ownDevice !== "boolean") {
+    throw new Error("SMS navbati javobi noto'g'ri formatda");
+  }
+  return {
+    queuedCount: data.queuedCount,
+    ownDevice: data.ownDevice,
+    items: parseSmsHistory({ items: data.items }).results,
+  };
+}
+
+export function parseAutoReminderSettings(input: unknown): AutoReminderSettings {
+  const outer = record(input);
+  const data = Object.keys(record(outer.data)).length ? record(outer.data) : outer;
+  const { available, enabled, intervalDays, minBalance, minIntervalDays, lastRunDate } = data;
+  if (typeof available !== "boolean" || typeof enabled !== "boolean" ||
+      typeof intervalDays !== "number" || !Number.isSafeInteger(intervalDays) || intervalDays < 1 ||
+      typeof minIntervalDays !== "number" || !Number.isSafeInteger(minIntervalDays) || minIntervalDays < 1 ||
+      typeof minBalance !== "number" || !Number.isFinite(minBalance) || minBalance < 0 ||
+      (lastRunDate != null && typeof lastRunDate !== "string")) {
+    throw new Error("Avto eslatma javobi noto'g'ri formatda");
+  }
+  return { available, enabled, intervalDays, minBalance, minIntervalDays, lastRunDate: lastRunDate ?? null };
 }

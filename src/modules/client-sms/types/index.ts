@@ -92,3 +92,25 @@ export interface BulkSmsResponse {
 }
 
 export interface SmsPreview { message: string }
+
+/** Confirmed envelope of GET /clients/debt-sms/queue; item fields are not yet documented. */
+export interface SmsQueue {
+  queuedCount: number;
+  ownDevice: boolean;
+  items: SmsHistoryItem[];
+}
+
+export interface AutoReminderSettings {
+  available: boolean;
+  enabled: boolean;
+  intervalDays: number;
+  minBalance: number;
+  minIntervalDays: number;
+  lastRunDate: string | null;
+}
+
+export interface UpdateAutoReminderPayload {
+  enabled: boolean;
+  intervalDays: number;
+  minBalance: number;
+}

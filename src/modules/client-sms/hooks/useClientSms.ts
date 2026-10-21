@@ -10,6 +10,8 @@ import { queryKeys } from "../../../core/query/queryKeys";
 import {
   getDebtSmsHistory,
   getDebtSmsQueue,
+  getAutoReminderSettings,
+  updateAutoReminderSettings,
   cancelDebtSmsQueueItem,
   getDebtSmsTemplate,
   getSmsRecipients,
@@ -60,6 +62,27 @@ export function useSmsHistory(filters: SmsHistoryFilters) {
     enabled: enabled && capabilities.canViewHistory,
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+  });
+}
+
+export function useAutoReminderSettings() {
+  const { enabled, scope } = useSmsScope();
+  return useQuery({
+    queryKey: queryKeys.clientSmsAutoReminder(scope),
+    queryFn: ({ signal }) => getAutoReminderSettings(signal),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useUpdateAutoReminderSettings() {
+  const queryClient = useQueryClient();
+  const { scope } = useSmsScope();
+  return useMutation({
+    mutationFn: updateAutoReminderSettings,
+    onSuccess: () => queryClient.invalidateQueries({
+      queryKey: queryKeys.clientSmsAutoReminder(scope),
+    }),
   });
 }
 
@@ -118,9 +141,8 @@ export function useSendDebtSms() {
   return useMutation({
     mutationFn: sendDebtSms,
     onSuccess: (result, clientId) => {
-      // One SMS per client per day: badge the client and drop their send button
-      // now, not when the refetch lands, so a second tap has nothing to hit.
-      if (["sent", "success", "queued"].includes(result.status.toLowerCase())) queryClient.setQueriesData<PagedResult<SmsRecipient>>(
+      // A queued SMS is not sent: don't mark it as delivered in the cache.
+      if (["sent", "success"].includes(result.status.toLowerCase())) queryClient.setQueriesData<PagedResult<SmsRecipient>>(
         { queryKey: queryKeys.clientSmsRecipientsRoot(scope) },
         (page) =>
           page && {

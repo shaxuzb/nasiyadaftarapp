@@ -3,6 +3,7 @@ import type {
   SmsHistoryFilters,
   SmsRecipientFilters,
   SmsTemplate,
+  UpdateAutoReminderPayload,
 } from "../types";
 import {
   parseBulkSmsResponse,
@@ -11,6 +12,8 @@ import {
   parseSmsPreview,
   parseSmsSendResult,
   parseSmsTemplate,
+  parseSmsQueue,
+  parseAutoReminderSettings,
 } from "../utils/smsParsing";
 
 const params = (input: Record<string, unknown>) =>
@@ -84,10 +87,24 @@ export async function previewDebtSms(clientIds: number[]) {
 
 export async function getDebtSmsQueue(signal?: AbortSignal) {
   const { data } = await apiClient.get<unknown>("/clients/debt-sms/queue", { signal });
-  return parseSmsHistory(data);
+  return parseSmsQueue(data);
 }
 
 export async function cancelDebtSmsQueueItem(logId: number) {
   if (!Number.isInteger(logId) || logId <= 0) throw new Error("SMS log ID noto'g'ri");
   await apiClient.post(`/clients/debt-sms/queue/${logId}/cancel`);
+}
+
+// Uses the authenticated app API client; never hard-code an access token.
+export async function getAutoReminderSettings(signal?: AbortSignal) {
+  const { data } = await apiClient.get<unknown>("/sms/auto-reminder", { signal });
+  return parseAutoReminderSettings(data);
+}
+
+export async function updateAutoReminderSettings(payload: UpdateAutoReminderPayload) {
+  if (!Number.isSafeInteger(payload.intervalDays) || payload.intervalDays < 1 ||
+      !Number.isFinite(payload.minBalance) || payload.minBalance < 0) {
+    throw new Error("Avto eslatma qiymatlarini tekshiring");
+  }
+  await apiClient.put("/sms/auto-reminder", payload);
 }
