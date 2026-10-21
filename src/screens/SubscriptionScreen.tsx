@@ -14,7 +14,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
-import { formatLocalizedCurrency, useTranslation } from "../i18n";
+import {
+  formatLocalizedCurrency,
+  formatLocalizedDate,
+  useTranslation,
+} from "../i18n";
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import {
   useCurrentSubscription,
@@ -22,6 +26,7 @@ import {
   useSubscriptionPlans,
 } from "../modules/subscription/hooks/useSubscription";
 import { isMonthlyPlan } from "../modules/subscription/utils/planPeriod";
+import { getSubscriptionPeriod } from "../modules/subscription/utils/subscriptionPeriod";
 import { getPlanTaglineKey } from "../modules/subscription/utils/planTagline";
 import { getPlanPurchaseAvailability } from "../modules/subscription/utils/planPurchase";
 import { DiscountSummary } from "../modules/subscription/components/PriceDiscount";
@@ -112,6 +117,28 @@ export function SubscriptionScreen() {
   const packagesQuery = useSmsPackages();
 
   const current = currentQuery.data;
+  // When the current plan began and ends. Shown on its own card; a plan with
+  // no end (the free one) shows neither.
+  const currentPeriod = useMemo(() => getSubscriptionPeriod(current), [current]);
+  const periodRange =
+    currentPeriod.endAt
+      ? [
+          currentPeriod.startAt
+            ? formatLocalizedDate(currentPeriod.startAt, locale)
+            : null,
+          formatLocalizedDate(currentPeriod.endAt, locale),
+        ]
+          .filter(Boolean)
+          .join(" — ")
+      : null;
+  const periodLeft =
+    currentPeriod.daysLeft === null
+      ? null
+      : currentPeriod.ended
+        ? t("subscription.periodEnded")
+        : currentPeriod.daysLeft === 0
+          ? t("subscription.endsToday")
+          : t("subscription.daysLeft", { count: currentPeriod.daysLeft });
   const plans = plansQuery.data ?? [];
   const packages = packagesQuery.data ?? [];
   const isLoading = plansQuery.isPending && !plans.length;
@@ -414,6 +441,74 @@ export function SubscriptionScreen() {
                       </View>
                     ) : null} */}
                   </View>
+
+                  {/* Renewing is not built yet: shown as a demo, switched
+                      off, so nobody believes they have paid for more time. */}
+                  {isCurrent && periodRange ? (
+                    <View style={styles.renewBlock}>
+                      <View
+                        accessible
+                        accessibilityRole="button"
+                        accessibilityLabel={t("subscription.renewPlan")}
+                        accessibilityHint={t("subscription.renewComingSoon")}
+                        accessibilityState={{ disabled: true }}
+                        style={styles.renewButton}
+                      >
+                        <Ionicons
+                          name="refresh-outline"
+                          size={17}
+                          color={theme.textMuted}
+                        />
+                        <Text style={styles.renewText}>
+                          {t("subscription.renewPlan")}
+                        </Text>
+                        <View style={styles.demoPill}>
+                          <Text style={styles.demoPillText}>
+                            {t("subscription.demoBadge")}
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.renewNote}>
+                        {t("subscription.renewComingSoon")}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {/* The card's last line: how long this plan has left. A
+                      status, not a feature, so it sits apart from the chips. */}
+                  {isCurrent && periodRange ? (
+                    <View style={styles.periodFooter}>
+                      <View style={styles.periodDates}>
+                        <Ionicons
+                          name="calendar-outline"
+                          size={15}
+                          color={theme.textMuted}
+                        />
+                        <Text style={styles.periodText} numberOfLines={1}>
+                          {periodRange}
+                        </Text>
+                      </View>
+                      {periodLeft ? (
+                        <View
+                          style={[
+                            styles.daysPill,
+                            currentPeriod.endingSoon && styles.daysPillWarning,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.daysPillText,
+                              currentPeriod.endingSoon &&
+                                styles.daysPillTextWarning,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {periodLeft}
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -599,6 +694,77 @@ const createStyles = (theme: AppTheme) =>
       ...typography.caption,
       color: theme.textSecondary,
       lineHeight: 17,
+    },
+    periodFooter: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: spacing.sm,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: theme.border,
+    },
+    periodDates: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    periodText: {
+      flexShrink: 1,
+      ...typography.caption,
+      color: theme.textSecondary,
+      fontWeight: "600",
+    },
+    daysPill: {
+      flexShrink: 0,
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+      borderRadius: radius.full,
+      backgroundColor: theme.primaryLight,
+    },
+    daysPillWarning: { backgroundColor: `${theme.warningColor}18` },
+    daysPillText: {
+      ...typography.caption,
+      color: theme.primary,
+      fontWeight: "800",
+    },
+    daysPillTextWarning: { color: theme.warningColor },
+    renewBlock: { gap: 4 },
+    renewButton: {
+      minHeight: 42,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: theme.border,
+      backgroundColor: theme.inputBackground,
+    },
+    renewText: {
+      ...typography.labelSmall,
+      color: theme.textMuted,
+      fontWeight: "800",
+    },
+    demoPill: {
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: radius.full,
+      backgroundColor: `${theme.warningColor}18`,
+    },
+    demoPillText: {
+      fontSize: 10,
+      lineHeight: 13,
+      color: theme.warningColor,
+      fontWeight: "800",
+    },
+    renewNote: {
+      ...typography.caption,
+      color: theme.textMuted,
+      textAlign: "center",
     },
     currentPill: {
       paddingHorizontal: 8,

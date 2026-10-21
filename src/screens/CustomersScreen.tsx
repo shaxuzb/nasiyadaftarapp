@@ -73,6 +73,7 @@ import { formatAmountInput, parseAmountInput } from "../utils/amountInput";
 import { todayDateOnly, type DateOnly } from "../utils/dateOnly";
 import { radius, spacing } from "../theme";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
+import { RenewalReminderBanner } from "../modules/subscription/components/RenewalReminderBanner";
 import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -542,6 +543,7 @@ export function CustomersScreen() {
           </View>
         </View>
 
+        <RenewalReminderBanner />
         <PendingPaymentBanner />
 
         <FlatList

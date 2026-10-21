@@ -31,6 +31,7 @@ import {
   getAppLinkIcon,
   getAppLinkTitle,
 } from "../modules/support/utils/appLinkPresentation";
+import { getClientSmsCapabilities } from "../modules/client-sms/utils/smsPermissions";
 import { useAdminContact } from "../modules/support/hooks/useAdminContact";
 import { getHeaderAppLinks } from "../modules/support/utils/appLinks";
 import {
@@ -38,10 +39,15 @@ import {
   normalizePlanCode,
   type SubscriptionUpgradeReason,
 } from "../modules/subscription/utils/upgradeOptions";
+import { getSubscriptionPeriod } from "../modules/subscription/utils/subscriptionPeriod";
 import { useOrganizationProfileUpdate } from "../modules/organization/hooks/useOrganizationProfileUpdate";
 import type { UpdateCurrentOrganizationRequest } from "../modules/organization/types";
 import { useBottomSheet } from "../bottom-sheet";
-import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
+import {
+  formatLocalizedDate,
+  getLocalizedApiErrorMessage,
+  useTranslation,
+} from "../i18n";
 import type { TranslateKey } from "../i18n";
 import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
 import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
@@ -169,6 +175,11 @@ export function SettingsScreen() {
   const subscriptionQuery = useCurrentSubscription();
   const subscription = subscriptionQuery.data ?? user?.subscription;
   const regionalCapabilities = useRegionalProductCapabilities();
+  // Where the SMS screen is, its settings are too: the same region rule and
+  // the same permission.
+  const canOpenSmsSettings =
+    regionalCapabilities.clientSmsVisible &&
+    getClientSmsCapabilities(user?.permissions).canView;
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const showSubscriptionUi =
     !isAdministrator && regionalCapabilities.subscriptionVisible;
@@ -191,6 +202,26 @@ export function SettingsScreen() {
           ? t("subscription.premiumPlan")
           : subscription.planName
     : null;
+  // "until 31 Oct · 2 days left", only for a plan that ends.
+  const subscriptionPeriod = useMemo(
+    () => getSubscriptionPeriod(subscription),
+    [subscription],
+  );
+  const subscriptionUntil =
+    subscriptionPeriod.endAt && !subscriptionPeriod.ended
+      ? [
+          t("subscription.validUntil", {
+            date: formatLocalizedDate(subscriptionPeriod.endAt, locale),
+          }),
+          subscriptionPeriod.endingSoon && subscriptionPeriod.daysLeft !== null
+            ? subscriptionPeriod.daysLeft === 0
+              ? t("subscription.endsToday")
+              : t("subscription.daysLeft", { count: subscriptionPeriod.daysLeft })
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
   const subscriptionMeta = subscription
     ? [
         subscription.sms.totalRemaining === null
@@ -428,6 +459,19 @@ export function SettingsScreen() {
                 <Text style={styles.profilePlanName} numberOfLines={2}>
                   {subscriptionName}
                 </Text>
+                {subscriptionUntil ? (
+                  <Text
+                    style={[
+                      styles.profilePlanUntil,
+                      subscriptionPeriod.endingSoon && {
+                        color: theme.warningColor,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {subscriptionUntil}
+                  </Text>
+                ) : null}
                 <Text style={styles.profilePlanMeta} numberOfLines={2}>
                   {subscriptionMeta}
                 </Text>
@@ -532,6 +576,17 @@ export function SettingsScreen() {
             }}
             isLast={false}
           />
+          {canOpenSmsSettings ? (
+            <ProfileMenuRow
+              icon="chatbubbles-outline"
+              iconColor={theme.primary}
+              iconBackground={theme.primaryLight}
+              title={t("smsSettings.title")}
+              description={t("smsSettings.profileRowDescription")}
+              onPress={() => navigation.navigate("SmsSettings")}
+              isLast={false}
+            />
+          ) : null}
 {isPaidSubscription || regionalCapabilities.upgradePromptsVisible ? (
           <ProfileMenuRow
             icon={
@@ -839,6 +894,11 @@ const createStyles = (theme: AppTheme) =>
     profilePlanMeta: {
       ...typography.caption,
       color: theme.textSecondary,
+    },
+    profilePlanUntil: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      fontWeight: "700",
     },
     paymentHistoryCard: {
       minHeight: 62,

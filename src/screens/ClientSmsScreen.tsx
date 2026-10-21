@@ -380,6 +380,18 @@ function ClientSmsContent({
           action={
             <View style={styles.headerActions}>
               <VideoLessonButton lessonId="sms" />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("smsSettings.title")}
+                hitSlop={4}
+                onPress={() => navigation.navigate("SmsSettings")}
+                style={({ pressed }) => [
+                  styles.headerIconButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons name="settings-outline" size={21} color={theme.primary} />
+              </Pressable>
               {capabilities.canViewHistory ? (
                 <Pressable
                   accessibilityRole="button"
@@ -674,6 +686,15 @@ const createStyles = (theme: AppTheme) =>
     },
     title: { flex: 1, ...typography.displayMedium, color: theme.text },
     headerActions: { flexDirection: "row", alignItems: "center", gap: 6 },
+    // Round and tinted, the same as the lesson button beside it.
+    headerIconButton: {
+      width: 40,
+      height: 40,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: radius.full,
+      backgroundColor: theme.primaryLight,
+    },
     headerAction: {
       minHeight: 38,
       flexDirection: "row",

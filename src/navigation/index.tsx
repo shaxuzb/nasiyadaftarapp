@@ -29,6 +29,7 @@ import { AccountSecurityScreen } from "../screens/AccountSecurityScreen";
 import { PinChangeScreen } from "../modules/pin-auth/screens/PinChangeScreen";
 import { ClientSmsScreen } from "../screens/ClientSmsScreen";
 import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
+import { SmsSettingsScreen } from "../screens/SmsSettingsScreen";
 import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
 import { SubscriptionScreen } from "../screens/SubscriptionScreen";
 import { PaymentHistoryScreen } from "../screens/PaymentHistoryScreen";
@@ -237,6 +238,7 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
             name="ClientSmsHistory"
             component={ClientSmsHistoryScreen}
           />
+          <Stack.Screen name="SmsSettings" component={SmsSettingsScreen} />
         </>
       ) : null}
       <Stack.Screen

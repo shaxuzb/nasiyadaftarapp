@@ -36,6 +36,7 @@ export type RootStackParamList = {
   PinChange: undefined;
   ClientSms: undefined;
   ClientSmsHistory: undefined;
+  SmsSettings: undefined;
   BlacklistSettings: undefined;
   Subscription: undefined;
   PaymentHistory: undefined;
