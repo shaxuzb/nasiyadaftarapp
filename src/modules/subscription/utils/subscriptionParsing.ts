@@ -60,6 +60,7 @@ function parseQuota(input: unknown): SubscriptionSmsQuota {
 
   return {
     periodMonth: nullableText(value.periodMonth),
+    periodEnd: nullableText(value.periodEnd),
     monthlyLimit,
     monthlyUsed: Math.max(0, integer(value.monthlyUsed)),
     monthlyRemaining,

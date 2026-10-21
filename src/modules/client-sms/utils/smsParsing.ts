@@ -34,6 +34,10 @@ function parseSendQuota(input: unknown): SmsSendQuota | undefined {
   const nullable = (candidate: unknown) =>
     candidate === null || candidate === undefined ? null : number(candidate);
   return {
+    periodMonth: text(value.periodMonth) || null,
+    periodEnd: text(value.periodEnd) || null,
+    monthlyLimit: nullable(value.monthlyLimit),
+    monthlyUsed: Math.max(0, number(value.monthlyUsed)),
     monthlyRemaining: nullable(value.monthlyRemaining),
     purchasedRemaining: Math.max(0, number(value.purchasedRemaining)),
     totalRemaining: nullable(value.totalRemaining),
@@ -148,6 +152,7 @@ export function parseSmsSendResult(value: unknown): SmsSendResult {
       ? record(outer.result)
       : outer;
   return {
+    logId: positiveId(item.logId),
     clientId: positiveId(item.clientId ?? item.id),
     fullName: text(item.fullName, item.clientName) || undefined,
     phone: text(item.phoneNumber, item.phone) || undefined,
@@ -190,12 +195,12 @@ export function parseSmsHistory(input: unknown): PagedResult<SmsHistoryItem> {
       return {
         id: positiveId(item.id ?? item.logId) ?? -(index + 1),
         clientId: positiveId(item.clientId),
-        fullName: text(item.fullName, item.clientName),
+        fullName: text(item.clientFullName, item.fullName, item.clientName),
         phone: text(item.phoneNumber, item.phone),
         status,
         normalizedStatus: status.toLocaleLowerCase(),
         source: text(item.source) || undefined,
-        queuePosition: positiveId(item.queuePosition),
+        queuePosition: positiveId(item.queuePosition ?? item.position),
         estimatedSendDate: text(item.estimatedSendDate) || undefined,
         sentAt:
           text(item.sentDate, item.sentAt, item.createdDate, item.date) ||
@@ -209,10 +214,27 @@ export function parseSmsHistory(input: unknown): PagedResult<SmsHistoryItem> {
 
 export function parseSmsPreview(input: unknown): SmsPreview {
   const outer = record(input);
-  const inner = Object.keys(record(outer.data)).length ? record(outer.data) : Object.keys(record(outer.result)).length ? record(outer.result) : outer;
-  const message = text(inner.message);
+  const data = Object.keys(record(outer.data)).length ? record(outer.data) :
+    Object.keys(record(outer.result)).length ? record(outer.result) : outer;
+  const message = text(data.message);
   if (!message) throw new Error("SMS preview javobi noto'g'ri formatda");
-  return { message };
+  const count = (v: unknown) =>
+    typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : 0;
+  const skippedClients = Array.isArray(data.skippedClients)
+    ? data.skippedClients.flatMap((value: unknown) => {
+        const row = record(value);
+        const clientId = positiveId(row.clientId);
+        return clientId ? [{ clientId, fullName: text(row.fullName), reason: text(row.reason) }] : [];
+      })
+    : [];
+  return {
+    requested: count(data.requested), eligible: count(data.eligible),
+    sendNow: count(data.sendNow), queued: count(data.queued),
+    skipped: count(data.skipped),
+    estimatedLastSendDate: text(data.estimatedLastSendDate) || null,
+    quotaRemaining: data.quotaRemaining == null ? null : number(data.quotaRemaining),
+    ownDevice: data.ownDevice === true, message, skippedClients,
+  };
 }
 
 // Only the queue envelope is confirmed. Items reuse known history fields;
@@ -228,7 +250,21 @@ export function parseSmsQueue(input: unknown): SmsQueue {
   return {
     queuedCount: data.queuedCount,
     ownDevice: data.ownDevice,
-    items: parseSmsHistory({ items: data.items }).results,
+    items: (data.items as unknown[]).map((value, index) => {
+      const item = record(value);
+      return {
+        id: positiveId(item.logId) ?? -(index + 1),
+        clientId: positiveId(item.clientId),
+        fullName: text(item.clientName, item.clientFullName),
+        phone: text(item.phoneNumber),
+        status: "queued",
+        normalizedStatus: "queued",
+        source: text(item.source) || undefined,
+        queuePosition: positiveId(item.position),
+        estimatedSendDate: text(item.estimatedSendDate) || undefined,
+        sentAt: text(item.createdDate) || undefined,
+      };
+    }),
   };
 }
 

@@ -3,12 +3,13 @@ export interface SmsRecipientEligibility {
   canSend: boolean;
   phone: string;
   nextSmsAvailableDate?: string;
+  smsSentToday?: boolean;
 }
 
 export function isSmsRecipientSelectable(
   item: SmsRecipientEligibility,
 ): boolean {
-  return item.canSend && !item.nextSmsAvailableDate && Boolean(item.phone.trim());
+  return item.canSend && !item.nextSmsAvailableDate && !item.smsSentToday && Boolean(item.phone.trim());
 }
 
 export function toggleRecipientSelection(selection: Set<number>, id: number) {

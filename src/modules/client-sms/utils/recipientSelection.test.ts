@@ -13,6 +13,8 @@ assert(
   !isSmsRecipientSelectable({ id: 2, canSend: true, phone: "" }),
   "a recipient without a phone must not be selectable",
 );
+assert(!isSmsRecipientSelectable({ id: 4, canSend: true, phone: "+998901234567", smsSentToday: true }), "Queued today must not be selected");
+assert(!isSmsRecipientSelectable({ id: 5, canSend: true, phone: "+998901234567", nextSmsAvailableDate: "2026-10-24" }), "Cooldown date blocks selection");
 assert(
   !isSmsRecipientSelectable({ id: 3, canSend: false, phone: "+998901234567" }),
   "a recipient rejected by the API must not be selectable",

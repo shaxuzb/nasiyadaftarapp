@@ -1,5 +1,6 @@
 export interface SubscriptionSmsQuota {
   periodMonth: string | null;
+  periodEnd?: string | null;
   monthlyLimit: number | null;
   monthlyUsed: number;
   monthlyRemaining: number | null;

@@ -36,10 +36,7 @@ export interface SmsRecipient {
   blacklistedOrganizationCount: number;
   canSend: boolean;
   cannotSendReason?: string;
-  /**
-   * Each client gets at most one SMS a day. When true the backend has already
-   * set canSend to false, so selection needs no extra rule; this only says why.
-   */
+  /** Includes SMS queued today; not evidence of delivery. */
   smsSentToday: boolean;
   nextSmsAvailableDate?: string;
   lastSmsAt?: string;
@@ -61,6 +58,7 @@ export interface SmsHistoryItem {
 }
 
 export interface SmsSendResult {
+  logId?: number;
   clientId?: number;
   fullName?: string;
   phone?: string;
@@ -74,6 +72,10 @@ export interface SmsSendResult {
 }
 
 export interface SmsSendQuota {
+  periodMonth?: string | null;
+  periodEnd?: string | null;
+  monthlyLimit?: number | null;
+  monthlyUsed?: number;
   monthlyRemaining: number | null;
   purchasedRemaining: number;
   totalRemaining: number | null;
@@ -91,7 +93,18 @@ export interface BulkSmsResponse {
   quota?: SmsSendQuota;
 }
 
-export interface SmsPreview { message: string }
+export interface SmsPreview {
+  requested: number;
+  eligible: number;
+  sendNow: number;
+  queued: number;
+  skipped: number;
+  estimatedLastSendDate: string | null;
+  quotaRemaining: number | null;
+  ownDevice: boolean;
+  message: string;
+  skippedClients: { clientId: number; fullName: string; reason: string }[];
+}
 
 /** Confirmed envelope of GET /clients/debt-sms/queue; item fields are not yet documented. */
 export interface SmsQueue {
