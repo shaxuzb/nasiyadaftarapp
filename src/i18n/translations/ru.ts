@@ -382,6 +382,8 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     totalDebt: "Всего выдано в долг",
     totalPayment: "Всего получено платежей",
     topDebtors: "Самые крупные должники",
+    showCount: "Показать",
+    topCountOption: "{count} клиентов",
     topDebtorsSubtitle: "Клиенты, требующие внимания",
     activeDebtorsEmpty: "Активных должников нет",
     allSettled: "Все счета клиентов закрыты",

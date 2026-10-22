@@ -379,6 +379,8 @@ export const uzTranslations = {
     totalDebt: "Jami qarz berildi",
     totalPayment: "Jami to‘lov olindi",
     topDebtors: "Eng ko‘p qarzdorlar",
+    showCount: "Ko‘rsatish",
+    topCountOption: "{count} ta mijoz",
     topDebtorsSubtitle: "E’tibor talab qiladigan mijozlar",
     activeDebtorsEmpty: "Faol qarzdor yo‘q",
     allSettled: "Barcha mijozlarning hisobi yopilgan",

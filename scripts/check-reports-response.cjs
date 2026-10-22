@@ -77,6 +77,7 @@ vm.runInNewContext(code, {
 (async () => {
   const report = await moduleExports.getReports();
   assert.equal(request.url, "/reports");
+  assert.equal(request.config.params.topDebtorsLimit, 10, "Default top debtors limit is 10");
   assert.equal(report.totalDebt, 600000);
   assert.equal(report.totalPayment, 280000);
   assert.equal(report.remainingBalance, 320000);
@@ -102,7 +103,8 @@ vm.runInNewContext(code, {
   ]);
   assert.deepEqual(JSON.parse(JSON.stringify(report.monthlyStatistics)), []);
 
-  const wrappedReport = await moduleExports.getReports();
+  const wrappedReport = await moduleExports.getReports({ topDebtorsLimit: 50 });
+  assert.equal(request.config.params.topDebtorsLimit, 50, "Requested top debtors limit is forwarded to API");
   assert.equal(wrappedReport.totalDebt, 100000);
   assert.equal(wrappedReport.remainingBalance, 75000);
   assert.equal(wrappedReport.topDebtors[0].phoneNumber, "");
@@ -111,3 +113,8 @@ vm.runInNewContext(code, {
   console.error(error);
   process.exitCode = 1;
 });
+
+const screenSource = fs.readFileSync("src/screens/ReportsScreen.tsx", "utf8");
+assert.match(screenSource, /<FlatList<ReportTopDebtor>/, "A single virtualized reports list");
+assert.doesNotMatch(screenSource, /<ScrollView/, "Do not nest FlatList within ScrollView");
+assert.match(screenSource, /\[10, 30, 50\] as const/, "Three supported list sizes");

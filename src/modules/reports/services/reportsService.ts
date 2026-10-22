@@ -10,7 +10,7 @@ import {
 
 const DEFAULT_REPORTS_PARAMS: ReportsQueryParams = {
   months: 6,
-  topDebtorsLimit: 5,
+  topDebtorsLimit: 10,
 };
 
 function asFiniteNumber(value: unknown, field: string): number {
@@ -146,6 +146,7 @@ function parseReportsResponse(value: unknown): ReportsResponse {
 
 export async function getReports(
   params: Partial<ReportsQueryParams> = {},
+  signal?: AbortSignal,
 ): Promise<ReportsResponse> {
   const requestParams = {
     ...DEFAULT_REPORTS_PARAMS,
@@ -153,6 +154,7 @@ export async function getReports(
   };
   const { data } = await apiClient.get<unknown>("/reports", {
     params: requestParams,
+    signal,
   });
 
   return parseReportsResponse(data);

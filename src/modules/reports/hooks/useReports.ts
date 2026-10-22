@@ -7,7 +7,7 @@ import { ReportsQueryParams } from "../types";
 
 export const DEFAULT_REPORTS_QUERY: ReportsQueryParams = {
   months: 6,
-  topDebtorsLimit: 5,
+  topDebtorsLimit: 10,
 };
 
 export function useReports(
@@ -21,7 +21,8 @@ export function useReports(
 
   const query = useQuery({
     queryKey: queryKeys.reports(scope, params),
-    queryFn: () => getReports(params),
+    queryFn: ({ signal }) => getReports(params, signal),
+    placeholderData: (previousData) => previousData,
     enabled,
     staleTime: 60_000,
   });
@@ -31,6 +32,7 @@ export function useReports(
     error: query.error,
     isLoading: query.isPending,
     isRefreshing: query.isFetching && !query.isPending,
+    isFetching: query.isFetching,
     refetch: query.refetch,
   };
 }
