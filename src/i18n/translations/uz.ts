@@ -632,6 +632,13 @@ export const uzTranslations = {
     linkOpenError: "Havolani ochib bo‘lmadi",
   },
   smsSettings: {
+    selectPlatform: "Qarz Daftar orqali yuborish",
+    selectOwnPhone: "O‘z telefonimdan yuborish",
+    providerSaved: "SMS yuborish usuli saqlandi",
+    providerSaveError: "SMS yuborish usulini o‘zgartirib bo‘lmadi",
+    ownDeviceRestricted: "Tarifingizda o‘z telefoningizdan SMS yuborish mavjud emas",
+    connectBeforeSelecting: "Avval telefoningizni ulang",
+    offlineQueues: "Telefon oflayn. SMS navbatda kutadi.",
     sourceHeading: "SMS qayerdan yuborilsin?",
     sourceHint: "SMS yuborish usulini tanlang.",
     currentSource: "Ishlatilmoqda",

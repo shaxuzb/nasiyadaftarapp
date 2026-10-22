@@ -636,6 +636,13 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     linkOpenError: "Не удалось открыть ссылку",
   },
   smsSettings: {
+    selectPlatform: "Отправлять через Qarz Daftar",
+    selectOwnPhone: "Отправлять с моего телефона",
+    providerSaved: "Способ отправки SMS сохранён",
+    providerSaveError: "Не удалось изменить способ отправки SMS",
+    ownDeviceRestricted: "Отправка с телефона недоступна в вашем тарифе",
+    connectBeforeSelecting: "Сначала подключите телефон",
+    offlineQueues: "Телефон не в сети. SMS будут ждать в очереди.",
     sourceHeading: "Откуда отправлять SMS?",
     sourceHint: "Выберите способ отправки SMS.",
     currentSource: "Используется",

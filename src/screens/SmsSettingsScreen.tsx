@@ -20,7 +20,8 @@ import { useTranslation } from "../i18n";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 import { AutoReminderCard } from "../modules/client-sms/components/AutoReminderCard";
 import { SmsGatewayControls } from "../modules/client-sms/components/SmsGatewayControls";
-import { useSmsDevices } from "../modules/client-sms/hooks/useSmsDevices";
+import { useSmsDevices, useSmsProvider, useUpdateSmsProvider } from "../modules/client-sms/hooks/useSmsDevices";
+import { getLocalizedApiErrorMessage } from "../i18n";
 import { useSmsQueue } from "../modules/client-sms/hooks/useClientSms";
 import { QrCode } from "../modules/support/components/QrCode";
 import { radius, spacing, typography } from "../theme";
@@ -48,7 +49,8 @@ export function SmsSettingsScreen() {
   const { user } = useAuth();
   const { showToast } = useToast();
   const devices = useSmsDevices();
-  const queue = useSmsQueue();
+  const provider = useSmsProvider();
+  const updateProvider = useUpdateSmsProvider();
   const smsQuota = user?.subscription?.sms;
   const [expanded, setExpanded] = useState<SourceCard | null>("platform");
   const [guideOpen, setGuideOpen] = useState(false);
@@ -61,8 +63,18 @@ export function SmsSettingsScreen() {
     catch { showToast(t("smsSettings.downloadError"), "error"); }
   }, [showToast, t]);
 
-  const sourceKnown = !!queue.data && !queue.isError;
-  const usesOwnPhone = sourceKnown && queue.data?.ownDevice === true;
+  const sourceKnown = !!provider.data && !provider.isError;
+  const usesOwnPhone = provider.data?.provider === "own_device";
+  const chooseSource = async (next: "system" | "own_device") => {
+    if (!provider.data || provider.data.provider === next || updateProvider.isPending) return;
+    if (next === "own_device" && (!provider.data.ownDeviceAllowed || !devices.data?.length)) {
+      setExpanded("device");
+      showToast(t(!provider.data.ownDeviceAllowed ? "smsSettings.ownDeviceRestricted" : "smsSettings.connectBeforeSelecting"), "info");
+      return;
+    }
+    try { await updateProvider.mutateAsync(next); showToast(t("smsSettings.providerSaved"), "success"); }
+    catch (error) { showToast(getLocalizedApiErrorMessage(error, "smsSettings.providerSaveError", t), "error"); }
+  };
   const hasDevices = !!devices.data?.length;
 
   return (
@@ -122,6 +134,10 @@ export function SmsSettingsScreen() {
                 ) : null}
               </View>
               <Text style={styles.helperText}>{t("smsSettings.platformQuotaHint")}</Text>
+              {sourceKnown && usesOwnPhone ? <Pressable accessibilityRole="button" disabled={updateProvider.isPending}
+                onPress={() => void chooseSource("system")} style={[styles.chooseButton, {backgroundColor:theme.primary}]}>
+                <Text style={styles.chooseText}>{t("smsSettings.selectPlatform")}</Text>
+              </Pressable> : null}
             </View>
           ) : null}
         </View>
@@ -194,6 +210,15 @@ export function SmsSettingsScreen() {
                 <Text style={styles.helperText}>{t("smsSettings.step3Text")}</Text>
               ) : null}
               <SmsGatewayControls />
+              {sourceKnown && !usesOwnPhone ? <Pressable accessibilityRole="button"
+                disabled={updateProvider.isPending || devices.isPending || !provider.data?.ownDeviceAllowed || !hasDevices}
+                onPress={() => void chooseSource("own_device")}
+                style={[styles.chooseButton, { backgroundColor: theme.primary, opacity: updateProvider.isPending || !provider.data?.ownDeviceAllowed || !hasDevices ? 0.45 : 1 }]}>
+                <Text style={styles.chooseText}>{t("smsSettings.selectOwnPhone")}</Text>
+              </Pressable> : null}
+              {sourceKnown && usesOwnPhone && devices.data?.[0]?.online === false ? (
+                <Text style={[styles.helperText, { color: theme.warningColor }]}>{t("smsSettings.offlineQueues")}</Text>
+              ) : null}
               <Text style={styles.helperText}>{t("smsSettings.androidOnly")}</Text>
             </View>
           ) : null}
@@ -272,5 +297,7 @@ const createStyles = (theme: AppTheme) =>
     gatewayQrCopy: { flex: 1, gap: 5 },
     linkText: { ...typography.caption, fontWeight: "700", color: theme.primary },
     guideToggle: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", minHeight: 36 },
+    chooseButton: { minHeight: 44, borderRadius: radius.md, justifyContent: "center", alignItems: "center", marginTop: spacing.xs },
+    chooseText: { color: "#FFFFFF", fontWeight: "700" },
     pressed: { opacity: 0.7 },
   });

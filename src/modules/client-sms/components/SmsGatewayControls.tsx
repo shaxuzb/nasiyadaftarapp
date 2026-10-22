@@ -18,7 +18,6 @@ export function SmsGatewayControls() {
   const devices = useSmsDevices();
   const claim = useClaimSmsDevice();
   const remove = useDeleteSmsDevice();
-  const [editorOpen, setEditorOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [code, setCode] = useState("");
   const busy = claim.isPending || remove.isPending;
@@ -26,13 +25,12 @@ export function SmsGatewayControls() {
   const scanned = useCallback((value: string) => {
     setCode(value); // QR data is the full input; do not guess an undocumented deep link format.
     setScannerOpen(false);
-    setEditorOpen(true);
   }, []);
 
   const paste = async () => {
     try {
       const value = (await Clipboard.getStringAsync()).trim();
-      if (value) { setCode(value); setEditorOpen(true); }
+      if (value) { setCode(value); }
       else showToast(t("smsSettings.clipboardEmpty"), "info");
     } catch { showToast(t("smsSettings.clipboardError"), "error"); }
   };
@@ -43,7 +41,6 @@ export function SmsGatewayControls() {
     try {
       await claim.mutateAsync({ code: trimmed });
       setCode("");
-      setEditorOpen(false);
       showToast(t("smsSettings.deviceConnected"), "success");
     } catch (error) {
       showToast(getLocalizedApiErrorMessage(error, "smsSettings.deviceConnectError", t), "error");
@@ -61,6 +58,7 @@ export function SmsGatewayControls() {
     if (!accepted) return;
     try {
       await remove.mutateAsync(deviceCode);
+      setCode("");
       showToast(t("smsSettings.deviceRemoved"), "success");
     } catch (error) {
       showToast(getLocalizedApiErrorMessage(error, "smsSettings.deviceRemoveError", t), "error");
@@ -96,6 +94,7 @@ export function SmsGatewayControls() {
               <Text style={[styles.meta, { color: theme.textSecondary }]}>
                 {t("smsSettings.deviceBattery")}: {device.battery === null ? "—" : `${device.battery}%`}
               </Text>
+              {device.canSend === false && device.unavailableReason ? <Text style={[styles.meta, { color: theme.warningColor }]}>{device.unavailableReason}</Text> : null}
               {device.sims.map((sim) => (
                 <View key={sim.id} style={[styles.simQuota, { backgroundColor: theme.inputBackground }]}>
                   <Text style={[styles.simName, { color: theme.text }]}>
@@ -113,40 +112,26 @@ export function SmsGatewayControls() {
                 </View>
               ))}
               <Pressable accessibilityRole="button" disabled={busy} onPress={() => void disconnect(device.deviceCode)}
-                style={[styles.disconnect, { opacity: busy ? 0.5 : 1 }]}>
-                <Text style={{ color: theme.dangerColor, fontWeight: "700" }}>{t("smsSettings.deviceRemove")}</Text>
+                style={[styles.disconnect, { backgroundColor: theme.dangerColor, opacity: busy ? 0.5 : 1 }]}>
+                {remove.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.disconnectText}>{t("smsSettings.deviceRemove")}</Text>}
               </Pressable>
             </View>
           ))}
         </View>
       ) : null}
 
-      <View style={styles.actions}>
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => setScannerOpen(true)}
-          style={[styles.action, { borderColor: theme.border, backgroundColor: theme.inputBackground }]}>
-          <Ionicons name="qr-code-outline" size={20} color={theme.primary} />
-          <Text style={[styles.actionText, { color: theme.text }]}>{t("smsSettings.scanQr")}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" disabled={busy} onPress={() => setEditorOpen((open) => !open)}
-          style={[styles.action, { borderColor: theme.border, backgroundColor: theme.inputBackground }]}>
-          <Ionicons name="clipboard-outline" size={20} color={theme.primary} />
-          <Text style={[styles.actionText, { color: theme.text }]}>{t("smsSettings.enterCode")}</Text>
-        </Pressable>
-      </View>
-
-      {editorOpen ? (
+      {!devices.isPending && !devices.isError && !devices.data?.length ? (
         <View style={styles.form}>
           <Text style={[styles.label, { color: theme.textSecondary }]}>{t("smsSettings.deviceCodeLabel")}</Text>
-          <View style={styles.inputRow}>
-            <TextInput style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBackground }]}
-              value={code} onChangeText={setCode} editable={!claim.isPending}
+          <View style={[styles.inputShell, { borderColor: theme.border, backgroundColor: theme.inputBackground }]}>
+            <TextInput style={[styles.input, { color: theme.text }]}
+              value={code} onChangeText={setCode} editable={!busy}
               autoCapitalize="characters" autoCorrect={false}
-              placeholder={t("smsSettings.deviceCodeLabel")} placeholderTextColor={theme.textMuted}
-              accessibilityLabel={t("smsSettings.deviceCodeLabel")}
-              selectTextOnFocus />
-            <Pressable accessibilityRole="button" disabled={claim.isPending}
-              onPress={() => void paste()} style={[styles.paste, { borderColor: theme.border }]}>
-              <Text style={{ color: theme.primary, fontWeight: "700" }}>{t("smsSettings.pasteCode")}</Text>
+              placeholder="K7Q2-M9XD" placeholderTextColor={theme.textMuted}
+              accessibilityLabel={t("smsSettings.deviceCodeLabel")} selectTextOnFocus />
+            <Pressable accessibilityRole="button" accessibilityLabel={t("smsSettings.scanQr")}
+              disabled={busy} onPress={() => setScannerOpen(true)} style={styles.scanIcon} hitSlop={5}>
+              <Ionicons name="qr-code-outline" size={22} color={theme.primary} />
             </Pressable>
           </View>
           <Pressable accessibilityRole="button" disabled={busy || !code.trim()} onPress={() => void connect()}
@@ -174,17 +159,13 @@ const styles = StyleSheet.create({
   simQuota: { borderRadius: 11, padding: 11, gap: 4 },
   simName: { fontSize: 12, fontWeight: "700" },
   remaining: { fontSize: 13, fontWeight: "800" },
-  disconnect: { minHeight: 38, justifyContent: "center", alignSelf: "flex-start" },
-  actions: { flexDirection: "row", gap: 8 },
-  action: { flex: 1, minHeight: 48, flexDirection: "row", gap: 6, alignItems: "center",
-    justifyContent: "center", paddingHorizontal: 8, borderRadius: 12, borderWidth: 1 },
-  actionText: { fontSize: 12, fontWeight: "700", flexShrink: 1 },
+  disconnect: { minHeight: 48, justifyContent: "center", alignItems: "center", borderRadius: 12, marginTop: 8 },
+  disconnectText: { color: "#FFFFFF", fontWeight: "800", fontSize: 14 },
   form: { gap: 10, paddingTop: 4 },
-  label: { fontSize: 12, fontWeight: "700" },
-  inputRow: { flexDirection: "row", gap: 8 },
-  input: { minWidth: 0, flex: 1, minHeight: 46, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12 },
-  paste: { minHeight: 46, paddingHorizontal: 12, alignItems: "center",
-    justifyContent: "center", borderWidth: 1, borderRadius: 10 },
+  label: { fontSize: 12, fontWeight: "600" },
+  inputShell: { minHeight: 48, flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 12 },
+  input: { flex: 1, minWidth: 0, paddingHorizontal: 12, minHeight: 46, fontSize: 14 },
+  scanIcon: { width: 48, height: 46, alignItems: "center", justifyContent: "center" },
   connect: { minHeight: 46, alignItems: "center", justifyContent: "center", borderRadius: 12 },
   connectText: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
   retry: { gap: 6, minHeight: 44, justifyContent: "center" },
