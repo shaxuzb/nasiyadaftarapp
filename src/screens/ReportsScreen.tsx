@@ -85,7 +85,7 @@ const DebtorRow = React.memo(function DebtorRow({
         pressed && styles.pressed,
       ]}
     >
-      <View style={styles.rankBadge}>
+      <View pointerEvents="none" style={styles.rankBadge}>
         <Text style={styles.rankText}>{index + 1}</Text>
       </View>
       <View style={styles.avatar}>
@@ -98,13 +98,13 @@ const DebtorRow = React.memo(function DebtorRow({
         </Text>
       </View>
       <View style={styles.debtorAmountWrap}>
-        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}
           style={styles.debtorAmount}>
           {balanceText}
         </Text>
         <Text style={styles.debtorCaption}>{debtCaption}</Text>
       </View>
-      <Ionicons name="chevron-forward" size={16} color={mutedColor} />
+      <Ionicons name="chevron-forward" size={14} color={mutedColor} />
     </Pressable>
   );
 });
@@ -345,24 +345,26 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   limitOptionSelected: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.primary },
   limitOptionText: { color: theme.textSecondary, fontSize: 11, fontWeight: "700" },
   limitOptionTextSelected: { color: theme.primary, fontWeight: "800" },
-  debtorRow: { minHeight: 67, flexDirection: "row", alignItems: "center", gap: 9,
-    paddingHorizontal: 12, paddingVertical: 8, backgroundColor: theme.surface,
+  debtorRow: { minHeight: 60, flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 12, paddingVertical: 6, backgroundColor: theme.surface,
     borderLeftWidth: 1, borderRightWidth: 1, borderBottomWidth: 1, borderColor: theme.border },
   firstRow: { borderTopWidth: 1, borderTopLeftRadius: 18, borderTopRightRadius: 18 },
   lastRow: { borderBottomLeftRadius: 18, borderBottomRightRadius: 18 },
-  rankBadge: { width: 22, height: 22, borderRadius: 11, flexShrink: 0,
-    alignItems: "center", justifyContent: "center", backgroundColor: theme.inputBackground },
-  rankText: { color: theme.textSecondary, fontSize: 10, fontWeight: "800" },
-  avatar: { width: 38, height: 38, borderRadius: 19, flexShrink: 0,
+  rankBadge: { position: "absolute", top: 5, left: 6, zIndex: 1,
+    width: 20, height: 20, borderRadius: 10, borderWidth: 1, borderColor: theme.surface,
+    alignItems: "center", justifyContent: "center", backgroundColor: theme.primaryLight },
+  rankText: { color: theme.primary, fontSize: 10, fontWeight: "800" },
+  avatar: { width: 36, height: 36, borderRadius: 18, flexShrink: 0,
     alignItems: "center", justifyContent: "center", backgroundColor: theme.debtBg },
-  avatarText: { color: theme.debtColor, fontSize: 13, fontWeight: "800" },
-  debtorIdentity: { minWidth: 0, flex: 1, gap: 1 },
-  debtorName: { color: theme.text, fontSize: 13, lineHeight: 18, fontWeight: "700" },
-  debtorPhone: { color: theme.textMuted, fontSize: 10, lineHeight: 14, fontVariant: ["tabular-nums"] },
-  debtorAmountWrap: { width: 92, alignItems: "flex-end", gap: 1 },
-  debtorAmount: { width: "100%", color: theme.debtColor, fontSize: 12, lineHeight: 16,
+  avatarText: { color: theme.debtColor, fontSize: 12, fontWeight: "800" },
+  debtorIdentity: { minWidth: 0, flex: 1, gap: 2 },
+  debtorName: { color: theme.text, fontSize: 13, lineHeight: 17, fontWeight: "700" },
+  debtorPhone: { color: theme.textMuted, fontSize: 11, lineHeight: 15, fontVariant: ["tabular-nums"] },
+  debtorAmountWrap: { width: "40%", maxWidth: 144, minWidth: 104,
+    alignItems: "flex-end", gap: 1 },
+  debtorAmount: { width: "100%", color: theme.debtColor, fontSize: 15, lineHeight: 19,
     textAlign: "right", fontWeight: "800", fontVariant: ["tabular-nums"] },
-  debtorCaption: { color: theme.textMuted, fontSize: 9, lineHeight: 12 },
+  debtorCaption: { color: theme.textMuted, fontSize: 10, lineHeight: 13 },
   emptyState: { minHeight: 168, backgroundColor: theme.surface, borderWidth: 1,
     borderColor: theme.border, borderRadius: 18, alignItems: "center",
     justifyContent: "center", gap: 8, padding: 20 },
