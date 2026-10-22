@@ -203,14 +203,6 @@ export function SubscriptionScreen() {
           <Text style={styles.sectionMeta}>{copy.oneMonth}</Text>
         </View>
 
-        <View style={styles.telegramFreeInfo}>
-          <Ionicons name="paper-plane-outline" size={18} color={TELEGRAM_BLUE} />
-          <View style={styles.telegramFreeCopy}>
-            <Text style={styles.telegramFreeTitle}>{t("subscription.telegramFreeTitle")}</Text>
-            <Text style={styles.telegramFreeDescription}>{t("subscription.telegramFreeDescription")}</Text>
-          </View>
-        </View>
-        
         {isLoading ? (
           <View style={styles.loadingCard}>
             <ActivityIndicator color={theme.primary} />
@@ -661,16 +653,6 @@ const createStyles = (theme: AppTheme) =>
     planList: {
       gap: 10,
     },
-    telegramFreeInfo: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: spacing.sm,
-      paddingHorizontal: spacing.xs,
-      paddingBottom: spacing.xs,
-    },
-    telegramFreeCopy: { flex: 1, gap: 3 },
-    telegramFreeTitle: { ...typography.bodySmall, color: theme.text, fontWeight: "800" },
-    telegramFreeDescription: { ...typography.caption, color: theme.textSecondary, lineHeight: 18 },
     planCard: {
       padding: 12,
       gap: 10,

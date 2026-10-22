@@ -1,7 +1,7 @@
 import React, { useCallback, useRef } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useTranslation } from "../../../i18n";
 
@@ -24,8 +24,9 @@ export function SmsGatewayQrScanner({ onRead, onClose }: Props) {
   }, [onRead]);
 
   return (
-    <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={onClose}>
-      <SafeAreaView style={styles.container}>
+    <Modal visible animationType="slide" presentationStyle="fullScreen" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
         <View style={styles.header}>
           <Pressable onPress={onClose} accessibilityRole="button"
             accessibilityLabel={t("common.close")} hitSlop={10} style={styles.close}>
@@ -59,7 +60,8 @@ export function SmsGatewayQrScanner({ onRead, onClose }: Props) {
             </Pressable>
           </View>
         )}
-      </SafeAreaView>
+        </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }

@@ -56,6 +56,12 @@ for (const planCode of ["FREE", "STANDARD", "PREMIUM", undefined]) {
 // Telegram bots no longer trigger an upgrade: both are free.
 
 
+for (const planCode of ["FREE", "STANDARD"]) {
+  const reminder = moduleExports.getSubscriptionUpgradeOptions({ planCode }, "auto-reminder");
+  assert.equal(reminder.showPlans, true);
+  assert.equal(reminder.showPackages, false);
+  assert.equal(reminder.recommendedPlanCode, "PREMIUM");
+}
 const freeBlacklist = moduleExports.getSubscriptionUpgradeOptions(
   { planCode: "FREE" },
   "blacklist",
@@ -112,6 +118,8 @@ assert.doesNotMatch(upgradeModal, /useAdminContact/);
 assert.doesNotMatch(upgradeModal, /openAdminContact/);
 assert.doesNotMatch(upgradeModal, /adminActivate/);
 assert.match(upgradeModal, /t\("subscription\.choosePlan"\)/);
+assert.match(upgradeModal, /snapPoints=\{\["100%"\]\}/);
+assert.match(upgradeModal, /enableDynamicSizing=\{false\}/);
 assert.doesNotMatch(upgradeModal, /options\.title/);
 assert.doesNotMatch(upgradeModal, /options\.description/);
 assert.doesNotMatch(upgradeModal, /options\.steps/);

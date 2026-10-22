@@ -2,6 +2,7 @@ export type SubscriptionUpgradeReason =
   | "sms-limit"
   // The user asked to buy SMS: the package list and nothing else.
   | "sms-packages"
+  | "auto-reminder"
   | "telegram"
   | "organization-limit"
   | "blacklist";
@@ -33,6 +34,9 @@ export function getSubscriptionUpgradeOptions(
 ): SubscriptionUpgradeOptions {
   const currentPlanCode = normalizePlanCode(subscription?.planCode);
   const isPaid = isPaidPlanCode(currentPlanCode);
+  if (reason === "auto-reminder") {
+    return { showPlans: currentPlanCode !== "PREMIUM", showPackages: false, recommendedPlanCode: "PREMIUM" };
+  }
   if (reason === "sms-packages") {
     return { showPlans: false, showPackages: true, recommendedPlanCode: "PREMIUM" };
   }

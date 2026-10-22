@@ -11,7 +11,6 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -178,7 +177,6 @@ export function SubscriptionUpgradeModal({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale, t } = useTranslation();
   const insets = useSafeAreaInsets();
-  const { height } = useWindowDimensions();
   const contentBottomInset = Math.max(insets.bottom, spacing.md) + 10;
   const sheet = useRef<BottomSheetModal>(null);
   const sheetFrame = useSheetFrameStyle();
@@ -208,13 +206,13 @@ export function SubscriptionUpgradeModal({
       PREMIUM: 2,
     };
     return [...(plansQuery.data ?? [])]
-      .filter((item) => isPaidPlanCode(item.code))
+      .filter((item) => isPaidPlanCode(item.code) && (reason !== "auto-reminder" || normalizePlanCode(item.code) === "PREMIUM"))
       .sort((left, right) => {
         const leftCode = normalizePlanCode(left.code) as PaidPlanCode;
         const rightCode = normalizePlanCode(right.code) as PaidPlanCode;
         return order[leftCode] - order[rightCode];
       });
-  }, [plansQuery.data]);
+  }, [plansQuery.data, reason]);
   const [selectedPlanCode, setSelectedPlanCode] =
     useState<PaidPlanCode>("PREMIUM");
   const freePlan = useMemo(
@@ -330,11 +328,8 @@ export function SubscriptionUpgradeModal({
       // A centred column on a tablet, like the screen behind it.
       style={sheetFrame}
       index={0}
-      enableDynamicSizing
-      maxDynamicContentSize={Math.max(
-        1,
-        height - insets.top - contentBottomInset,
-      )}
+      enableDynamicSizing={false}
+      snapPoints={["100%"]}
       topInset={insets.top}
       // bottomInset={contentBottomInset}
       enablePanDownToClose
@@ -346,11 +341,12 @@ export function SubscriptionUpgradeModal({
       handleIndicatorStyle={styles.handleIndicator}
     >
       <BottomSheetScrollView
+        style={{ flex: 1 }}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.body]}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ flex: 1, paddingBottom: contentBottomInset }}>
+        <View style={{ paddingBottom: contentBottomInset }}>
           <View style={styles.header}>
             {showingPackageCatalog && !packagesOnly ? (
               <Pressable

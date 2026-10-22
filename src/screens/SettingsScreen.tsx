@@ -623,7 +623,6 @@ export function SettingsScreen() {
                 : t("profile.verifyPhoneFirst")
             }
             onPress={handleOpenBot}
-            badge={t("subscription.freePlan")}
           />
           <ProfileMenuRow
             icon="school-outline"
