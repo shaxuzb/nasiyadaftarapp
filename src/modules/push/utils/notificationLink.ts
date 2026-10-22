@@ -90,6 +90,7 @@ export const INTERNAL_ROUTE_RULES: readonly InternalRouteRule[] = [
   { pattern: "/sms/history", build: screen("ClientSmsHistory") },
   { pattern: "/profile", build: tab("Settings") },
   { pattern: "/subscription", build: screen("Subscription") },
+  { pattern: "/tariffs", build: screen("Subscription") },
   { pattern: "/payments", build: screen("PaymentHistory") },
   { pattern: "/security", build: screen("AccountSecurity") },
   { pattern: "/blacklist", build: screen("BlacklistSettings") },

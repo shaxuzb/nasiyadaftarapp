@@ -27,7 +27,6 @@ import {
 } from "../modules/subscription/hooks/useSubscription";
 import { isMonthlyPlan } from "../modules/subscription/utils/planPeriod";
 import { getSubscriptionPeriod } from "../modules/subscription/utils/subscriptionPeriod";
-import { getPlanTaglineKey } from "../modules/subscription/utils/planTagline";
 import { getPlanPurchaseAvailability } from "../modules/subscription/utils/planPurchase";
 import { DiscountSummary } from "../modules/subscription/components/PriceDiscount";
 import { SmsPackageRow } from "../modules/subscription/components/SmsPackageRow";
@@ -39,69 +38,12 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
 type PlanIconName = React.ComponentProps<typeof Ionicons>["name"];
 
 /** One capability of a plan, as a chip on its card. */
-interface PlanFeature {
-  key: string;
-  enabled: boolean;
-  text: string;
-  icon: PlanIconName;
-  iconColor?: string;
-}
-
-// Telegram's own blue, so its two chips read as Telegram at a glance.
-const TELEGRAM_BLUE = "#229ED9";
-
-const SCREEN_COPY = {
-  uz: {
-    subtitle: "Ehtiyojingizga mos tarifni tanlang",
-    oneMonth: "1 oylik tariflar",
-    currentBadge: "Joriy tarif",
-    bestChoice: "Eng yaxshi tanlov",
-    unlimitedOrganizations: "Cheksiz tashkilot",
-    unlimitedClients: "Cheksiz mijoz",
-    reports: "Hisobotlar",
-    more: "+2",
-    smsSubtitle: "Qo‘shimcha SMS oling",
-    info: "Tarif yoki SMS paketni tanlang. To‘lov xavfsiz tashqi sahifada davom etadi.",
-  },
-  ru: {
-    subtitle: "Выберите тариф под свои задачи",
-    oneMonth: "Тарифы на 1 месяц",
-    currentBadge: "Текущий тариф",
-    bestChoice: "Лучший выбор",
-    unlimitedOrganizations: "Безлимит организаций",
-    unlimitedClients: "Безлимит клиентов",
-    reports: "Отчёты",
-    more: "+2",
-    smsSubtitle: "Дополнительные SMS",
-    info: "Выберите тариф или пакет SMS. Оплата продолжится на защищённой внешней странице.",
-  },
-} as const;
-
-function getPlanIcon(code: string): PlanIconName {
-  const normalized = code.trim().toUpperCase();
-  if (normalized === "STANDARD") return "sparkles";
-  if (normalized === "PREMIUM") return "diamond-outline";
-  return "cube-outline";
-}
-
-function getPlanAccent(code: string, theme: AppTheme) {
-  const normalized = code.trim().toUpperCase();
-  if (normalized === "PREMIUM") {
-    return {
-      color: theme.warningColor,
-      soft: `${theme.warningColor}14`,
-    };
+/** Only server-listed features are rendered. Unknown icons use a neutral fallback. */
+function serverIcon(raw: string | null): PlanIconName {
+  if (raw && Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, raw)) {
+    return raw as PlanIconName;
   }
-  if (normalized === "STANDARD") {
-    return {
-      color: theme.primary,
-      soft: theme.primaryLight,
-    };
-  }
-  return {
-    color: theme.textSecondary,
-    soft: theme.inputBackground,
-  };
+  return "checkmark-circle-outline";
 }
 
 export function SubscriptionScreen() {
@@ -142,19 +84,6 @@ export function SubscriptionScreen() {
   const plans = plansQuery.data ?? [];
   const packages = packagesQuery.data ?? [];
   const isLoading = plansQuery.isPending && !plans.length;
-
-  const getPlanName = (code: string, fallback: string) => {
-    const normalized = code.toUpperCase();
-    if (normalized === "FREE") return t("subscription.freePlan");
-    if (normalized === "STANDARD") return t("subscription.standardPlan");
-    if (normalized === "PREMIUM") return t("subscription.premiumPlan");
-    return fallback;
-  };
-
-  const getPlanDescription = (code: string, fallback: string) => {
-    const taglineKey = getPlanTaglineKey(code);
-    return taglineKey ? t(taglineKey) : fallback;
-  };
 
   const openPlanPayment = (plan: (typeof plans)[number]) => {
     openSheet("paymentCheckout", {
@@ -220,105 +149,15 @@ export function SubscriptionScreen() {
               const selectable = !isFree && !isCurrent && availability.allowed;
               const accent = getPlanAccent(plan.code, theme);
 
-              const features: PlanFeature[] = [
-                {
-                  key: "organizations",
-                  enabled: true,
-                  text:
-                    plan.maxOrganizations === null
-                      ? copy.unlimitedOrganizations
-                      : t("subscription.organizationsPerPlan", {
-                          count: plan.maxOrganizations,
-                        }),
-                  icon: "business-outline",
-                },
-                {
-                  // Every plan carries an unlimited client list, so this is not
-                  // read from plan.maxClients.
-                  key: "clients",
-                  enabled: true,
-                  text: copy.unlimitedClients,
-                  icon: "people-outline",
-                },
-                {
-                  key: "sms",
-                  enabled: true,
-                  text: isFree ? t("subscription.noSms") :
-                    plan.monthlySmsLimit === null
-                      ? `${t("subscription.unlimited")} SMS`
-                      : t("subscription.smsPerMonth", {
-                          count: plan.monthlySmsLimit,
-                        }),
-                  icon: "mail-outline",
-                },
-                {
-                  // Reports are part of every plan. The plans endpoint has no
-                  // field for them yet; wire this to the API once it does.
-                  key: "reports",
-                  enabled: true,
-                  text: copy.reports,
-                  icon: "bar-chart-outline",
-                },
-                {
-                  key: "blacklist",
-                  enabled: plan.blacklistEnabled,
-                  text: t("subscription.featureBlacklist"),
-                  icon: "ban-outline",
-                },
-                // Both Telegram bots are free for every plan regardless of the
-                // legacy telegramBotEnabled server flag.
-                {
-                  key: "telegramDailyReport",
-                  enabled: true,
-                  text: t("subscription.featureTelegram"),
-                  icon: "paper-plane",
-                  iconColor: TELEGRAM_BLUE,
-                },
-                {
-                  key: "telegramMessage",
-                  enabled: true,
-                  text: t("subscription.featureTelegramMessage"),
-                  icon: "paper-plane",
-                  iconColor: TELEGRAM_BLUE,
-                },
-                // Automatic SMS is likewise one switch and two occasions: each
-                // new debt, and a customer landing on the blacklist.
-                {
-                  key: "debtAutoSms",
-                  enabled: isPremium,
-                  text: t("subscription.featureTransactionSms"),
-                  icon: "time-outline",
-                },
-                {
-                  key: "blacklistAutoSms",
-                  enabled: plan.transactionSmsEnabled,
-                  text: t("subscription.featureBlacklistAutoSms"),
-                  icon: "settings-outline",
-                },
-                {
-                  // Every plan comes with 24/7 help, the free one included, so
-                  // this is not read from plan.prioritySupportEnabled.
-                  key: "support",
-                  enabled: true,
-                  text: t("subscription.featurePrioritySupport"),
-                  icon: "headset-outline",
-                },
-              ];
-
-              // Each card lists only what its plan includes. A crossed-out
-              // entry states what the reader does not get on the very card that
-              // asks them to choose it, and the plans already read as a ladder
-              // through what each one does list: five capabilities on free,
-              // eight on standard, all ten on premium.
-              const visibleFeatures = features.filter(
-                (feature) => feature.enabled,
-              );
+              const visibleFeatures = plan.presentation.features;
+              const displayIcon = serverIcon(plan.presentation.icon);
+              const displayBadge = plan.presentation.badge;
 
               return (
                 <Pressable
                   key={plan.id}
                   accessibilityRole="button"
-                  accessibilityLabel={getPlanName(plan.code, plan.name)}
+                  accessibilityLabel={plan.name}
                   accessibilityHint={
                     !isCurrent && !availability.allowed
                       ? t("subscription.downgradeBlocked")
@@ -353,7 +192,7 @@ export function SubscriptionScreen() {
                       ]}
                     >
                       <Ionicons
-                        name={getPlanIcon(plan.code)}
+                        name={displayIcon}
                         size={24}
                         color={accent.color}
                       />
@@ -362,37 +201,21 @@ export function SubscriptionScreen() {
                     <View style={styles.planMain}>
                       <View style={styles.planNameRow}>
                         <Text style={styles.planName}>
-                          {getPlanName(plan.code, plan.name)}
+                          {plan.name}
                         </Text>
                         {isCurrent ? (
                           <View style={styles.currentPill}>
-                            <Text style={styles.currentPillText}>
-                              {copy.currentBadge}
-                            </Text>
+                            <Text style={styles.currentPillText}>{copy.currentBadge}</Text>
                           </View>
-                        ) : isPremium ? (
-                          <View
-                            style={[
-                              styles.recommendedPill,
-                              {
-                                backgroundColor: `${theme.warningColor}16`,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.recommendedText,
-                                { color: theme.warningColor },
-                              ]}
-                            >
-                              {copy.bestChoice}
-                            </Text>
+                        ) : displayBadge ? (
+                          <View style={[styles.recommendedPill, { backgroundColor: theme.primaryLight }]}>
+                            <Text style={[styles.recommendedText, { color: theme.primary }]}>{displayBadge}</Text>
                           </View>
                         ) : null}
                       </View>
 
                       <Text style={styles.planDescription} numberOfLines={2}>
-                        {getPlanDescription(plan.code, plan.description)}
+                        {plan.description}
                       </Text>
                     </View>
                     <View>
@@ -424,11 +247,10 @@ export function SubscriptionScreen() {
                   </View>
 
                   <View style={styles.featureChips}>
-                    {visibleFeatures.map((feature) => (
+                    {visibleFeatures.map((feature, index) => (
                       <FeatureChip
-                        key={feature.key}
-                        icon={feature.icon}
-                        iconColor={feature.iconColor}
+                        key={`${feature.text}-${index}`}
+                        icon={serverIcon(feature.icon)}
                         text={feature.text}
                         theme={theme}
                         styles={styles}

@@ -103,6 +103,7 @@ for (const [path, expected] of [
   ["/sms/history", { screen: "ClientSmsHistory" }],
   ["/profile", { screen: "MainTabs", tab: "Settings" }],
   ["/subscription", { screen: "Subscription" }],
+  ["/tariffs", { screen: "Subscription" }],
   ["/payments", { screen: "PaymentHistory" }],
   ["/security", { screen: "AccountSecurity" }],
   ["/blacklist", { screen: "BlacklistSettings" }],

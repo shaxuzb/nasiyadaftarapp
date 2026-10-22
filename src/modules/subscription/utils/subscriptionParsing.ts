@@ -2,6 +2,7 @@ import type {
   CurrentSubscription,
   SmsPackage,
   SubscriptionPlan,
+  SubscriptionPlanPresentation,
   SubscriptionSmsQuota,
 } from "../types";
 
@@ -97,6 +98,23 @@ export function parseCurrentSubscription(input: unknown): CurrentSubscription {
   };
 }
 
+function parsePlanPresentation(input: unknown): SubscriptionPlanPresentation {
+  const raw = record(input);
+  const badgeObject = record(raw.badge);
+  const badge = text(raw.badge) || text(badgeObject.text) || text(badgeObject.label) || null;
+  const icon = text(raw.icon) || null;
+  const features = Array.isArray(raw.features) ? raw.features.flatMap((entry) => {
+    if (typeof entry === "string") {
+      return entry.trim() ? [{ text: entry.trim(), icon: null, enabled: true }] : [];
+    }
+    const f = record(entry);
+    const label = text(f.text) || text(f.title) || text(f.label) || text(f.name);
+    if (!label || f.enabled === false) return [];
+    return [{ text: label, icon: text(f.icon) || null, enabled: true }];
+  }) : [];
+  return { icon, badge, features };
+}
+
 export function parseSubscriptionPlans(input: unknown): SubscriptionPlan[] {
   const value = unwrap(input);
   const items: unknown[] = Array.isArray(value)
@@ -114,6 +132,7 @@ export function parseSubscriptionPlans(input: unknown): SubscriptionPlan[] {
         code: text(value.code, `PLAN_${id}`),
         name: text(value.name),
         description: text(value.description),
+        presentation: parsePlanPresentation(value.presentation),
         price: amount(value.price),
         oldPrice: positiveOrNull(value.oldPrice),
         discountPercent: positiveOrNull(value.discountPercent),

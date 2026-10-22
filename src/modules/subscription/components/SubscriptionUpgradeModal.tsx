@@ -37,7 +37,6 @@ import type {
   SubscriptionPlan,
 } from "../types";
 import { isMonthlyPlan } from "../utils/planPeriod";
-import { getPlanTaglineKey } from "../utils/planTagline";
 import {
   getSubscriptionUpgradeOptions,
   isPaidPlanCode,
@@ -100,71 +99,15 @@ function planLimitValue(
     : t("subscription.organizationCount", { count: value });
 }
 
-// The same capabilities, in the same order and wording, as the chips on the
-// plans screen. Three rows hold for every plan (clients, reports, 24/7 help);
-// they are here so the table reads as the whole of what a plan gives.
-function planComparisonRows(
-  freePlan: SubscriptionPlan,
-  selectedPlan: SubscriptionPlan,
-  t: Translate,
-): PlanComparisonRow[] {
-  return [
-    {
-      label: t("subscription.featureOrganizations"),
-      freeValue: planLimitValue(freePlan.maxOrganizations, t, "organization"),
-      selectedValue: planLimitValue(
-        selectedPlan.maxOrganizations,
-        t,
-        "organization",
-      ),
-    },
-    {
-      label: t("subscription.featureClients"),
-      freeValue: t("subscription.unlimited"),
-      selectedValue: t("subscription.unlimited"),
-    },
-    {
-      label: t("subscription.featureSmsLimit"),
-      freeValue: t("subscription.noSms"),
-      selectedValue: planLimitValue(selectedPlan.monthlySmsLimit, t, "sms"),
-    },
-    {
-      label: t("subscription.featureReports"),
-      freeEnabled: true,
-      selectedEnabled: true,
-    },
-    {
-      label: t("subscription.featureBlacklist"),
-      freeEnabled: freePlan.blacklistEnabled,
-      selectedEnabled: selectedPlan.blacklistEnabled,
-    },
-    {
-      label: t("subscription.featureTelegram"),
-      freeEnabled: true,
-      selectedEnabled: true,
-    },
-    {
-      label: t("subscription.featureTelegramMessage"),
-      freeEnabled: true,
-      selectedEnabled: true,
-    },
-    {
-      label: t("subscription.featureTransactionSms"),
-      freeEnabled: false,
-      selectedEnabled: normalizePlanCode(selectedPlan.code) === "PREMIUM",
-    },
-    {
-      label: t("subscription.featureBlacklistAutoSms"),
-      freeEnabled: freePlan.transactionSmsEnabled,
-      selectedEnabled: selectedPlan.transactionSmsEnabled,
-    },
-    {
-      // Every plan comes with 24/7 help, the free one included.
-      label: t("subscription.featurePrioritySupport"),
-      freeEnabled: true,
-      selectedEnabled: true,
-    },
-  ];
+/** Comparison rows come from the API's presentation, never from static plan tiers. */
+function planComparisonRows(freePlan: SubscriptionPlan, selectedPlan: SubscriptionPlan): PlanComparisonRow[] {
+  const free = new Set(freePlan.presentation.features.map((item) => item.text));
+  const selected = new Set(selectedPlan.presentation.features.map((item) => item.text));
+  return [...new Set([...free, ...selected])].map((label) => ({
+    label,
+    freeEnabled: free.has(label),
+    selectedEnabled: selected.has(label),
+  }));
 }
 
 export function SubscriptionUpgradeModal({
@@ -443,7 +386,7 @@ export function SubscriptionUpgradeModal({
                           t("subscription.freePrice"),
                         )
                   }
-                  rows={planComparisonRows(freePlan, selectedPlan, t)}
+                  rows={planComparisonRows(freePlan, selectedPlan)}
                   planName={localizedPlanName(selectedPlan, t)}
                   recommended={
                     normalizePlanCode(selectedPlan.code) ===
@@ -552,7 +495,6 @@ function PlanComparisonCard({
   styles: ReturnType<typeof createStyles>;
   t: Translate;
 }) {
-  const taglineKey = getPlanTaglineKey(selectedPlan.code);
 
   return (
     <View
@@ -565,7 +507,7 @@ function PlanComparisonCard({
       <View style={styles.planTop}>
         <View style={styles.planIcon}>
           <Ionicons
-            name={planIcon(selectedPlan.code)}
+            name={selectedPlan.presentation.icon && Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, selectedPlan.presentation.icon) ? selectedPlan.presentation.icon as IconName : "checkmark-circle-outline"}
             size={22}
             color={theme.primary}
           />
@@ -573,14 +515,12 @@ function PlanComparisonCard({
         <View style={styles.planCopy}>
           <View style={styles.planTitleRow}>
             <Text style={styles.planTitle}>{planName}</Text>
-            {recommended ? (
-              <Text style={styles.recommendedLabel}>
-                {t("subscription.recommended")}
-              </Text>
+            {selectedPlan.presentation.badge ? (
+              <Text style={styles.recommendedLabel}>{selectedPlan.presentation.badge}</Text>
             ) : null}
           </View>
-          {taglineKey ? (
-            <Text style={styles.planTagline}>{t(taglineKey)}</Text>
+          {selectedPlan.description ? (
+            <Text style={styles.planTagline}>{selectedPlan.description}</Text>
           ) : null}
         </View>
       </View>

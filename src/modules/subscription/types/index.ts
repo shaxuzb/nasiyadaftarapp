@@ -30,7 +30,20 @@ export interface CurrentSubscription {
   sms: SubscriptionSmsQuota;
 }
 
+export interface SubscriptionPlanFeature {
+  text: string;
+  icon: string | null;
+  enabled: boolean;
+}
+export interface SubscriptionPlanPresentation {
+  icon: string | null;
+  badge: string | null;
+  features: SubscriptionPlanFeature[];
+}
+
 export interface SubscriptionPlan {
+  presentation: SubscriptionPlanPresentation;
+
   id: number;
   code: string;
   name: string;
