@@ -19,6 +19,8 @@ export function parseSmsDevice(input: unknown): SmsDevice {
   return {
     deviceCode: str(data.deviceCode), name: str(data.name),
     online: typeof data.online === "boolean" ? data.online : null,
+    canSend: typeof data.canSend === "boolean" ? data.canSend : null,
+    unavailableReason: typeof data.unavailableReason === "string" && data.unavailableReason.trim() ? data.unavailableReason.trim() : null,
     battery: typeof data.battery === "number" && Number.isFinite(data.battery) ? data.battery : null,
     lastSeenAt: typeof data.lastSeenAt === "string" ? data.lastSeenAt : null,
     sims,

@@ -14,6 +14,8 @@ export interface SmsDevice {
   deviceCode: string;
   name: string;
   online: boolean | null;
+  canSend: boolean | null;
+  unavailableReason: string | null;
   battery: number | null;
   lastSeenAt: string | null;
   sims: SmsDeviceSim[];
