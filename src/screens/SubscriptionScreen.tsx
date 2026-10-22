@@ -1,6 +1,8 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import {
   ActivityIndicator,
+  AppState,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -8,6 +10,15 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as Crypto from "expo-crypto";
+import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import { createSubscriptionRenewalPayment } from "../modules/payments/services/paymentService";
+import { savePendingPayment } from "../modules/payments/services/paymentStorage";
+import { getPaymentCheckoutUrl } from "../modules/payments/utils/paymentUrl";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../core/query/queryKeys";
+import { getLocalizedApiErrorMessage } from "../i18n";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -62,6 +73,12 @@ export function SubscriptionScreen() {
   const { locale, t } = useTranslation();
   const copy = SCREEN_COPY[locale === "ru" ? "ru" : "uz"];
   const { openSheet } = useBottomSheet();
+  const { user, refreshSubscription } = useAuth();
+  const { showToast } = useToast();
+  const queryClient = useQueryClient();
+  const [isRenewing, setIsRenewing] = useState(false);
+  const renewRequestRef = useRef<Promise<void> | null>(null);
+  const renewalKeyRef = useRef<string | null>(null);
 
   const currentQuery = useCurrentSubscription();
   const plansQuery = useSubscriptionPlans();
@@ -93,6 +110,44 @@ export function SubscriptionScreen() {
   const plans = plansQuery.data ?? [];
   const packages = packagesQuery.data ?? [];
   const isLoading = plansQuery.isPending && !plans.length;
+
+  useEffect(() => {
+    const listener = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void refreshSubscription();
+        void queryClient.invalidateQueries({ queryKey: queryKeys.subscriptionCurrent(user?.id ?? "anonymous") });
+      }
+    });
+    return () => listener.remove();
+  }, [refreshSubscription, queryClient, user?.id]);
+
+  const renewCurrentPlan = useCallback(async () => {
+    if (!user || renewRequestRef.current) return;
+    const request = (async () => {
+      setIsRenewing(true);
+      try {
+        const key = renewalKeyRef.current ?? Crypto.randomUUID();
+        renewalKeyRef.current = key;
+        const order = await createSubscriptionRenewalPayment(key);
+        queryClient.setQueryData(queryKeys.payment(order.id), order);
+        const url = getPaymentCheckoutUrl(order);
+        if (!url) throw new Error("PAYMENT_CHECKOUT_URL_MISSING");
+        await savePendingPayment({
+          version: 1, userId: user.id, orderId: order.id,
+          productType: order.productType, productId: order.productId,
+          openedExternally: true, updatedAt: new Date().toISOString(),
+        });
+        await Linking.openURL(url);
+        renewalKeyRef.current = null;
+      } catch (error) {
+        showToast(getLocalizedApiErrorMessage(error, "subscription.renewError", t), "error");
+      } finally {
+        setIsRenewing(false);
+      }
+    })();
+    renewRequestRef.current = request;
+    try { await request; } finally { renewRequestRef.current = null; }
+  }, [user, queryClient, showToast, t]);
 
   const openPlanPayment = (plan: (typeof plans)[number]) => {
     openSheet("paymentCheckout", {
@@ -272,35 +327,18 @@ export function SubscriptionScreen() {
                     ) : null} */}
                   </View>
 
-                  {/* Renewing is not built yet: shown as a demo, switched
-                      off, so nobody believes they have paid for more time. */}
                   {isCurrent && periodRange ? (
                     <View style={styles.renewBlock}>
-                      <View
-                        accessible
-                        accessibilityRole="button"
+                      <Pressable accessibilityRole="button"
                         accessibilityLabel={t("subscription.renewPlan")}
-                        accessibilityHint={t("subscription.renewComingSoon")}
-                        accessibilityState={{ disabled: true }}
-                        style={styles.renewButton}
-                      >
-                        <Ionicons
-                          name="refresh-outline"
-                          size={17}
-                          color={theme.textMuted}
-                        />
-                        <Text style={styles.renewText}>
-                          {t("subscription.renewPlan")}
-                        </Text>
-                        <View style={styles.demoPill}>
-                          <Text style={styles.demoPillText}>
-                            {t("subscription.demoBadge")}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.renewNote}>
-                        {t("subscription.renewComingSoon")}
-                      </Text>
+                        accessibilityState={{ busy: isRenewing, disabled: isRenewing }}
+                        disabled={isRenewing}
+                        onPress={(event) => { event.stopPropagation(); void renewCurrentPlan(); }}
+                        style={styles.renewButton}>
+                        {isRenewing ? <ActivityIndicator size="small" color={theme.primary} /> :
+                          <Ionicons name="refresh-outline" size={17} color={theme.primary} />}
+                        <Text style={styles.renewText}>{t("subscription.renewPlan")}</Text>
+                      </Pressable>
                     </View>
                   ) : null}
 
