@@ -13,7 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { GATEWAY_APK_SHORT_URL, GATEWAY_APK_URL } from "../config/gatewayApp";
+import { GATEWAY_APK_URL } from "../config/gatewayApp";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
@@ -211,26 +211,49 @@ export function SmsSettingsScreen() {
               </Pressable>
               {guideOpen ? (
                 <View style={styles.helpContent}>
-                  <Text style={styles.helperText}>{t("smsSettings.step1Text")}</Text>
-                  <Text style={styles.helperText}>{t("smsSettings.step2Text")}</Text>
-                  {Platform.OS === "android" ? (
-                    <Pressable accessibilityRole="button" style={styles.inlineAction}
-                      onPress={downloadGateway}>
-                      <Ionicons name="download-outline" size={15} color={theme.primary} />
-                      <Text style={styles.inlineLink}>{t("smsSettings.downloadGateway")}</Text>
-                    </Pressable>
-                  ) : (
-                    <View style={styles.gatewayQr}>
-                      <View style={styles.gatewayQrCard}>
-                        <QrCode value={GATEWAY_APK_URL} size={104}
-                          accessibilityLabel={t("smsSettings.gatewayQrA11y")} />
-                      </View>
-                      <Text selectable style={styles.helperText}>
-                        {t("smsSettings.scanOnAndroid")} {GATEWAY_APK_SHORT_URL}
-                      </Text>
+                  <View style={styles.helpStep}>
+                    <View style={styles.helpStepNumber}>
+                      <Text style={styles.helpStepNumberText}>1</Text>
                     </View>
-                  )}
-                  <Text style={styles.helperText}>{t("smsSettings.step3Text")}</Text>
+                    <View style={styles.helpStepBody}>
+                      <Text style={styles.helpStepTitle}>{t("smsSettings.step1Title")}</Text>
+                      <Text style={styles.helpStepDescription}>{t("smsSettings.step1Text")}</Text>
+                      {Platform.OS === "android" ? (
+                        <Pressable accessibilityRole="button"
+                          accessibilityLabel={t("smsSettings.downloadGateway")}
+                          style={styles.helpDownload} onPress={downloadGateway}>
+                          <Ionicons name="download-outline" size={16} color={theme.primary} />
+                          <Text style={styles.helpDownloadText}>{t("smsSettings.downloadGateway")}</Text>
+                        </Pressable>
+                      ) : (
+                        <View style={styles.helpQrGroup}>
+                          <View style={styles.gatewayQrCard}>
+                            <QrCode value={GATEWAY_APK_URL} size={104}
+                              accessibilityLabel={t("smsSettings.gatewayQrA11y")} />
+                          </View>
+                          <Text style={styles.helpStepDescription}>{t("smsSettings.scanOnAndroid")}</Text>
+                        </View>
+                      )}
+                    </View>
+                  </View>
+                  <View style={styles.helpStep}>
+                    <View style={styles.helpStepNumber}>
+                      <Text style={styles.helpStepNumberText}>2</Text>
+                    </View>
+                    <View style={styles.helpStepBody}>
+                      <Text style={styles.helpStepTitle}>{t("smsSettings.step2Title")}</Text>
+                      <Text style={styles.helpStepDescription}>{t("smsSettings.step2Text")}</Text>
+                    </View>
+                  </View>
+                  <View style={styles.helpStep}>
+                    <View style={styles.helpStepNumber}>
+                      <Text style={styles.helpStepNumberText}>3</Text>
+                    </View>
+                    <View style={styles.helpStepBody}>
+                      <Text style={styles.helpStepTitle}>{t("smsSettings.step3Title")}</Text>
+                      <Text style={styles.helpStepDescription}>{t("smsSettings.step3Text")}</Text>
+                    </View>
+                  </View>
                 </View>
               ) : null}
             </View>
@@ -314,9 +337,20 @@ const createStyles = (theme: AppTheme) =>
     inlineLink: { ...typography.caption, color: theme.primary, fontWeight: "700" },
     connectHint: { ...typography.caption, color: theme.textSecondary, lineHeight: 18 },
     helpRow: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 38, alignSelf: "flex-start" },
-    helpContent: { gap: spacing.sm },
+    helpContent: { gap: spacing.md, minWidth: 0, width: "100%", paddingTop: spacing.xs },
+    helpStep: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, minWidth: 0 },
+    helpStepNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: theme.primaryLight,
+      justifyContent: "center", alignItems: "center", flexShrink: 0 },
+    helpStepNumberText: { ...typography.caption, fontWeight: "800", color: theme.primary },
+    helpStepBody: { flex: 1, minWidth: 0, gap: 3 },
+    helpStepTitle: { ...typography.bodySmall, color: theme.text, fontWeight: "700", flexShrink: 1 },
+    helpStepDescription: { ...typography.caption, color: theme.textSecondary, lineHeight: 18, flexShrink: 1 },
+    helpDownload: { alignSelf: "flex-start", minHeight: 36, flexDirection: "row",
+      alignItems: "center", gap: 6, paddingHorizontal: 10, maxWidth: "100%" },
+    helpDownloadText: { ...typography.caption, fontWeight: "700", color: theme.primary, flexShrink: 1 },
+    helpQrGroup: { alignSelf: "flex-start", alignItems: "flex-start", gap: spacing.xs,
+      maxWidth: "100%", minWidth: 0, marginTop: spacing.xs },
     helperText: { ...typography.caption, color: theme.textMuted, lineHeight: 18 },
-    gatewayQr: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
     gatewayQrCard: { padding: 4, backgroundColor: "#FFFFFF", borderRadius: radius.sm },
     errorRow: { flexDirection: "row", alignItems: "center", padding: spacing.sm, gap: spacing.sm,
       borderRadius: radius.md },
