@@ -31,6 +31,7 @@ export interface CurrentSubscription {
 }
 
 export interface SubscriptionPlanFeature {
+  key: string;
   text: string;
   icon: string | null;
   enabled: boolean;

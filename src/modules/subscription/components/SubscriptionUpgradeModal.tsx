@@ -45,6 +45,7 @@ import {
   type SubscriptionUpgradeReason,
 } from "../utils/upgradeOptions";
 import { DiscountedPriceLine } from "./PriceDiscount";
+import { normalizePlanIcon } from "../utils/planIcon";
 import { SmsPackageRow } from "./SmsPackageRow";
 import { useSheetFrameStyle } from "../../../hooks/useSheetFrameStyle";
 import { useDismissOnAppLock } from "../../pin-auth/hooks/useDismissOnAppLock";
@@ -74,11 +75,7 @@ interface PlanComparisonRow {
   selectedEnabled?: boolean;
 }
 
-function localizedPlanName(plan: SubscriptionPlan, t: Translate) {
-  const code = normalizePlanCode(plan.code);
-  if (code === "FREE") return t("subscription.freePlan");
-  if (code === "STANDARD") return t("subscription.standardPlan");
-  if (code === "PREMIUM") return t("subscription.premiumPlan");
+function localizedPlanName(plan: SubscriptionPlan, _t: Translate) {
   return plan.name;
 }
 
@@ -99,15 +96,30 @@ function planLimitValue(
     : t("subscription.organizationCount", { count: value });
 }
 
-/** Comparison rows come from the API's presentation, never from static plan tiers. */
-function planComparisonRows(freePlan: SubscriptionPlan, selectedPlan: SubscriptionPlan): PlanComparisonRow[] {
-  const free = new Set(freePlan.presentation.features.map((item) => item.text));
-  const selected = new Set(selectedPlan.presentation.features.map((item) => item.text));
-  return [...new Set([...free, ...selected])].map((label) => ({
-    label,
-    freeEnabled: free.has(label),
-    selectedEnabled: selected.has(label),
-  }));
+/** Match plan capabilities by their stable server key, not localized text. */
+function planComparisonRows(
+  freePlan: SubscriptionPlan,
+  selectedPlan: SubscriptionPlan,
+  t: Translate,
+): PlanComparisonRow[] {
+  const base = new Map(freePlan.presentation.features.map((item) => [item.key, item]));
+  const selected = new Map(selectedPlan.presentation.features.map((item) => [item.key, item]));
+  const order = [...new Set([...base.keys(), ...selected.keys()])];
+  return order.map((key) => {
+    const free = base.get(key);
+    const paid = selected.get(key);
+    const sameLabel = free?.text === paid?.text;
+    const differing = !!free && !!paid && !sameLabel;
+    const label = key === "sms" && differing ? t("subscription.featureSmsLimit")
+      : key === "organizations" && differing ? t("subscription.featureOrganizations")
+      : key === "clients" && differing ? t("subscription.featureClients")
+      : (paid?.text ?? free?.text ?? key);
+    return differing ? {
+      label, freeValue: free.text, selectedValue: paid.text,
+    } : {
+      label, freeEnabled: !!free, selectedEnabled: !!paid,
+    };
+  });
 }
 
 export function SubscriptionUpgradeModal({
@@ -386,7 +398,7 @@ export function SubscriptionUpgradeModal({
                           t("subscription.freePrice"),
                         )
                   }
-                  rows={planComparisonRows(freePlan, selectedPlan)}
+                  rows={planComparisonRows(freePlan, selectedPlan, t)}
                   planName={localizedPlanName(selectedPlan, t)}
                   recommended={
                     normalizePlanCode(selectedPlan.code) ===
@@ -507,7 +519,7 @@ function PlanComparisonCard({
       <View style={styles.planTop}>
         <View style={styles.planIcon}>
           <Ionicons
-            name={selectedPlan.presentation.icon && Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, selectedPlan.presentation.icon) ? selectedPlan.presentation.icon as IconName : "checkmark-circle-outline"}
+            name={(() => { const name = normalizePlanIcon(selectedPlan.presentation.icon); return Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, name) ? name as IconName : "checkmark-circle-outline"; })()}
             size={22}
             color={theme.primary}
           />

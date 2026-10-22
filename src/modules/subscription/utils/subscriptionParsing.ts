@@ -105,12 +105,12 @@ function parsePlanPresentation(input: unknown): SubscriptionPlanPresentation {
   const icon = text(raw.icon) || null;
   const features = Array.isArray(raw.features) ? raw.features.flatMap((entry) => {
     if (typeof entry === "string") {
-      return entry.trim() ? [{ text: entry.trim(), icon: null, enabled: true }] : [];
+      return entry.trim() ? [{ key: entry.trim(), text: entry.trim(), icon: null, enabled: true }] : [];
     }
     const f = record(entry);
     const label = text(f.text) || text(f.title) || text(f.label) || text(f.name);
     if (!label || f.enabled === false) return [];
-    return [{ text: label, icon: text(f.icon) || null, enabled: true }];
+    return [{ key: text(f.key) || label, text: label, icon: text(f.icon) || null, enabled: true }];
   }) : [];
   return { icon, badge, features };
 }

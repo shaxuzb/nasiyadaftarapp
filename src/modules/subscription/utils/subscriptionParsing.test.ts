@@ -37,3 +37,20 @@ const parsedPlans = parseSubscriptionPlans([{ id: 2, code: "STANDARD", name: "St
 assert(parsedPlans[0].description === "Server-defined description", "API description");
 assert(parsedPlans[0].presentation.badge === "Popular", "API badge");
 assert(parsedPlans[0].presentation.features.length === 2, "API features");
+
+const apiPlans = parseSubscriptionPlans([
+  { id: 1, code: "FREE", name: "Bepul", price: 0, monthlySmsLimit: 3,
+    presentation: { icon: "box", badge: null, features: [
+      { key: "organizations", text: "1 ta tashkilot", icon: "building" },
+      { key: "sms", text: "3 ta SMS / 30 kun", icon: "mail" },
+      { key: "telegramBot", text: "Telegramda audit va kunlik hisobot", icon: "telegram" },
+    ] } },
+  { id: 2, code: "STANDARD", name: "Standard", price: 5,
+    presentation: { icon: "box", badge: null, features: [
+      { key: "organizations", text: "Cheksiz tashkilot", icon: "building" },
+      { key: "sms", text: "100 ta SMS / 30 kun", icon: "mail" },
+    ] } },
+]);
+assert(apiPlans[0].presentation.features[1].key === "sms", "API feature key retained");
+assert(apiPlans[0].monthlySmsLimit === 3, "FREE SMS limit exactly as backend");
+assert(apiPlans[1].price === 5, "STANDARD price retained without invented conversion");

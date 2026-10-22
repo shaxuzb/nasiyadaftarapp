@@ -39,6 +39,7 @@ import {
 import { isMonthlyPlan } from "../modules/subscription/utils/planPeriod";
 import { getSubscriptionPeriod } from "../modules/subscription/utils/subscriptionPeriod";
 import { getPlanPurchaseAvailability } from "../modules/subscription/utils/planPurchase";
+import { normalizePlanIcon } from "../modules/subscription/utils/planIcon";
 import { DiscountSummary } from "../modules/subscription/components/PriceDiscount";
 import { SmsPackageRow } from "../modules/subscription/components/SmsPackageRow";
 import type { SmsPackage } from "../modules/subscription/types";
@@ -66,8 +67,9 @@ function getPlanAccent(code: string, theme: AppTheme) {
 
 /** Only server-listed features are rendered. Unknown icons use a neutral fallback. */
 function serverIcon(raw: string | null): PlanIconName {
-  if (raw && Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, raw)) {
-    return raw as PlanIconName;
+  const icon = normalizePlanIcon(raw);
+  if (Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, icon)) {
+    return icon as PlanIconName;
   }
   return "checkmark-circle-outline";
 }
@@ -319,7 +321,7 @@ export function SubscriptionScreen() {
                   <View style={styles.featureChips}>
                     {visibleFeatures.map((feature, index) => (
                       <FeatureChip
-                        key={`${feature.text}-${index}`}
+                        key={`${feature.key}-${index}`}
                         icon={serverIcon(feature.icon)}
                         text={feature.text}
                         theme={theme}
