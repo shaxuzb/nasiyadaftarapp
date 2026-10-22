@@ -37,7 +37,16 @@ import type { AppTheme, RootStackParamList } from "../types";
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 type PlanIconName = React.ComponentProps<typeof Ionicons>["name"];
 
-/** One capability of a plan, as a chip on its card. */
+const SCREEN_COPY = {
+  uz: { currentBadge: "Joriy tarif", oneMonth: "Tariflar" },
+  ru: { currentBadge: "Текущий тариф", oneMonth: "Тарифы" },
+} as const;
+function getPlanAccent(code: string, theme: AppTheme) {
+  if (code.trim().toUpperCase() === "PREMIUM") return { color: theme.warningColor, soft: theme.warningColor + "14" };
+  if (code.trim().toUpperCase() === "STANDARD") return { color: theme.primary, soft: theme.primaryLight };
+  return { color: theme.textSecondary, soft: theme.inputBackground };
+}
+
 /** Only server-listed features are rendered. Unknown icons use a neutral fallback. */
 function serverIcon(raw: string | null): PlanIconName {
   if (raw && Object.prototype.hasOwnProperty.call(Ionicons.glyphMap, raw)) {

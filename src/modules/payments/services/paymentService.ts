@@ -80,3 +80,16 @@ export async function cancelPayment(orderId: number): Promise<PaymentOrder> {
   const response = await apiClient.post(`/payments/${orderId}/cancel`, undefined);
   return parsePaymentOrder(response.data);
 }
+
+/** No plan ID and no request body; the server renews the current plan. */
+export async function createSubscriptionRenewalPayment(idempotencyKey: string): Promise<PaymentOrder> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
+    throw new Error("Invalid payment idempotency key");
+  }
+  const response = await apiClient.post(
+    "/payments/subscriptions/renew",
+    undefined,
+    { params: { provider: "payme" }, headers: { "Idempotency-Key": idempotencyKey } },
+  );
+  return parsePaymentOrder(response.data);
+}
