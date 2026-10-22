@@ -53,13 +53,8 @@ for (const planCode of ["FREE", "STANDARD", "PREMIUM", undefined]) {
   assert.equal(packagesOnly.showPackages, true, String(planCode));
 }
 
-const freeTelegram = moduleExports.getSubscriptionUpgradeOptions(
-  { planCode: "FREE" },
-  "telegram",
-);
-assert.equal(freeTelegram.showPlans, true);
-assert.equal(freeTelegram.recommendedPlanCode, "PREMIUM");
-assert.equal(freeTelegram.showPackages, false);
+// Telegram bots no longer trigger an upgrade: both are free.
+
 
 const freeBlacklist = moduleExports.getSubscriptionUpgradeOptions(
   { planCode: "FREE" },

@@ -31,9 +31,9 @@ const WORDING = {
   taglinePremium: ["Hammasi avtomatik", "Всё автоматически"],
   featureReports: ["Hisobotlar", "Отчёты"],
   featureBlacklist: ["Qora ro'yxat", "Чёрный список"],
-  featureTelegram: ["Telegramda kunlik hisobot", "Ежедневный отчёт в Telegram"],
-  featureTelegramMessage: ["Mijozga Telegram xabar", "Сообщение клиенту в Telegram"],
-  featureTransactionSms: ["Har qarzga avto SMS", "Авто-SMS по каждому долгу"],
+  featureTelegram: ["Tashkilot boti · Bepul", "Бот для магазина · Бесплатно"],
+  featureTelegramMessage: ["Mijozlar boti · Bepul", "Бот для клиентов · Бесплатно"],
+  featureTransactionSms: ["Avto eslatma", "Автонапоминание"],
   featureBlacklistAutoSms: ["Qora ro'yxatga avto SMS", "Авто-SMS для чёрного списка"],
   featurePrioritySupport: ["24/7 yordam", "Поддержка 24/7"],
   organizationsPerPlan: ["{count} ta tashkilot", "Организаций: {count}"],
@@ -72,13 +72,9 @@ const pair = (key, flag, wording) =>
     `key: "${key}",\\s*enabled: plan\\.${flag},\\s*text: t\\("subscription\\.${wording}"\\),`,
   );
 assert.match(screen, pair("blacklist", "blacklistEnabled", "featureBlacklist"));
-assert.match(screen, pair("telegramDailyReport", "telegramBotEnabled", "featureTelegram"));
-assert.match(
-  screen,
-  pair("telegramMessage", "telegramBotEnabled", "featureTelegramMessage"),
-  "Premium includes the Telegram message too: it follows the same switch as Standard",
-);
-assert.match(screen, pair("debtAutoSms", "transactionSmsEnabled", "featureTransactionSms"));
+assert.match(screen, /key: "telegramDailyReport",\s*enabled: true,\s*text: t\("subscription\.featureTelegram"\)/);
+assert.match(screen, /key: "telegramMessage",\s*enabled: true,\s*text: t\("subscription\.featureTelegramMessage"\)/);
+assert.match(screen, /key: "debtAutoSms",\s*enabled: isPremium,\s*text: t\("subscription\.featureTransactionSms"\)/);
 assert.match(screen, pair("blacklistAutoSms", "transactionSmsEnabled", "featureBlacklistAutoSms"));
 // 24/7 help belongs to every plan, the free one included: it is never read
 // from the server's switch.
@@ -194,7 +190,7 @@ assert.deepEqual(labels, [
 ]);
 assert.match(
   rows,
-  /label: t\("subscription\.featureTelegramMessage"\),\s*freeEnabled: freePlan\.telegramBotEnabled,\s*selectedEnabled: selectedPlan\.telegramBotEnabled,/,
+  /label: t\("subscription\.featureTelegramMessage"\),\s*freeEnabled: true,\s*selectedEnabled: true,/,
 );
 assert.match(
   rows,

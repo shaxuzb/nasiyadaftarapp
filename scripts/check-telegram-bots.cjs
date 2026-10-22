@@ -39,11 +39,8 @@ assert.match(
   profile,
   /const handleOpenBot = useCallback\(\(\) => \{\s*requireVerifiedPhone\(\(\) => openSheet\("telegramBots", \{\}\), "telegram"\);\s*\}, \[openSheet, requireVerifiedPhone\]\);/,
 );
-assert.match(
-  profile,
-  /onPress=\{\s*telegramEnabled\s*\? handleOpenBot\s*: \(\) => setUpgradeReason\("telegram"\)\s*\}/,
-  "A plan without the Telegram bot still gets the upgrade prompt",
-);
+assert.match(profile, /onPress=\{handleOpenBot\}/, "Both bots open on every plan");
+assert.doesNotMatch(profile, /telegramEnabled|setUpgradeReason\("telegram"\)/, "No subscription gating");
 assert.doesNotMatch(profile, /openTelegramBot|isOpeningBot|botOpenError|https?:\/\/|t\.me\//);
 assert.equal(fs.existsSync("src/modules/bot"), false, "The fixed bot address lived here");
 
