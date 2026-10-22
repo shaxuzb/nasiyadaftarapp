@@ -141,13 +141,13 @@ function planComparisonRows(
     },
     {
       label: t("subscription.featureTelegram"),
-      freeEnabled: freePlan.telegramBotEnabled,
-      selectedEnabled: selectedPlan.telegramBotEnabled,
+      freeEnabled: true,
+      selectedEnabled: true,
     },
     {
       label: t("subscription.featureTelegramMessage"),
-      freeEnabled: freePlan.telegramBotEnabled,
-      selectedEnabled: selectedPlan.telegramBotEnabled,
+      freeEnabled: true,
+      selectedEnabled: true,
     },
     {
       label: t("subscription.featureTransactionSms"),

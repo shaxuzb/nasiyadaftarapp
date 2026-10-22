@@ -192,7 +192,6 @@ export function SettingsScreen() {
         ? t("notifications.permissionDenied")
         : t("notifications.permissionUndetermined");
   const isPaidSubscription = isPaidPlanCode(subscription?.planCode);
-  const telegramEnabled = subscription?.telegramBotEnabled !== false;
   const subscriptionName = subscription
     ? normalizePlanCode(subscription.planCode) === "FREE"
       ? t("subscription.freePlan")
@@ -613,29 +612,19 @@ export function SettingsScreen() {
 
         <SectionTitle title={t("profile.helpSection")} />
         <View style={styles.card}>
-{telegramEnabled || regionalCapabilities.upgradePromptsVisible ? (
           <ProfileMenuRow
-            icon={telegramEnabled ? "send-outline" : "lock-closed-outline"}
-            iconColor={telegramEnabled ? theme.primary : theme.textSecondary}
-            iconBackground={
-              telegramEnabled ? theme.primaryLight : theme.inputBackground
-            }
+            icon="send-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
             title={t("profile.telegramBot")}
             description={
-              telegramEnabled
-                ? phoneVerified
-                  ? t("profile.telegramDescription")
-                  : t("profile.verifyPhoneFirst")
-                : t("profile.paidPlanAvailable")
+              phoneVerified
+                ? t("profile.telegramDescription")
+                : t("profile.verifyPhoneFirst")
             }
-            onPress={
-              telegramEnabled
-                ? handleOpenBot
-                : () => setUpgradeReason("telegram")
-            }
-            badge={telegramEnabled ? undefined : t("subscription.standardPlan")}
+            onPress={handleOpenBot}
+            badge={t("subscription.freePlan")}
           />
-          ) : null}
           <ProfileMenuRow
             icon="school-outline"
             iconColor={theme.primary}
