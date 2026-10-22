@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Linking,
   Platform,
   Pressable,
@@ -16,28 +17,26 @@ import { GATEWAY_APK_SHORT_URL, GATEWAY_APK_URL } from "../config/gatewayApp";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
-import { useTranslation } from "../i18n";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 import { AutoReminderCard } from "../modules/client-sms/components/AutoReminderCard";
 import { SmsGatewayControls } from "../modules/client-sms/components/SmsGatewayControls";
-import { useSmsDevices, useSmsProvider, useUpdateSmsProvider } from "../modules/client-sms/hooks/useSmsDevices";
-import { getLocalizedApiErrorMessage } from "../i18n";
+import {
+  useSmsDevices,
+  useSmsProvider,
+  useUpdateSmsProvider,
+} from "../modules/client-sms/hooks/useSmsDevices";
 import { QrCode } from "../modules/support/components/QrCode";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme } from "../types";
+import type { SmsProviderCode } from "../modules/client-sms/types/provider";
 
-type SourceCard = "platform" | "device";
-type IconName = React.ComponentProps<typeof Ionicons>["name"];
-
-const INSTALL_STEPS = [
-  { title: "smsSettings.step1Title", text: "smsSettings.step1Text" },
-  { title: "smsSettings.step2Title", text: "smsSettings.step2Text" },
-  { title: "smsSettings.step3Title", text: "smsSettings.step3Text" },
-] as const;
+type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
 
 /**
- * Provider selection persists through GET/PUT /sms/provider.
- * Pairing and sending remain independent actions.
+ * Choosing a source and pairing the phone are different backend actions.
+ * A single tap selects an already-available source. For an unlinked phone,
+ * the same tap opens pairing; successful pairing then saves own_device.
  */
 export function SmsSettingsScreen() {
   const theme = useTheme();
@@ -46,34 +45,63 @@ export function SmsSettingsScreen() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { showToast } = useToast();
-  const devices = useSmsDevices();
   const provider = useSmsProvider();
   const updateProvider = useUpdateSmsProvider();
-  const smsQuota = user?.subscription?.sms;
-  const [expanded, setExpanded] = useState<SourceCard | null>("platform");
+  const devices = useSmsDevices();
+  const quota = user?.subscription?.sms;
+
+  const [pairingOpen, setPairingOpen] = useState(false);
+  const [manageOpen, setManageOpen] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const [buyOpen, setBuyOpen] = useState(false);
-  const toggleCard = useCallback((card: SourceCard) => {
-    setExpanded((previous) => previous === card ? null : card);
-  }, []);
+
+  const connectedDevice = devices.data?.[0];
+  const hasDevice = Boolean(connectedDevice);
+  const source = provider.data?.provider;
+  const busy = updateProvider.isPending;
+  const sourceReady = Boolean(provider.data);
+
   const downloadGateway = useCallback(async () => {
-    try { await Linking.openURL(GATEWAY_APK_URL); }
-    catch { showToast(t("smsSettings.downloadError"), "error"); }
+    try {
+      await Linking.openURL(GATEWAY_APK_URL);
+    } catch {
+      showToast(t("smsSettings.downloadError"), "error");
+    }
   }, [showToast, t]);
 
-  const sourceKnown = !!provider.data && !provider.isError;
-  const usesOwnPhone = provider.data?.provider === "own_device";
-  const chooseSource = async (next: "system" | "own_device") => {
-    if (!provider.data || provider.data.provider === next || updateProvider.isPending) return;
-    if (next === "own_device" && (!provider.data.ownDeviceAllowed || !devices.data?.length)) {
-      setExpanded("device");
-      showToast(t(!provider.data.ownDeviceAllowed ? "smsSettings.ownDeviceRestricted" : "smsSettings.connectBeforeSelecting"), "info");
+  const selectSource = useCallback(async (next: SmsProviderCode, justLinked = false) => {
+    if (!provider.data || updateProvider.isPending) return;
+    if (next === "own_device") {
+      if (!provider.data.ownDeviceAllowed) {
+        showToast(t("smsSettings.ownDeviceRestricted"), "info");
+        return;
+      }
+      if (!hasDevice && !justLinked) {
+        setPairingOpen(true);
+        return;
+      }
+    }
+    if (provider.data.provider === next) {
+      setPairingOpen(false);
       return;
     }
-    try { await updateProvider.mutateAsync(next); showToast(t("smsSettings.providerSaved"), "success"); }
-    catch (error) { showToast(getLocalizedApiErrorMessage(error, "smsSettings.providerSaveError", t), "error"); }
-  };
-  const hasDevices = !!devices.data?.length;
+    try {
+      await updateProvider.mutateAsync(next);
+      setPairingOpen(false);
+      if (!justLinked) showToast(t("smsSettings.providerSaved"), "success");
+    } catch (error) {
+      showToast(getLocalizedApiErrorMessage(error, "smsSettings.providerSaveError", t), "error");
+    }
+  }, [provider.data, updateProvider, hasDevice, showToast, t]);
+
+  const onPhoneConnected = useCallback(async () => {
+    // The tap on "O'z telefonim" already expressed the intent to use it.
+    await selectSource("own_device", true);
+  }, [selectSource]);
+
+  const providerError = provider.isError || devices.isError;
+  const showPairing = !hasDevice && pairingOpen;
+  const showManagement = hasDevice && manageOpen;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -85,146 +113,138 @@ export function SmsSettingsScreen() {
         <Text style={styles.title} numberOfLines={1}>{t("smsSettings.title")}</Text>
         <View style={styles.headerButton} />
       </View>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}>
         <View style={styles.sectionHeading}>
           <Text style={styles.sectionTitle}>{t("smsSettings.sourceHeading")}</Text>
           <Text style={styles.sectionDescription}>{t("smsSettings.sourceHint")}</Text>
         </View>
 
-        <View style={[styles.card, sourceKnown && !usesOwnPhone && styles.selectedCard]}>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: expanded === "platform" }}
-            accessibilityLabel={t("smsSettings.platformTitle")} onPress={() => toggleCard("platform")}
-            style={({ pressed }) => [styles.cardTop, pressed && styles.pressed]}>
-            <CardIcon name="chatbubble-ellipses-outline" color={theme.primary}
-              background={theme.primaryLight} styles={styles} />
-            <View style={styles.cardCopy}>
-              <View style={styles.titleLine}>
-                <Text style={styles.cardTitle}>{t("smsSettings.platformTitle")}</Text>
-                {sourceKnown && !usesOwnPhone ? (
-                  <View style={styles.selectedLabel}>
-                    <Ionicons name="checkmark-circle" size={12} color={theme.successColor} />
-                    <Text style={styles.selectedLabelText}>{t("smsSettings.currentSource")}</Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={styles.cardText}>{t("smsSettings.platformDescription")}</Text>
-            </View>
-            <Ionicons name={expanded === "platform" ? "chevron-up" : "chevron-down"} size={20} color={theme.textMuted} />
+        {providerError ? (
+          <Pressable accessibilityRole="button" style={[styles.errorRow, { backgroundColor: theme.inputBackground }]}
+            onPress={() => { void provider.refetch(); void devices.refetch(); }}>
+            <Ionicons name="alert-circle-outline" size={17} color={theme.dangerColor} />
+            <Text style={[styles.errorText, { color: theme.dangerColor }]}>
+              {t("smsSettings.sourceLoadError")}
+            </Text>
+            <Text style={[styles.retryText, { color: theme.primary }]}>
+              {t("smsSettings.autoReminderRetry")}
+            </Text>
           </Pressable>
-          {expanded === "platform" ? (
-            <View style={styles.cardDetails}>
-              <View style={styles.quotaRow}>
-                <View style={styles.quotaText}>
-                  <Text style={styles.quotaTitle}>{t("smsSettings.platformQuotaTitle")}</Text>
-                  <Text style={styles.quotaNumber}>
-                    {!smsQuota ? "—" :
-                      smsQuota.totalRemaining === null
-                        ? t("sms.quotaUnlimited")
-                        : t("smsSettings.platformQuotaValue", { count: smsQuota.totalRemaining })}
-                  </Text>
-                </View>
-                {smsQuota && smsQuota.totalRemaining !== null ? (
+        ) : null}
+
+        <View style={[styles.card, source === "system" && styles.selectedCard]}>
+          <SourceRow icon="chatbubble-ellipses-outline" title={t("smsSettings.platformTitle")}
+            description={t("smsSettings.platformDescription")} selected={source === "system"}
+            disabled={!sourceReady || busy || providerError} busy={busy && source !== "system"}
+            onPress={() => void selectSource("system")} theme={theme} styles={styles} />
+          {source === "system" ? (
+            <View style={styles.details}>
+              <View style={styles.inlineQuota}>
+                <Text numberOfLines={1} style={styles.quotaText}>
+                  {t("smsSettings.platformQuotaTitle")}:{" "}
+                  {!quota ? "—" : quota.totalRemaining === null
+                    ? t("sms.quotaUnlimited")
+                    : t("smsSettings.platformQuotaValue", { count: quota.totalRemaining })}
+                </Text>
+                {quota?.totalRemaining !== null && quota ? (
                   <Pressable accessibilityRole="button" onPress={() => setBuyOpen(true)}
-                    style={({ pressed }) => [styles.buyButton, pressed && styles.pressed]}>
-                    <Ionicons name="add" size={16} color="#FFFFFF" />
-                    <Text style={styles.buyText}>{t("sms.buyPackage")}</Text>
+                    hitSlop={8} style={styles.inlineAction}>
+                    <Text style={styles.inlineLink}>{t("sms.buyPackage")}</Text>
+                    <Ionicons name="chevron-forward" size={13} color={theme.primary} />
                   </Pressable>
                 ) : null}
               </View>
-              <Text style={styles.helperText}>{t("smsSettings.platformQuotaHint")}</Text>
-              {sourceKnown && usesOwnPhone ? <Pressable accessibilityRole="button" disabled={updateProvider.isPending}
-                onPress={() => void chooseSource("system")} style={[styles.chooseButton, {backgroundColor:theme.primary}]}>
-                <Text style={styles.chooseText}>{t("smsSettings.selectPlatform")}</Text>
-              </Pressable> : null}
             </View>
           ) : null}
         </View>
 
-        <View style={[styles.card, sourceKnown && usesOwnPhone && styles.selectedCard]}>
-          <Pressable accessibilityRole="button" accessibilityState={{ expanded: expanded === "device" }}
-            accessibilityLabel={t("smsSettings.deviceTitle")} onPress={() => toggleCard("device")}
-            style={({ pressed }) => [styles.cardTop, pressed && styles.pressed]}>
-            <CardIcon name="phone-portrait-outline" color={theme.primary}
-              background={theme.primaryLight} styles={styles} />
-            <View style={styles.cardCopy}>
-              <View style={styles.titleLine}>
-                <Text style={styles.cardTitle}>{t("smsSettings.deviceTitle")}</Text>
-                {sourceKnown && usesOwnPhone ? (
-                  <View style={styles.selectedLabel}>
-                    <Ionicons name="checkmark-circle" size={12} color={theme.successColor} />
-                    <Text style={styles.selectedLabelText}>{t("smsSettings.currentSource")}</Text>
-                  </View>
-                ) : !devices.isPending && !devices.isError && hasDevices ? (
-                  <Text style={styles.connectedLabel}>{t("smsSettings.deviceConnectedStatus")}</Text>
-                ) : null}
+        <View style={[styles.card, source === "own_device" && styles.selectedCard]}>
+          <SourceRow icon="phone-portrait-outline" title={t("smsSettings.deviceTitle")}
+            description={hasDevice ? t("smsSettings.deviceDescription") :
+              t("smsSettings.deviceNotConnected")}
+            selected={source === "own_device"} disabled={!sourceReady || busy || providerError}
+            busy={busy && source !== "own_device"}
+            onPress={() => void selectSource("own_device")} theme={theme} styles={styles} />
+
+          {hasDevice ? (
+            <View style={styles.phoneStatus}>
+              <View style={styles.phoneStatusCopy}>
+                <Ionicons name="checkmark-circle-outline" size={16} color={theme.successColor} />
+                <Text numberOfLines={1} style={styles.phoneName}>
+                  {connectedDevice?.name || connectedDevice?.deviceCode}
+                </Text>
+                <Text style={[styles.phoneOnline, {
+                  color: connectedDevice?.online === false ? theme.warningColor : theme.textSecondary,
+                }]}>
+                  {connectedDevice?.online === null ? t("smsSettings.deviceUnknown") :
+                    connectedDevice?.online ? t("smsSettings.deviceOnline") :
+                    t("smsSettings.deviceOffline")}
+                </Text>
               </View>
-              <Text style={styles.cardText}>{t("smsSettings.deviceDescription")}</Text>
+              <Pressable accessibilityRole="button"
+                accessibilityState={{ expanded: manageOpen }}
+                onPress={() => setManageOpen(value => !value)} style={styles.inlineAction}>
+                <Text style={styles.inlineLink}>{t("smsSettings.managePhone")}</Text>
+                <Ionicons name={manageOpen ? "chevron-up" : "chevron-down"}
+                  size={14} color={theme.primary} />
+              </Pressable>
             </View>
-            <Ionicons name={expanded === "device" ? "chevron-up" : "chevron-down"} size={20} color={theme.textMuted} />
-          </Pressable>
-          {expanded === "device" ? (
-            <View style={styles.cardDetails}>
-              {!hasDevices ? (
-                <View style={styles.connectGuide}>
-                  <Text style={styles.guideTitle}>{t("smsSettings.howToConnect")}</Text>
-                  {INSTALL_STEPS.map((step, index) => (
-                    <View key={step.title} style={styles.step}>
-                      <View style={styles.stepNumber}>
-                        <Text style={styles.stepNumberText}>{index + 1}</Text>
+          ) : null}
+
+          {source === "own_device" && connectedDevice?.online === false ? (
+            <Text style={[styles.helperText, { color: theme.warningColor }]}>
+              {t("smsSettings.offlineQueues")}
+            </Text>
+          ) : null}
+
+          {showPairing && provider.data?.ownDeviceAllowed ? (
+            <View style={styles.details}>
+              <Text style={styles.connectHint}>{t("smsSettings.connectForSending")}</Text>
+              <SmsGatewayControls onConnected={onPhoneConnected} />
+              <Pressable accessibilityRole="button"
+                accessibilityState={{ expanded: guideOpen }} onPress={() => setGuideOpen(value => !value)}
+                style={styles.helpRow}>
+                <Text style={styles.inlineLink}>{t("smsSettings.howToConnect")}</Text>
+                <Ionicons name={guideOpen ? "chevron-up" : "chevron-down"}
+                  size={14} color={theme.primary} />
+              </Pressable>
+              {guideOpen ? (
+                <View style={styles.helpContent}>
+                  <Text style={styles.helperText}>{t("smsSettings.step1Text")}</Text>
+                  <Text style={styles.helperText}>{t("smsSettings.step2Text")}</Text>
+                  {Platform.OS === "android" ? (
+                    <Pressable accessibilityRole="button" style={styles.inlineAction}
+                      onPress={downloadGateway}>
+                      <Ionicons name="download-outline" size={15} color={theme.primary} />
+                      <Text style={styles.inlineLink}>{t("smsSettings.downloadGateway")}</Text>
+                    </Pressable>
+                  ) : (
+                    <View style={styles.gatewayQr}>
+                      <View style={styles.gatewayQrCard}>
+                        <QrCode value={GATEWAY_APK_URL} size={104}
+                          accessibilityLabel={t("smsSettings.gatewayQrA11y")} />
                       </View>
-                      <View style={styles.stepCopy}>
-                        <Text style={styles.stepTitle}>{t(step.title)}</Text>
-                        <Text style={styles.cardText}>{t(step.text)}</Text>
-                        {index === 0 && (Platform.OS === "android" ? (
-                          <Pressable accessibilityRole="button" onPress={downloadGateway}
-                            style={({ pressed }) => [styles.downloadButton, pressed && styles.pressed]}>
-                            <Ionicons name="download-outline" size={16} color="#FFFFFF" />
-                            <Text style={styles.downloadText}>{t("smsSettings.downloadGateway")}</Text>
-                          </Pressable>
-                        ) : (
-                          <View style={styles.gatewayQr}>
-                            <View style={styles.gatewayQrCard}>
-                              <QrCode value={GATEWAY_APK_URL} size={126}
-                                accessibilityLabel={t("smsSettings.gatewayQrA11y")} />
-                            </View>
-                            <View style={styles.gatewayQrCopy}>
-                              <Text style={styles.cardText}>{t("smsSettings.scanOnAndroid")}</Text>
-                              <Text style={styles.linkText} selectable>{GATEWAY_APK_SHORT_URL}</Text>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
+                      <Text selectable style={styles.helperText}>
+                        {t("smsSettings.scanOnAndroid")} {GATEWAY_APK_SHORT_URL}
+                      </Text>
                     </View>
-                  ))}
+                  )}
+                  <Text style={styles.helperText}>{t("smsSettings.step3Text")}</Text>
                 </View>
-              ) : (
-                <Pressable accessibilityRole="button" accessibilityState={{ expanded: guideOpen }}
-                  onPress={() => setGuideOpen(value => !value)} style={styles.guideToggle}>
-                  <Text style={styles.linkText}>{t("smsSettings.howToConnect")}</Text>
-                  <Ionicons name={guideOpen ? "chevron-up" : "chevron-down"} size={16} color={theme.primary} />
-                </Pressable>
-              )}
-              {hasDevices && guideOpen ? (
-                <Text style={styles.helperText}>{t("smsSettings.step3Text")}</Text>
               ) : null}
+            </View>
+          ) : null}
+
+          {showManagement ? (
+            <View style={styles.details}>
               <SmsGatewayControls />
-              {sourceKnown && !usesOwnPhone ? <Pressable accessibilityRole="button"
-                disabled={updateProvider.isPending || devices.isPending || !provider.data?.ownDeviceAllowed || !hasDevices}
-                onPress={() => void chooseSource("own_device")}
-                style={[styles.chooseButton, { backgroundColor: theme.primary, opacity: updateProvider.isPending || !provider.data?.ownDeviceAllowed || !hasDevices ? 0.45 : 1 }]}>
-                <Text style={styles.chooseText}>{t("smsSettings.selectOwnPhone")}</Text>
-              </Pressable> : null}
-              {sourceKnown && usesOwnPhone && devices.data?.[0]?.online === false ? (
-                <Text style={[styles.helperText, { color: theme.warningColor }]}>{t("smsSettings.offlineQueues")}</Text>
-              ) : null}
-              <Text style={styles.helperText}>{t("smsSettings.androidOnly")}</Text>
             </View>
           ) : null}
         </View>
 
         <View style={styles.sectionHeading}>
           <Text style={styles.sectionTitle}>{t("smsSettings.extraHeading")}</Text>
-          <Text style={styles.sectionDescription}>{t("smsSettings.extraDescription")}</Text>
         </View>
         <AutoReminderCard />
       </ScrollView>
@@ -234,14 +254,31 @@ export function SmsSettingsScreen() {
   );
 }
 
-function CardIcon({ name, color, background, styles }: {
-  name: IconName; color: string; background: string;
+function SourceRow({ icon, title, description, selected, disabled, busy, onPress, theme, styles }: {
+  icon: IoniconName;
+  title: string;
+  description: string;
+  selected: boolean;
+  disabled: boolean;
+  busy: boolean;
+  onPress: () => void;
+  theme: AppTheme;
   styles: ReturnType<typeof createStyles>;
 }) {
   return (
-    <View style={[styles.cardIcon, { backgroundColor: background }]}>
-      <Ionicons name={name} size={21} color={color} />
-    </View>
+    <Pressable accessibilityRole="radio" accessibilityLabel={title}
+      accessibilityState={{ selected, disabled }} disabled={disabled} onPress={onPress}
+      style={({ pressed }) => [styles.sourceRow, pressed && styles.pressed]}>
+      <View style={styles.radio}>
+        {selected ? <View style={styles.radioInside} /> : null}
+      </View>
+      <Ionicons name={icon} size={21} color={selected ? theme.primary : theme.textSecondary} />
+      <View style={styles.sourceCopy}>
+        <Text style={styles.sourceTitle}>{title}</Text>
+        <Text numberOfLines={2} style={styles.sourceSubtitle}>{description}</Text>
+      </View>
+      {busy ? <ActivityIndicator color={theme.primary} size="small" /> : null}
+    </Pressable>
   );
 }
 
@@ -252,50 +289,38 @@ const createStyles = (theme: AppTheme) =>
     headerButton: { width: 44, height: 44, justifyContent: "center", alignItems: "center" },
     title: { flex: 1, ...typography.headingLarge, color: theme.text, textAlign: "center" },
     content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
-    sectionHeading: { gap: 3, marginTop: spacing.md, marginBottom: spacing.xs },
+    sectionHeading: { gap: 3, marginTop: spacing.md, marginBottom: 4 },
     sectionTitle: { ...typography.bodyMedium, fontWeight: "800", color: theme.text },
-    sectionDescription: { ...typography.bodySmall, color: theme.textSecondary, lineHeight: 19 },
-    card: { gap: 0, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1,
-      borderColor: theme.tabBarBorder, backgroundColor: theme.surface },
+    sectionDescription: { ...typography.bodySmall, color: theme.textSecondary, lineHeight: 18 },
+    card: { padding: spacing.md, borderRadius: radius.lg, borderWidth: 1,
+      borderColor: theme.tabBarBorder, backgroundColor: theme.surface, gap: spacing.sm },
     selectedCard: { borderColor: theme.primary },
-    cardTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 54 },
-    cardCopy: { flex: 1, minWidth: 0, gap: 4 },
-    cardIcon: { width: 42, height: 42, alignItems: "center", justifyContent: "center", borderRadius: 13 },
-    titleLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 7 },
-    cardTitle: { ...typography.bodyMedium, color: theme.text, fontWeight: "800" },
-    cardText: { ...typography.caption, lineHeight: 18, color: theme.textSecondary },
-    selectedLabel: { flexDirection: "row", alignItems: "center", gap: 3, paddingHorizontal: 7,
-      paddingVertical: 3, borderRadius: radius.full, backgroundColor: theme.paymentBg },
-    selectedLabelText: { color: theme.successColor, fontSize: 10, fontWeight: "700" },
-    connectedLabel: { fontSize: 11, fontWeight: "700", color: theme.textSecondary },
-    cardDetails: { borderTopWidth: 1, borderTopColor: theme.border, marginTop: spacing.md, paddingTop: spacing.md, gap: spacing.sm },
-    quotaRow: { flexDirection: "row", gap: spacing.sm, alignItems: "center",
-      backgroundColor: theme.primaryLight, borderRadius: radius.md, padding: spacing.sm },
-    quotaText: { flex: 1, gap: 4, minWidth: 0 },
-    quotaTitle: { ...typography.caption, color: theme.textSecondary },
-    quotaNumber: { ...typography.bodyMedium, fontWeight: "800", color: theme.text },
-    buyButton: { minHeight: 38, borderRadius: radius.full, paddingHorizontal: 12, gap: 4,
-      flexDirection: "row", justifyContent: "center", alignItems: "center", backgroundColor: theme.primary },
-    buyText: { ...typography.labelSmall, color: "#FFFFFF", fontWeight: "700" },
-    helperText: { ...typography.caption, lineHeight: 17, color: theme.textMuted },
-    connectGuide: { gap: spacing.sm },
-    guideTitle: { ...typography.label, fontWeight: "800", color: theme.text },
-    step: { flexDirection: "row", gap: spacing.sm },
-    stepNumber: { width: 26, height: 26, backgroundColor: theme.primaryLight,
-      borderRadius: 13, alignItems: "center", justifyContent: "center" },
-    stepNumberText: { ...typography.caption, fontWeight: "800", color: theme.primary },
-    stepCopy: { flex: 1, gap: 3 },
-    stepTitle: { ...typography.bodySmall, fontWeight: "700", color: theme.text },
-    downloadButton: { alignSelf: "flex-start", minHeight: 38, paddingHorizontal: 14, gap: 6,
-      flexDirection: "row", alignItems: "center", borderRadius: radius.full,
-      marginTop: spacing.xs, backgroundColor: theme.primary },
-    downloadText: { ...typography.labelSmall, color: "#FFFFFF", fontWeight: "800" },
-    gatewayQr: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.sm },
-    gatewayQrCard: { padding: 3, borderRadius: radius.md, backgroundColor: "#FFFFFF" },
-    gatewayQrCopy: { flex: 1, gap: 5 },
-    linkText: { ...typography.caption, fontWeight: "700", color: theme.primary },
-    guideToggle: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", minHeight: 36 },
-    chooseButton: { minHeight: 44, borderRadius: radius.md, justifyContent: "center", alignItems: "center", marginTop: spacing.xs },
-    chooseText: { color: "#FFFFFF", fontWeight: "700" },
+    sourceRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 48 },
+    radio: { width: 20, height: 20, borderWidth: 2, borderRadius: 10, borderColor: theme.primary,
+      justifyContent: "center", alignItems: "center" },
+    radioInside: { width: 10, height: 10, borderRadius: 5, backgroundColor: theme.primary },
+    sourceCopy: { flex: 1, minWidth: 0, gap: 3 },
+    sourceTitle: { ...typography.bodyMedium, color: theme.text, fontWeight: "700" },
+    sourceSubtitle: { ...typography.caption, color: theme.textSecondary, lineHeight: 16 },
+    phoneStatus: { borderTopWidth: 1, borderTopColor: theme.border, paddingTop: 9,
+      flexDirection: "row", alignItems: "center", gap: 8 },
+    phoneStatusCopy: { flex: 1, flexDirection: "row", alignItems: "center", gap: 5, minWidth: 0 },
+    phoneName: { ...typography.caption, color: theme.text, flexShrink: 1, fontWeight: "600" },
+    phoneOnline: { ...typography.caption, fontSize: 11 },
+    details: { borderTopWidth: 1, borderTopColor: theme.border, paddingTop: spacing.sm, gap: spacing.sm },
+    inlineQuota: { flexDirection: "row", alignItems: "center", gap: 8, justifyContent: "space-between" },
+    quotaText: { ...typography.caption, fontWeight: "700", color: theme.text, flexShrink: 1 },
+    inlineAction: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 3, minHeight: 36 },
+    inlineLink: { ...typography.caption, color: theme.primary, fontWeight: "700" },
+    connectHint: { ...typography.caption, color: theme.textSecondary, lineHeight: 18 },
+    helpRow: { flexDirection: "row", alignItems: "center", gap: 5, minHeight: 38, alignSelf: "flex-start" },
+    helpContent: { gap: spacing.sm },
+    helperText: { ...typography.caption, color: theme.textMuted, lineHeight: 18 },
+    gatewayQr: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+    gatewayQrCard: { padding: 4, backgroundColor: "#FFFFFF", borderRadius: radius.sm },
+    errorRow: { flexDirection: "row", alignItems: "center", padding: spacing.sm, gap: spacing.sm,
+      borderRadius: radius.md },
+    errorText: { ...typography.caption, flex: 1 },
+    retryText: { ...typography.caption, fontWeight: "700" },
     pressed: { opacity: 0.7 },
   });

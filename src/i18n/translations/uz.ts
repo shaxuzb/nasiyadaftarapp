@@ -632,6 +632,9 @@ export const uzTranslations = {
     linkOpenError: "Havolani ochib bo‘lmadi",
   },
   smsSettings: {
+    managePhone: "Boshqarish",
+    connectForSending: "SMS’ni telefoningizdan yuborish uchun uni ulang:",
+    sourceLoadError: "SMS usulini yuklab bo‘lmadi",
     autoReminderPremiumHint: "Avto eslatma faqat Premium tarifida ishlaydi.",
     autoReminderBuyPremium: "Premium tarifini olish",
     autoReminderNotAvailable: "Avto eslatma hozir mavjud emas.",
@@ -643,7 +646,7 @@ export const uzTranslations = {
     connectBeforeSelecting: "Avval telefoningizni ulang",
     offlineQueues: "Telefon oflayn. SMS navbatda kutadi.",
     sourceHeading: "SMS qayerdan yuborilsin?",
-    sourceHint: "SMS yuborish usulini tanlang.",
+    sourceHint: "Kerakli usulni bosing. Keyingi SMS shu usuldan yuboriladi.",
     currentSource: "Ishlatilmoqda",
     platformQuotaTitle: "SMS hisobingiz",
     platformQuotaValue: "{count} ta SMS",

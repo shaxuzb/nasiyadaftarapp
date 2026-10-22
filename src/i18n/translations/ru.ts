@@ -636,6 +636,9 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     linkOpenError: "Не удалось открыть ссылку",
   },
   smsSettings: {
+    managePhone: "Управление",
+    connectForSending: "Чтобы отправлять SMS со своего телефона, подключите его:",
+    sourceLoadError: "Не удалось загрузить способ отправки SMS",
     autoReminderPremiumHint: "Автонапоминания доступны только в тарифе Premium.",
     autoReminderBuyPremium: "Подключить Premium",
     autoReminderNotAvailable: "Автонапоминания сейчас недоступны.",
@@ -647,7 +650,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     connectBeforeSelecting: "Сначала подключите телефон",
     offlineQueues: "Телефон не в сети. SMS будут ждать в очереди.",
     sourceHeading: "Откуда отправлять SMS?",
-    sourceHint: "Выберите способ отправки SMS.",
+    sourceHint: "Нажмите на нужный способ — следующие SMS пойдут через него.",
     currentSource: "Используется",
     platformQuotaTitle: "Баланс SMS",
     platformQuotaValue: "{count} SMS",

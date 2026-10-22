@@ -9,7 +9,7 @@ import { useSmsDevices, useClaimSmsDevice, useDeleteSmsDevice } from "../hooks/u
 import { SmsGatewayQrScanner } from "./SmsGatewayQrScanner";
 
 /** Embedded in "O'z telefonim"; intentionally NOT a separate device card. */
-export function SmsGatewayControls() {
+export function SmsGatewayControls({ onConnected }: { onConnected?: () => Promise<void> | void }) {
   const theme = useTheme();
   const { t } = useTranslation();
   const { showToast } = useToast();
@@ -32,6 +32,7 @@ export function SmsGatewayControls() {
     try {
       await claim.mutateAsync({ code: trimmed });
       setCode("");
+      await onConnected?.();
       showToast(t("smsSettings.deviceConnected"), "success");
     } catch (error) {
       showToast(getLocalizedApiErrorMessage(error, "smsSettings.deviceConnectError", t), "error");
