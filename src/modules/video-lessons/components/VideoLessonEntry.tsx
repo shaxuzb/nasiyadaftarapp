@@ -1,6 +1,5 @@
 import React, { memo, useMemo } from "react";
 import {
-  Platform,
   Pressable,
   StyleProp,
   StyleSheet,
@@ -14,7 +13,8 @@ import { useTheme } from "../../../hooks/useTheme";
 import { useTranslation } from "../../../i18n";
 import { radius } from "../../../theme";
 import type { AppTheme, RootStackParamList } from "../../../types";
-import { getVideoLessons, type VideoLessonId } from "../utils/videoLessons";
+import type { VideoLessonId } from "../utils/videoLessons";
+import { useVideoLessons } from "../hooks/useVideoLessons";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
@@ -42,9 +42,8 @@ export const VideoLessonButton = memo(function VideoLessonButton({
 
   // A lesson this platform does not offer gets no button, rather than a
   // button that opens a different lesson.
-  const offered = getVideoLessons(Platform.OS).some(
-    (lesson) => lesson.id === lessonId,
-  );
+  const lessons = useVideoLessons();
+  const offered = lessons.data?.some((lesson) => lesson.id === lessonId) ?? false;
   if (!offered) return null;
 
   return (

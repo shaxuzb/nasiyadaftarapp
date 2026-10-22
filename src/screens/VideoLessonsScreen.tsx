@@ -27,13 +27,12 @@ import { useTheme } from "../hooks/useTheme";
 import { useTranslation } from "../i18n";
 import { YouTubePlayer } from "../modules/video-lessons/components/YouTubePlayer";
 import {
-  getVideoLessons,
   getVideoThumbnailUrl,
   getVideoWatchUrl,
-  resolveVideoLesson,
-  type VideoLesson,
 } from "../modules/video-lessons/utils/videoLessons";
 import { radius, spacing, typography } from "../theme";
+import { useVideoLessons } from "../modules/video-lessons/hooks/useVideoLessons";
+import type { ApiVideoLesson } from "../modules/video-lessons/services/videoLessonService";
 import type { AppTheme, RootStackParamList } from "../types";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -48,13 +47,12 @@ export function VideoLessonsScreen() {
   const { showToast } = useToast();
   const listRef = useRef<ScrollView>(null);
 
-  const lessons = useMemo(() => getVideoLessons(Platform.OS), []);
+  const lessonsQuery = useVideoLessons();
+  const lessons = lessonsQuery.data ?? [];
   const requestedId = route.params?.lessonId;
-  const [selectedId, setSelectedId] = useState(
-    () => resolveVideoLesson(lessons, requestedId)?.id,
-  );
+  const [selectedId, setSelectedId] = useState<string | undefined>(requestedId);
   const [playback, setPlayback] = useState<Playback>("idle");
-  const selected = resolveVideoLesson(lessons, selectedId);
+  const selected = lessons.find((lesson) => lesson.id === selectedId) ?? lessons[0];
   const selectedNumber = selected ? lessons.indexOf(selected) + 1 : 0;
 
   // A screen that linked to one particular lesson means "show me this now",
@@ -78,7 +76,7 @@ export function VideoLessonsScreen() {
     return () => subscription.remove();
   }, []);
 
-  const play = useCallback((lesson: VideoLesson) => {
+  const play = useCallback((lesson: ApiVideoLesson) => {
     setSelectedId(lesson.id);
     setPlayback("playing");
     listRef.current?.scrollTo({ y: 0, animated: true });
@@ -92,7 +90,7 @@ export function VideoLessonsScreen() {
     // Two players talking at once helps nobody.
     setPlayback("idle");
     try {
-      await Linking.openURL(getVideoWatchUrl(selected.youtubeId));
+      await Linking.openURL(selected.videoUrl);
     } catch {
       showToast(t("videoLessons.openError"), "error");
     }
@@ -121,11 +119,11 @@ export function VideoLessonsScreen() {
         <>
           {/* Stays in place while the list scrolls underneath, edge to edge. */}
           <View style={styles.stage}>
-            {playback === "playing" ? (
+            {playback === "playing" && selected.youtubeId ? (
               <YouTubePlayer
                 // A new video is a new page; remounting is simpler and safer
                 // than steering the old one.
-                key={selected.youtubeId}
+                key={selected.id}
                 youtubeId={selected.youtubeId}
                 onEnded={handleEnded}
                 onError={handlePlayerError}
@@ -138,7 +136,7 @@ export function VideoLessonsScreen() {
                 style={styles.fill}
               >
                 <Image
-                  source={{ uri: getVideoThumbnailUrl(selected.youtubeId) }}
+                  source={{ uri: selected.thumbnailUrl ?? (selected.youtubeId ? getVideoThumbnailUrl(selected.youtubeId) : "") }}
                   resizeMode="cover"
                   style={styles.fill}
                 />
@@ -176,10 +174,10 @@ export function VideoLessonsScreen() {
                 {t("videoLessons.lessonNumber", { number: selectedNumber })}
               </Text>
               <Text style={styles.nowPlayingTitle} numberOfLines={2}>
-                {t(`videoLessons.lessons.${selected.id}.title`)}
+                {selected.title}
               </Text>
               <Text style={styles.nowPlayingDescription} numberOfLines={2}>
-                {t(`videoLessons.lessons.${selected.id}.description`)}
+                {selected.description}
               </Text>
             </View>
             <Pressable
@@ -206,6 +204,9 @@ export function VideoLessonsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text style={styles.sectionTitle}>{t("videoLessons.allLessons")}</Text>
+        {lessonsQuery.isPending ? <Text style={styles.sectionTitle}>{t("subscription.loadingPlans")}</Text> : null}
+        {lessonsQuery.isError ? <Pressable onPress={() => void lessonsQuery.refetch()}><Text style={styles.sectionTitle}>{t("videoLessons.retry")}</Text></Pressable> : null}
+        {!lessonsQuery.isPending && !lessonsQuery.isError && lessons.length === 0 ? <Text style={styles.sectionTitle}>{t("videoLessons.empty")}</Text> : null}
         {lessons.map((lesson, index) => (
           <LessonRow
             key={lesson.id}
@@ -226,15 +227,15 @@ const LessonRow = memo(function LessonRow({
   active,
   onPress,
 }: {
-  lesson: VideoLesson;
+  lesson: ApiVideoLesson;
   number: number;
   active: boolean;
-  onPress: (lesson: VideoLesson) => void;
+  onPress: (lesson: ApiVideoLesson) => void;
 }) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { t } = useTranslation();
-  const title = t(`videoLessons.lessons.${lesson.id}.title`);
+  const title = lesson.title;
 
   return (
     <Pressable
@@ -250,7 +251,7 @@ const LessonRow = memo(function LessonRow({
     >
       <View style={styles.thumbnail}>
         <Image
-          source={{ uri: getVideoThumbnailUrl(lesson.youtubeId) }}
+          source={{ uri: lesson.thumbnailUrl ?? (lesson.youtubeId ? getVideoThumbnailUrl(lesson.youtubeId) : "") }}
           resizeMode="cover"
           style={styles.fill}
         />
@@ -263,7 +264,7 @@ const LessonRow = memo(function LessonRow({
           {title}
         </Text>
         <Text style={styles.rowDescription} numberOfLines={2}>
-          {t(`videoLessons.lessons.${lesson.id}.description`)}
+          {lesson.description}
         </Text>
       </View>
       <Ionicons
