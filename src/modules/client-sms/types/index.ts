@@ -40,7 +40,16 @@ export interface SmsRecipient {
   smsSentToday: boolean;
   nextSmsAvailableDate?: string;
   lastSmsAt?: string;
+  /** Status of the exact same SMS as lastSmsAt. Null means no SMS history. */
+  lastSmsStatus: SmsRecipientLastStatus | null;
 }
+
+export type SmsRecipientLastStatus =
+  | "sent"
+  | "queued"
+  | "pending"
+  | "failed"
+  | "cancelled";
 
 export interface SmsHistoryItem {
   id: number;

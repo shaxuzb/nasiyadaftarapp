@@ -17,6 +17,7 @@ export function AutoReminderCard() {
   const [enabled, setEnabled] = useState(false);
   const [days, setDays] = useState("");
   const [balance, setBalance] = useState("");
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (!settings) return;
@@ -51,19 +52,33 @@ export function AutoReminderCard() {
 
   return (
     <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-      <View style={styles.heading}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded }}
+        onPress={() => setExpanded(value => !value)} style={styles.heading}>
         <View style={[styles.icon, { backgroundColor: theme.primaryLight }]}>
           <Ionicons name="notifications-outline" size={22} color={theme.primary} />
         </View>
         <View style={styles.headingCopy}>
           <Text style={[styles.title, { color: theme.text }]}>{t("smsSettings.autoReminderTitle")}</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{t("smsSettings.autoReminderInfo")}</Text>
+          {!query.isPending && settings ? (
+            <Text style={[styles.subtitle, { color: theme.primary, fontWeight: "700" }]}>
+              {!settings.available ? t("smsSettings.autoReminderLocked") :
+                settings.enabled ? t("smsSettings.autoReminderEnabled") : t("smsSettings.autoReminderDisabled")}
+            </Text>
+          ) : null}
         </View>
+        <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color={theme.textMuted} />
+      </Pressable>
+      {expanded ? <>
         {settings?.available ? (
-          <Switch accessibilityLabel={t("smsSettings.autoReminderEnabled")} disabled={busy}
-            value={enabled} onValueChange={setEnabled} trackColor={{ true: theme.primary }} />
+          <View style={styles.switchRow}>
+            <Text style={[styles.label, { color: theme.text }]}>
+              {t("smsSettings.autoReminderEnabled")}
+            </Text>
+            <Switch accessibilityLabel={t("smsSettings.autoReminderEnabled")} disabled={busy}
+              value={enabled} onValueChange={setEnabled} trackColor={{ true: theme.primary }} />
+          </View>
         ) : null}
-      </View>
       {query.isPending ? <ActivityIndicator color={theme.primary} /> :
         query.isError ? (
           <Pressable accessibilityRole="button" onPress={() => void query.refetch()} style={styles.retry}>
@@ -103,6 +118,7 @@ export function AutoReminderCard() {
             </Pressable>
           </View>
         ) : null}
+      </> : null}
     </View>
   );
 }
@@ -114,6 +130,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 15, fontWeight: "800" },
   subtitle: { fontSize: 12, lineHeight: 18 },
   form: { gap: 12 },
+  switchRow: { minHeight: 40, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   summary: { fontSize: 13, fontWeight: "600" },
   inputs: { flexDirection: "row", gap: 12 },
   field: { flex: 1, gap: 5, minWidth: 0 },

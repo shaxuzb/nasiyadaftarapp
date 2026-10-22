@@ -5,6 +5,8 @@ import { useTheme } from "../../../hooks/useTheme";
 import type { AppTheme } from "../../../types";
 import { formatLocalizedDate, useTranslation } from "../../../i18n";
 import type { SmsHistoryItem } from "../types";
+import { SmsStatusBadge } from "./SmsStatusBadge";
+import { getSmsStatusAppearance } from "../utils/smsStatusPresentation";
 
 export const SmsHistoryRow = memo(function SmsHistoryRow({
   item,
@@ -15,47 +17,15 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale, t } = useTranslation();
   const displayName = item.fullName.trim() || t("sms.clientFallback");
-  const sent =
-    item.normalizedStatus === "sent" || item.normalizedStatus === "success";
-  const failed =
-    item.normalizedStatus === "failed" || item.normalizedStatus === "error";
-  const color = sent
-    ? theme.paymentColor
-    : failed
-      ? theme.dangerColor
-      : theme.warningColor;
-  const label = sent
-    ? t("sms.statusSent")
-    : failed
-      ? t("sms.statusFailed")
-      : item.normalizedStatus === "skipped"
-        ? t("sms.statusSkipped")
-        : item.normalizedStatus === "pending"
-          ? t("sms.statusPending")
-        : item.normalizedStatus === "queued"
-          ? t("sms.statusQueued")
-          : item.normalizedStatus === "cancelled"
-            ? t("sms.statusCancelled")
-            : item.status || t("common.unexpectedError");
+  const appearance = getSmsStatusAppearance(item.normalizedStatus, theme);
+  const statusColor = appearance?.color ?? theme.textMuted;
+  const statusBackground = appearance?.background ?? theme.inputBackground;
+  const statusIcon = appearance?.icon ?? "help-circle-outline";
+  const failed = item.normalizedStatus === "failed" || item.normalizedStatus === "error";
   return (
     <View style={styles.card}>
-      <View
-        style={[
-          styles.icon,
-          {
-            backgroundColor: sent
-              ? theme.paymentBg
-              : failed
-                ? theme.debtBg
-                : theme.inputBackground,
-          },
-        ]}
-      >
-        <Ionicons
-          name={sent ? "checkmark" : failed ? "close" : "remove"}
-          size={18}
-          color={color}
-        />
+      <View style={[styles.icon, { backgroundColor: statusBackground }]}>
+        <Ionicons name={statusIcon} size={18} color={statusColor} />
       </View>
       <View style={styles.copy}>
         <Text numberOfLines={3} style={styles.name}>
@@ -76,20 +46,7 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
         ) : null}
       </View>
       <View style={styles.trailing}>
-        <View
-          style={[
-            styles.badge,
-            {
-              backgroundColor: sent
-                ? theme.paymentBg
-                : failed
-                  ? theme.debtBg
-                  : theme.inputBackground,
-            },
-          ]}
-        >
-          <Text style={[styles.status, { color }]}>{label}</Text>
-        </View>
+        <SmsStatusBadge status={item.normalizedStatus} />
         {item.sentAt ? (
           <Text style={styles.date}>{formatLocalizedDate(item.sentAt, locale)}</Text>
         ) : null}
@@ -122,7 +79,5 @@ const createStyles = (theme: AppTheme) =>
     phone: { color: theme.textSecondary, fontSize: 12 },
     detail: { color: theme.textMuted, fontSize: 11, lineHeight: 15 },
     trailing: { alignItems: "flex-end", gap: 5 },
-    badge: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 999 },
-    status: { fontSize: 10, fontWeight: "800" },
     date: { color: theme.textMuted, fontSize: 10 },
   });

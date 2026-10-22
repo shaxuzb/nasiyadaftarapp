@@ -97,12 +97,18 @@ export function SmsGatewayControls() {
                 {t("smsSettings.deviceBattery")}: {device.battery === null ? "—" : `${device.battery}%`}
               </Text>
               {device.sims.map((sim) => (
-                <View key={sim.id} style={styles.simLine}>
-                  <Text style={[styles.meta, { flex: 1, color: theme.textSecondary }]}>
+                <View key={sim.id} style={[styles.simQuota, { backgroundColor: theme.inputBackground }]}>
+                  <Text style={[styles.simName, { color: theme.text }]}>
                     {sim.name || `SIM ${sim.slot + 1}`}
                   </Text>
-                  <Text style={[styles.meta, { color: theme.text }]}>
-                    {sim.usedToday} / {sim.dailyLimit} · {t("smsSettings.deviceRemaining")}: {sim.remainingToday}
+                  <Text style={[styles.meta, { color: theme.textSecondary }]}>
+                    {t("smsSettings.usedNumbersToday", { count: sim.usedToday, limit: sim.dailyLimit })}
+                  </Text>
+                  <Text style={[styles.remaining, { color: theme.primary }]}>
+                    {t("smsSettings.remainingNumbersToday", { count: sim.remainingToday })}
+                  </Text>
+                  <Text style={[styles.meta, { color: theme.textMuted }]}>
+                    {t("smsSettings.phoneDailyLimitHint")}
                   </Text>
                 </View>
               ))}
@@ -165,7 +171,9 @@ const styles = StyleSheet.create({
   deviceName: { flex: 1, minWidth: 0, gap: 2 },
   name: { fontSize: 14, fontWeight: "700" },
   meta: { fontSize: 12 },
-  simLine: { flexDirection: "row", gap: 8, alignItems: "center" },
+  simQuota: { borderRadius: 11, padding: 11, gap: 4 },
+  simName: { fontSize: 12, fontWeight: "700" },
+  remaining: { fontSize: 13, fontWeight: "800" },
   disconnect: { minHeight: 38, justifyContent: "center", alignSelf: "flex-start" },
   actions: { flexDirection: "row", gap: 8 },
   action: { flex: 1, minHeight: 48, flexDirection: "row", gap: 6, alignItems: "center",

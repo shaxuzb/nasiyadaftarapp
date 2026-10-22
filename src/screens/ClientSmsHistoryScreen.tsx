@@ -33,6 +33,7 @@ const PAGE_SIZE = 20;
 const statuses = [
   { labelKey: "sms.statusAll", value: undefined },
   { labelKey: "sms.statusSent", value: "sent" },
+  { labelKey: "sms.statusPending", value: "pending" },
   { labelKey: "sms.statusFailed", value: "failed" },
   { labelKey: "sms.statusSkipped", value: "skipped" },
   { labelKey: "sms.statusQueued", value: "queued" },

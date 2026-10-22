@@ -7,6 +7,8 @@ import type { SmsRecipient } from "../types";
 import { BlacklistBadge } from "../../clients/components/BlacklistBadge";
 import { isCustomerBlacklisted } from "../../clients/utils/blacklist";
 import { isSmsRecipientSelectable } from "../utils/recipientSelection";
+import { SmsStatusBadge } from "./SmsStatusBadge";
+import { formatSmsShortDate } from "../utils/smsStatusPresentation";
 import {
   formatLocalizedCurrency,
   formatLocalizedDate,
@@ -110,6 +112,16 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
         <Text numberOfLines={1} style={styles.phone}>
           {displayPhone || t("sms.recipientPhoneMissing")}
         </Text>
+        {recipient.lastSmsStatus ? (
+          <View style={styles.lastSmsLine}>
+            <SmsStatusBadge status={recipient.lastSmsStatus} />
+            {recipient.lastSmsAt ? (
+              <Text numberOfLines={1} style={styles.lastSmsDate}>
+                {formatSmsShortDate(recipient.lastSmsAt)}
+              </Text>
+            ) : null}
+          </View>
+        ) : null}
         {!hasPhone ? (
           <Pressable
             accessibilityRole="button"
@@ -128,24 +140,22 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
           </Pressable>
         ) : recipient.nextSmsAvailableDate ? (
           <Text numberOfLines={1} style={styles.reason}>
-            {t("sms.nextAvailable", { date: formatLocalizedDate(recipient.nextSmsAvailableDate, locale) })}
+            {t("sms.nextAvailable", {
+              date: formatLocalizedDate(recipient.nextSmsAvailableDate, locale),
+            })}
           </Text>
-        ) : recipient.smsSentToday ? (
-          // Already sent today is a fact, not a fault: it takes the reason line
-          // in green instead of the generic warning, which would read as if
-          // something were wrong with this client.
+        ) : recipient.smsSentToday && !recipient.lastSmsStatus ? (
           <View style={styles.sentTodayLine}>
-            <Ionicons name="checkmark-done" size={12} color={theme.paymentColor} />
+            <Ionicons name="time-outline" size={12} color={theme.textMuted} />
             <Text numberOfLines={1} style={styles.sentTodayText}>
-              {t("sms.sentToday")}
+              {t("sms.smsToday")}
             </Text>
           </View>
-        ) : !recipient.canSend ? (
+        ) : !recipient.canSend && !recipient.lastSmsStatus ? (
           <Text numberOfLines={1} style={styles.reason}>
             {recipient.cannotSendReason || t("sms.cannotSend")}
           </Text>
         ) : null}
-        {recipient.lastSmsAt ? <Text numberOfLines={1} style={styles.phone}>{t("sms.lastSent", { date: formatLocalizedDate(recipient.lastSmsAt, locale) })}</Text> : null}
       </View>
       <View style={styles.trailing}>
         <Text
@@ -275,6 +285,8 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "700",
     },
     phone: { color: theme.textSecondary, fontSize: 12 },
+    lastSmsLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5, marginTop: 2 },
+    lastSmsDate: { color: theme.textMuted, fontSize: 10 },
     reason: { color: theme.warningColor, fontSize: 10 },
     phoneAction: {
       flexDirection: "row",
@@ -296,7 +308,7 @@ const createStyles = (theme: AppTheme) =>
       gap: 3,
       marginTop: 1,
     },
-    sentTodayText: { color: theme.paymentColor, fontSize: 10, fontWeight: "700" },
+    sentTodayText: { color: theme.textMuted, fontSize: 10, fontWeight: "700" },
     trailing: { maxWidth: "37%", alignItems: "flex-end", gap: 2 },
     balance: { fontSize: 12, fontWeight: "800" },
     overdue: { color: theme.warningColor, fontSize: 9 },

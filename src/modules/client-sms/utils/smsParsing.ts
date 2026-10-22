@@ -3,6 +3,7 @@ import type {
   PagedResult,
   SmsHistoryItem,
   SmsRecipient,
+  SmsRecipientLastStatus,
   SmsSendResult,
   SmsSendQuota,
   SmsTemplate,
@@ -108,6 +109,18 @@ function extractPage(input: unknown): { count: number; items: unknown[] } {
   throw new Error("SMS ro'yxati noto'g'ri formatda qaytdi");
 }
 
+
+const RECIPIENT_LAST_STATUSES = new Set<SmsRecipientLastStatus>([
+  "sent", "queued", "pending", "failed", "cancelled",
+]);
+function parseRecipientLastStatus(value: unknown): SmsRecipientLastStatus | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return RECIPIENT_LAST_STATUSES.has(normalized as SmsRecipientLastStatus)
+    ? (normalized as SmsRecipientLastStatus) : null;
+}
+
 export function parseSmsRecipients(input: unknown): PagedResult<SmsRecipient> {
   const page = extractPage(input);
   return {
@@ -131,6 +144,7 @@ export function parseSmsRecipients(input: unknown): PagedResult<SmsRecipient> {
           canSend: item.canSend === true,
           nextSmsAvailableDate: text(item.nextSmsAvailableDate) || undefined,
           lastSmsAt: text(item.lastSmsAt) || undefined,
+          lastSmsStatus: parseRecipientLastStatus(item.lastSmsStatus),
           smsSentToday:
             item.smsSentToday === true ||
             item.isSmsSentToday === true ||
