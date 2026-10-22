@@ -442,6 +442,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     sendBulk: "Отправить SMS",
     recipientPhoneMissing: "Номер телефона не указан",
     sentToday: "Отправлено сегодня",
+    smsToday: "Сегодня создано SMS",
     addRecipientPhone: "Добавить телефон",
     cannotSend: "SMS отправить нельзя",
     sendToClient: "Отправить SMS клиенту {name}",

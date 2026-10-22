@@ -28,3 +28,12 @@ const bulk = parseBulkSmsResponse({ queuedCount: 1, results: [{ logId: 501, stat
 assert(bulk.queuedCount === 1 && bulk.results[0].logId === 501, "Bulk results");
 const recipients = parseSmsRecipients({ count: 1, results: [{ id: 217, canSend: true, smsSentToday: true }] });
 assert(recipients.results[0].smsSentToday, "Queued-today recipient flag");
+
+const statusCases = ["sent", "queued", "pending", "failed", "cancelled"] as const;
+for (const status of statusCases) {
+  const row = parseSmsRecipients({ count: 1, results: [{ id: 217, canSend: true, phoneNumber: "+998901234567", lastSmsAt: "2026-10-21T15:00:00", lastSmsStatus: status }] }).results[0];
+  assert(row.lastSmsStatus === status && row.lastSmsAt === "2026-10-21T15:00:00", "Recipients retain paired last SMS status/date: " + status);
+  assert(row.canSend, "SMS status does not override backend canSend: " + status);
+}
+const noSms = parseSmsRecipients({ count: 1, results: [{ id: 217, canSend: false, lastSmsAt: null, lastSmsStatus: null }] }).results[0];
+assert(noSms.lastSmsStatus === null && noSms.lastSmsAt === undefined, "Null means no last SMS");

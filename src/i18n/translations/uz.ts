@@ -438,6 +438,7 @@ export const uzTranslations = {
     sendBulk: "SMS yuborish",
     recipientPhoneMissing: "Telefon raqami kiritilmagan",
     sentToday: "Bugun yuborilgan",
+    smsToday: "Bugungi SMS mavjud",
     addRecipientPhone: "Telefonni qo'shish",
     cannotSend: "SMS yuborib bo'lmaydi",
     sendToClient: "{name}ga SMS yuborish",
