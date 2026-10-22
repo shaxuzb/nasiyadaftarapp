@@ -2,6 +2,7 @@ import { apiClient } from "../../../services/axiosService";
 
 export interface ApiVideoLesson {
   id: string;
+  code: string | null;
   title: string;
   description: string;
   videoUrl: string;
@@ -42,7 +43,8 @@ export function parseVideoLessons(input: unknown): ApiVideoLesson[] {
     if (!(typeof o.id === "string" || typeof o.id === "number") ||
       typeof o.title !== "string" || !o.title.trim() ||
       typeof o.videoUrl !== "string" || !/^https:\/\//i.test(o.videoUrl)) return [];
-    return [{ id: String(o.id), title: o.title.trim(),
+    if (o.isActive === false) return [];
+    return [{ id: String(o.id), code: typeof o.code === 'string' && o.code.trim() ? o.code.trim().toLowerCase() : null, title: o.title.trim(),
       description: typeof o.description === "string" ? o.description.trim() : "",
       videoUrl: o.videoUrl,
       thumbnailUrl: resolveThumbnailUrl(o.thumbnailUrl, youtubeIdFromUrl(o.videoUrl)),

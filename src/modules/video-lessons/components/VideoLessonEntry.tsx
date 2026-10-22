@@ -43,7 +43,7 @@ export const VideoLessonButton = memo(function VideoLessonButton({
   // A lesson this platform does not offer gets no button, rather than a
   // button that opens a different lesson.
   const lessons = useVideoLessons();
-  const offered = lessons.data?.some((lesson) => lesson.id === lessonId) ?? false;
+  const offered = lessons.data?.some((lesson) => lesson.code === lessonId) ?? false;
   if (!offered) return null;
 
   return (

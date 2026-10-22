@@ -50,7 +50,7 @@ export function VideoLessonsScreen() {
   const requestedId = route.params?.lessonId;
   const [selectedId, setSelectedId] = useState<string | undefined>(requestedId);
   const [playback, setPlayback] = useState<Playback>("idle");
-  const selected = lessons.find((lesson) => lesson.id === selectedId) ?? lessons[0];
+  const selected = lessons.find((lesson) => lesson.id === selectedId || lesson.code === selectedId) ?? lessons[0];
   const selectedNumber = selected ? lessons.indexOf(selected) + 1 : 0;
 
   // A screen that linked to one particular lesson means "show me this now",
