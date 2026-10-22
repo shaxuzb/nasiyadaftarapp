@@ -525,6 +525,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     endsToday: "Заканчивается сегодня",
     periodEnded: "Срок истёк",
     validUntil: "до {date}",
+    renewError: "Не удалось продлить тариф. Попробуйте ещё раз.",
     renewPlan: "Продлить тариф",
     renewComingSoon: "Скоро заработает",
     demoBadge: "Демо",
@@ -739,7 +740,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     androidOnly: "Приложение-шлюз работает только на Android.",
   },
   videoLessons: {
-    screenTitle: "Видеоуроки",
+    empty: "Пока нет видеоуроков.",    screenTitle: "Видеоуроки",
     profileRowTitle: "Видеоуроки",
     profileRowDescription: "Короткие уроки по работе с приложением",
     allLessons: "Все уроки",

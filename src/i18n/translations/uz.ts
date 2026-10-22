@@ -521,6 +521,7 @@ export const uzTranslations = {
     endsToday: "Bugun tugaydi",
     periodEnded: "Muddati tugagan",
     validUntil: "{date} gacha",
+    renewError: "Tarifni uzaytirib bo‘lmadi. Qayta urinib ko‘ring.",
     renewPlan: "Tarifni uzaytirish",
     renewComingSoon: "Tez orada ishga tushadi",
     demoBadge: "Demo",
@@ -735,7 +736,7 @@ export const uzTranslations = {
     androidOnly: "Gateway dasturi faqat Android telefonda ishlaydi.",
   },
   videoLessons: {
-    screenTitle: "Video darslar",
+    empty: "Hozircha video darslar yo‘q.",    screenTitle: "Video darslar",
     profileRowTitle: "Video darslar",
     profileRowDescription: "Ilovadan foydalanish bo‘yicha qisqa darslar",
     allLessons: "Barcha darslar",

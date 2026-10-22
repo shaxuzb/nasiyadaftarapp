@@ -10,7 +10,6 @@ import {
   AppState,
   Image,
   Linking,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,7 +27,6 @@ import { useTranslation } from "../i18n";
 import { YouTubePlayer } from "../modules/video-lessons/components/YouTubePlayer";
 import {
   getVideoThumbnailUrl,
-  getVideoWatchUrl,
 } from "../modules/video-lessons/utils/videoLessons";
 import { radius, spacing, typography } from "../theme";
 import { useVideoLessons } from "../modules/video-lessons/hooks/useVideoLessons";
