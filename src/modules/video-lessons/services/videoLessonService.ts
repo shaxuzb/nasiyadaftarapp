@@ -9,7 +9,7 @@ export interface ApiVideoLesson {
   sortOrder: number;
   youtubeId: string | null;
 }
-function youtubeIdFromUrl(value: string): string | null {
+export function youtubeIdFromUrl(value: string): string | null {
   try {
     const url = new URL(value);
     const host = url.hostname.toLowerCase();
@@ -23,6 +23,15 @@ function youtubeIdFromUrl(value: string): string | null {
   } catch { return null; }
 }
 
+export function resolveThumbnailUrl(raw: unknown, youtubeId: string | null): string | null {
+  if (typeof raw === "string") {
+    try {
+      const url = new URL(raw);
+      if (url.protocol === "https:" && /\.(png|jpe?g|webp)$/i.test(url.pathname)) return url.toString();
+    } catch { /* fall back to video ID */ }
+  }
+  return youtubeId ? `https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg` : null;
+}
 export function parseVideoLessons(input: unknown): ApiVideoLesson[] {
   const data = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
   const list = Array.isArray(input) ? input : Array.isArray(data?.results) ? data.results : Array.isArray(data?.data) ? data.data : null;
@@ -36,7 +45,7 @@ export function parseVideoLessons(input: unknown): ApiVideoLesson[] {
     return [{ id: String(o.id), title: o.title.trim(),
       description: typeof o.description === "string" ? o.description.trim() : "",
       videoUrl: o.videoUrl,
-      thumbnailUrl: typeof o.thumbnailUrl === "string" && /^https:\/\//i.test(o.thumbnailUrl) ? o.thumbnailUrl : null,
+      thumbnailUrl: resolveThumbnailUrl(o.thumbnailUrl, youtubeIdFromUrl(o.videoUrl)),
       sortOrder: typeof o.sortOrder === "number" && Number.isFinite(o.sortOrder) ? o.sortOrder : 0,
       youtubeId: youtubeIdFromUrl(o.videoUrl),
     }];
