@@ -61,7 +61,7 @@ type DebtorRowProps = {
   item: ReportTopDebtor;
   index: number;
   isLast: boolean;
-  locale: string;
+  locale: ReturnType<typeof useTranslation>["locale"];
   debtCaption: string;
   phoneMissing: string;
   styles: ReturnType<typeof createStyles>;
