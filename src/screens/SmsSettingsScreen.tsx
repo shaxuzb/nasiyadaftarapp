@@ -22,7 +22,6 @@ import { AutoReminderCard } from "../modules/client-sms/components/AutoReminderC
 import { SmsGatewayControls } from "../modules/client-sms/components/SmsGatewayControls";
 import { useSmsDevices, useSmsProvider, useUpdateSmsProvider } from "../modules/client-sms/hooks/useSmsDevices";
 import { getLocalizedApiErrorMessage } from "../i18n";
-import { useSmsQueue } from "../modules/client-sms/hooks/useClientSms";
 import { QrCode } from "../modules/support/components/QrCode";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme } from "../types";
@@ -37,9 +36,8 @@ const INSTALL_STEPS = [
 ] as const;
 
 /**
- * Source selection is not a local toggle: no set-provider API exists.
- * The backend's queue.ownDevice is the only confirmed source-of-truth.
- * Pair/unpair still happens with the existing authenticated endpoints.
+ * Provider selection persists through GET/PUT /sms/provider.
+ * Pairing and sending remain independent actions.
  */
 export function SmsSettingsScreen() {
   const theme = useTheme();

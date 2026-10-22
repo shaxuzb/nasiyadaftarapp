@@ -1,6 +1,5 @@
 import React, { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import * as Clipboard from "expo-clipboard";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import { getLocalizedApiErrorMessage, useTranslation } from "../../../i18n";
@@ -26,14 +25,6 @@ export function SmsGatewayControls() {
     setCode(value); // QR data is the full input; do not guess an undocumented deep link format.
     setScannerOpen(false);
   }, []);
-
-  const paste = async () => {
-    try {
-      const value = (await Clipboard.getStringAsync()).trim();
-      if (value) { setCode(value); }
-      else showToast(t("smsSettings.clipboardEmpty"), "info");
-    } catch { showToast(t("smsSettings.clipboardError"), "error"); }
-  };
 
   const connect = async () => {
     const trimmed = code.trim();
