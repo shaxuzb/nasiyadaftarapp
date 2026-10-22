@@ -261,34 +261,32 @@ export function ReportsScreen() {
                   <Text style={styles.sectionTitle}>{t("reports.topDebtors")}</Text>
                   <Text style={styles.sectionSubtitle}>{t("reports.topDebtorsSubtitle")}</Text>
                 </View>
-                <View style={styles.countBadge}>
-                  <Text style={styles.countBadgeText}>{topDebtors.length}</Text>
+                <View style={styles.limitControl}>
+                  <View style={styles.limitCaption}>
+                    <Text style={styles.limitLabel}>{t("reports.showCount")}</Text>
+                    {isFetching && !isPullRefreshing ? (
+                      <ActivityIndicator size="small" color={theme.primary} />
+                    ) : null}
+                  </View>
+                  <View style={styles.limitOptions} accessibilityRole="radiogroup">
+                    {LIMIT_OPTIONS.map((limit) => (
+                      <Pressable key={limit} accessibilityRole="radio"
+                        accessibilityLabel={t("reports.topCountOption", { count: limit })}
+                        accessibilityState={{ selected: topDebtorsLimit === limit }}
+                        onPress={() => setTopDebtorsLimit(limit)}
+                        style={({ pressed }) => [
+                          styles.limitOption,
+                          topDebtorsLimit === limit && styles.limitOptionSelected,
+                          pressed && styles.pressed,
+                        ]}>
+                        <Text style={[
+                          styles.limitOptionText,
+                          topDebtorsLimit === limit && styles.limitOptionTextSelected,
+                        ]}>{limit}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
                 </View>
-              </View>
-
-              <View style={styles.limitBar}>
-                <Text style={styles.limitLabel}>{t("reports.showCount")}</Text>
-                <View style={styles.limitOptions} accessibilityRole="radiogroup">
-                  {LIMIT_OPTIONS.map((limit) => (
-                    <Pressable key={limit} accessibilityRole="radio"
-                      accessibilityLabel={t("reports.topCountOption", { count: limit })}
-                      accessibilityState={{ selected: topDebtorsLimit === limit }}
-                      onPress={() => setTopDebtorsLimit(limit)}
-                      style={({ pressed }) => [
-                        styles.limitOption,
-                        topDebtorsLimit === limit && styles.limitOptionSelected,
-                        pressed && styles.pressed,
-                      ]}>
-                      <Text style={[
-                        styles.limitOptionText,
-                        topDebtorsLimit === limit && styles.limitOptionTextSelected,
-                      ]}>{limit}</Text>
-                    </Pressable>
-                  ))}
-                </View>
-                {isFetching && !isPullRefreshing ? (
-                  <ActivityIndicator size="small" color={theme.primary} />
-                ) : null}
               </View>
             </View>
           )
@@ -331,23 +329,21 @@ const createStyles = (theme: AppTheme) => StyleSheet.create({
   heroValue: { color: theme.text, fontSize: 31, lineHeight: 38,
     fontWeight: "800", letterSpacing: -0.8, fontVariant: ["tabular-nums"] },
   heroCaption: { color: theme.textSecondary, fontSize: 12, lineHeight: 17 },
-  sectionHeader: { minHeight: 42, flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", gap: 12 },
+  sectionHeader: { minHeight: 54, flexDirection: "row", alignItems: "center",
+    justifyContent: "space-between", gap: 10 },
   sectionHeading: { flex: 1, minWidth: 0, gap: 3 },
-  sectionTitle: { color: theme.text, fontSize: 18, lineHeight: 23, fontWeight: "800", letterSpacing: -0.25 },
+  sectionTitle: { color: theme.text, fontSize: 16, lineHeight: 21, fontWeight: "800", letterSpacing: -0.25 },
   sectionSubtitle: { color: theme.textMuted, fontSize: 11, lineHeight: 15 },
-  countBadge: { minWidth: 30, height: 30, alignItems: "center",
-    justifyContent: "center", paddingHorizontal: 8, borderRadius: 15, backgroundColor: theme.primaryLight },
-  countBadgeText: { color: theme.primary, fontSize: 12, lineHeight: 16, fontWeight: "800",
-    fontVariant: ["tabular-nums"] },
-  limitBar: { minHeight: 40, flexDirection: "row", alignItems: "center", gap: 8 },
-  limitLabel: { flex: 1, color: theme.textSecondary, fontSize: 12 },
+  limitControl: { flexShrink: 0, alignItems: "flex-end", gap: 3 },
+  limitCaption: { flexDirection: "row", alignItems: "center", justifyContent: "flex-end",
+    gap: 6, minHeight: 14 },
+  limitLabel: { color: theme.textMuted, fontSize: 10, fontWeight: "600", lineHeight: 14 },
   limitOptions: { flexDirection: "row", alignItems: "center", backgroundColor: theme.inputBackground,
-    borderRadius: 11, padding: 3, gap: 2 },
-  limitOption: { minWidth: 43, minHeight: 34, borderRadius: 8, justifyContent: "center", alignItems: "center",
-    paddingHorizontal: 7 },
+    borderRadius: 10, padding: 2, gap: 1 },
+  limitOption: { minWidth: 33, minHeight: 34, borderRadius: 8, justifyContent: "center",
+    alignItems: "center", paddingHorizontal: 5 },
   limitOptionSelected: { backgroundColor: theme.surface, borderWidth: 1, borderColor: theme.primary },
-  limitOptionText: { color: theme.textSecondary, fontSize: 12, fontWeight: "700" },
+  limitOptionText: { color: theme.textSecondary, fontSize: 11, fontWeight: "700" },
   limitOptionTextSelected: { color: theme.primary, fontWeight: "800" },
   debtorRow: { minHeight: 67, flexDirection: "row", alignItems: "center", gap: 9,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: theme.surface,
