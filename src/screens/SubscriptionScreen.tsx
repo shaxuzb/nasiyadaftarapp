@@ -49,8 +49,14 @@ type Navigation = NativeStackNavigationProp<RootStackParamList>;
 type PlanIconName = React.ComponentProps<typeof Ionicons>["name"];
 
 const SCREEN_COPY = {
-  uz: { currentBadge: "Joriy tarif", oneMonth: "Tariflar" },
-  ru: { currentBadge: "Текущий тариф", oneMonth: "Тарифы" },
+  uz: {
+    currentBadge: "Joriy tarif", oneMonth: "Tariflar",
+    more: "Yana", smsSubtitle: "Qo‘shimcha SMS", info: "Tarif yoki SMS paketni tanlang.",
+  },
+  ru: {
+    currentBadge: "Текущий тариф", oneMonth: "Тарифы",
+    more: "Ещё", smsSubtitle: "Дополнительные SMS", info: "Выберите тариф или SMS-пакет.",
+  },
 } as const;
 function getPlanAccent(code: string, theme: AppTheme) {
   if (code.trim().toUpperCase() === "PREMIUM") return { color: theme.warningColor, soft: theme.warningColor + "14" };
