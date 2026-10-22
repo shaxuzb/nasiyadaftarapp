@@ -632,6 +632,9 @@ export const uzTranslations = {
     linkOpenError: "Havolani ochib bo‘lmadi",
   },
   smsSettings: {
+    autoReminderPremiumHint: "Avto eslatma faqat Premium tarifida ishlaydi.",
+    autoReminderBuyPremium: "Premium tarifini olish",
+    autoReminderNotAvailable: "Avto eslatma hozir mavjud emas.",
     selectPlatform: "Qarz Daftar orqali yuborish",
     selectOwnPhone: "O‘z telefonimdan yuborish",
     providerSaved: "SMS yuborish usuli saqlandi",
@@ -824,6 +827,7 @@ export const uzTranslations = {
     nameError: "Tashkilot nomini kiriting",
     created: "Tashkilot yaratildi",
     blacklistTitle: "Qora ro'yxat",
+    blacklistBuyPlan: "Tarifni tanlash",
     blacklistDisabledTitle: "Bu imkoniyat tarifingizda yo'q",
     blacklistDisabledDescription:
       "Qora ro'yxat funksiyasidan foydalanish uchun pullik tarifni faollashtiring.",

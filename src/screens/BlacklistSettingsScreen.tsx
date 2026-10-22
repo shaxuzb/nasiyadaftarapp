@@ -31,6 +31,7 @@ import type { AppTheme, RootStackParamList } from "../types";
 import { EmptyState } from "../components/EmptyState";
 import { useAuth } from "../context/AuthContext";
 import { useCurrentSubscription } from "../modules/subscription/hooks/useSubscription";
+import { SubscriptionUpgradeModal } from "../modules/subscription/components/SubscriptionUpgradeModal";
 import {
   KeyboardAwareScrollView,
   KeyboardAvoidingView,
@@ -48,6 +49,7 @@ export function BlacklistSettingsScreen() {
   const { user } = useAuth();
   const subscriptionQuery = useCurrentSubscription();
   const subscription = subscriptionQuery.data ?? user?.subscription;
+  const [buyOpen, setBuyOpen] = useState(false);
   const currentOrganization = useCurrentOrganization();
   const [value, setValue] = useState("");
   const [savedValue, setSavedValue] = useState<number | null>(null);
@@ -80,11 +82,17 @@ export function BlacklistSettingsScreen() {
           <Text style={styles.title}>{t("organization.blacklistTitle")}</Text>
           <View style={styles.headerButton} />
         </View>
-        <EmptyState
-          iconName="lock-closed-outline"
-          title={t("organization.blacklistDisabledTitle")}
-          description={t("organization.blacklistDisabledDescription")}
-        />
+        <View style={styles.lockedContent}>
+          <EmptyState iconName="lock-closed-outline"
+            title={t("organization.blacklistDisabledTitle")}
+            description={t("organization.blacklistDisabledDescription")} />
+          <Pressable accessibilityRole="button" onPress={() => setBuyOpen(true)}
+            style={[styles.lockedAction, { backgroundColor: theme.primary }]}>
+            <Text style={styles.lockedActionText}>{t("organization.blacklistBuyPlan")}</Text>
+          </Pressable>
+        </View>
+        <SubscriptionUpgradeModal visible={buyOpen} reason="blacklist" subscription={subscription}
+          onClose={() => { setBuyOpen(false); void subscriptionQuery.refetch(); }} />
       </SafeAreaView>
     );
   }
@@ -224,6 +232,9 @@ export function BlacklistSettingsScreen() {
 }
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
+    lockedContent: { flex: 1, paddingHorizontal: spacing.md, gap: spacing.md },
+    lockedAction: { minHeight: 48, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
+    lockedActionText: { color: "#FFFFFF", fontWeight: "700" },
     safe: { flex: 1, backgroundColor: theme.background },
     flex: { flex: 1 },
     header: {

@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
+import { useAuth } from "../../../context/AuthContext";
+import { useCurrentSubscription } from "../../subscription/hooks/useSubscription";
+import { normalizePlanCode } from "../../subscription/utils/upgradeOptions";
+import { SubscriptionUpgradeModal } from "../../subscription/components/SubscriptionUpgradeModal";
 import { useToast } from "../../../context/ToastContext";
 import { useTranslation } from "../../../i18n";
 import { useAutoReminderSettings, useUpdateAutoReminderSettings } from "../hooks/useClientSms";
@@ -14,6 +18,11 @@ export function AutoReminderCard() {
   const query = useAutoReminderSettings();
   const update = useUpdateAutoReminderSettings();
   const settings = query.data;
+  const { user } = useAuth();
+  const subscriptionQuery = useCurrentSubscription();
+  const subscription = subscriptionQuery.data ?? user?.subscription;
+  const premium = normalizePlanCode(subscription?.planCode) === "PREMIUM";
+  const [buyOpen, setBuyOpen] = useState(false);
   const [enabled, setEnabled] = useState(false);
   const [days, setDays] = useState("");
   const [balance, setBalance] = useState("");
@@ -38,7 +47,7 @@ export function AutoReminderCard() {
   const busy = query.isPending || update.isPending;
 
   const save = async () => {
-    if (!settings?.available || !valid || update.isPending) {
+    if (!premium || !settings?.available || !valid || update.isPending) {
       showToast(t("smsSettings.autoReminderValidation"), "error");
       return;
     }
@@ -51,6 +60,7 @@ export function AutoReminderCard() {
   };
 
   return (
+    <>
     <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded }}
         onPress={() => setExpanded(value => !value)} style={styles.heading}>
@@ -69,7 +79,14 @@ export function AutoReminderCard() {
         </View>
         <Ionicons name={expanded ? "chevron-up" : "chevron-down"} size={20} color={theme.textMuted} />
       </Pressable>
-      {expanded ? <>
+      {(!subscription && subscriptionQuery.isPending) ? <ActivityIndicator color={theme.primary} /> : !premium ? (
+        <View style={styles.upgrade}>
+          <Text style={[styles.subtitle, { color: theme.textSecondary }]}>{t("smsSettings.autoReminderPremiumHint")}</Text>
+          <Pressable accessibilityRole="button" onPress={() => setBuyOpen(true)} style={[styles.button, { backgroundColor: theme.primary }]}>
+            <Text style={styles.buttonText}>{t("smsSettings.autoReminderBuyPremium")}</Text>
+          </Pressable>
+        </View>
+      ) : expanded ? <>
         {settings?.available ? (
           <View style={styles.switchRow}>
             <Text style={[styles.label, { color: theme.text }]}>
@@ -87,7 +104,7 @@ export function AutoReminderCard() {
           </Pressable>
         ) : settings && !settings.available ? (
           <Text style={[styles.locked, { color: theme.textSecondary, backgroundColor: theme.inputBackground }]}>
-            {t("smsSettings.autoReminderLocked")}
+            {t("smsSettings.autoReminderNotAvailable")}
           </Text>
         ) : settings ? (
           <View style={styles.form}>
@@ -120,6 +137,9 @@ export function AutoReminderCard() {
         ) : null}
       </> : null}
     </View>
+    <SubscriptionUpgradeModal visible={buyOpen} reason="auto-reminder" subscription={subscription}
+      onClose={() => { setBuyOpen(false); void subscriptionQuery.refetch(); }} />
+    </>
   );
 }
 const styles = StyleSheet.create({
@@ -130,6 +150,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 15, fontWeight: "800" },
   subtitle: { fontSize: 12, lineHeight: 18 },
   form: { gap: 12 },
+  upgrade: { gap: 12, paddingTop: 8 },
   switchRow: { minHeight: 40, flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   summary: { fontSize: 13, fontWeight: "600" },
   inputs: { flexDirection: "row", gap: 12 },

@@ -636,6 +636,9 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     linkOpenError: "Не удалось открыть ссылку",
   },
   smsSettings: {
+    autoReminderPremiumHint: "Автонапоминания доступны только в тарифе Premium.",
+    autoReminderBuyPremium: "Подключить Premium",
+    autoReminderNotAvailable: "Автонапоминания сейчас недоступны.",
     selectPlatform: "Отправлять через Qarz Daftar",
     selectOwnPhone: "Отправлять с моего телефона",
     providerSaved: "Способ отправки SMS сохранён",
@@ -828,6 +831,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     nameError: "Введите название организации",
     created: "Организация создана",
     blacklistTitle: "Чёрный список",
+    blacklistBuyPlan: "Выбрать тариф",
     blacklistDisabledTitle: "Эта возможность недоступна в вашем тарифе",
     blacklistDisabledDescription:
       "Активируйте платный тариф, чтобы пользоваться чёрным списком.",
