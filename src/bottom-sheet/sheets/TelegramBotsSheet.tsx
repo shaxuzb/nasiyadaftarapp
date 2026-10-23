@@ -5,6 +5,8 @@ import { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../hooks/useTheme";
+import { navigationRef } from "../../navigation/navigationRef";
+import { VideoLessonButton } from "../../modules/video-lessons/components/VideoLessonEntry";
 import { useTranslation } from "../../i18n";
 import {
   useAppLinks,
@@ -100,6 +102,11 @@ export function TelegramBotsSheet({
                 <Text style={styles.subtitle}>{t("support.botsSheetSubtitle")}</Text>
               </View>
             </View>
+            <View style={styles.headerActions}>
+              <VideoLessonButton code="telegram_bot" onPress={() => {
+                closeSheet();
+                if (navigationRef.isReady()) navigationRef.navigate("VideoLessons", { lessonId: "telegram_bot" });
+              }} />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("common.close")}
@@ -108,6 +115,7 @@ export function TelegramBotsSheet({
             >
               <Ionicons name="close" size={21} color={theme.textSecondary} />
             </Pressable>
+            </View>
           </View>
 
           <View style={styles.options}>
@@ -187,6 +195,7 @@ const createStyles = (theme: AppTheme) =>
       justifyContent: "space-between",
       gap: spacing.sm,
     },
+    headerActions: { flexDirection: "row", alignItems: "center", gap: 6 },
     titleWrap: {
       flex: 1,
       flexDirection: "row",

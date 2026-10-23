@@ -13,13 +13,15 @@ import { useTheme } from "../../../hooks/useTheme";
 import { useTranslation } from "../../../i18n";
 import { radius } from "../../../theme";
 import type { AppTheme, RootStackParamList } from "../../../types";
-import type { VideoLessonId } from "../utils/videoLessons";
 import { useVideoLessons } from "../hooks/useVideoLessons";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 
 interface Props {
-  lessonId: VideoLessonId;
+  /** Stable backend video lesson code for this screen. */
+  code: string;
+  /** Called instead of direct navigation when a bottom sheet must close first. */
+  onPress?: () => void;
   /** Size or spacing to match the header it sits in. */
   style?: StyleProp<ViewStyle>;
 }
@@ -32,8 +34,9 @@ interface Props {
  * from the content.
  */
 export const VideoLessonButton = memo(function VideoLessonButton({
-  lessonId,
+  code,
   style,
+  onPress,
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
@@ -43,18 +46,18 @@ export const VideoLessonButton = memo(function VideoLessonButton({
   // A lesson this platform does not offer gets no button, rather than a
   // button that opens a different lesson.
   const lessons = useVideoLessons();
-  const offered = lessons.data?.some((lesson) => lesson.code === lessonId) ?? false;
+  const offered = lessons.data?.some((lesson) => lesson.code === code) ?? false;
   if (!offered) return null;
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t("videoLessons.helpA11y")}
-      hitSlop={4}
-      onPress={() => navigation.navigate("VideoLessons", { lessonId })}
+      hitSlop={6}
+      onPress={onPress ?? (() => navigation.navigate("VideoLessons", { lessonId: code }))}
       style={({ pressed }) => [styles.button, pressed && styles.pressed, style]}
     >
-      <Ionicons name="school-outline" size={22} color={theme.primary} />
+      <Ionicons name="school-outline" size={19} color={theme.primary} />
     </Pressable>
   );
 });
@@ -62,8 +65,8 @@ export const VideoLessonButton = memo(function VideoLessonButton({
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     button: {
-      width: 40,
-      height: 40,
+      width: 36,
+      height: 36,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radius.full,

@@ -334,7 +334,7 @@ function ClientSmsContent({
           }
           action={
             <View style={styles.headerActions}>
-              <VideoLessonButton lessonId="sms" />
+              <VideoLessonButton code="sms" />
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("smsSettings.title")}

@@ -188,7 +188,7 @@ export function ReportsScreen() {
         <View style={styles.headerCopy}>
           <Text style={styles.screenTitle}>{t("reports.screenTitle")}</Text>
         </View>
-        <VideoLessonButton lessonId="reports" />
+        <VideoLessonButton code="reports" />
         <Pressable accessibilityRole="button"
           accessibilityLabel={t("reports.exportA11y")}
           accessibilityState={{ disabled: isExporting, busy: isExporting }}

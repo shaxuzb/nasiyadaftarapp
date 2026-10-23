@@ -3,7 +3,6 @@ export type {
   TransactionType,
 } from "../modules/transactions/types";
 export type { Customer } from "../modules/clients/types";
-import type { VideoLessonId } from "../modules/video-lessons/utils/videoLessons";
 
 export interface AppTheme {
   background: string;
@@ -43,7 +42,7 @@ export type RootStackParamList = {
   Notifications: { highlightId?: number } | undefined;
   NotificationSettings: undefined;
   /** `lessonId` opens on that lesson and starts it; without one the viewer picks. */
-  VideoLessons: { lessonId?: VideoLessonId } | undefined;
+  VideoLessons: { lessonId?: string } | undefined;
 };
 
 export type MainTabParamList = {

@@ -493,7 +493,7 @@ export function CustomersScreen() {
                 </TouchableOpacity>
               ) : null}
               <VideoLessonButton
-                lessonId="customers"
+                code="customers"
                 style={styles.videoLessonBtn}
               />
               <TouchableOpacity
