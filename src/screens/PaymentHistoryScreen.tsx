@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
@@ -89,6 +90,7 @@ export function PaymentHistoryScreen() {
           <Ionicons name="arrow-back" size={23} color={theme.text} />
         </Pressable>
         <Text style={styles.title}>{copy.title}</Text>
+        <VideoLessonButton code="payment_history" />
         <View style={styles.back} />
       </View>
 

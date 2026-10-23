@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -81,6 +82,7 @@ export function BlacklistSettingsScreen() {
           </Pressable>
           <Text style={styles.title}>{t("organization.blacklistTitle")}</Text>
           <View style={styles.headerButton} />
+          <VideoLessonButton code="blacklist" />
         </View>
         <View style={styles.lockedContent}>
           <EmptyState iconName="lock-closed-outline"
@@ -123,6 +125,7 @@ export function BlacklistSettingsScreen() {
           </Pressable>
           <Text style={styles.title}>{t("organization.blacklistTitle")}</Text>
           <View style={styles.headerButton} />
+          <VideoLessonButton code="blacklist" />
         </View>
         <KeyboardAwareScrollView
           style={styles.scroll}

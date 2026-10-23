@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useCallback, useState } from "react";
 import { BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -133,6 +134,7 @@ export function OrganizationSetupScreen() {
                   color={theme.primary}
                 />
               </View>
+              <VideoLessonButton code="organization_setup" />
               <Text style={[styles.title, { color: theme.text }]}>
                 {t("organization.setupTitle")}
               </Text>

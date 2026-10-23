@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, {
   useCallback,
   useEffect,
@@ -204,6 +205,7 @@ export function OrganizationSelectScreen() {
           <View style={styles.headerIcon}>
             <Ionicons name="business-outline" size={27} color={theme.primary} />
           </View>
+          <VideoLessonButton code="organizations" />
           <Text style={styles.title}>{t("organization.selectTitle")}</Text>
           <Text style={styles.description}>
             {t("organization.selectDescription")}

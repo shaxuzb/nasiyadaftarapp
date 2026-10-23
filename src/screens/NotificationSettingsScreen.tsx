@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useMemo } from "react";
 import {
   ActivityIndicator,
@@ -94,6 +95,7 @@ export function NotificationSettingsScreen() {
           {t("notifications.permissionTitle")}
         </Text>
         <View style={styles.headerButton} />
+          <VideoLessonButton code="notification_settings" />
       </View>
 
       <View style={styles.content}>

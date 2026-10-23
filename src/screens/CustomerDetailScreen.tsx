@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -193,6 +194,7 @@ export function CustomerDetailScreen() {
       >
         <Ionicons name="arrow-back" size={24} color={theme.text} />
       </Pressable>
+      <VideoLessonButton code="customer_detail" />
       <Text style={styles.headerCaption}>{t("transactions.customerData")}</Text>
       <Pressable
         accessibilityRole="button"

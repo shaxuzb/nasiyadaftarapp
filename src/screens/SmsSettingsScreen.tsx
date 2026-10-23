@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -112,6 +113,7 @@ export function SmsSettingsScreen() {
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>{t("smsSettings.title")}</Text>
         <View style={styles.headerButton} />
+          <VideoLessonButton code="sms_settings" />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}>

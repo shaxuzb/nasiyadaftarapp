@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -280,7 +281,8 @@ function Header({ onBack }: { onBack: () => void }) {
         <Ionicons name="arrow-back" size={24} color={theme.text} />
       </Pressable>
       <Text style={styles.title}>{t("sms.historyTitle")}</Text>
-      <View style={styles.headerButton} />
+      <VideoLessonButton code="sms_history" />
+        <View style={styles.headerButton} />
     </View>
   );
 }

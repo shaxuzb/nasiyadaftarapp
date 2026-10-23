@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import {
   ActivityIndicator,
@@ -190,6 +191,7 @@ export function SubscriptionScreen() {
           <Text style={styles.title}>{t("subscription.screenTitle")}</Text>
         </View>
 
+        <VideoLessonButton code="payment" />
         <View style={styles.headerButton} />
       </View>
 

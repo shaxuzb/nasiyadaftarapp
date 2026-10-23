@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useEffect, useMemo, useRef } from "react";
 import {
   ActivityIndicator,
@@ -208,6 +209,7 @@ export function NotificationsScreen() {
           <Ionicons name="arrow-back" size={23} color={theme.text} />
         </Pressable>
         <Text style={styles.headerTitle}>{t("notifications.screenTitle")}</Text>
+        <VideoLessonButton code="notifications" />
         <View style={styles.headerButton} />
       </View>
       {content}

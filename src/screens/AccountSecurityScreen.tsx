@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -267,6 +268,7 @@ export function AccountSecurityScreen({ navigation }: Props) {
         >
           <Ionicons name="arrow-back" size={23} color={theme.text} />
         </Pressable>
+        <VideoLessonButton code="account_security" />
         <View style={styles.headerCopy}>
           <Text style={styles.screenTitle}>{t("security.screenTitle")}</Text>
           <Text style={styles.screenSubtitle}>

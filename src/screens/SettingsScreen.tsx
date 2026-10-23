@@ -1,3 +1,4 @@
+import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -331,6 +332,7 @@ export function SettingsScreen() {
       <View style={styles.header}>
         <Text style={styles.screenTitle}>{t("profile.screenTitle")}</Text>
         <View style={styles.headerActions}>
+          <VideoLessonButton code="profile" />
           {headerLinks.map((link) => (
             <Pressable
               key={link.key}
