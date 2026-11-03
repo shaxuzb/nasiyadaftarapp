@@ -105,11 +105,15 @@ const modal = read("src/modules/subscription/components/SubscriptionUpgradeModal
 assert.match(modal, /<DiscountedPriceLine\s+product=\{selectedPlan\}/, "The upgrade modal's plan shows it");
 assert.match(modal, /<SmsPackageRow\s+key=\{item\.id\}\s+item=\{item\}/, "The upgrade modal's packages show it, through the shared row");
 const checkout = read("src/bottom-sheet/sheets/PaymentCheckoutSheet.tsx");
-assert.match(checkout, /<DiscountSummary product=\{product\} withCurrency \/>/, "The checkout shows it");
+// For a plan, the discount of the chosen term; for a package, its own.
+assert.match(checkout, /const priced = period \?\? product;/);
+assert.match(checkout, /<DiscountSummary product=\{priced\} withCurrency \/>/, "The checkout shows it");
 
 /* 4. The amount to pay is still the price, and only the price. */
 
-assert.match(checkout, /const amount = product\.price;/);
+// The term's price for a plan, the package's own otherwise; never an old price.
+assert.match(checkout, /const amount = priced\.price;/);
+assert.doesNotMatch(checkout, /amount = [^;]*oldPrice/);
 const payers = [];
 (function walk(directory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {

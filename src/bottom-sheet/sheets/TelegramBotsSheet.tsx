@@ -5,8 +5,10 @@ import { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../hooks/useTheme";
-import { navigationRef } from "../../navigation/navigationRef";
-import { VideoLessonButton } from "../../modules/video-lessons/components/VideoLessonEntry";
+import {
+  openVideoLesson,
+  VideoLessonButton,
+} from "../../modules/video-lessons/components/VideoLessonEntry";
 import { useTranslation } from "../../i18n";
 import {
   useAppLinks,
@@ -103,18 +105,19 @@ export function TelegramBotsSheet({
               </View>
             </View>
             <View style={styles.headerActions}>
-              <VideoLessonButton code="telegram_bot" onPress={() => {
-                closeSheet();
-                if (navigationRef.isReady()) navigationRef.navigate("VideoLessons", { lessonId: "telegram_bot" });
-              }} />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("common.close")}
-              onPress={() => closeSheet()}
-              style={styles.closeButton}
-            >
-              <Ionicons name="close" size={21} color={theme.textSecondary} />
-            </Pressable>
+              {/* The lesson opens once the sheet is gone, not underneath it. */}
+              <VideoLessonButton
+                code={TELEGRAM_LESSON_CODE}
+                onPress={() => closeSheet(() => openVideoLesson(TELEGRAM_LESSON_CODE))}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("common.close")}
+                onPress={() => closeSheet()}
+                style={styles.closeButton}
+              >
+                <Ionicons name="close" size={21} color={theme.textSecondary} />
+              </Pressable>
             </View>
           </View>
 
@@ -180,6 +183,8 @@ export function TelegramBotsSheet({
 // The customers' bot is not for the person holding this phone. Its row shows a
 // QR code for a customer to scan, instead of opening the bot here.
 const SHOWN_AS_QR: readonly string[] = ["client_bot"];
+
+const TELEGRAM_LESSON_CODE = "telegram_bot";
 
 // The same frame as the legal documents sheet, so the two read as siblings.
 const createStyles = (theme: AppTheme) =>

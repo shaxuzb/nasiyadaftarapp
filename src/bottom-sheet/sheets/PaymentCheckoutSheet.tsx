@@ -16,6 +16,12 @@ import { getApiErrorUserMessage } from "../../i18n/apiErrors";
 import { getPaymentCopy } from "../../modules/payments/i18n/paymentCopy";
 import { PaymentMethodSelector } from "../../modules/payments/components/PaymentMethodSelector";
 import { DiscountSummary } from "../../modules/subscription/components/PriceDiscount";
+import { PlanPeriodPicker } from "../../modules/subscription/components/PlanPeriodPicker";
+import {
+  DEFAULT_PERIOD_MONTHS,
+  getPlanPeriod,
+  type SubscriptionPlanPeriod,
+} from "../../modules/subscription/utils/planPeriods";
 import { usePaymentCheckout } from "../../modules/payments/hooks/usePaymentCheckout";
 import { usePaymentProviders } from "../../modules/payments/hooks/usePaymentQueries";
 import {
@@ -29,6 +35,7 @@ import type { AppTheme } from "../../types";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const NO_PROVIDERS: readonly PaymentProvider[] = [];
+const NO_PERIODS: readonly SubscriptionPlanPeriod[] = [];
 
 function fill(template: string, values: Record<string, string | number>) {
   return template.replace(/\{(\w+)\}/g, (token, key) =>
@@ -45,7 +52,7 @@ export function PaymentCheckoutSheet({
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { locale } = useTranslation();
+  const { locale, t } = useTranslation();
   const paymentCopy = getPaymentCopy(locale);
   const copy = paymentCopy.checkout;
   const { showToast } = useToast();
@@ -64,7 +71,20 @@ export function PaymentCheckoutSheet({
 
   const isPlan = props.productType === "subscription";
   const product = isPlan ? props.plan : props.package;
-  const amount = product.price;
+  const renew = isPlan && props.renew === true;
+  const periods = isPlan ? props.plan.periods : NO_PERIODS;
+  // The term: the one tapped on the card, otherwise one month. It can still
+  // be changed here, so a second thought does not mean going back.
+  const [months, setMonths] = useState<number>(
+    () =>
+      (isPlan ? getPlanPeriod(periods, props.months)?.months : null) ??
+      DEFAULT_PERIOD_MONTHS,
+  );
+  const period = isPlan ? getPlanPeriod(periods, months) : null;
+  // What is charged and what was struck off: the term's for a plan, the
+  // package's own otherwise.
+  const priced = period ?? product;
+  const amount = priced.price;
   // A free plan has nothing to pay, so nothing to choose.
   const needsMethod = amount > 0;
   const providersQuery = usePaymentProviders(needsMethod);
@@ -99,6 +119,8 @@ export function PaymentCheckoutSheet({
         productType: props.productType,
         productId: product.id,
         provider: showMethods ? method : null,
+        months: period ? period.months : null,
+        renew,
       });
       const orderId = result.order.id;
 
@@ -161,16 +183,37 @@ export function PaymentCheckoutSheet({
       {/* Just what is being bought. The sheet's own content — price, payment
           method, pay button — already says this is a confirmation, so a title
           and an icon above it only pushed that content down. */}
-      <Text style={styles.productName} numberOfLines={2}>
-        {product.name}
-      </Text>
+      <View style={styles.titleBlock}>
+        <Text style={styles.productName} numberOfLines={2}>
+          {product.name}
+        </Text>
+        {renew ? (
+          <Text style={styles.productMode}>{t("subscription.renewPlan")}</Text>
+        ) : null}
+      </View>
+
+      {/* One term on offer needs no choosing; a free plan has none. */}
+      {isPlan && periods.length > 1 && amount > 0 ? (
+        <View style={styles.periodBlock}>
+          <Text style={styles.periodTitle}>{t("subscription.periodTitle")}</Text>
+          <PlanPeriodPicker
+            periods={periods}
+            value={period?.months ?? null}
+            onChange={setMonths}
+            disabled={isCreating}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.priceCard}>
         {/* The amount to pay is the price below; this only shows the saving. */}
-        <DiscountSummary product={product} withCurrency />
+        <DiscountSummary product={priced} withCurrency />
         <Text style={styles.price}>
           {formatLocalizedCurrency(amount, locale)}
         </Text>
+        {renew ? (
+          <Text style={styles.renewHint}>{t("subscription.renewHint")}</Text>
+        ) : null}
         <Text style={styles.hint}>
           {amount === 0 ? copy.freeHint : copy.externalHint}
         </Text>
@@ -235,9 +278,27 @@ const createStyles = (theme: AppTheme) =>
       gap: spacing.md,
       backgroundColor: theme.surface,
     },
+    titleBlock: { alignItems: "center", gap: 2 },
     productName: {
       ...typography.headingLarge,
       color: theme.text,
+      textAlign: "center",
+    },
+    productMode: {
+      ...typography.caption,
+      color: theme.primary,
+      fontWeight: "800",
+    },
+    periodBlock: { gap: spacing.sm },
+    periodTitle: {
+      ...typography.caption,
+      color: theme.textSecondary,
+      fontWeight: "700",
+    },
+    renewHint: {
+      ...typography.caption,
+      color: theme.primary,
+      fontWeight: "700",
       textAlign: "center",
     },
     priceCard: {

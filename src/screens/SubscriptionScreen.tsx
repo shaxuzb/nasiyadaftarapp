@@ -1,9 +1,8 @@
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
-import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useEffect } from "react";
 import {
   ActivityIndicator,
   AppState,
-  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,15 +10,8 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import * as Crypto from "expo-crypto";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { createSubscriptionRenewalPayment } from "../modules/payments/services/paymentService";
-import { savePendingPayment } from "../modules/payments/services/paymentStorage";
-import { getPaymentCheckoutUrl } from "../modules/payments/utils/paymentUrl";
-import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../core/query/queryKeys";
-import { getLocalizedApiErrorMessage } from "../i18n";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -43,6 +35,7 @@ import { getPlanPurchaseAvailability } from "../modules/subscription/utils/planP
 import { normalizePlanIcon } from "../modules/subscription/utils/planIcon";
 import { DiscountSummary } from "../modules/subscription/components/PriceDiscount";
 import { SmsPackageRow } from "../modules/subscription/components/SmsPackageRow";
+import { PlanPeriodPicker } from "../modules/subscription/components/PlanPeriodPicker";
 import type { SmsPackage } from "../modules/subscription/types";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
@@ -84,10 +77,6 @@ export function SubscriptionScreen() {
   const { openSheet } = useBottomSheet();
   const { user, refreshSubscription } = useAuth();
   const { showToast } = useToast();
-  const queryClient = useQueryClient();
-  const [isRenewing, setIsRenewing] = useState(false);
-  const renewRequestRef = useRef<Promise<void> | null>(null);
-  const renewalKeyRef = useRef<string | null>(null);
 
   const currentQuery = useCurrentSubscription();
   const plansQuery = useSubscriptionPlans();
@@ -118,51 +107,42 @@ export function SubscriptionScreen() {
           : t("subscription.daysLeft", { count: currentPeriod.daysLeft });
   const plans = plansQuery.data ?? [];
   const packages = packagesQuery.data ?? [];
+  const premiumPlan = plans.find((plan) => plan.code.toUpperCase() === "PREMIUM");
+  const currentCode = current?.planCode.toUpperCase() ?? null;
+  const legacyCurrent =
+    current &&
+    currentCode !== "FREE" &&
+    !plans.some(
+      (plan) => plan.id === current.planId || plan.code.toUpperCase() === currentCode,
+    )
+      ? current
+      : null;
   const isLoading = plansQuery.isPending && !plans.length;
 
   useEffect(() => {
+    // Back from paying in Payme or Click: the plan may have changed. Only
+    // while this screen is in front, and once: refreshSubscription already
+    // writes the answer into the query cache.
     const listener = AppState.addEventListener("change", (state) => {
-      if (state === "active") {
+      if (state === "active" && navigation.isFocused()) {
         void refreshSubscription();
-        void queryClient.invalidateQueries({ queryKey: queryKeys.subscriptionCurrent(user?.id ?? "anonymous") });
       }
     });
     return () => listener.remove();
-  }, [refreshSubscription, queryClient, user?.id]);
+  }, [navigation, refreshSubscription]);
 
-  const renewCurrentPlan = useCallback(async () => {
-    if (!user || renewRequestRef.current) return;
-    const request = (async () => {
-      setIsRenewing(true);
-      try {
-        const key = renewalKeyRef.current ?? Crypto.randomUUID();
-        renewalKeyRef.current = key;
-        const order = await createSubscriptionRenewalPayment(key);
-        queryClient.setQueryData(queryKeys.payment(order.id), order);
-        const url = getPaymentCheckoutUrl(order);
-        if (!url) throw new Error("PAYMENT_CHECKOUT_URL_MISSING");
-        await savePendingPayment({
-          version: 1, userId: user.id, orderId: order.id,
-          productType: order.productType, productId: order.productId,
-          openedExternally: true, updatedAt: new Date().toISOString(),
-        });
-        await Linking.openURL(url);
-        renewalKeyRef.current = null;
-      } catch (error) {
-        showToast(getLocalizedApiErrorMessage(error, "subscription.renewError", t), "error");
-      } finally {
-        setIsRenewing(false);
-      }
-    })();
-    renewRequestRef.current = request;
-    try { await request; } finally { renewRequestRef.current = null; }
-  }, [user, queryClient, showToast, t]);
-
-  const openPlanPayment = (plan: (typeof plans)[number]) => {
+  // A term tapped on the card comes along; without one the sheet starts on
+  // one month and the choice is made there.
+  const openPlanPayment = (plan: (typeof plans)[number], months?: number) => {
     openSheet("paymentCheckout", {
       productType: "subscription",
       plan,
+      ...(months ? { months } : {}),
     });
+  };
+
+  const openRenewal = (plan: (typeof plans)[number]) => {
+    openSheet("paymentCheckout", { productType: "subscription", plan, renew: true });
   };
 
   const openPackagePayment = useCallback(
@@ -213,6 +193,50 @@ export function SubscriptionScreen() {
           </View>
         ) : plans.length ? (
           <View style={styles.planList}>
+            {legacyCurrent ? (
+              <View style={[styles.planCard, styles.legacyCard]}>
+                <View style={styles.planTopRow}>
+                  <View style={[styles.planIcon, { backgroundColor: theme.primaryLight }]}>
+                    <Ionicons name="sparkles-outline" size={24} color={theme.primary} />
+                  </View>
+                  <View style={styles.planMain}>
+                    <View style={styles.planNameRow}>
+                      <Text style={styles.planName}>
+                        {legacyCurrent.planName || legacyCurrent.planCode}
+                      </Text>
+                      <View style={styles.currentPill}>
+                        <Text style={styles.currentPillText}>{copy.currentBadge}</Text>
+                      </View>
+                    </View>
+                    <Text style={styles.planDescription}>
+                      {t("subscription.legacyPlanHint")}
+                    </Text>
+                  </View>
+                </View>
+                {!legacyCurrent.canRenew && premiumPlan ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={t("subscription.upgradeToPremium")}
+                    onPress={() => openPlanPayment(premiumPlan)}
+                    style={({ pressed }) => [styles.upgradeButton, pressed && styles.pressed]}
+                  >
+                    <Ionicons name="diamond-outline" size={17} color="#FFFFFF" />
+                    <Text style={styles.upgradeButtonText}>
+                      {t("subscription.upgradeToPremium")}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {periodRange ? (
+                  <PeriodFooter
+                    range={periodRange}
+                    left={periodLeft}
+                    endingSoon={currentPeriod.endingSoon}
+                    theme={theme}
+                    styles={styles}
+                  />
+                ) : null}
+              </View>
+            ) : null}
             {plans.map((plan) => {
               const normalizedCode = plan.code.toUpperCase();
               const isCurrent =
@@ -337,16 +361,24 @@ export function SubscriptionScreen() {
                     ) : null} */}
                   </View>
 
-                  {isCurrent && periodRange ? (
+                  {selectable && plan.periods.length > 1 ? (
+                    <PlanPeriodPicker
+                      periods={plan.periods}
+                      value={null}
+                      onChange={(months) => openPlanPayment(plan, months)}
+                    />
+                  ) : null}
+
+                  {isCurrent && current?.canRenew ? (
                     <View style={styles.renewBlock}>
-                      <Pressable accessibilityRole="button"
+                      <Pressable
+                        accessibilityRole="button"
                         accessibilityLabel={t("subscription.renewPlan")}
-                        accessibilityState={{ busy: isRenewing, disabled: isRenewing }}
-                        disabled={isRenewing}
-                        onPress={(event) => { event.stopPropagation(); void renewCurrentPlan(); }}
-                        style={styles.renewButton}>
-                        {isRenewing ? <ActivityIndicator size="small" color={theme.primary} /> :
-                          <Ionicons name="refresh-outline" size={17} color={theme.primary} />}
+                        accessibilityHint={t("subscription.renewHint")}
+                        onPress={() => openRenewal(plan)}
+                        style={({ pressed }) => [styles.renewButton, pressed && styles.pressed]}
+                      >
+                        <Ionicons name="refresh-outline" size={17} color={theme.primary} />
                         <Text style={styles.renewText}>{t("subscription.renewPlan")}</Text>
                       </Pressable>
                     </View>
@@ -355,37 +387,13 @@ export function SubscriptionScreen() {
                   {/* The card's last line: how long this plan has left. A
                       status, not a feature, so it sits apart from the chips. */}
                   {isCurrent && periodRange ? (
-                    <View style={styles.periodFooter}>
-                      <View style={styles.periodDates}>
-                        <Ionicons
-                          name="calendar-outline"
-                          size={15}
-                          color={theme.textMuted}
-                        />
-                        <Text style={styles.periodText} numberOfLines={1}>
-                          {periodRange}
-                        </Text>
-                      </View>
-                      {periodLeft ? (
-                        <View
-                          style={[
-                            styles.daysPill,
-                            currentPeriod.endingSoon && styles.daysPillWarning,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.daysPillText,
-                              currentPeriod.endingSoon &&
-                                styles.daysPillTextWarning,
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {periodLeft}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
+                    <PeriodFooter
+                      range={periodRange}
+                      left={periodLeft}
+                      endingSoon={currentPeriod.endingSoon}
+                      theme={theme}
+                      styles={styles}
+                    />
                   ) : null}
                 </Pressable>
               );
@@ -437,6 +445,43 @@ export function SubscriptionScreen() {
         <AdminContactButton variant="card" />
       </ScrollView>
     </SafeAreaView>
+  );
+}
+
+// The card's last line: when the plan began and ends, and how long is left.
+// A status, not a feature, so it sits apart from the chips.
+function PeriodFooter({
+  range,
+  left,
+  endingSoon,
+  theme,
+  styles,
+}: {
+  range: string;
+  left: string | null;
+  endingSoon: boolean;
+  theme: AppTheme;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  return (
+    <View style={styles.periodFooter}>
+      <View style={styles.periodDates}>
+        <Ionicons name="calendar-outline" size={15} color={theme.textMuted} />
+        <Text style={styles.periodText} numberOfLines={1}>
+          {range}
+        </Text>
+      </View>
+      {left ? (
+        <View style={[styles.daysPill, endingSoon && styles.daysPillWarning]}>
+          <Text
+            style={[styles.daysPillText, endingSoon && styles.daysPillTextWarning]}
+            numberOfLines={1}
+          >
+            {left}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -619,30 +664,32 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: spacing.sm,
       borderRadius: radius.md,
       borderWidth: 1,
-      borderColor: theme.border,
-      backgroundColor: theme.inputBackground,
+      borderColor: theme.primary,
+      backgroundColor: theme.primaryLight,
     },
     renewText: {
       ...typography.labelSmall,
-      color: theme.textMuted,
+      color: theme.primary,
       fontWeight: "800",
     },
-    demoPill: {
-      paddingHorizontal: 7,
-      paddingVertical: 2,
-      borderRadius: radius.full,
-      backgroundColor: `${theme.warningColor}18`,
+    legacyCard: {
+      borderColor: theme.primary,
+      backgroundColor: `${theme.primary}05`,
     },
-    demoPillText: {
-      fontSize: 10,
-      lineHeight: 13,
-      color: theme.warningColor,
+    upgradeButton: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      paddingHorizontal: spacing.sm,
+      borderRadius: radius.md,
+      backgroundColor: theme.primary,
+    },
+    upgradeButtonText: {
+      ...typography.labelSmall,
+      color: "#FFFFFF",
       fontWeight: "800",
-    },
-    renewNote: {
-      ...typography.caption,
-      color: theme.textMuted,
-      textAlign: "center",
     },
     currentPill: {
       paddingHorizontal: 8,

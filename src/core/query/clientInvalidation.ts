@@ -16,8 +16,7 @@ export function getClientInvalidationKeys(
   const keys: QueryKey[] = [
     queryKeys.clients(scope),
     queryKeys.clientSearchRoot(scope),
-    ["reports", scope],
-    queryKeys.clientSmsRecipientsRoot(scope),
+    ...getClientDependentTabKeys(scope),
   ];
 
   if (event === "updated" && typeof clientId === "number") {
@@ -45,6 +44,16 @@ export function getClientInvalidationKeys(
   return keys;
 }
 
+/**
+ * Other tabs' data a change to clients makes stale: the reports and the SMS
+ * list. Those tabs stay mounted once visited, so they are only marked here
+ * and refetch when looked at (useRefetchInvalidatedOnFocus): the heavy report
+ * is not recomputed for every payment typed in on another tab.
+ */
+function getClientDependentTabKeys(scope: QueryScope): QueryKey[] {
+  return [["reports", scope], queryKeys.clientSmsRecipientsRoot(scope)];
+}
+
 export async function invalidateClientDomain(
   queryClient: QueryClient,
   scope: QueryScope,
@@ -52,7 +61,13 @@ export async function invalidateClientDomain(
   clientId?: number,
 ): Promise<void> {
   const keys = getClientInvalidationKeys(scope, event, clientId);
+  const markOnly = new Set(getClientDependentTabKeys(scope).map((key) => JSON.stringify(key)));
   await Promise.all(
-    keys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    keys.map((queryKey) =>
+      queryClient.invalidateQueries({
+        queryKey,
+        refetchType: markOnly.has(JSON.stringify(queryKey)) ? "none" : "active",
+      }),
+    ),
   );
 }

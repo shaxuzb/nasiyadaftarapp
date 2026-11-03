@@ -27,6 +27,9 @@ export function useAppLinks(): readonly AppLink[] {
     queryKey: queryKeys.appLinks(),
     queryFn: fetchAppLinks,
     staleTime: STALE_TIME_MS,
+    // Kept at least as long as it stays fresh; the default five minutes threw
+    // it away before it was ever stale.
+    gcTime: STALE_TIME_MS,
     retry: 1,
   });
 

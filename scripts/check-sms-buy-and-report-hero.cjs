@@ -23,13 +23,14 @@ for (const [name, source] of [["uz.ts", uz], ["ru.ts", ru], ["ReportsScreen.tsx"
 assert.doesNotMatch(uz, /Qoldiq qarz"|To‘lash kerak bo‘lgan summa/);
 assert.match(
   reports,
-  /const heroCaption = hasDebt\s*\? null\s*: hasOverpayment\s*\? t\("reports\.heroOverpaymentCaption"\)\s*: t\("reports\.heroSettledCaption"\);/,
-  "Only a debt goes without a caption",
+  /\{hasDebt \? t\("reports\.heroDebt"\) : hasOverpayment\s*\? t\("reports\.heroOverpayment"\) : t\("reports\.heroNoDebt"\)\}/,
+  "The card is named for what the amount is",
 );
+// Only a debt goes without a caption, and no empty line is left where it was.
 assert.match(
   reports,
-  /\{heroCaption \? \(\s*<Text style=\{styles\.heroCaption\}>\{heroCaption\}<\/Text>\s*\) : null\}/,
-  "No empty line is left where the caption was",
+  /\{!hasDebt \? \(\s*<Text style=\{styles\.heroCaption\}>\s*\{hasOverpayment \? t\("reports\.heroOverpaymentCaption"\) : t\("reports\.heroSettledCaption"\)\}\s*<\/Text>\s*\) : null\}/,
+  "Only a debt goes without a caption",
 );
 
 /* 2. SMS balance card. */
@@ -52,7 +53,10 @@ assert.match(
   "Shown whenever SMS are counted; unlimited leaves nothing to buy",
 );
 assert.match(sms, /<Text style=\{styles\.quotaBuyText\}>\{t\("sms\.buyPackage"\)\}<\/Text>/);
-const banner = sms.slice(sms.indexOf("{smsQuota ? ("), sms.indexOf("styles.filters"));
+// The balance line: shown unless SMS go out from the shop's own phone.
+const bannerStart = sms.indexOf(") : smsQuota ? (");
+assert.ok(bannerStart > 0, "The balance line is on the SMS screen");
+const banner = sms.slice(bannerStart, sms.indexOf("styles.summary", bannerStart));
 assert.ok(
   banner.indexOf("styles.quotaCopy") < banner.indexOf("styles.quotaBuy,"),
   "The pill sits on the right, after the count",

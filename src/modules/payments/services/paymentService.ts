@@ -13,10 +13,17 @@ export async function getPaymentProviders(
   return parsePaymentProviders(response.data);
 }
 
-// The provider goes in the query string. Left out, the server uses its own
-// default, which is also what an app without the provider list does.
-const withProvider = (provider?: string | null) =>
-  provider ? { params: { provider } } : {};
+// The provider and the term go in the query string. Each left out means the
+// server's default (its own provider, one month), which is also what an app
+// that does not know about them sends.
+const withProvider = (provider?: string | null, months?: number | null) => {
+  const params: Record<string, string | number> = {};
+  if (provider) params.provider = provider;
+  if (typeof months === "number" && Number.isInteger(months) && months > 0) {
+    params.months = months;
+  }
+  return Object.keys(params).length ? { params } : {};
+};
 
 function normalizePaymentHistoryLimit(limit: number): number {
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
@@ -29,11 +36,15 @@ export async function createSubscriptionPayment(
   planId: number,
   idempotencyKey: string,
   provider?: string | null,
+  months?: number | null,
 ): Promise<PaymentOrder> {
   const response = await apiClient.post(
     `/payments/subscriptions/${planId}`,
     undefined,
-    { headers: { "Idempotency-Key": idempotencyKey }, ...withProvider(provider) },
+    {
+      headers: { "Idempotency-Key": idempotencyKey },
+      ...withProvider(provider, months),
+    },
   );
   return parsePaymentOrder(response.data);
 }
@@ -81,15 +92,25 @@ export async function cancelPayment(orderId: number): Promise<PaymentOrder> {
   return parsePaymentOrder(response.data);
 }
 
-/** No plan ID and no request body; the server renews the current plan. */
-export async function createSubscriptionRenewalPayment(idempotencyKey: string): Promise<PaymentOrder> {
+/**
+ * More time on the current plan. No plan ID and no body: the server renews
+ * what the user has, adding the new term to the days still left.
+ */
+export async function createSubscriptionRenewalPayment(
+  idempotencyKey: string,
+  provider?: string | null,
+  months?: number | null,
+): Promise<PaymentOrder> {
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(idempotencyKey)) {
     throw new Error("Invalid payment idempotency key");
   }
   const response = await apiClient.post(
     "/payments/subscriptions/renew",
     undefined,
-    { params: { provider: "payme" }, headers: { "Idempotency-Key": idempotencyKey } },
+    {
+      headers: { "Idempotency-Key": idempotencyKey },
+      ...withProvider(provider, months),
+    },
   );
   return parsePaymentOrder(response.data);
 }

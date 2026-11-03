@@ -1,149 +1,124 @@
-// What each plan card says, as the owner wrote it:
+// What each plan card says comes from the server: GET /subscriptions/plans
+// gives every plan a "presentation" with its icon, its badge and the list of
+// what it includes, each item with a stable key, its wording and an icon.
 //
-//   Bepul    — Boshlash uchun yetarli
-//              1 ta tashkilot · Cheksiz mijoz · 20 ta SMS / oy · Hisobotlar
-//              · 24/7 yordam (on every plan)
-//   Standard — Do'koningiz uchun qulay
-//              Cheksiz tashkilot · Cheksiz mijoz · 200 ta SMS / oy · Hisobotlar
-//              · Qora ro'yxat · Telegramda kunlik hisobot · Mijozga Telegram xabar
-//   Premium  — Hammasi avtomatik
-//              everything in Standard, 500 ta SMS / oy, plus
-//              Har qarzga avto SMS · Qora ro'yxatga avto SMS · 24/7 yordam
+//   presentation: {
+//     icon: "box", badge: "Tavsiya etiladi",
+//     features: [{ key: "sms", text: "500 ta SMS / oy", icon: "mail" }, ...]
+//   }
 //
-// The numbers (organizations, SMS) come from the server's plan; the wording is
-// the app's. The plans screen (chips) and the upgrade sheet (comparison table)
-// use the same wording, in the same order.
+// The app draws it as it comes, so a new capability ("ownDeviceSms", say)
+// needs no app release. The plans screen shows it as chips; the upgrade sheet
+// lines the free plan up against the chosen one by key.
 
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const vm = require("node:vm");
+const ts = require("typescript");
 
 const read = (file) => fs.readFileSync(file, "utf8");
+const plain = (value) => JSON.parse(JSON.stringify(value));
+
+function load(file) {
+  const code = ts.transpileModule(read(file), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const exports = {};
+  vm.runInNewContext(code, { exports, require: () => ({}) }, { filename: file });
+  return exports;
+}
+
 const uz = read("src/i18n/translations/uz.ts");
 const ru = read("src/i18n/translations/ru.ts");
 const screen = read("src/screens/SubscriptionScreen.tsx");
 const modal = read("src/modules/subscription/components/SubscriptionUpgradeModal.tsx");
 
-/* The wording. */
+/* 1. Reading the presentation. */
 
-const WORDING = {
-  taglineFree: ["Boshlash uchun yetarli", "Достаточно, чтобы начать"],
-  taglineStandard: ["Do'koningiz uchun qulay", "Удобно для вашего магазина"],
-  taglinePremium: ["Hammasi avtomatik", "Всё автоматически"],
-  featureReports: ["Hisobotlar", "Отчёты"],
-  featureBlacklist: ["Qora ro'yxat", "Чёрный список"],
-  featureTelegram: ["Tashkilot uchun bot", "Бот для магазина"],
-  featureTelegramMessage: ["Mijozlar uchun bot", "Бот для клиентов"],
-  featureTransactionSms: ["Avto eslatma", "Автонапоминание"],
-  featureBlacklistAutoSms: ["Qora ro'yxatga avto SMS", "Авто-SMS для чёрного списка"],
-  featurePrioritySupport: ["24/7 yordam", "Поддержка 24/7"],
-  organizationsPerPlan: ["{count} ta tashkilot", "Организаций: {count}"],
-  smsPerMonth: ["{count} ta SMS / oy", "{count} SMS / мес."],
-};
-for (const [key, [uzText, ruText]] of Object.entries(WORDING)) {
-  assert.ok(uz.includes(`    ${key}: "${uzText}",`), `uz: subscription.${key} must read "${uzText}"`);
-  assert.ok(ru.includes(`    ${key}: "${ruText}",`), `ru: subscription.${key} must read "${ruText}"`);
-}
-assert.match(screen, /unlimitedOrganizations: "Cheksiz tashkilot"/);
-assert.match(screen, /unlimitedClients: "Cheksiz mijoz"/);
+const parsing = load("src/modules/subscription/utils/subscriptionParsing.ts");
+const [plan, bare] = parsing.parseSubscriptionPlans([
+  {
+    id: 2,
+    code: "PREMIUM",
+    name: "Premium",
+    price: 49900,
+    presentation: {
+      icon: "box",
+      badge: { text: " Tavsiya etiladi " },
+      features: [
+        { key: "sms", text: " 500 ta SMS / oy ", icon: "mail" },
+        { key: "ownDeviceSms", title: "O‘z telefoningizdan SMS", icon: "shield" },
+        "Hisobotlar",
+        { key: "hidden", text: "Yashirin", enabled: false },
+        { key: "empty", text: "  " },
+        "  ",
+      ],
+    },
+  },
+  { id: 1, code: "FREE", name: "Bepul", price: 0 },
+]);
+assert.deepEqual(plain(plan.presentation), {
+  icon: "box",
+  badge: "Tavsiya etiladi",
+  features: [
+    { key: "sms", text: "500 ta SMS / oy", icon: "mail", enabled: true },
+    { key: "ownDeviceSms", text: "O‘z telefoningizdan SMS", icon: "shield", enabled: true },
+    { key: "Hisobotlar", text: "Hisobotlar", icon: null, enabled: true },
+  ],
+}, "Switched-off and wordless items are left out; the rest keep the server's order");
+assert.deepEqual(plain(bare.presentation), { icon: null, badge: null, features: [] }, "No presentation: an empty card, not a crash");
 
-/* The plans screen: chips, in the owner's order, each tied to what the server
-   says the plan includes. */
+/* 2. Icons: the server's names in the app's icon set, and a safe default. */
 
-const order = [
-  'key: "organizations"',
-  'key: "clients"',
-  'key: "sms"',
-  'key: "reports"',
-  'key: "blacklist"',
-  'key: "telegramDailyReport"',
-  'key: "telegramMessage"',
-  'key: "debtAutoSms"',
-  'key: "blacklistAutoSms"',
-  'key: "support"',
-];
-let last = -1;
-for (const marker of order) {
-  const at = screen.indexOf(marker);
-  assert.ok(at > last, `${marker} is missing or out of order on the plans screen`);
-  last = at;
-}
-const pair = (key, flag, wording) =>
-  new RegExp(
-    `key: "${key}",\\s*enabled: plan\\.${flag},\\s*text: t\\("subscription\\.${wording}"\\),`,
-  );
-assert.match(screen, pair("blacklist", "blacklistEnabled", "featureBlacklist"));
-assert.match(screen, /key: "telegramDailyReport",\s*enabled: true,\s*text: t\("subscription\.featureTelegram"\)/);
-assert.match(screen, /key: "telegramMessage",\s*enabled: true,\s*text: t\("subscription\.featureTelegramMessage"\)/);
-assert.match(screen, /key: "debtAutoSms",\s*enabled: isPremium,\s*text: t\("subscription\.featureTransactionSms"\)/);
-assert.match(screen, pair("blacklistAutoSms", "transactionSmsEnabled", "featureBlacklistAutoSms"));
-// 24/7 help belongs to every plan, the free one included: it is never read
-// from the server's switch.
+const icons = load("src/modules/subscription/utils/planIcon.ts");
+assert.equal(icons.normalizePlanIcon("mail"), "mail-outline");
+assert.equal(icons.normalizePlanIcon(" Telegram "), "paper-plane-outline");
+assert.equal(icons.normalizePlanIcon("rocket-outline"), "rocket-outline", "An Ionicons name passes through");
+assert.equal(icons.normalizePlanIcon(null), "checkmark-circle-outline");
 assert.match(
   screen,
-  /key: "support",\s*enabled: true,\s*text: t\("subscription\.featurePrioritySupport"\),/,
+  /function serverIcon\(raw: string \| null\): PlanIconName \{\s*const icon = normalizePlanIcon\(raw\);\s*if \(Object\.prototype\.hasOwnProperty\.call\(Ionicons\.glyphMap, icon\)\) \{[\s\S]{0,60}?return "checkmark-circle-outline";/,
+  "A name the icon set does not know shows the default, never a blank square",
+);
+
+/* 3. The plans screen draws the server's card. */
+
+assert.match(screen, /const visibleFeatures = plan\.presentation\.features;/);
+assert.match(screen, /const displayIcon = serverIcon\(plan\.presentation\.icon\);/);
+assert.match(screen, /const displayBadge = plan\.presentation\.badge;/);
+assert.match(
+  screen,
+  /\{visibleFeatures\.map\(\(feature, index\) => \(\s*<FeatureChip\s+key=\{`\$\{feature\.key\}-\$\{index\}`\}\s+icon=\{serverIcon\(feature\.icon\)\}\s+text=\{feature\.text\}/,
 );
 assert.match(
   screen,
-  /plan\.maxOrganizations === null\s*\? copy\.unlimitedOrganizations\s*: t\("subscription\.organizationsPerPlan", \{\s*count: plan\.maxOrganizations,/,
-  "The organization allowance is the server's number",
-);
-assert.match(
-  screen,
-  /t\("subscription\.smsPerMonth", \{\s*count: plan\.monthlySmsLimit,/,
-  "The SMS allowance is the server's number",
+  /\{isCurrent \? \([\s\S]{0,160}?copy\.currentBadge[\s\S]{0,120}?\) : displayBadge \? \(/,
+  "The current plan is marked as such; otherwise the server's badge",
 );
 assert.doesNotMatch(
   screen,
-  /\b(20|200|500) ta SMS|freeDescription|standardDescription|premiumDescription/,
-  "No allowance or pitch is written into the screen",
-);
-assert.match(
-  screen,
-  /const taglineKey = getPlanTaglineKey\(code\);\s*return taglineKey \? t\(taglineKey\) : fallback;/,
-  "A plan the app has no pitch for shows the server's own description",
+  /\b(20|200|500) ta SMS|featureTransactionSms|featureBlacklistAutoSms|plan\.blacklistEnabled/,
+  "No capability or allowance is written into the screen any more",
 );
 
-/* Each chip carries the capability's own icon, and no tick: everything on a
-   card is included, so a tick per chip said nothing. */
+/* 4. Each chip carries the capability's own icon, and no tick: everything on a
+      card is included, so a tick per chip said nothing. */
 
-const ICONS = {
-  organizations: "business-outline",
-  clients: "people-outline",
-  sms: "mail-outline",
-  reports: "bar-chart-outline",
-  blacklist: "ban-outline",
-  telegramDailyReport: "paper-plane",
-  telegramMessage: "paper-plane",
-  debtAutoSms: "time-outline",
-  blacklistAutoSms: "settings-outline",
-  support: "headset-outline",
-};
-for (const [key, icon] of Object.entries(ICONS)) {
-  const at = screen.indexOf(`key: "${key}",`);
-  const item = screen.slice(at, screen.indexOf("\n                },", at));
-  assert.ok(item.includes(`icon: "${icon}",`), `${key} must show the ${icon} icon`);
-}
 const chip = screen.slice(
   screen.indexOf("function FeatureChip({"),
   screen.indexOf("const createStyles = (theme: AppTheme) =>"),
 );
 assert.match(chip, /<Ionicons\s+name=\{icon\}\s+size=\{15\}\s+color=\{iconColor \?\? theme\.textSecondary\}/);
 assert.doesNotMatch(chip, /name="checkmark"|featureStatus/, "No tick in front of a capability");
-assert.doesNotMatch(screen, /featureStatus/);
-assert.match(
-  screen,
-  /<FeatureChip\s+key=\{feature\.key\}\s+icon=\{feature\.icon\}\s+iconColor=\{feature\.iconColor\}\s+text=\{feature\.text\}/,
-);
 
-/* The plans screen opens on the plans. The large "current plan" card that
-   used to sit above them is gone; the current plan is marked on its own card. */
+/* 5. The plans screen opens on the plans. The large "current plan" card that
+      used to sit above them is gone; the current plan is marked on its own card. */
 
 assert.doesNotMatch(
   screen,
   /currentCard|currentStat|currentStatusText|daysUntil|activeBadge|renewsIn|loadingCurrent/,
   "Part of the removed current-plan card is still on the screen",
 );
-assert.match(screen, /copy\.currentBadge/, "The current plan is still marked on its card");
 for (const [name, source] of [["uz.ts", uz], ["ru.ts", ru]]) {
   const section = source.slice(source.indexOf("\n  subscription: {"));
   assert.doesNotMatch(
@@ -153,7 +128,7 @@ for (const [name, source] of [["uz.ts", uz], ["ru.ts", ru]]) {
   );
 }
 
-/* A monthly plan's price says so, in small print on the same line. */
+/* 6. A monthly plan's price says so, in small print on the same line. */
 
 assert.ok(uz.includes('    pricePerMonth: "/ oy",'));
 assert.ok(ru.includes('    pricePerMonth: "/ мес.",'));
@@ -169,47 +144,27 @@ assert.match(
   "The sheet's plan price carries the same label",
 );
 
-/* The upgrade sheet: the same rows, the same order, the same wording. */
+/* 7. The upgrade sheet: the free plan against the chosen one, matched by the
+      server's key, never by wording that differs between languages. */
 
 const rows = modal.slice(
   modal.indexOf("function planComparisonRows("),
   modal.indexOf("export function SubscriptionUpgradeModal("),
 );
-const labels = [...rows.matchAll(/label: t\("subscription\.([A-Za-z]+)"\)/g)].map((match) => match[1]);
-assert.deepEqual(labels, [
-  "featureOrganizations",
-  "featureClients",
-  "featureSmsLimit",
-  "featureReports",
-  "featureBlacklist",
-  "featureTelegram",
-  "featureTelegramMessage",
-  "featureTransactionSms",
-  "featureBlacklistAutoSms",
-  "featurePrioritySupport",
-]);
-assert.match(
-  rows,
-  /label: t\("subscription\.featureTelegramMessage"\),\s*freeEnabled: true,\s*selectedEnabled: true,/,
-);
-assert.match(
-  rows,
-  /label: t\("subscription\.featureBlacklistAutoSms"\),\s*freeEnabled: freePlan\.transactionSmsEnabled,\s*selectedEnabled: selectedPlan\.transactionSmsEnabled,/,
-);
-assert.match(
-  rows,
-  /label: t\("subscription\.featurePrioritySupport"\),\s*freeEnabled: true,\s*selectedEnabled: true,/,
-  "24/7 help is ticked for the free plan too",
-);
-assert.doesNotMatch(rows, /prioritySupportEnabled/);
-assert.match(
-  modal,
-  /const taglineKey = getPlanTaglineKey\(selectedPlan\.code\);/,
-);
-assert.match(
-  modal,
-  /\{taglineKey \? \(\s*<Text style=\{styles\.planTagline\}>\{t\(taglineKey\)\}<\/Text>\s*\) : null\}/,
-  "The pitch sits under the plan's name in the sheet too",
-);
+assert.match(rows, /new Map\(freePlan\.presentation\.features\.map\(\(item\) => \[item\.key, item\]\)\)/);
+assert.match(rows, /new Map\(selectedPlan\.presentation\.features\.map\(\(item\) => \[item\.key, item\]\)\)/);
+assert.match(rows, /const order = \[\.\.\.new Set\(\[\.\.\.base\.keys\(\), \.\.\.selected\.keys\(\)\]\)\];/, "Free plan's order first, then what only the paid plan has");
+// Where both plans have a capability in different amounts ("20 ta SMS" against
+// "500 ta SMS") the row is named for what is compared, and shows both values.
+assert.match(rows, /key === "sms" && differing \? t\("subscription\.featureSmsLimit"\)/);
+assert.match(rows, /key === "organizations" && differing \? t\("subscription\.featureOrganizations"\)/);
+assert.match(rows, /key === "clients" && differing \? t\("subscription\.featureClients"\)/);
+assert.match(rows, /label, freeValue: free\.text, selectedValue: paid\.text,/);
+assert.match(rows, /label, freeEnabled: !!free, selectedEnabled: !!paid,/);
+for (const key of ["featureSmsLimit", "featureOrganizations", "featureClients"]) {
+  assert.match(uz, new RegExp("\\n    " + key + ": \""), "uz: subscription." + key);
+  assert.match(ru, new RegExp("\\n    " + key + ": \""), "ru: subscription." + key);
+}
+assert.match(modal, /selectedPlan\.presentation\.badge \? \(/, "The sheet shows the server's badge too");
 
-console.log("Plan cards: pitches, capabilities and server-driven allowances passed");
+console.log("Plan cards: the server's presentation, icons, comparison by key and the price label passed");

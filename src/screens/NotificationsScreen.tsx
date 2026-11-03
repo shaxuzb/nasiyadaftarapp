@@ -20,7 +20,7 @@ import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
-import { formatLocalizedDate, useTranslation } from "../i18n";
+import { formatLocalizedDateTime, useTranslation } from "../i18n";
 import {
   useMarkPushNotificationRead,
   usePushNotificationList,
@@ -46,14 +46,22 @@ export function NotificationsScreen() {
   const listRef = useRef<FlatList<PushNotification>>(null);
   const query = usePushNotificationList();
   const markRead = useMarkPushNotificationRead();
-  const items = query.data?.pages.flatMap((page) => page.results) ?? [];
+  const items = useMemo(
+    () => query.data?.pages.flatMap((page) => page.results) ?? [],
+    [query.data],
+  );
   const highlightId = route.params?.highlightId;
 
+  // Brought into view once per notification opened. Rerunning on every
+  // change of the list (marking it read, the next page) pulled the user back
+  // to it while they scrolled.
+  const scrolledToRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!highlightId || !items.length) return;
+    if (!highlightId || scrolledToRef.current === highlightId) return;
     const index = items.findIndex((item) => item.id === highlightId);
     if (index < 0) return;
     const timeout = setTimeout(() => {
+      scrolledToRef.current = highlightId;
       listRef.current?.scrollToIndex({ index, animated: true });
     }, 80);
     return () => clearTimeout(timeout);
@@ -107,7 +115,7 @@ export function NotificationsScreen() {
           </View>
           <Text style={styles.body}>{item.body}</Text>
           <Text style={styles.date}>
-            {formatLocalizedDate(item.createdDate, locale)}
+            {formatLocalizedDateTime(item.createdDate, locale)}
           </Text>
           {/* Says in words that the card leads somewhere, and where. The whole
               card is the button; this is what makes that visible. */}

@@ -12,7 +12,9 @@ const lists = [
   ["src/components/CustomerCard.tsx", /<Text style=\{styles\.name\} numberOfLines=\{3\}>\s*\{getFullName\(customer\)\}/],
   ["src/modules/client-sms/components/SmsRecipientRow.tsx", /<Text numberOfLines=\{3\} style=\{styles\.name\}>\s*\{displayName\}/],
   ["src/modules/client-sms/components/SmsHistoryRow.tsx", /<Text numberOfLines=\{3\} style=\{styles\.name\}>/],
-  ["src/screens/ReportsScreen.tsx", /<Text style=\{styles\.debtorName\} numberOfLines=\{3\}>/],
+  // The report's debtor rows are tighter, with the amount beside the name:
+  // two lines there, still never one.
+  ["src/screens/ReportsScreen.tsx", /<Text style=\{styles\.debtorName\} numberOfLines=\{2\}>\{item\.fullName\}<\/Text>/],
 ];
 for (const [file, pattern] of lists) {
   assert.match(read(file), pattern, `${file}: a long name must wrap, not be cut to one line`);

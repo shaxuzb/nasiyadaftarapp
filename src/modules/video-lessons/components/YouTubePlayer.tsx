@@ -1,9 +1,11 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Linking, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Image, Linking, StyleSheet, Text, View } from "react-native";
 import * as Application from "expo-application";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { ShouldStartLoadRequest } from "react-native-webview/lib/WebViewTypes";
 
+import { useTranslation } from "../../../i18n";
+import { typography } from "../../../theme";
 import {
   buildPlayerHtml,
   getPlayerOrigin,
@@ -21,6 +23,8 @@ const PLAYER_ORIGIN = getPlayerOrigin(Application.applicationId);
 
 interface Props {
   youtubeId: string;
+  /** The lesson's picture, kept on screen until the video itself is up. */
+  posterUri?: string;
   onEnded?: () => void;
   onError: (code: number) => void;
 }
@@ -33,9 +37,11 @@ interface Props {
  */
 export const YouTubePlayer = memo(function YouTubePlayer({
   youtubeId,
+  posterUri,
   onEnded,
   onError,
 }: Props) {
+  const { t } = useTranslation();
   const [ready, setReady] = useState(false);
   const readyRef = useRef(false);
   const source = useMemo(
@@ -106,9 +112,23 @@ export const YouTubePlayer = memo(function YouTubePlayer({
         showsHorizontalScrollIndicator={false}
         showsVerticalScrollIndicator={false}
       />
+      {/* The picture the viewer tapped stays put, so the wait reads as the
+          video starting rather than the screen going black. */}
       {ready ? null : (
-        <View pointerEvents="none" style={[styles.fill, styles.loading]}>
-          <ActivityIndicator size="large" color="#FFFFFF" />
+        <View
+          pointerEvents="none"
+          accessibilityRole="progressbar"
+          accessibilityLabel={t("videoLessons.loadingVideo")}
+          style={[styles.fill, styles.loading]}
+        >
+          {posterUri ? (
+            <Image source={{ uri: posterUri }} resizeMode="cover" style={styles.fill} />
+          ) : null}
+          <View style={[styles.fill, styles.loadingShade]} />
+          <View style={styles.loadingBadge}>
+            <ActivityIndicator size="small" color="#FFFFFF" />
+            <Text style={styles.loadingText}>{t("videoLessons.loadingVideo")}</Text>
+          </View>
         </View>
       )}
     </View>
@@ -122,5 +142,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#000000",
+  },
+  loadingShade: { backgroundColor: "rgba(0, 0, 0, 0.55)" },
+  loadingBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: "rgba(0, 0, 0, 0.55)",
+  },
+  loadingText: {
+    ...typography.caption,
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
 });

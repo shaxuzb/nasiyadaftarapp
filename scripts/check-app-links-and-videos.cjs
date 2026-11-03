@@ -23,6 +23,7 @@ function load(file, dependencies) {
     code,
     {
       exports,
+      URL,
       require: (name) => {
         if (name in dependencies) return dependencies[name];
         throw new Error(`Unexpected dependency: ${name}`);
@@ -147,10 +148,11 @@ async function main() {
     }
   }
 
-  /* 6. Video lessons: one screen, reached from four quiet places. */
+  /* 6. Video lessons: one screen, reached from quiet places. The lessons come
+        from the server, each with a code naming the screen it explains. */
 
   const types = read("src/types/index.ts");
-  assert.match(types, /VideoLessons: \{ lessonId\?: VideoLessonId \} \| undefined;/);
+  assert.match(types, /VideoLessons: \{ lessonId\?: string \} \| undefined;/);
   assert.match(
     read("src/navigation/index.tsx"),
     /<Stack\.Screen name="VideoLessons" component=\{VideoLessonsScreen\} \/>/,
@@ -160,8 +162,8 @@ async function main() {
     /title=\{t\("videoLessons\.profileRowTitle"\)\}[\s\S]*?onPress=\{\(\) => navigation\.navigate\("VideoLessons"\)\}/,
     "The profile must have a row for the lessons",
   );
-  assert.match(read("src/screens/ClientSmsScreen.tsx"), /<VideoLessonButton lessonId="sms" \/>/);
-  assert.match(read("src/screens/ReportsScreen.tsx"), /<VideoLessonButton lessonId="reports" \/>/);
+  assert.match(read("src/screens/ClientSmsScreen.tsx"), /<VideoLessonButton code="sms" \/>/);
+  assert.match(read("src/screens/ReportsScreen.tsx"), /<VideoLessonButton code="reports" \/>/);
 
   const customers = read("src/screens/CustomersScreen.tsx");
   assert.equal(
@@ -171,7 +173,7 @@ async function main() {
   );
   assert.match(
     customers,
-    /<VideoLessonButton\s+lessonId="customers"[\s\S]{0,200}?\/>\s*<TouchableOpacity[\s\S]{0,300}?navigation\.navigate\("Notifications"\)/,
+    /<VideoLessonButton\s+code="customers"[\s\S]{0,200}?\/>\s*<TouchableOpacity[\s\S]{0,300}?navigation\.navigate\("Notifications"\)/,
     "The lesson button sits in the header, just left of the notification bell",
   );
   // One sign for "lessons" everywhere: the graduation cap, in the header
@@ -179,6 +181,28 @@ async function main() {
   const entry = read("src/modules/video-lessons/components/VideoLessonEntry.tsx");
   assert.match(entry, /name="school-outline"/);
   assert.doesNotMatch(entry, /help-circle|name="play"/, "The lesson button has one icon");
+  assert.match(
+    entry,
+    /lessons\.data\?\.some\(\(lesson\) => lesson\.code === code\)[\s\S]{0,80}?if \(!offered\) return null;/,
+    "No lesson with this code on the server: no button, rather than one opening another lesson",
+  );
+  // Sheets are drawn outside the navigator, where useNavigation() throws and
+  // the sheet never opens. The button is used in sheets too.
+  assert.doesNotMatch(entry, /import \{[^}]*\buseNavigation\b/, "The lesson button must work inside a bottom sheet");
+  assert.match(entry, /navigationRef\.navigate\("VideoLessons", \{ lessonId: code \}\)/);
+  const botsSheet = read("src/bottom-sheet/sheets/TelegramBotsSheet.tsx");
+  assert.match(
+    botsSheet,
+    /onPress=\{\(\) => closeSheet\(\(\) => openVideoLesson\(TELEGRAM_LESSON_CODE\)\)\}/,
+    "From a sheet, the lesson opens once the sheet has closed",
+  );
+  for (const file of fs.readdirSync(path.join(root, "src/bottom-sheet/sheets"))) {
+    assert.doesNotMatch(
+      read("src/bottom-sheet/sheets/" + file),
+      /import \{[^}]*\buseNavigation\b/,
+      `${file}: a sheet is outside the navigator; use navigationRef`,
+    );
+  }
   assert.match(
     read("src/screens/SettingsScreen.tsx"),
     /icon="school-outline"[\s\S]{0,200}?title=\{t\("videoLessons\.profileRowTitle"\)\}/,
@@ -195,7 +219,7 @@ async function main() {
   );
   assert.match(
     screen,
-    /\{playback === "playing" \? \(\s*<YouTubePlayer/,
+    /\{playback === "playing" && selected\.youtubeId \? \(\s*<YouTubePlayer/,
     "The WebView must not exist until the viewer asks to watch",
   );
   assert.match(
@@ -203,6 +227,20 @@ async function main() {
     /if \(state === "background"\) setPlayback\("idle"\);/,
     "Leaving the app must stop the video",
   );
+  // Waiting, failing and having nothing each say so in words, with a way on.
+  assert.match(screen, /lessonsQuery\.isPending \? \(\s*<StageSkeleton \/>/);
+  assert.match(screen, /lessonsQuery\.isPending \? \(\s*<RowsSkeleton \/>/);
+  assert.match(
+    screen,
+    /lessonsQuery\.isError \? \(\s*<EmptyState\s+iconName="cloud-offline-outline"\s+title=\{t\("videoLessons\.loadError"\)\}[\s\S]{0,300}?<PrimaryButton\s+label=\{t\("videoLessons\.retry"\)\}\s+loading=\{lessonsQuery\.isFetching\}/,
+    "A failed load explains itself and offers a retry that shows it is working",
+  );
+  assert.match(screen, /title=\{t\("videoLessons\.empty"\)\}\s+description=\{t\("videoLessons\.emptyHint"\)\}/);
+  assert.match(screen, /<RefreshControl\s+refreshing=\{isPullRefreshing\}/);
+  assert.doesNotMatch(screen, /subscription\.loadingPlans/, "The lessons screen is not loading plans");
+  // A failed video offers a retry and YouTube as real buttons.
+  assert.match(screen, /onPress=\{\(\) => setPlayback\("playing"\)\}\s+style=\{\(\{ pressed \}\) => \[styles\.errorButton, styles\.errorButtonPrimary/);
+  assert.match(read("src/modules/video-lessons/components/YouTubePlayer.tsx"), /\{t\("videoLessons\.loadingVideo"\)\}/);
   assert.equal(
     (read("src/modules/video-lessons/components/YouTubePlayer.tsx").match(/<WebView/g) ?? []).length,
     1,
@@ -223,23 +261,35 @@ async function main() {
     "The WebView is for the video player and nothing else",
   );
 
-  /* 8. Every lesson has wording in both languages. */
+  /* 8. The lessons as the server sends them. */
 
-  const lessons = load("src/modules/video-lessons/utils/videoLessons.ts", {});
-  for (const lesson of lessons.getVideoLessons("android")) {
-    for (const [name, source] of [["uz", uz], ["ru", ru]]) {
-      assert.match(
-        source,
-        new RegExp(`\\b${lesson.id}: \\{\\s*title: "[^"]+",\\s*description: "[^"]+"`),
-        `${name}: wording for the "${lesson.id}" lesson`,
-      );
+  const lessonService = load("src/modules/video-lessons/services/videoLessonService.ts", {
+    "../../../services/axiosService": { apiClient: {} },
+  });
+  const parsed = lessonService.parseVideoLessons({
+    results: [
+      { id: 2, code: " SMS ", title: " SMS ", videoUrl: "https://youtu.be/abcdefghijk", sortOrder: 2 },
+      { id: 1, code: "customers", title: "Mijozlar", description: " Qo‘shish ", videoUrl: "https://www.youtube.com/watch?v=ABCDEFGHIJK", sortOrder: 1 },
+      { id: 3, title: "Hidden", videoUrl: "https://youtu.be/abcdefghijk", isActive: false },
+      { id: 4, title: "Plain http", videoUrl: "http://youtu.be/abcdefghijk" },
+      { id: 5, title: "  ", videoUrl: "https://youtu.be/abcdefghijk" },
+    ],
+  });
+  assert.deepEqual(
+    parsed.map((lesson) => [lesson.id, lesson.code, lesson.title, lesson.description, lesson.youtubeId]),
+    [
+      ["1", "customers", "Mijozlar", "Qo‘shish", "ABCDEFGHIJK"],
+      ["2", "sms", "SMS", "", "abcdefghijk"],
+    ],
+    "Inactive, non-https and untitled lessons are left out; the rest go in the server's order",
+  );
+  assert.equal(parsed[0].thumbnailUrl, "https://i.ytimg.com/vi/ABCDEFGHIJK/mqdefault.jpg", "No picture given: YouTube's own");
+  assert.throws(() => lessonService.parseVideoLessons("nope"), /Invalid video lesson response/);
+  for (const [name, source] of [["uz", uz], ["ru", ru]]) {
+    for (const key of ["loadingLessons", "loadingVideo", "loadError", "loadErrorHint", "empty", "emptyHint", "retry"]) {
+      assert.match(source, new RegExp("\\n    " + key + ": \""), `${name}: videoLessons.${key}`);
     }
   }
-  assert.equal(
-    lessons.getVideoLessons("ios").some((lesson) => lesson.id === "payment"),
-    false,
-    "The payment lesson is not offered on iOS",
-  );
 
   console.log("App links from the server, and in-app video lessons: checks passed");
 }

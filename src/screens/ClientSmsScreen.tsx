@@ -32,7 +32,9 @@ import { useToast } from "../context/ToastContext";
 import { useAccountSecurity } from "../modules/account/context/AccountSecurityContext";
 import { useTheme } from "../hooks/useTheme";
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
+import { OwnDeviceSmsStatus } from "../modules/client-sms/components/OwnDeviceSmsStatus";
 import { SmsRecipientRow } from "../modules/client-sms/components/SmsRecipientRow";
+import { useSmsProvider } from "../modules/client-sms/hooks/useSmsDevices";
 import { CustomerEditSheet } from "../modules/clients/components/CustomerEditSheet";
 import { useClientDetail } from "../modules/clients/hooks/useClientDetail";
 import {
@@ -170,6 +172,11 @@ function ClientSmsContent({
   );
   const smsQuota = user?.subscription?.sms;
   const smsLimitReached = smsQuota?.totalRemaining === 0;
+  // From the shop's own phone, SMS spend nothing from a package: the status
+  // line is the phone's, not the balance. Unknown (still loading, or failed)
+  // keeps the balance line, as it always was.
+  const smsProvider = useSmsProvider();
+  const sendsFromOwnPhone = smsProvider.data?.provider === "own_device";
 
   const toggle = useCallback(
     (id: number) =>
@@ -288,6 +295,10 @@ function ClientSmsContent({
     setUpgradeReason("sms-packages");
     setIsUpgradeModalOpen(true);
   }, []);
+  const openSmsSettings = useCallback(
+    () => navigation.navigate("SmsSettings"),
+    [navigation],
+  );
   const renderRecipient = useCallback(
     ({ item }: { item: SmsRecipient }) => (
       <SmsRecipientRow
@@ -368,28 +379,47 @@ function ClientSmsContent({
             placeholder={t("sms.searchPlaceholder")}
           />
         </View>
-        {smsQuota ? (
+        {sendsFromOwnPhone ? (
+          <OwnDeviceSmsStatus onPress={openSmsSettings} />
+        ) : smsQuota && smsProvider.isLoading ? (
+          // The line's place, held until the source is known, so a phone
+          // user never sees a balance flash up and the list never jumps.
+          <View style={styles.quotaBanner} />
+        ) : smsQuota ? (
           <View
             style={[
               styles.quotaBanner,
               smsLimitReached && styles.quotaBannerAction,
             ]}
           >
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={18}
-              color={theme.primary}
-            />
-            <View style={styles.quotaCopy}>
-              <Text style={styles.quotaText}>
-                {smsQuota.totalRemaining === null
-                  ? t("sms.quotaUnlimited")
-                  : t("sms.quotaRemaining", { count: smsQuota.totalRemaining })}
-              </Text>
-              {smsLimitReached ? (
-                <Text style={styles.quotaWarning}>{t("sms.limitReached")}</Text>
-              ) : null}
-            </View>
+            {/* Says which way SMS go, as the phone's line does, and leads to
+                the settings where that is chosen. The pill buys more. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityHint={t("smsSettings.title")}
+              onPress={openSmsSettings}
+              style={({ pressed }) => [styles.quotaSourceTap, pressed && styles.pressed]}
+            >
+              <Ionicons
+                name="chatbubble-ellipses-outline"
+                size={18}
+                color={theme.primary}
+              />
+              <View style={styles.quotaCopy}>
+                <Text style={styles.quotaText}>
+                  <Text style={styles.quotaSource}>
+                    {t("smsSettings.platformTitle")}
+                    {" · "}
+                  </Text>
+                  {smsQuota.totalRemaining === null
+                    ? t("sms.quotaUnlimited")
+                    : t("sms.quotaRemaining", { count: smsQuota.totalRemaining })}
+                </Text>
+                {smsLimitReached ? (
+                  <Text style={styles.quotaWarning}>{t("sms.limitReached")}</Text>
+                ) : null}
+              </View>
+            </Pressable>
             {/* Unlimited SMS leaves nothing to buy. */}
             {smsQuota.totalRemaining !== null ? (
               <Pressable
@@ -526,11 +556,13 @@ function ClientSmsContent({
         )}
         {capabilities.canSendBulk && selected.size ? (
           <View style={[styles.footer, { paddingBottom: 10 }]}>
-            <View>
-              <Text style={styles.footerCount}>
+            {/* The words give way, the button never does: a longer language
+                wraps the hint instead of pushing the button off the screen. */}
+            <View style={styles.footerCopy}>
+              <Text style={styles.footerCount} numberOfLines={1}>
                 {t("sms.selectedCount", { count: selected.size })}
               </Text>
-              <Text style={styles.footerHint}>
+              <Text style={styles.footerHint} numberOfLines={2}>
                 {t("sms.selectedHint")}
               </Text>
             </View>
@@ -683,11 +715,19 @@ const createStyles = (theme: AppTheme) =>
       columnGap: 8,
       paddingVertical: 6,
     },
+    quotaSourceTap: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
     quotaText: {
       ...typography.caption,
       color: theme.textSecondary,
       fontWeight: "700",
     },
+    quotaSource: { color: theme.textMuted, fontWeight: "600" },
     quotaWarning: {
       ...typography.caption,
       color: theme.dangerColor,
@@ -765,7 +805,8 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.surface,
       boxShadow: theme.cardShadow,
     },
+    footerCopy: { flex: 1, minWidth: 0 },
     footerCount: { ...typography.label, color: theme.text, fontWeight: "800" },
     footerHint: { ...typography.labelSmall, color: theme.textMuted },
-    footerButton: { minHeight: 38, minWidth: 142, marginLeft: "auto" },
+    footerButton: { minHeight: 38, minWidth: 142, flexShrink: 0 },
   });

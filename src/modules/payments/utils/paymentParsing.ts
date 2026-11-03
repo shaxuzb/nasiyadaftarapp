@@ -143,6 +143,7 @@ export function parsePaymentOrder(input: unknown): PaymentOrder {
     reversedDate: nullableText(value.reversedDate),
 
     isFulfilled: boolean(value.isFulfilled),
+    periodMonths: nullablePositiveInteger(value.periodMonths),
   };
 }
 

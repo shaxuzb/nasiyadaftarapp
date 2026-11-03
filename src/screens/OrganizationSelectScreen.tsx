@@ -66,9 +66,9 @@ export function OrganizationSelectScreen() {
     refreshOrganizations,
     logout,
     cancelOrganizationSelection,
-    isOrganizationLoading,
   } = useAuth();
   const [selectingId, setSelectingId] = useState<number | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const createSheetRef = useRef<BottomSheetModal>(null);
   const sheetFrame = useSheetFrameStyle();
   // Must not stay open on top of the PIN screen, and must not be "closed"
@@ -169,6 +169,8 @@ export function OrganizationSelectScreen() {
   }
 
   async function handleRefresh() {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
     try {
       await refreshOrganizations();
     } catch (error) {
@@ -176,6 +178,8 @@ export function OrganizationSelectScreen() {
         getLocalizedApiErrorMessage(error, "organization.refreshError", t),
         "error",
       );
+    } finally {
+      setIsRefreshing(false);
     }
   }
 
@@ -291,7 +295,7 @@ export function OrganizationSelectScreen() {
                 {t("organization.limitDescription")}
               </Text>
             </View>
-            <Text style={styles.proBadge}>{t("subscription.standardPlan")}</Text>
+            <Text style={styles.proBadge}>{t("subscription.premiumPlan")}</Text>
           </Pressable>
         ) : null}
         <Text style={styles.limitHint}>
@@ -308,7 +312,7 @@ export function OrganizationSelectScreen() {
             pressed && styles.rowPressed,
           ]}
         >
-          {isOrganizationLoading ? (
+          {isRefreshing ? (
             <ActivityIndicator size="small" color={theme.textSecondary} />
           ) : (
             <Ionicons

@@ -7,6 +7,7 @@ import { queryKeys } from "../../../core/query/queryKeys";
 import {
   createSmsPackagePayment,
   createSubscriptionPayment,
+  createSubscriptionRenewalPayment,
   cancelPayment,
   syncPayment,
 } from "../services/paymentService";
@@ -53,6 +54,7 @@ export function usePaymentCheckout() {
         getPendingPayment,
         clearPendingPayment,
         createSubscriptionPayment,
+        createSubscriptionRenewalPayment,
         createSmsPackagePayment,
         syncPayment,
         cancelPayment,
@@ -90,10 +92,34 @@ export function usePaymentCheckout() {
 
       setIsCreating(true);
       const request = (async () => {
+        // An unpaid order normally sends the user back to it instead of
+        // creating another. Not one for this same plan: choosing another term
+        // (or renewing instead) replaces it, and the server cancels the old
+        // unpaid order itself.
+        const samePlan = (payment: { productType: string; productId: number }) =>
+          input.productType === "subscription" &&
+          payment.productType === "subscription" &&
+          payment.productId === input.productId;
         const pendingPayments = await getPendingPayments(user.id);
-        const redirect = getPendingPaymentRedirect(pendingPayments);
+        const replaced = pendingPayments.filter(samePlan);
+        const redirect = getPendingPaymentRedirect(
+          pendingPayments.filter((payment) => !samePlan(payment)),
+        );
         if (redirect) throw new PendingPaymentCheckoutError(redirect);
-        return core.startCheckout({ ...input, userId: user.id });
+
+        const result = await core.startCheckout({ ...input, userId: user.id });
+        const stale = replaced.filter(
+          (payment) => payment.orderId !== result.order.id,
+        );
+        if (stale.length) {
+          await Promise.all(
+            stale.map((payment) => clearPendingPayment(user.id, payment.orderId)),
+          );
+          await queryClient.invalidateQueries({
+            queryKey: queryKeys.pendingPayment(user.id),
+          });
+        }
+        return result;
       })();
       inFlightRef.current = request;
       try {
@@ -105,7 +131,7 @@ export function usePaymentCheckout() {
         setIsCreating(false);
       }
     },
-    [core, user],
+    [core, queryClient, user],
   );
 
   // Sends the user to the provider's page for the order just created.

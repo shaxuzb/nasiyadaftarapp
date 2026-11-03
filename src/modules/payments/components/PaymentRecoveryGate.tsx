@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 
-import { useBottomSheet } from "../../../bottom-sheet";
+import { useBottomSheet, useIsBottomSheetOpen } from "../../../bottom-sheet";
 import { useAuth } from "../../../context/AuthContext";
 import { useAppLock } from "../../pin-auth/context/AppLockContext";
 import { takeAwaitedPaymentReturn } from "../services/paymentReturn";
@@ -15,7 +15,8 @@ interface PaymentRecoveryGateProps {
 export function PaymentRecoveryGate({ enabled }: PaymentRecoveryGateProps) {
   const { user, isBootstrapping } = useAuth();
   const { isResolving, setupRequired, isLocked } = useAppLock();
-  const { isOpen, openSheet } = useBottomSheet();
+  const { openSheet } = useBottomSheet();
+  const isOpen = useIsBottomSheetOpen();
   const [pendingOrderId, setPendingOrderId] = useState<number | null>(null);
   const [pendingOpenedExternally, setPendingOpenedExternally] =
     useState(false);

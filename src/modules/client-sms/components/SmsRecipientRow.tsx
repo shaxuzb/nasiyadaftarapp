@@ -11,7 +11,7 @@ import { SmsStatusBadge } from "./SmsStatusBadge";
 import { formatSmsShortDate } from "../utils/smsStatusPresentation";
 import {
   formatLocalizedCurrency,
-  formatLocalizedDate,
+  formatLocalizedDateTime,
   formatLocalizedDisplayedBalance,
   useTranslation,
 } from "../../../i18n";
@@ -58,6 +58,31 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
       .join("")
       .slice(0, 2)
       .toUpperCase() || t("sms.clientFallback").slice(0, 1);
+  // Why no SMS can go now, or from when. A missing phone has its own button
+  // in the column above; a status badge already says the rest.
+  const note: {
+    icon: keyof typeof Ionicons.glyphMap;
+    text: string;
+    tone: "warning" | "muted";
+  } | null = !hasPhone
+    ? null
+    : recipient.nextSmsAvailableDate
+      ? {
+          icon: "time-outline",
+          text: t("sms.nextAvailable", {
+            date: formatLocalizedDateTime(recipient.nextSmsAvailableDate, locale),
+          }),
+          tone: "warning",
+        }
+      : recipient.smsSentToday && !recipient.lastSmsStatus
+        ? { icon: "time-outline", text: t("sms.smsToday"), tone: "muted" }
+        : !recipient.canSend && !recipient.lastSmsStatus
+          ? {
+              icon: "alert-circle-outline",
+              text: recipient.cannotSendReason || t("sms.cannotSend"),
+              tone: "warning",
+            }
+          : null;
   return (
     <Pressable
       accessibilityRole={selectable && canSend ? "checkbox" : "button"}
@@ -138,23 +163,6 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
               {t("sms.addRecipientPhone")}
             </Text>
           </Pressable>
-        ) : recipient.nextSmsAvailableDate ? (
-          <Text numberOfLines={1} style={styles.reason}>
-            {t("sms.nextAvailable", {
-              date: formatLocalizedDate(recipient.nextSmsAvailableDate, locale),
-            })}
-          </Text>
-        ) : recipient.smsSentToday && !recipient.lastSmsStatus ? (
-          <View style={styles.sentTodayLine}>
-            <Ionicons name="time-outline" size={12} color={theme.textMuted} />
-            <Text numberOfLines={1} style={styles.sentTodayText}>
-              {t("sms.smsToday")}
-            </Text>
-          </View>
-        ) : !recipient.canSend && !recipient.lastSmsStatus ? (
-          <Text numberOfLines={1} style={styles.reason}>
-            {recipient.cannotSendReason || t("sms.cannotSend")}
-          </Text>
         ) : null}
       </View>
       <View style={styles.trailing}>
@@ -211,6 +219,28 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
           </Pressable>
         ) : null}
       </View>
+      {/* A line of its own under the card's top row, the card's full width
+          and level with the name. In the name's column it was squeezed by
+          the balance beside it ("Keyingi SMS: 31-okt…"); here a long date or
+          reason, or a longer language, wraps onto a second line instead. */}
+      {note ? (
+        <View style={[styles.note, selectable ? styles.noteSelectable : null]}>
+          <Ionicons
+            name={note.icon}
+            size={12}
+            color={note.tone === "warning" ? theme.warningColor : theme.textMuted}
+          />
+          <Text
+            numberOfLines={2}
+            style={[
+              styles.noteText,
+              note.tone === "warning" ? styles.noteWarning : styles.noteMuted,
+            ]}
+          >
+            {note.text}
+          </Text>
+        </View>
+      ) : null}
       {/* Pinned to the card's top-right corner, exactly as on a customer card:
           it takes nothing from the name, and looks the same on both lists.
           Blacklisted here or in any other organization: the count alone is
@@ -231,8 +261,11 @@ const createStyles = (theme: AppTheme) =>
     card: {
       minHeight: 64,
       flexDirection: "row",
+      // The note, when there is one, takes a line of its own below.
+      flexWrap: "wrap",
       alignItems: "center",
-      gap: 6,
+      columnGap: 6,
+      rowGap: 4,
       padding: 11,
       borderWidth: 1,
       borderColor: theme.border,
@@ -287,7 +320,19 @@ const createStyles = (theme: AppTheme) =>
     phone: { color: theme.textSecondary, fontSize: 12 },
     lastSmsLine: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 5, marginTop: 2 },
     lastSmsDate: { color: theme.textMuted, fontSize: 10 },
-    reason: { color: theme.warningColor, fontSize: 10 },
+    // Level with the name: past the avatar (42) and the gap (6), and past
+    // the checkbox (14) and its gap too when there is one.
+    note: {
+      flexBasis: "100%",
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: 4,
+      paddingLeft: 48,
+    },
+    noteSelectable: { paddingLeft: 68 },
+    noteText: { flex: 1, minWidth: 0, fontSize: 11, lineHeight: 15 },
+    noteWarning: { color: theme.warningColor },
+    noteMuted: { color: theme.textMuted, fontWeight: "700" },
     phoneAction: {
       flexDirection: "row",
       alignItems: "center",
@@ -301,14 +346,6 @@ const createStyles = (theme: AppTheme) =>
       fontSize: 11,
       fontWeight: "700",
     },
-    sentTodayLine: {
-      flexDirection: "row",
-      alignItems: "center",
-      alignSelf: "flex-start",
-      gap: 3,
-      marginTop: 1,
-    },
-    sentTodayText: { color: theme.textMuted, fontSize: 10, fontWeight: "700" },
     trailing: { maxWidth: "37%", alignItems: "flex-end", gap: 2 },
     balance: { fontSize: 12, fontWeight: "800" },
     overdue: { color: theme.warningColor, fontSize: 9 },

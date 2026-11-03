@@ -5,6 +5,11 @@ import type {
   SubscriptionPlanPresentation,
   SubscriptionSmsQuota,
 } from "../types";
+import type { SubscriptionPlanPeriod } from "./planPeriods";
+
+// Mirrors DEFAULT_PERIOD_MONTHS in planPeriods.ts; kept here so this file
+// needs nothing from another module at run time.
+const DEFAULT_PERIOD_MONTHS = 1;
 
 type RecordValue = Record<string, unknown>;
 
@@ -85,6 +90,7 @@ export function parseCurrentSubscription(input: unknown): CurrentSubscription {
     source: text(value.source, "system"),
     provider: nullableText(value.provider),
     cancellationRequestedAt: nullableText(value.cancellationRequestedAt),
+    canRenew: bool(value.canRenew),
     maxOrganizations,
     maxClients,
     unlimitedOrganizations:
@@ -96,6 +102,54 @@ export function parseCurrentSubscription(input: unknown): CurrentSubscription {
     prioritySupportEnabled: bool(value.prioritySupportEnabled),
     sms: parseQuota(value.sms),
   };
+}
+
+const periodRecord = (value: unknown): RecordValue =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as RecordValue)
+    : {};
+
+const nonNegativeOrNull = (value: unknown): number | null => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+};
+
+/**
+ * The terms a plan is sold in, shortest first. A server that does not send
+ * them yet sells one month at the plan's own price.
+ */
+export function parsePlanPeriods(
+  raw: unknown,
+  fallback: { price: number; oldPrice: number | null; discountPercent: number | null },
+): SubscriptionPlanPeriod[] {
+  const periods: SubscriptionPlanPeriod[] = [];
+  const seen = new Set<number>();
+  for (const entry of Array.isArray(raw) ? raw : []) {
+    const item = periodRecord(entry);
+    const months = Number(item.months);
+    const price = nonNegativeOrNull(item.price);
+    if (!Number.isInteger(months) || months <= 0 || price === null) continue;
+    if (seen.has(months)) continue;
+    seen.add(months);
+    periods.push({
+      months,
+      price,
+      oldPrice: positiveOrNull(item.oldPrice),
+      discountPercent: positiveOrNull(item.discountPercent),
+      monthlyPrice: nonNegativeOrNull(item.monthlyPrice) ?? Math.round(price / months),
+    });
+  }
+  if (periods.length) return periods.sort((a, b) => a.months - b.months);
+
+  return [
+    {
+      months: DEFAULT_PERIOD_MONTHS,
+      price: fallback.price,
+      oldPrice: fallback.oldPrice,
+      discountPercent: fallback.discountPercent,
+      monthlyPrice: fallback.price,
+    },
+  ];
 }
 
 function parsePlanPresentation(input: unknown): SubscriptionPlanPresentation {
@@ -126,6 +180,9 @@ export function parseSubscriptionPlans(input: unknown): SubscriptionPlan[] {
     const value = record(entry);
     const id = integer(value.id);
     if (id <= 0) return [];
+    const price = amount(value.price);
+    const oldPrice = positiveOrNull(value.oldPrice);
+    const discountPercent = positiveOrNull(value.discountPercent);
     return [
       {
         id,
@@ -133,9 +190,10 @@ export function parseSubscriptionPlans(input: unknown): SubscriptionPlan[] {
         name: text(value.name),
         description: text(value.description),
         presentation: parsePlanPresentation(value.presentation),
-        price: amount(value.price),
-        oldPrice: positiveOrNull(value.oldPrice),
-        discountPercent: positiveOrNull(value.discountPercent),
+        periods: parsePlanPeriods(value.periods, { price, oldPrice, discountPercent }),
+        price,
+        oldPrice,
+        discountPercent,
         durationDays: nullableInteger(value.durationDays),
         maxOrganizations: nullableInteger(value.maxOrganizations),
         maxClients: nullableInteger(value.maxClients),

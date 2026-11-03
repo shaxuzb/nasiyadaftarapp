@@ -7,10 +7,12 @@ import React, {
   useState,
 } from "react";
 import {
+  Animated,
   AppState,
   Image,
   Linking,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,9 +23,11 @@ import { useNavigation, useRoute, type RouteProp } from "@react-navigation/nativ
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+import { EmptyState } from "../components/EmptyState";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
-import { useTranslation } from "../i18n";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import { YouTubePlayer } from "../modules/video-lessons/components/YouTubePlayer";
 import {
   getVideoThumbnailUrl,
@@ -52,6 +56,8 @@ export function VideoLessonsScreen() {
   const [playback, setPlayback] = useState<Playback>("idle");
   const selected = lessons.find((lesson) => lesson.id === selectedId || lesson.code === selectedId) ?? lessons[0];
   const selectedNumber = selected ? lessons.indexOf(selected) + 1 : 0;
+  const posterUri = selected ? getPosterUri(selected) : undefined;
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   // A screen that linked to one particular lesson means "show me this now",
   // so it starts by itself; from the profile the viewer picks first. Starting
@@ -79,6 +85,20 @@ export function VideoLessonsScreen() {
     setPlayback("playing");
     listRef.current?.scrollTo({ y: 0, animated: true });
   }, []);
+
+  const { refetch } = lessonsQuery;
+  const refresh = useCallback(async () => {
+    setIsPullRefreshing(true);
+    try {
+      const result = await refetch();
+      // With lessons on screen the failure has nowhere else to show.
+      if (result.error && result.data?.length) {
+        showToast(getLocalizedApiErrorMessage(result.error, "videoLessons.loadError", t), "error");
+      }
+    } finally {
+      setIsPullRefreshing(false);
+    }
+  }, [refetch, showToast, t]);
 
   const handlePlayerError = useCallback(() => setPlayback("error"), []);
   const handleEnded = useCallback(() => setPlayback("idle"), []);
@@ -123,9 +143,47 @@ export function VideoLessonsScreen() {
                 // than steering the old one.
                 key={selected.id}
                 youtubeId={selected.youtubeId}
+                posterUri={posterUri}
                 onEnded={handleEnded}
                 onError={handlePlayerError}
               />
+            ) : playback === "error" ? (
+              <View style={styles.fill}>
+                {posterUri ? (
+                  <Image source={{ uri: posterUri }} resizeMode="cover" style={styles.fill} />
+                ) : null}
+                <View style={[styles.fill, styles.errorShade]}>
+                  <View style={styles.errorIcon}>
+                    <Ionicons name="alert-circle-outline" size={24} color="#FFFFFF" />
+                  </View>
+                  <Text style={styles.errorTitle}>{t("videoLessons.playerError")}</Text>
+                  <Text style={styles.errorHint}>{t("videoLessons.playerErrorHint")}</Text>
+                  <View style={styles.errorActions}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={t("videoLessons.retry")}
+                      hitSlop={4}
+                      onPress={() => setPlayback("playing")}
+                      style={({ pressed }) => [styles.errorButton, styles.errorButtonPrimary, pressed && styles.pressed]}
+                    >
+                      <Ionicons name="refresh" size={16} color="#111111" />
+                      <Text style={[styles.errorButtonText, styles.errorButtonPrimaryText]}>
+                        {t("videoLessons.retry")}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="link"
+                      accessibilityLabel={t("videoLessons.openInYouTube")}
+                      hitSlop={4}
+                      onPress={() => void openInYouTube()}
+                      style={({ pressed }) => [styles.errorButton, pressed && styles.pressed]}
+                    >
+                      <Ionicons name="logo-youtube" size={16} color="#FFFFFF" />
+                      <Text style={styles.errorButtonText}>YouTube</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              </View>
             ) : (
               <Pressable
                 accessibilityRole="button"
@@ -133,34 +191,13 @@ export function VideoLessonsScreen() {
                 onPress={() => setPlayback("playing")}
                 style={styles.fill}
               >
-                <Image
-                  source={{ uri: selected.thumbnailUrl ?? (selected.youtubeId ? getVideoThumbnailUrl(selected.youtubeId) : "") }}
-                  resizeMode="cover"
-                  style={styles.fill}
-                />
+                {posterUri ? (
+                  <Image source={{ uri: posterUri }} resizeMode="cover" style={styles.fill} />
+                ) : null}
                 <View style={[styles.fill, styles.posterShade]}>
-                  {playback === "error" ? (
-                    <View style={styles.errorBox}>
-                      <Text style={styles.errorTitle}>
-                        {t("videoLessons.playerError")}
-                      </Text>
-                      <Text style={styles.errorHint}>
-                        {t("videoLessons.playerErrorHint")}
-                      </Text>
-                      <View style={styles.errorActions}>
-                        <View style={styles.errorButton}>
-                          <Ionicons name="refresh" size={16} color="#FFFFFF" />
-                          <Text style={styles.errorButtonText}>
-                            {t("videoLessons.retry")}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-                  ) : (
-                    <View style={styles.playButton}>
-                      <Ionicons name="play" size={30} color="#FFFFFF" />
-                    </View>
-                  )}
+                  <View style={styles.playButton}>
+                    <Ionicons name="play" size={30} color="#FFFFFF" />
+                  </View>
                 </View>
               </Pressable>
             )}
@@ -193,6 +230,8 @@ export function VideoLessonsScreen() {
             </Pressable>
           </View>
         </>
+      ) : lessonsQuery.isPending ? (
+        <StageSkeleton />
       ) : null}
 
       <ScrollView
@@ -200,11 +239,45 @@ export function VideoLessonsScreen() {
         style={styles.list}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          lessonsQuery.isPending ? undefined : (
+            <RefreshControl
+              refreshing={isPullRefreshing}
+              onRefresh={() => void refresh()}
+              tintColor={theme.primary}
+              colors={[theme.primary]}
+            />
+          )
+        }
       >
-        <Text style={styles.sectionTitle}>{t("videoLessons.allLessons")}</Text>
-        {lessonsQuery.isPending ? <Text style={styles.sectionTitle}>{t("subscription.loadingPlans")}</Text> : null}
-        {lessonsQuery.isError ? <Pressable onPress={() => void lessonsQuery.refetch()}><Text style={styles.sectionTitle}>{t("videoLessons.retry")}</Text></Pressable> : null}
-        {!lessonsQuery.isPending && !lessonsQuery.isError && lessons.length === 0 ? <Text style={styles.sectionTitle}>{t("videoLessons.empty")}</Text> : null}
+        {lessonsQuery.isPending ? (
+          <RowsSkeleton />
+        ) : lessons.length === 0 ? (
+          // A failed refresh with lessons already on screen keeps them; only
+          // an empty screen explains itself.
+          lessonsQuery.isError ? (
+            <EmptyState
+              iconName="cloud-offline-outline"
+              title={t("videoLessons.loadError")}
+              description={getLocalizedApiErrorMessage(lessonsQuery.error, "videoLessons.loadErrorHint", t)}
+              action={
+                <PrimaryButton
+                  label={t("videoLessons.retry")}
+                  loading={lessonsQuery.isFetching}
+                  onPress={() => void lessonsQuery.refetch()}
+                />
+              }
+            />
+          ) : (
+            <EmptyState
+              iconName="videocam-outline"
+              title={t("videoLessons.empty")}
+              description={t("videoLessons.emptyHint")}
+            />
+          )
+        ) : (
+          <Text style={styles.sectionTitle}>{t("videoLessons.allLessons")}</Text>
+        )}
         {lessons.map((lesson, index) => (
           <LessonRow
             key={lesson.id}
@@ -234,6 +307,7 @@ const LessonRow = memo(function LessonRow({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { t } = useTranslation();
   const title = lesson.title;
+  const poster = getPosterUri(lesson);
 
   return (
     <Pressable
@@ -248,11 +322,9 @@ const LessonRow = memo(function LessonRow({
       ]}
     >
       <View style={styles.thumbnail}>
-        <Image
-          source={{ uri: lesson.thumbnailUrl ?? (lesson.youtubeId ? getVideoThumbnailUrl(lesson.youtubeId) : "") }}
-          resizeMode="cover"
-          style={styles.fill}
-        />
+        {/* Under the picture, so a slow or missing one still looks meant. */}
+        <Ionicons name="videocam-outline" size={22} color={theme.textMuted} />
+        {poster ? <Image source={{ uri: poster }} resizeMode="cover" style={styles.fill} /> : null}
         <View style={styles.thumbnailBadge}>
           <Text style={styles.thumbnailBadgeText}>{number}</Text>
         </View>
@@ -273,6 +345,74 @@ const LessonRow = memo(function LessonRow({
     </Pressable>
   );
 });
+
+function getPosterUri(lesson: ApiVideoLesson): string | undefined {
+  return lesson.thumbnailUrl ?? (lesson.youtubeId ? getVideoThumbnailUrl(lesson.youtubeId) : undefined);
+}
+
+/** A soft pulse for placeholders, one animation shared by everything inside. */
+function Pulse({ children }: { children: React.ReactNode }) {
+  const opacity = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 0.45, duration: 700, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 1, duration: 700, useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [opacity]);
+  return <Animated.View style={{ opacity }}>{children}</Animated.View>;
+}
+
+/** The player and its caption, in the shape they will have once loaded. */
+function StageSkeleton() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { t } = useTranslation();
+  return (
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={t("videoLessons.loadingLessons")}>
+      <Pulse>
+        <View style={[styles.stage, styles.skeletonStage]}>
+          <View style={styles.skeletonPlay}>
+            <Ionicons name="play" size={26} color={theme.textMuted} />
+          </View>
+        </View>
+        <View style={styles.nowPlaying}>
+          <View style={styles.nowPlayingCopy}>
+            <View style={[styles.skeletonLine, { width: 56 }]} />
+            <View style={[styles.skeletonLine, styles.skeletonHeading, { width: "70%" }]} />
+            <View style={[styles.skeletonLine, { width: "90%" }]} />
+          </View>
+        </View>
+      </Pulse>
+    </View>
+  );
+}
+
+const SKELETON_ROWS = [0, 1, 2, 3];
+
+function RowsSkeleton() {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <Pulse>
+      <View style={[styles.skeletonLine, styles.skeletonSection]} />
+      <View style={styles.skeletonRows}>
+        {SKELETON_ROWS.map((key) => (
+          <View key={key} style={styles.row}>
+            <View style={styles.thumbnail} />
+            <View style={styles.rowCopy}>
+              <View style={[styles.skeletonLine, { width: "80%" }]} />
+              <View style={[styles.skeletonLine, { width: "55%" }]} />
+            </View>
+          </View>
+        ))}
+      </View>
+    </Pulse>
+  );
+}
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
@@ -318,10 +458,21 @@ const createStyles = (theme: AppTheme) =>
       borderWidth: 2,
       borderColor: "rgba(255, 255, 255, 0.9)",
     },
-    errorBox: {
+    errorShade: {
       alignItems: "center",
+      justifyContent: "center",
       gap: spacing.xs,
       paddingHorizontal: spacing.lg,
+      backgroundColor: "rgba(0, 0, 0, 0.72)",
+    },
+    errorIcon: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
+      marginBottom: 2,
+      borderRadius: radius.full,
+      backgroundColor: "rgba(255, 255, 255, 0.16)",
     },
     errorTitle: {
       ...typography.bodyMedium,
@@ -334,21 +485,27 @@ const createStyles = (theme: AppTheme) =>
       color: "rgba(255, 255, 255, 0.85)",
       textAlign: "center",
     },
-    errorActions: { marginTop: spacing.sm },
+    errorActions: {
+      flexDirection: "row",
+      gap: spacing.sm,
+      marginTop: spacing.sm,
+    },
     errorButton: {
-      minHeight: 36,
+      minHeight: 38,
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.xs + 2,
       paddingHorizontal: spacing.md,
       borderRadius: radius.full,
-      backgroundColor: "rgba(255, 255, 255, 0.2)",
+      backgroundColor: "rgba(255, 255, 255, 0.18)",
     },
+    errorButtonPrimary: { backgroundColor: "#FFFFFF" },
     errorButtonText: {
       ...typography.caption,
       color: "#FFFFFF",
       fontWeight: "700",
     },
+    errorButtonPrimaryText: { color: "#111111" },
     nowPlaying: {
       flexDirection: "row",
       alignItems: "flex-start",
@@ -385,6 +542,8 @@ const createStyles = (theme: AppTheme) =>
     },
     list: { flex: 1 },
     listContent: {
+      // Lets an empty or failed list centre its message in the space left.
+      flexGrow: 1,
       padding: spacing.md,
       paddingBottom: spacing.xl,
       gap: spacing.sm,
@@ -414,6 +573,8 @@ const createStyles = (theme: AppTheme) =>
     thumbnail: {
       width: 112,
       aspectRatio: 16 / 9,
+      alignItems: "center",
+      justifyContent: "center",
       borderRadius: radius.sm,
       overflow: "hidden",
       backgroundColor: theme.inputBackground,
@@ -443,4 +604,26 @@ const createStyles = (theme: AppTheme) =>
     },
     rowDescription: { ...typography.caption, color: theme.textSecondary },
     pressed: { opacity: 0.7 },
+    skeletonStage: {
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.inputBackground,
+    },
+    skeletonPlay: {
+      width: 60,
+      height: 60,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingLeft: 3,
+      borderRadius: radius.full,
+      backgroundColor: theme.surface,
+    },
+    skeletonLine: {
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: theme.inputBackground,
+    },
+    skeletonHeading: { height: 18, marginVertical: 4 },
+    skeletonSection: { width: 110, marginBottom: spacing.sm + 4 },
+    skeletonRows: { gap: spacing.sm },
   });

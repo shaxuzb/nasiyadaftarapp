@@ -72,11 +72,12 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
         variant: options.variant ?? "default",
       });
     });
-  }, []);
+    // The default button labels follow the language in use.
+  }, [t]);
 
   const value = useMemo<ConfirmDialogContextValue>(
     () => ({ confirm }),
-    [confirm, t],
+    [confirm],
   );
 
   const confirmColor =

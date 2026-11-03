@@ -26,12 +26,17 @@ export function getSmsStatusAppearance(status: string | null | undefined, theme:
   }
 }
 
-/** Compact and timezone-stable display for a server ISO datetime, e.g. 21.10. */
+/**
+ * Compact and timezone-stable display for a server ISO datetime, e.g.
+ * "21.10, 15:00", short enough to sit beside the status badge. The time is
+ * the server's, as written; a value with no time shows the day alone.
+ */
 export function formatSmsShortDate(value: string | null | undefined): string {
   if (!value) return "";
-  const match = /^(\d{4})-(\d{2})-(\d{2})(?:$|T|\s)/.exec(value);
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:$|[T\s](?:(\d{2}):(\d{2}))?)/.exec(value);
   if (!match) return "";
   const month = Number(match[2]), day = Number(match[3]);
   if (month < 1 || month > 12 || day < 1 || day > 31) return "";
-  return match[3] + "." + match[2];
+  const date = match[3] + "." + match[2];
+  return match[4] === undefined ? date : date + ", " + match[4] + ":" + match[5];
 }

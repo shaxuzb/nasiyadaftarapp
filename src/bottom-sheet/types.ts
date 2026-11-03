@@ -73,6 +73,10 @@ export type PaymentCheckoutSheetProps =
   | {
       productType: "subscription";
       plan: SubscriptionPlan;
+      /** The term chosen on the plan's card; absent means one month. */
+      months?: number;
+      /** More time on the current plan instead of buying it. */
+      renew?: boolean;
     }
   | {
       productType: "sms_package";
@@ -143,10 +147,13 @@ export interface BackdropFactoryParams {
   closeSheet: (afterDismiss?: () => void) => void;
 }
 
+/**
+ * Stable for the app's lifetime, so screens that open sheets do not re-render
+ * when one opens or closes. Whether one is open: useIsBottomSheetOpen.
+ */
 export interface BottomSheetContextValue {
   openSheet: <T extends SheetType>(type: T, props: SheetPropsMap[T]) => void;
   closeSheet: () => void;
-  isOpen: boolean;
 }
 
 export interface ActiveSheetEntry<T extends SheetType = SheetType> {

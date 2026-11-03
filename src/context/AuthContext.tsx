@@ -118,11 +118,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useState<"Settings" | null>(null);
 
   const persistUser = useCallback(async (nextUser: AuthUser) => {
+    // A refresh mostly brings back what is already there (the same plan, the
+    // same organizations). A new user object re-renders everything that reads
+    // it, so an unchanged one is neither written nor set.
+    const serialized = JSON.stringify(nextUser);
     const session = getAuthSessionSync() ?? (await hydrateAuthSession());
-    if (session) {
+    // An answer that lands after signing out, or after another account
+    // signed in, belongs to nobody on screen and must not bring them back.
+    if (!session || session.user?.id !== nextUser.id) return;
+    if (JSON.stringify(session.user) !== serialized) {
       await setAuthSession({ ...session, user: nextUser });
     }
-    setUser(nextUser);
+    setUser((current) =>
+      !current || current.id !== nextUser.id
+        ? current
+        : JSON.stringify(current) === serialized
+          ? current
+          : nextUser,
+    );
   }, []);
 
   const updateUserProfile = useCallback(async (patch: Partial<AuthUser>) => {
@@ -200,8 +213,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const resolveOrganizations = useCallback(
-    async (baseUser: AuthUser) => {
-      setIsOrganizationLoading(true);
+    // `silent` refreshes the list behind a screen that is already showing.
+    // The loading flag replaces the whole navigator with a spinner, which is
+    // right while signing in but, on a refresh, unmounted every screen, lost
+    // where the user was and refetched everything.
+    async (baseUser: AuthUser, { silent = false }: { silent?: boolean } = {}) => {
+      if (!silent) setIsOrganizationLoading(true);
       try {
         let availableOrganizations: OrganizationMembership[];
         try {
@@ -251,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             availableOrganizations.length > 0,
         });
       } finally {
-        setIsOrganizationLoading(false);
+        if (!silent) setIsOrganizationLoading(false);
       }
     },
     [applyOrganizationSelection, persistUser],
@@ -282,7 +299,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshOrganizations = useCallback(async () => {
     if (!user) return;
-    await resolveOrganizations(user);
+    await resolveOrganizations(user, { silent: true });
   }, [resolveOrganizations, user]);
 
   const refreshSubscription = useCallback(async () => {
@@ -540,7 +557,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(session.user);
           setOrganizations(session.user.organizations ?? []);
           await resolveOrganizations(session.user);
-          await syncSubscription(getAuthSessionSync()?.user ?? session.user);
+          // Not waited for: the plan saved with the session is shown until
+          // this arrives, and the app opens one round trip sooner. It still
+          // runs after the organization, whose token it needs, and handles
+          // its own failure.
+          void syncSubscription(getAuthSessionSync()?.user ?? session.user);
         }
       } catch (error) {
         if (__DEV__) {

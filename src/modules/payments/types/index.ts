@@ -38,6 +38,8 @@ export interface PaymentOrder {
   paidDate: string | null;
   fulfilledDate: string | null;
   isFulfilled: boolean;
+  /** How many months a subscription order buys; null for anything else. */
+  periodMonths: number | null;
 }
 
 export interface PaymentCheckoutAttempt {
@@ -47,6 +49,11 @@ export interface PaymentCheckoutAttempt {
   productId: number;
   /** The provider this attempt was made with; absent when none was chosen. */
   provider?: string;
+  /**
+   * What else makes this a different request: the term ("m3") and whether it
+   * renews the current plan ("renew:m3"). Absent for a plain one-off order.
+   */
+  variant?: string;
   idempotencyKey: string;
   createdAt: string;
 }

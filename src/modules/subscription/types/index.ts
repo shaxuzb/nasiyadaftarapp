@@ -1,3 +1,7 @@
+import type { SubscriptionPlanPeriod } from "../utils/planPeriods";
+
+export type { SubscriptionPlanPeriod };
+
 export interface SubscriptionSmsQuota {
   periodMonth: string | null;
   periodEnd?: string | null;
@@ -19,6 +23,8 @@ export interface CurrentSubscription {
   source: string;
   provider: string | null;
   cancellationRequestedAt: string | null;
+  /** The server allows paying for more time on this plan. */
+  canRenew: boolean;
   maxOrganizations: number | null;
   maxClients: number | null;
   unlimitedOrganizations: boolean;
@@ -44,6 +50,8 @@ export interface SubscriptionPlanPresentation {
 
 export interface SubscriptionPlan {
   presentation: SubscriptionPlanPresentation;
+  /** The terms it is sold in, shortest first; never empty. */
+  periods: SubscriptionPlanPeriod[];
 
   id: number;
   code: string;

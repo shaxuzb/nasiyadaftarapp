@@ -1,5 +1,5 @@
 // When a plan began and when it ends, a quiet reminder in its last days, and
-// a renewal that is shown as a demo until it is built.
+// the renewal on the current plan's card.
 
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -20,31 +20,37 @@ assert.match(period, /export const RENEWAL_REMINDER_DAYS = 3;/);
 /* Dates on the current plan's card, and nowhere for a plan with no end. */
 
 assert.match(plans, /const currentPeriod = useMemo\(\(\) => getSubscriptionPeriod\(current\), \[current\]\);/);
-// The time left is the card's last line, under the chips and the renewal.
-assert.match(plans, /\{isCurrent && periodRange \? \(\s*<View style=\{styles\.periodFooter\}>/);
+// The time left is the card's last line, under the chips and the renewal. The
+// same footer closes the card of an old plan that is no longer sold.
+const footer = plans.slice(plans.indexOf("function PeriodFooter({"), plans.indexOf("// Only capabilities a plan includes"));
+assert.match(footer, /<View style=\{styles\.periodFooter\}>/);
+assert.match(footer, /name="calendar-outline"/);
+assert.match(footer, /styles\.daysPill, endingSoon && styles\.daysPillWarning/, "The last days stand out");
 assert.doesNotMatch(plans, /styles\.periodRow/, "Not under the tagline any more");
+const cardFooter = plans.search(/\{isCurrent && periodRange \? \(\s*<PeriodFooter/);
+assert.ok(cardFooter > 0, "The current plan's card ends with its period");
 assert.ok(
   plans.indexOf("<View style={styles.featureChips}>") < plans.indexOf("<View style={styles.renewBlock}>") &&
-    plans.indexOf("<View style={styles.renewBlock}>") < plans.indexOf("<View style={styles.periodFooter}>"),
+    plans.indexOf("<View style={styles.renewBlock}>") < cardFooter,
   "Chips, then the renewal, then the time left",
 );
 assert.match(
-  plans,
-  /<View style=\{styles\.periodFooter\}>[\s\S]{0,1600}<\/View>\s*\) : null\}\s*<\/Pressable>/,
+  plans.slice(cardFooter),
+  /^\{isCurrent && periodRange \? \(\s*<PeriodFooter[\s\S]{0,260}?\/>\s*\) : null\}\s*<\/Pressable>/,
   "Nothing after it on the card",
 );
 assert.match(plans, /currentPeriod\.endAt\s*\? \[/, "No end date, no dates shown");
 
-/* The demo renewal: on the current paid plan, labelled, and not pressable. */
+/* The renewal: on the current plan, when the server allows it, through the
+   payment sheet (term and provider chosen there). */
 
 const renewStart = plans.indexOf("<View style={styles.renewBlock}>");
 assert.ok(renewStart > 0, "The renewal block is on the card");
-// The block runs to the end of the card.
 const renew = plans.slice(renewStart, plans.indexOf("</Pressable>", renewStart));
-assert.match(renew, /accessibilityState=\{\{ disabled: true \}\}/);
-assert.doesNotMatch(renew, /onPress/, "A demo renewal cannot be pressed");
-assert.match(renew, /t\("subscription\.demoBadge"\)/);
-assert.match(renew, /t\("subscription\.renewComingSoon"\)/);
+assert.match(plans, /\{isCurrent && current\?\.canRenew \? \(\s*<View style=\{styles\.renewBlock\}>/);
+assert.match(renew, /onPress=\{\(\) => openRenewal\(plan\)\}/);
+assert.match(renew, /accessibilityHint=\{t\("subscription\.renewHint"\)\}/);
+assert.doesNotMatch(renew, /demoBadge|renewComingSoon|disabled: true/, "The renewal is real, not a demo");
 
 /* The profile's plan row says until when. */
 
@@ -71,11 +77,11 @@ assert.match(banner, /AsyncStorage\.setItem\(STORAGE_KEY, JSON\.stringify\(dismi
 
 for (const [name, source] of [["uz.ts", uz], ["ru.ts", ru]]) {
   for (const key of [
-    "daysLeft", "endsToday", "periodEnded", "validUntil", "renewPlan", "renewComingSoon",
-    "demoBadge", "reminderDays", "reminderTomorrow", "reminderToday", "reminderAction", "reminderDismiss",
+    "daysLeft", "endsToday", "periodEnded", "validUntil", "renewPlan", "renewHint",
+    "reminderDays", "reminderTomorrow", "reminderToday", "reminderAction", "reminderDismiss",
   ]) {
     assert.match(source, new RegExp("\\n    " + key + ': "[^"]+",'), name + ": subscription." + key);
   }
 }
 
-console.log("Subscription period: dates, the 3-day reminder and the demo renewal passed");
+console.log("Subscription period: dates, the 3-day reminder and the renewal passed");

@@ -28,11 +28,11 @@ assert.match(
 );
 assert.match(screen, /AdminContactButton/);
 assert.doesNotMatch(screen, /openAdminContact\(\)/);
-assert.match(screen, /plan\.transactionSmsEnabled/);
-assert.match(screen, /plan\.prioritySupportEnabled/);
+// What a plan includes comes from the server's presentation; the server
+// leaves out what a plan does not include, so the card lists only that.
 assert.match(
   screen,
-  /const visibleFeatures = features\.filter\(\s*\(feature\) => feature\.enabled,?\s*\)/,
+  /const visibleFeatures = plan\.presentation\.features;/,
   "A plan card must list only the capabilities its plan includes",
 );
 assert.doesNotMatch(
@@ -40,20 +40,7 @@ assert.doesNotMatch(
   /!feature\.enabled/,
   "A card must not spell out what a plan leaves out; that reads as a warning on the card asking to be chosen",
 );
-// Unlimited clients and reports belong to every plan, including FREE.
-assert.match(screen, /key: "clients"/, "Every plan card must show the client allowance");
-assert.match(screen, /key: "reports"/, "Every plan card must show reports");
-assert.match(screen, /unlimitedClients: "Cheksiz mijoz"/);
-assert.match(screen, /unlimitedClients: "Безлимит клиентов"/);
-assert.match(screen, /reports: "Hisobotlar"/);
-assert.match(screen, /reports: "Отчёты"/);
 assert.match(screen, /name="chevron-forward"/);
-assert.match(screen, /styles\.planMetaRow/);
-assert.match(
-  screen,
-  /<View style=\{styles\.planMetaRow\}>[\s\S]*?styles\.priceWrap[\s\S]*?styles\.currentPill/,
-  "Plan price and current badge must share the metadata row",
-);
 assert.doesNotMatch(screen, /normalized === "PRO"/);
 assert.match(settings, /navigation\.navigate\("Subscription"\)/);
 assert.match(navigation, /name="Subscription"/);

@@ -107,8 +107,11 @@ const upgradeModal = fs.readFileSync(
 );
 assert.doesNotMatch(upgradeModal, /useNavigation/);
 assert.doesNotMatch(upgradeModal, /navigation\.navigate\("Subscription"\)/);
-assert.match(upgradeModal, /t\("subscription\.standardPlan"\)/);
-assert.match(upgradeModal, /t\("subscription\.premiumPlan"\)/);
+// Plan names are the server's, as on the plans screen; Premium is the one
+// offered first.
+assert.match(upgradeModal, /function localizedPlanName\(plan: SubscriptionPlan, _t: Translate\) \{\s*return plan\.name;/);
+assert.match(upgradeModal, /accessibilityLabel=\{localizedPlanName\(item, t\)\}/);
+assert.match(upgradeModal, /useState<PaidPlanCode>\("PREMIUM"\)/);
 assert.match(upgradeModal, /selectedPlanCode/);
 assert.match(upgradeModal, /comparison/);
 assert.match(upgradeModal, /setSelectedPlanCode/);

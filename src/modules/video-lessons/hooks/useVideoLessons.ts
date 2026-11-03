@@ -7,6 +7,8 @@ export function useVideoLessons() {
     queryKey: ["video-lessons", user?.id ?? "anonymous"],
     queryFn: ({ signal }) => fetchVideoLessons(signal),
     enabled: Boolean(user),
-    staleTime: 5 * 60_000,
+    // The lesson list changes rarely and its button is on most screens.
+    staleTime: 30 * 60_000,
+    gcTime: 30 * 60_000,
   });
 }

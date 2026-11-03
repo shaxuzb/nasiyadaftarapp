@@ -6,16 +6,22 @@ import {
   ViewStyle,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { useTheme } from "../../../hooks/useTheme";
 import { useTranslation } from "../../../i18n";
+import { navigationRef } from "../../../navigation/navigationRef";
 import { radius } from "../../../theme";
-import type { AppTheme, RootStackParamList } from "../../../types";
+import type { AppTheme } from "../../../types";
 import { useVideoLessons } from "../hooks/useVideoLessons";
 
-type Navigation = NativeStackNavigationProp<RootStackParamList>;
+/**
+ * Opens the lesson with this code. Through the app-wide ref rather than
+ * useNavigation(): bottom sheets are drawn outside the navigator, where
+ * useNavigation() throws and takes the whole sheet down with it.
+ */
+export function openVideoLesson(code: string) {
+  if (navigationRef.isReady()) navigationRef.navigate("VideoLessons", { lessonId: code });
+}
 
 interface Props {
   /** Stable backend video lesson code for this screen. */
@@ -40,7 +46,6 @@ export const VideoLessonButton = memo(function VideoLessonButton({
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
-  const navigation = useNavigation<Navigation>();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
   // A lesson this platform does not offer gets no button, rather than a
@@ -54,7 +59,7 @@ export const VideoLessonButton = memo(function VideoLessonButton({
       accessibilityRole="button"
       accessibilityLabel={t("videoLessons.helpA11y")}
       hitSlop={6}
-      onPress={onPress ?? (() => navigation.navigate("VideoLessons", { lessonId: code }))}
+      onPress={onPress ?? (() => openVideoLesson(code))}
       style={({ pressed }) => [styles.button, pressed && styles.pressed, style]}
     >
       <Ionicons name="school-outline" size={19} color={theme.primary} />

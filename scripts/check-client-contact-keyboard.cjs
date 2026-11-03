@@ -8,11 +8,35 @@ function read(filename) {
 const customersScreen = read("src/screens/CustomersScreen.tsx");
 const appInput = read("src/components/AppInput.tsx");
 
+// Adding and editing a customer share one picker (useContactPicker): each
+// releases its phone field, then the picker dismisses the keyboard before it
+// asks for access.
+const picker = read("src/modules/clients/hooks/useContactPicker.ts");
+assert.match(
+  picker,
+  /await KeyboardController\.dismiss\(\);\s*const existingPermission = await Contacts\.getPermissionsAsync\(\);/,
+  "the picker dismisses the keyboard before anything else",
+);
+assert.match(picker, /permission\.canAskAgain === false[\s\S]{0,160}?Linking\.openSettings\(\)/, "Blocked access leads to the settings");
 assert.match(
   customersScreen,
-  /phoneInputRef\.current\?\.blur\(\);[\s\S]{0,120}await KeyboardController\.dismiss\(\);/,
+  /phoneInputRef\.current\?\.blur\(\);\s*const contact = await pickContact\(\);/,
   "contact picker must release phone input focus before dismissing the keyboard",
 );
+const editSheet = read("src/modules/clients/components/CustomerEditSheet.tsx");
+assert.match(
+  editSheet,
+  /phoneRef\.current\?\.blur\(\);\s*const contact = await pickContact\(\);/,
+  "Editing a customer picks from contacts the same way",
+);
+assert.match(editSheet, /inputResetKey=\{phoneResetKey\}/, "A picked number reaches the edit sheet's phone field");
+assert.match(editSheet, /onPress=\{\(\) => void fillFromContact\(\)\}/);
+for (const [name, source] of [["CustomersScreen", customersScreen], ["CustomerEditSheet", editSheet]]) {
+  assert.match(source, /if \(contact\.fullName\) /, `${name}: a contact without a name leaves the name as typed`);
+}
+// The note is no longer edited here, and saving keeps the one already there.
+assert.doesNotMatch(editSheet, /label=\{t\("transactions\.note"\)\}|setNote/);
+assert.match(editSheet, /note: customer\.note \?\? "",/);
 assert.match(
   customersScreen,
   /inputResetKey=\{phoneInputKey\}/,

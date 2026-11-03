@@ -37,6 +37,7 @@ import {
   toOptionalStoredUzPhone,
 } from "../../../utils/masks";
 import { hapticSuccess } from "../../../utils/haptics";
+import { useContactPicker } from "../hooks/useContactPicker";
 import type { ClientUpdateRequest, Customer } from "../types";
 import type { AppTheme } from "../../../types";
 import { getLocalizedApiErrorMessage, useTranslation } from "../../../i18n";
@@ -72,16 +73,18 @@ export function CustomerEditSheet({
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(customer.fullName);
   const [phone, setPhone] = useState(formatUzPhoneFromDigits(customer.phone));
-  const [note, setNote] = useState(customer.note ?? "");
+  // The phone field keeps its own text while typing; this puts a new number
+  // into it (a contact picked, the customer reloaded).
+  const [phoneResetKey, setPhoneResetKey] = useState(0);
   const [phoneError, setPhoneError] = useState<string>();
   const previousDataState = useRef(dataState);
+  const pickContact = useContactPicker();
   // The phone is optional, as it is when a customer is added: empty is a
   // valid value, and clearing the field removes the number. Only a number
   // that was started and left unfinished is an error.
   const changed =
     name.trim() !== customer.fullName ||
-    toOptionalStoredUzPhone(phone) !== customer.phone ||
-    note.trim() !== (customer.note ?? "");
+    toOptionalStoredUzPhone(phone) !== customer.phone;
   const handlePhoneChange = useCallback((value: string) => {
     setPhone(formatUzPhoneFromDigits(value));
     setPhoneError(undefined);
@@ -91,7 +94,7 @@ export function CustomerEditSheet({
     if (previousDataState.current !== "ready" && dataState === "ready") {
       setName(customer.fullName);
       setPhone(formatUzPhoneFromDigits(customer.phone));
-      setNote(customer.note ?? "");
+      setPhoneResetKey((key) => key + 1);
       setPhoneError(undefined);
     }
     previousDataState.current = dataState;
@@ -120,6 +123,20 @@ export function CustomerEditSheet({
     [saving],
   );
 
+  async function fillFromContact() {
+    phoneRef.current?.blur();
+    const contact = await pickContact();
+    if (!contact) return;
+    // What the contact has replaces its field; what it lacks stays as it is.
+    if (contact.fullName) setName(contact.fullName);
+    if (contact.phone) {
+      setPhone(formatUzPhoneFromDigits(contact.phone));
+      setPhoneResetKey((key) => key + 1);
+    }
+    setPhoneError(undefined);
+    showToast(t("customers.contactsFilled"), "success");
+  }
+
   async function save() {
     if (submitting.current || !ready || dataState !== "ready") return;
     if (!isOptionalUzPhoneValid(phone)) {
@@ -132,7 +149,9 @@ export function CustomerEditSheet({
       await onSave({
         fullName: name.trim().replace(/\s+/g, " "),
         phoneNumber: toOptionalStoredUzPhone(phone),
-        note: note.trim(),
+        // Not edited here any more, but sent as it is so saving never
+        // clears a note the customer already has.
+        note: customer.note ?? "",
       });
       void KeyboardController.dismiss();
       hapticSuccess();
@@ -210,26 +229,30 @@ export function CustomerEditSheet({
           variant="sheet"
           compact
           inputRef={phoneRef}
+          inputResetKey={phoneResetKey}
           label={t("customers.phoneOptional")}
           uncontrolled
           defaultValue={phone}
           transformText={formatUzPhoneFromDigits}
           onChangeText={handlePhoneChange}
+          placeholder={t("customers.phonePlaceholder")}
           editable={!saving}
           keyboardType="phone-pad"
           autoComplete="tel"
           error={phoneError}
-        />
-        <AppInput
-          variant="sheet"
-          compact
-          label={t("transactions.note")}
-          value={note}
-          onChangeText={setNote}
-          editable={!saving}
-          placeholder={t("transactions.editNotePlaceholder")}
-          multiline
-          style={styles.note}
+          trailingAccessory={
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t("customers.contactPicker")}
+              accessibilityHint={t("customers.contactPickerHint")}
+              disabled={saving}
+              hitSlop={4}
+              onPress={() => void fillFromContact()}
+              style={({ pressed }) => [styles.contactPicker, pressed && styles.pressed]}
+            >
+              <Ionicons name="people-outline" size={23} color={theme.primary} />
+            </Pressable>
+          }
         />
         {dataState === "loading" ? (
           <View style={styles.dataStatus}>
@@ -267,7 +290,15 @@ const createStyles = (theme: AppTheme) =>
       alignItems: "center",
       justifyContent: "center",
     },
-    note: { minHeight: 76, paddingVertical: 12, textAlignVertical: "top" },
+    // The same button as when a customer is added.
+    contactPicker: {
+      width: 44,
+      height: 44,
+      marginRight: -8,
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    pressed: { opacity: 0.7 },
     dataStatus: {
       flexDirection: "row",
       alignItems: "center",

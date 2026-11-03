@@ -47,6 +47,7 @@ function isAttempt(
     Number.isSafeInteger(item.productId) &&
     item.productId > 0 &&
     (item.provider === undefined || typeof item.provider === "string") &&
+    (item.variant === undefined || typeof item.variant === "string") &&
     typeof item.idempotencyKey === "string" &&
     Boolean(item.idempotencyKey.trim()) &&
     typeof item.createdAt === "string" &&
@@ -152,17 +153,26 @@ export function createPaymentStorageCore({
     productType: PaymentProductType,
     productId: number,
     provider?: string | null,
+    variant?: string | null,
   ): Promise<PaymentCheckoutAttempt> {
     assertPositiveId(userId);
     assertPositiveId(productId);
     const attempts = await readAttempts(userId);
     const key = productKey(productType, productId);
     const wantedProvider = provider?.trim() || undefined;
+    const wantedVariant = variant?.trim() || undefined;
     const existing = attempts[key];
     // The key tells the server "this is the same request as before". Retrying
-    // the same provider is; the same product through another provider is not,
-    // and reusing the key would get the first provider's order back.
-    if (existing && existing.provider === wantedProvider) return existing;
+    // the same provider and term is; another provider, another term or a
+    // renewal instead of a purchase is not, and reusing the key would get the
+    // first request's order back.
+    if (
+      existing &&
+      existing.provider === wantedProvider &&
+      existing.variant === wantedVariant
+    ) {
+      return existing;
+    }
 
     const idempotencyKey = randomUUID().trim();
     if (!idempotencyKey) {
@@ -175,6 +185,7 @@ export function createPaymentStorageCore({
       productType,
       productId,
       ...(wantedProvider ? { provider: wantedProvider } : {}),
+      ...(wantedVariant ? { variant: wantedVariant } : {}),
       idempotencyKey,
       createdAt: nowIso(),
     };

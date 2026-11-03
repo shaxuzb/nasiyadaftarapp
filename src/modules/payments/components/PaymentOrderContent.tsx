@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import {
   formatLocalizedCurrency,
-  formatLocalizedDate,
+  formatLocalizedDateTime,
   useTranslation,
 } from "../../../i18n";
 import { radius, spacing, typography } from "../../../theme";
@@ -73,18 +73,18 @@ export function PaymentOrderContent({ order }: { order: PaymentOrder }) {
         ) : null}
         <DetailRow
           label={copy.created}
-          value={formatLocalizedDate(order.createdDate, locale)}
+          value={formatLocalizedDateTime(order.createdDate, locale)}
         />
         {order.paidDate ? (
           <DetailRow
             label={copy.paid}
-            value={formatLocalizedDate(order.paidDate, locale)}
+            value={formatLocalizedDateTime(order.paidDate, locale)}
           />
         ) : null}
         {order.fulfilledDate ? (
           <DetailRow
             label={copy.fulfilledAt}
-            value={formatLocalizedDate(order.fulfilledDate, locale)}
+            value={formatLocalizedDateTime(order.fulfilledDate, locale)}
           />
         ) : null}
       </View>

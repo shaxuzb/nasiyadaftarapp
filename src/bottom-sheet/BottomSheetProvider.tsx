@@ -22,7 +22,7 @@ import {
 
 import { ConfirmDialogProvider } from "../context/ConfirmDialogContext";
 import { useTheme } from "../hooks/useTheme";
-import { BottomSheetContext } from "./context";
+import { BottomSheetContext, BottomSheetOpenContext } from "./context";
 import { registerBackHandler } from "./backHandlerRegistry";
 import { sheetRegistry } from "./registry";
 import { useBottomSheetBackHandler } from "./useBottomSheetBackHandler";
@@ -98,12 +98,19 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
     modalRef.current?.dismiss();
   }, []);
 
+  // Read at call time, so openSheet never changes: a new one on every open
+  // and close re-rendered every screen holding it, mid-animation.
+  const isOpenRef = useRef(isOpen);
+  isOpenRef.current = isOpen;
+  const activeEntryRef = useRef(activeEntry);
+  activeEntryRef.current = activeEntry;
+
   const openSheet = useCallback(
     <T extends SheetType>(type: T, props: SheetPropsMap[T]) => {
       if (dismissLockedRef.current) return;
       if (
-        isOpen &&
-        isSamePayload(activeEntry, type, props as SheetPropsMap[SheetType])
+        isOpenRef.current &&
+        isSamePayload(activeEntryRef.current, type, props as SheetPropsMap[SheetType])
       ) {
         return;
       }
@@ -128,7 +135,7 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
 
       void KeyboardController.dismiss().then(activateSheet);
     },
-    [activeEntry, isOpen],
+    [setDismissLocked],
   );
 
   useEffect(() => {
@@ -206,8 +213,8 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
   useBottomSheetBackHandler(isOpen, closeSheet);
 
   const contextValue = useMemo<BottomSheetContextValue>(
-    () => ({ openSheet, closeSheet, isOpen }),
-    [closeSheet, isOpen, openSheet],
+    () => ({ openSheet, closeSheet }),
+    [closeSheet, openSheet],
   );
 
   const activeDefinition = activeEntry ? sheetRegistry[activeEntry.type] : null;
@@ -215,78 +222,80 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
   const ActiveProvider = activeDefinition?.provider ?? SheetPassthrough;
 
   return (
-    <BottomSheetContext.Provider value={contextValue}>
-      {children}
-      {activeEntry && activeDefinition && ActiveComponent ? (
-        <ActiveProvider
-          key={activeEntry.id}
-          props={activeEntry.props as never}
-          openSheet={openSheet}
-          closeSheet={closeSheet}
-          setDismissLocked={setDismissLocked}
-        >
-          <BottomSheetModal
-            ref={modalRef}
-            // A centred column on a tablet, like the screen behind it.
-            style={sheetFrame}
-            index={0}
-            snapPoints={activeDefinition.snapPoints}
-            enableDynamicSizing={activeDefinition.enableDynamicSizing ?? false}
-            stackBehavior={activeDefinition.stackBehavior ?? "switch"}
-            maxDynamicContentSize={Math.max(1, height - insets.top - 16)}
-            enablePanDownToClose={
-              !dismissLocked && (activeDefinition.enablePanDownToClose ?? true)
-            }
-            enableHandlePanningGesture={!dismissLocked}
-            // Not tied to the dismiss lock. The library renders the content
-            // inside a different wrapper component depending on this flag, so
-            // flipping it while a sheet is open remounts the sheet: whatever
-            // the user had chosen is reset and its "saving" state is lost in
-            // the middle of the request. A locked sheet still cannot be
-            // closed: pan-to-close above is what the lock turns off.
-            enableContentPanningGesture={activeEntry.type !== "transaction"}
-            // Keep the sheet anchored above the keyboard instead of expanding it
-            // to the whole screen. This matches the native messaging UX.
-            keyboardBehavior="interactive"
-            keyboardBlurBehavior="restore"
-            // The app uses edge-to-edge on Android, where adjustResize behaves
-            // like adjustNothing. Let the sheet apply the keyboard offset itself.
-            android_keyboardInputMode="adjustPan"
-            enableBlurKeyboardOnGesture
-            topInset={insets.top}
-            onChange={handleChange}
-            onDismiss={handleDismiss}
-            backdropComponent={renderBackdrop}
-            backgroundStyle={{ backgroundColor: theme.surface }}
-            handleIndicatorStyle={{ backgroundColor: theme.textMuted }}
+    <BottomSheetOpenContext.Provider value={isOpen}>
+      <BottomSheetContext.Provider value={contextValue}>
+        {children}
+        {activeEntry && activeDefinition && ActiveComponent ? (
+          <ActiveProvider
+            key={activeEntry.id}
+            props={activeEntry.props as never}
+            openSheet={openSheet}
+            closeSheet={closeSheet}
+            setDismissLocked={setDismissLocked}
           >
-            <ConfirmDialogProvider>
-              <BottomSheetContext.Provider value={contextValue}>
-                {activeDefinition.enableDynamicSizing ? (
-                  <ActiveComponent
-                    closeSheet={closeSheet}
-                    setDismissLocked={setDismissLocked}
-                    openSheet={openSheet}
-                    props={activeEntry.props as never}
-                  />
-                ) : (
-                  <View
-                    style={[styles.container, { paddingBottom: insets.bottom }]}
-                  >
+            <BottomSheetModal
+              ref={modalRef}
+              // A centred column on a tablet, like the screen behind it.
+              style={sheetFrame}
+              index={0}
+              snapPoints={activeDefinition.snapPoints}
+              enableDynamicSizing={activeDefinition.enableDynamicSizing ?? false}
+              stackBehavior={activeDefinition.stackBehavior ?? "switch"}
+              maxDynamicContentSize={Math.max(1, height - insets.top - 16)}
+              enablePanDownToClose={
+                !dismissLocked && (activeDefinition.enablePanDownToClose ?? true)
+              }
+              enableHandlePanningGesture={!dismissLocked}
+              // Not tied to the dismiss lock. The library renders the content
+              // inside a different wrapper component depending on this flag, so
+              // flipping it while a sheet is open remounts the sheet: whatever
+              // the user had chosen is reset and its "saving" state is lost in
+              // the middle of the request. A locked sheet still cannot be
+              // closed: pan-to-close above is what the lock turns off.
+              enableContentPanningGesture={activeEntry.type !== "transaction"}
+              // Keep the sheet anchored above the keyboard instead of expanding it
+              // to the whole screen. This matches the native messaging UX.
+              keyboardBehavior="interactive"
+              keyboardBlurBehavior="restore"
+              // The app uses edge-to-edge on Android, where adjustResize behaves
+              // like adjustNothing. Let the sheet apply the keyboard offset itself.
+              android_keyboardInputMode="adjustPan"
+              enableBlurKeyboardOnGesture
+              topInset={insets.top}
+              onChange={handleChange}
+              onDismiss={handleDismiss}
+              backdropComponent={renderBackdrop}
+              backgroundStyle={{ backgroundColor: theme.surface }}
+              handleIndicatorStyle={{ backgroundColor: theme.textMuted }}
+            >
+              <ConfirmDialogProvider>
+                <BottomSheetContext.Provider value={contextValue}>
+                  {activeDefinition.enableDynamicSizing ? (
                     <ActiveComponent
                       closeSheet={closeSheet}
                       setDismissLocked={setDismissLocked}
                       openSheet={openSheet}
                       props={activeEntry.props as never}
                     />
-                  </View>
-                )}
-              </BottomSheetContext.Provider>
-            </ConfirmDialogProvider>
-          </BottomSheetModal>
-        </ActiveProvider>
-      ) : null}
-    </BottomSheetContext.Provider>
+                  ) : (
+                    <View
+                      style={[styles.container, { paddingBottom: insets.bottom }]}
+                    >
+                      <ActiveComponent
+                        closeSheet={closeSheet}
+                        setDismissLocked={setDismissLocked}
+                        openSheet={openSheet}
+                        props={activeEntry.props as never}
+                      />
+                    </View>
+                  )}
+                </BottomSheetContext.Provider>
+              </ConfirmDialogProvider>
+            </BottomSheetModal>
+          </ActiveProvider>
+        ) : null}
+      </BottomSheetContext.Provider>
+    </BottomSheetOpenContext.Provider>
   );
 }
 

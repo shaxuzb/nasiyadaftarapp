@@ -5,7 +5,7 @@ import { useTheme } from "../../../hooks/useTheme";
 import { getLocalizedApiErrorMessage, useTranslation } from "../../../i18n";
 import { useToast } from "../../../context/ToastContext";
 import { useConfirmDialog } from "../../../context/ConfirmDialogContext";
-import { useSmsDevices, useClaimSmsDevice, useDeleteSmsDevice } from "../hooks/useSmsDevices";
+import { useSmsDevices, useClaimSmsDevice, useDeleteSmsDevice, useSmsProvider } from "../hooks/useSmsDevices";
 import { SmsGatewayQrScanner } from "./SmsGatewayQrScanner";
 
 /** Embedded in "O'z telefonim"; intentionally NOT a separate device card. */
@@ -14,9 +14,13 @@ export function SmsGatewayControls({ onConnected }: { onConnected?: () => Promis
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { confirm } = useConfirmDialog();
+  // The settings screen around it polls; this reads the same data.
   const devices = useSmsDevices();
   const claim = useClaimSmsDevice();
   const remove = useDeleteSmsDevice();
+  // Already loaded by the settings screen; read here to say in advance what
+  // unlinking the last phone will do.
+  const provider = useSmsProvider();
   const [scannerOpen, setScannerOpen] = useState(false);
   const [code, setCode] = useState("");
   const busy = claim.isPending || remove.isPending;
@@ -41,17 +45,27 @@ export function SmsGatewayControls({ onConnected }: { onConnected?: () => Promis
 
   const disconnect = async (deviceCode: string) => {
     if (busy) return;
+    const lastPhoneInUse =
+      devices.data?.length === 1 && provider.data?.provider === "own_device";
     const accepted = await confirm({
       title: t("smsSettings.deviceRemoveTitle"),
-      message: t("smsSettings.deviceRemoveDescription"),
+      message: lastPhoneInUse
+        ? t("smsSettings.deviceRemoveSwitchDescription")
+        : t("smsSettings.deviceRemoveDescription"),
       confirmText: t("smsSettings.deviceRemove"),
       cancelText: t("common.cancel"),
     });
     if (!accepted) return;
     try {
-      await remove.mutateAsync(deviceCode);
+      const { source } = await remove.mutateAsync(deviceCode);
       setCode("");
-      showToast(t("smsSettings.deviceRemoved"), "success");
+      if (source === "switched") {
+        showToast(t("smsSettings.deviceRemovedSwitched"), "success");
+      } else if (source === "failed") {
+        showToast(t("smsSettings.deviceRemovedSwitchFailed"), "info");
+      } else {
+        showToast(t("smsSettings.deviceRemoved"), "success");
+      }
     } catch (error) {
       showToast(getLocalizedApiErrorMessage(error, "smsSettings.deviceRemoveError", t), "error");
     }

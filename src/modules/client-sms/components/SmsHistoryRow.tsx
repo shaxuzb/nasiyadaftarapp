@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../../../hooks/useTheme";
 import type { AppTheme } from "../../../types";
-import { formatLocalizedDate, useTranslation } from "../../../i18n";
+import { formatLocalizedDateTime, useTranslation } from "../../../i18n";
 import type { SmsHistoryItem } from "../types";
 import { SmsStatusBadge } from "./SmsStatusBadge";
 import { getSmsStatusAppearance } from "../utils/smsStatusPresentation";
@@ -34,7 +34,7 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
         <Text numberOfLines={1} style={styles.phone}>
           {item.phone || t("sms.recipientPhoneMissing")}
         </Text>
-        {item.normalizedStatus === "queued" ? <Text style={styles.detail}>{t("sms.queueDetail", { position: item.queuePosition ?? "—", date: item.estimatedSendDate ? formatLocalizedDate(item.estimatedSendDate, locale) : "—" })}</Text> : null}
+        {item.normalizedStatus === "queued" ? <Text style={styles.detail}>{t("sms.queueDetail", { position: item.queuePosition ?? "—", date: item.estimatedSendDate ? formatLocalizedDateTime(item.estimatedSendDate, locale) : "—" })}</Text> : null}
         {item.source === "auto" ? <Text style={styles.detail}>{t("sms.sourceAuto")}</Text> : null}
         {item.errorMessage || item.message ? (
           <Text
@@ -48,7 +48,7 @@ export const SmsHistoryRow = memo(function SmsHistoryRow({
       <View style={styles.trailing}>
         <SmsStatusBadge status={item.normalizedStatus} />
         {item.sentAt ? (
-          <Text style={styles.date}>{formatLocalizedDate(item.sentAt, locale)}</Text>
+          <Text style={styles.date}>{formatLocalizedDateTime(item.sentAt, locale)}</Text>
         ) : null}
       </View>
     </View>

@@ -65,6 +65,27 @@ const REVIEWED = {
       "config and no Linking listener, so no external URL is parsed. " +
       "RE-REVIEW THIS the moment deep links are added.",
   },
+  "@grpc/grpc-js": {
+    scope: BUILD,
+    via: "@react-native-firebase/app -> firebase -> @firebase/firestore",
+    note:
+      "The Firebase web SDK, which React Native Firebase uses only on the web " +
+      "platform (lib/internal/web, reached from nativeModule.ts; Android and iOS " +
+      "resolve nativeModule.android.ts / nativeModule.ios.ts). The app uses " +
+      "messaging only and never imports firestore; gRPC is its Node transport. " +
+      "Not in the Android or iOS bundle. The only fix offered is a major " +
+      "downgrade of React Native Firebase.",
+  },
+  "node-forge": {
+    scope: BUILD,
+    via: "@expo/cli -> @expo/code-signing-certificates",
+    note: "Signs update manifests in the Expo CLI. Not bundled.",
+  },
+  zod: {
+    scope: BUILD,
+    via: "@expo/cli",
+    note: "Validates CLI and config input. Not bundled.",
+  },
 };
 
 function runAudit() {

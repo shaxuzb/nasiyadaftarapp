@@ -31,6 +31,7 @@ const baseOrder: PaymentOrder = {
   fulfilledDate: null,
   reversedDate: null,
   isFulfilled: false,
+  periodMonths: null,
 };
 
 const events: string[] = [];
@@ -277,5 +278,75 @@ assert(
     "attempt:click,subscription:click,attempt:payme,sms:payme,attempt:none,subscription:none",
   "The chosen provider reaches both the idempotency attempt and the request; none stays none",
 );
+
+/* Terms and renewals: each a request of its own, each with its own key. */
+
+const termEvents: string[] = [];
+const termCore = createPaymentLifecycleCore({
+  getOrCreateCheckoutAttempt: async (_userId, _type, _id, provider, variant) => {
+    termEvents.push(`attempt:${provider ?? "none"}:${variant ?? "plain"}`);
+    return attempt;
+  },
+  clearCheckoutAttempt: async () => undefined,
+  savePendingPayment: async () => undefined,
+  clearPendingPayment: async () => undefined,
+  createSubscriptionPayment: async (id, _key, provider, months) => {
+    termEvents.push(`buy:${id}:${provider ?? "none"}:${months ?? "default"}`);
+    return baseOrder;
+  },
+  createSubscriptionRenewalPayment: async (_key, provider, months) => {
+    termEvents.push(`renew:${provider ?? "none"}:${months ?? "default"}`);
+    return baseOrder;
+  },
+  createSmsPackagePayment: async (_id, _key, _provider) => {
+    termEvents.push("sms");
+    return baseOrder;
+  },
+  syncPayment: async () => baseOrder,
+  cancelPayment: async () => baseOrder,
+  getCheckoutUrl: () => null,
+  shouldPersistPending: () => false,
+  isFulfilled: () => false,
+  onCanonicalOrder: async () => undefined,
+  onFulfilled: async () => undefined,
+});
+await termCore.startCheckout({ userId: 7, productType: "subscription", productId: 2, provider: "payme", months: 3 });
+await termCore.startCheckout({ userId: 7, productType: "subscription", productId: 2, provider: "click", months: 6, renew: true });
+await termCore.startCheckout({ userId: 7, productType: "subscription", productId: 2 });
+// A term on an SMS package means nothing and changes nothing.
+await termCore.startCheckout({ userId: 7, productType: "sms_package", productId: 1, months: 6, renew: true });
+assert(
+  termEvents.join(",") ===
+    [
+      "attempt:payme:m3", "buy:2:payme:3",
+      "attempt:click:renew:m6", "renew:click:6",
+      "attempt:none:plain", "buy:2:none:default",
+      "attempt:none:plain", "sms",
+    ].join(","),
+  "The term and the renewal reach the attempt key and the right request: " + termEvents.join(","),
+);
+
+let renewWithout: unknown = null;
+const noRenewCore = createPaymentLifecycleCore({
+  getOrCreateCheckoutAttempt: async () => attempt,
+  clearCheckoutAttempt: async () => undefined,
+  savePendingPayment: async () => undefined,
+  clearPendingPayment: async () => undefined,
+  createSubscriptionPayment: async () => baseOrder,
+  createSmsPackagePayment: async () => baseOrder,
+  syncPayment: async () => baseOrder,
+  cancelPayment: async () => baseOrder,
+  getCheckoutUrl: () => null,
+  shouldPersistPending: () => false,
+  isFulfilled: () => false,
+  onCanonicalOrder: async () => undefined,
+  onFulfilled: async () => undefined,
+});
+try {
+  await noRenewCore.startCheckout({ userId: 7, productType: "subscription", productId: 2, renew: true });
+} catch (error) {
+  renewWithout = error;
+}
+assert(renewWithout instanceof Error, "A renewal with no way to renew fails instead of buying the plan again");
 
 console.log("Payment lifecycle orchestration tests passed");

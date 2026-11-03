@@ -7,6 +7,7 @@ import {
 import { useAuth } from "../../../context/AuthContext";
 import { getOrganizationQueryScope } from "../../../core/query/organizationScope";
 import { queryKeys } from "../../../core/query/queryKeys";
+import { useRefetchInvalidatedOnFocus } from "../../../hooks/useRefetchInvalidatedOnFocus";
 import {
   getDebtSmsHistory,
   getDebtSmsQueue,
@@ -45,8 +46,11 @@ function useSmsScope() {
 
 export function useSmsRecipients(filters: SmsRecipientFilters) {
   const { enabled, scope, capabilities } = useSmsScope();
+  const queryKey = queryKeys.clientSmsRecipients(scope, filters);
+  // Customers and payments change it from other tabs; see clientInvalidation.
+  useRefetchInvalidatedOnFocus(queryKey);
   return useQuery({
-    queryKey: queryKeys.clientSmsRecipients(scope, filters),
+    queryKey,
     queryFn: ({ signal }) => getSmsRecipients(filters, signal),
     enabled: enabled && capabilities.canView,
     placeholderData: keepPreviousData,
@@ -126,6 +130,8 @@ function useSmsInvalidation() {
       queryKey: queryKeys.clientSmsHistoryRoot(scope),
     });
     void queryClient.invalidateQueries({ queryKey: queryKeys.clientSmsQueue(scope) });
+    // Sending from the shop's own phone uses up its numbers for today.
+    void queryClient.invalidateQueries({ queryKey: queryKeys.clientSmsDevices(scope) });
     try {
       await refreshSubscription();
     } catch {

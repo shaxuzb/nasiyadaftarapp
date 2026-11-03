@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { GATEWAY_APK_URL } from "../config/gatewayApp";
@@ -48,7 +48,13 @@ export function SmsSettingsScreen() {
   const { showToast } = useToast();
   const provider = useSmsProvider();
   const updateProvider = useUpdateSmsProvider();
-  const devices = useSmsDevices();
+  // The phone's state is live only while it matters: this screen in front,
+  // with the phone chosen as the source. While pairing, the code's answer
+  // brings the phone in by itself.
+  const isFocused = useIsFocused();
+  const devices = useSmsDevices({
+    poll: isFocused && provider.data?.provider === "own_device",
+  });
   const quota = user?.subscription?.sms;
 
   const [pairingOpen, setPairingOpen] = useState(false);
@@ -112,8 +118,11 @@ export function SmsSettingsScreen() {
           <Ionicons name="arrow-back" size={24} color={theme.text} />
         </Pressable>
         <Text style={styles.title} numberOfLines={1}>{t("smsSettings.title")}</Text>
-        <View style={styles.headerButton} />
+        {/* The same width as the back button, lesson or not, so the title
+            stays centred. */}
+        <View style={styles.headerButton}>
           <VideoLessonButton code="sms_settings" />
+        </View>
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}>
@@ -236,6 +245,9 @@ export function SmsSettingsScreen() {
                           <Text style={styles.helpStepDescription}>{t("smsSettings.scanOnAndroid")}</Text>
                         </View>
                       )}
+                      {/* Android asks about "unknown sources" for an app not
+                          from Google Play; said here, the question is expected. */}
+                      <Text style={styles.helperText}>{t("smsSettings.unknownSourcesHint")}</Text>
                     </View>
                   </View>
                   <View style={styles.helpStep}>

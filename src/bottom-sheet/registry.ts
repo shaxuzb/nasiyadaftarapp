@@ -24,7 +24,9 @@ export const sheetRegistry: SheetRegistry = {
   },
   transactionDetail: {
     component: TransactionDetailSheet,
-    snapPoints: ["88%"],
+    // As tall as the details, not a fixed share of the screen: 88% of a
+    // tablet is mostly empty.
+    enableDynamicSizing: true,
     enablePanDownToClose: true,
   },
   language: {

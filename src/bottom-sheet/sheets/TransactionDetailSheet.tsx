@@ -2,13 +2,14 @@ import React, { useMemo } from "react";
 import { BottomSheetScrollView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { SheetRenderProps } from "../types";
 import { AppTheme } from "../../types";
 import { useTheme } from "../../hooks/useTheme";
 import {
   formatLocalizedCurrency,
-  formatLocalizedDate,
+  formatLocalizedDateTime,
   useTranslation,
 } from "../../i18n";
 
@@ -43,6 +44,7 @@ export function TransactionDetailSheet({
 }: SheetRenderProps<"transactionDetail">) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
   const { locale, t } = useTranslation();
   const { transaction } = props;
   const isDebt = transaction.type === "debt";
@@ -57,7 +59,8 @@ export function TransactionDetailSheet({
 
   return (
     <BottomSheetScrollView
-      contentContainerStyle={styles.content}
+      // Sized to its content, so the bottom inset is the sheet's own to keep.
+      contentContainerStyle={[styles.content, { paddingBottom: 28 + insets.bottom }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
@@ -90,7 +93,7 @@ export function TransactionDetailSheet({
           {isDebt ? "−" : "+"} {formatLocalizedCurrency(transaction.amount, locale)}
         </Text>
         <Text selectable style={styles.amountDate}>
-          {formatLocalizedDate(transaction.date, locale)}
+          {formatLocalizedDateTime(transaction.date, locale)}
         </Text>
       </View>
 
@@ -110,7 +113,7 @@ export function TransactionDetailSheet({
         <DetailRow
           icon="calendar-outline"
           label={t("transactions.date")}
-          value={formatLocalizedDate(transaction.date, locale)}
+          value={formatLocalizedDateTime(transaction.date, locale)}
         />
         <View style={styles.rowDivider} />
         <DetailRow icon="document-text-outline" label={t("transactions.note")} value={note} />

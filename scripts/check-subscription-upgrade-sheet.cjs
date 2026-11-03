@@ -22,9 +22,11 @@ assert.match(
   /const contentBottomInset = Math\.max\(insets\.bottom, spacing\.md\) \+ 10/,
 );
 assert.match(modal, /paddingBottom:\s*spacing\.md/);
+// The last row stays clear of the home indicator and the navigation bar. The
+// sheet is full height, so the content no longer stretches to fill it.
 assert.match(
   modal,
-  /<View style=\{\{ flex: 1, paddingBottom: contentBottomInset \}\}>/,
+  /<BottomSheetScrollView[\s\S]{0,260}?>\s*<View style=\{\{ paddingBottom: contentBottomInset \}\}>/,
 );
 assert.match(modal, /sheet\.current\?\.present\(\)/);
 assert.match(modal, /sheet\.current\?\.dismiss\(\)/);
@@ -72,9 +74,11 @@ assert.doesNotMatch(modal, /styles\.headerSpacer/);
 assert.match(modal, /paddingTop: 2/);
 assert.match(modal, /minWidth: 88/);
 assert.match(modal, /minHeight: 40/);
+// Full height below the status bar: plans, comparison and packages need the
+// room, and a fixed height does not jump as the content changes.
 assert.match(
   modal,
-  /maxDynamicContentSize=\{\s*Math\.max\(\s*1,\s*height - insets\.top - contentBottomInset,\s*\)\}\s*topInset=\{insets\.top\}/,
+  /enableDynamicSizing=\{false\}\s*snapPoints=\{\["100%"\]\}\s*topInset=\{insets\.top\}/,
 );
 assert.doesNotMatch(modal, /SubscriptionUpgradeIcon/);
 assert.doesNotMatch(modal, /UPGRADE_ICONS/);
@@ -85,13 +89,10 @@ assert.doesNotMatch(modal, /options\.showQuota/);
 assert.doesNotMatch(modal, /viewSubscriptionAfterDismissRef/);
 assert.doesNotMatch(modal, /subscription\.upgrade\.viewPlans/);
 assert.doesNotMatch(modal, /subscription\.nowNot/);
-assert.match(modal, /transactionSmsEnabled/);
-// 24/7 help comes with every plan, the free one included, so the comparison
-// ticks it for both columns instead of reading the server's switch.
-assert.match(
-  modal,
-  /label: t\("subscription\.featurePrioritySupport"\),\s*freeEnabled: true,\s*selectedEnabled: true,/,
-);
+// The comparison is built from what the server says each plan includes
+// (24/7 help among it, on every plan); no capability is decided in the app.
+assert.match(modal, /rows=\{planComparisonRows\(freePlan, selectedPlan, t\)\}/);
+assert.doesNotMatch(modal, /transactionSmsEnabled|prioritySupportEnabled|blacklistEnabled/);
 assert.doesNotMatch(modal, /function proPlan/);
 assert.doesNotMatch(modal, /showPro/);
 assert.match(backHandlerHook, /BackHandler/);

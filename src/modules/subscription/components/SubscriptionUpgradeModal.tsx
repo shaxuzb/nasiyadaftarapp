@@ -146,8 +146,10 @@ export function SubscriptionUpgradeModal({
   const afterDismissRef = useRef<(() => void) | undefined>(undefined);
   visibleRef.current = visible;
   const { openSheet } = useBottomSheet();
-  const plansQuery = useSubscriptionPlans();
-  const packagesQuery = useSmsPackages();
+  // Mounted on several screens and hidden until asked for: the catalog loads
+  // when the sheet opens, not with every screen that carries it.
+  const plansQuery = useSubscriptionPlans({ enabled: visible });
+  const packagesQuery = useSmsPackages({ enabled: visible });
   const [showPackageCatalog, setShowPackageCatalog] = useState(false);
   const options = getSubscriptionUpgradeOptions(subscription, reason);
   // With no plans to offer, the package list is the whole sheet: it opens on

@@ -605,7 +605,7 @@ export function SettingsScreen() {
             }
             onPress={handleOpenBlacklist}
             badge={
-              isPaidSubscription ? undefined : t("subscription.standardPlan")
+              isPaidSubscription ? undefined : t("subscription.premiumPlan")
             }
             isLast
           />

@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
   },
   description: {
+    maxWidth: 440,
     marginTop: spacing.sm,
     textAlign: "center",
   },

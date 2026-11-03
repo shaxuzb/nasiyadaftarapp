@@ -23,20 +23,13 @@ export function useCurrentOrganization() {
 
 export function useUpdateBlacklistSettings() {
   const queryClient = useQueryClient();
-  const { user, currentOrganization } = useAuth();
-  const { scope } = getOrganizationQueryScope(
-    user?.id,
-    currentOrganization?.id,
-  );
   return useMutation({
     mutationFn: updateBlacklistSettings,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.currentOrganization(scope),
-      });
-      await queryClient.invalidateQueries({
+    // The root covers the current organization too; invalidating that first
+    // fetched it twice in a row.
+    onSuccess: () =>
+      queryClient.invalidateQueries({
         queryKey: queryKeys.organizationsRoot(),
-      });
-    },
+      }),
   });
 }

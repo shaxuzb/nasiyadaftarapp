@@ -34,7 +34,7 @@ for (const navigator of ["Tab", "AuthStack", "OrganizationStack"]) {
 }
 assert.match(
   navigation,
-  /<Stack\.Navigator\s+screenOptions=\{\{ headerShown: false \}\}\s+screenLayout=\{renderMainStackScreen\}/,
+  /<Stack\.Navigator\s+screenOptions=\{MAIN_STACK_OPTIONS\}\s+screenLayout=\{renderMainStackScreen\}/,
   "Main stack screens must be framed",
 );
 assert.match(

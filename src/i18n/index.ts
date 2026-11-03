@@ -20,6 +20,7 @@ export {
 export {
   formatLocalizedCurrency,
   formatLocalizedDate,
+  formatLocalizedDateTime,
   formatLocalizedDisplayedBalance,
   formatLocalizedNumber,
 } from "./formatters";

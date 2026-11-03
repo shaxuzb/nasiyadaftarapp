@@ -1,5 +1,5 @@
 export { BottomSheetProvider } from "./BottomSheetProvider";
-export { useBottomSheet } from "./useBottomSheet";
+export { useBottomSheet, useIsBottomSheetOpen } from "./useBottomSheet";
 export { BottomSheetBackHandler } from "./BottomSheetBackHandler";
 export { useBottomSheetBackHandler } from "./useBottomSheetBackHandler";
 export type {

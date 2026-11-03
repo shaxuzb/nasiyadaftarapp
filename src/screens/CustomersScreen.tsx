@@ -12,7 +12,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
-  Linking,
   RefreshControl,
   TextInput,
   useWindowDimensions,
@@ -21,7 +20,7 @@ import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -31,7 +30,6 @@ import {
   type BottomSheetBackdropProps,
 } from "@gorhom/bottom-sheet";
 import { KeyboardController } from "react-native-keyboard-controller";
-import * as Contacts from "expo-contacts";
 
 import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
@@ -75,6 +73,7 @@ import { radius, spacing } from "../theme";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
 import { RenewalReminderBanner } from "../modules/subscription/components/RenewalReminderBanner";
 import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
+import { useContactPicker } from "../modules/clients/hooks/useContactPicker";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -148,8 +147,11 @@ export function CustomersScreen() {
   const { user } = useAuth();
   const regionalCapabilities = useRegionalProductCapabilities();
   const { showToast } = useToast();
+  const pickContact = useContactPicker();
   const { openSheet } = useBottomSheet();
-  const unreadNotifications = useUnreadPushNotificationCount();
+  const unreadNotifications = useUnreadPushNotificationCount({
+    poll: useIsFocused(),
+  });
   const unreadNotificationCount = unreadNotifications.data ?? 0;
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const isPremium =
@@ -373,48 +375,18 @@ export function CustomersScreen() {
   }
 
   async function handlePickFromContacts() {
-    try {
-      phoneInputRef.current?.blur();
-      await KeyboardController.dismiss();
-      const existingPermission = await Contacts.getPermissionsAsync();
-      const permission =
-        existingPermission.status === "granted"
-          ? existingPermission
-          : await Contacts.requestPermissionsAsync();
-
-      if (permission.status !== "granted") {
-        hapticError();
-        if (permission.canAskAgain === false) {
-          showToast(t("customers.contactsPermissionBlocked"), "error");
-          Linking.openSettings();
-        } else {
-          showToast(t("customers.contactsPermissionDenied"), "error");
-        }
-        return;
-      }
-
-      const contact = await Contacts.presentContactPickerAsync();
-      if (!contact) return;
-
-      const contactFullName =
-        contact.name?.trim() ||
-        [contact.firstName, contact.lastName].filter(Boolean).join(" ").trim();
-      const phoneValue = contact.phoneNumbers?.[0]?.number ?? "";
-
-      if (!contactFullName && !phoneValue) {
-        showToast(t("customers.contactsMissing"), "error");
-        return;
-      }
-
-      setFullName(contactFullName.replace(/\s+/g, " "));
-      setPhone(formatUzPhoneFromDigits(phoneValue));
+    phoneInputRef.current?.blur();
+    const contact = await pickContact();
+    if (!contact) return;
+    // What the contact has fills its field; what it lacks leaves the field
+    // as the user typed it.
+    if (contact.fullName) setFullName(contact.fullName);
+    if (contact.phone) {
+      setPhone(formatUzPhoneFromDigits(contact.phone));
       setPhoneInputKey((key) => key + 1);
-      setErrors({});
-      showToast(t("customers.contactsFilled"), "success");
-    } catch {
-      hapticError();
-      showToast(t("customers.contactsOpenError"), "error");
     }
+    setErrors({});
+    showToast(t("customers.contactsFilled"), "success");
   }
 
   function handleCustomerSheetDismiss() {

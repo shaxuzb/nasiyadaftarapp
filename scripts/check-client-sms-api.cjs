@@ -92,10 +92,25 @@ vm.runInNewContext(code, {
   });
   assert.deepEqual(JSON.parse(JSON.stringify(bulk)), {
     sentCount: 1,
+    queuedCount: 0,
     failedCount: 1,
     skippedCount: 1,
     results: [{ clientId: 1, status: "sent" }],
   });
+  // Messages waiting for the phone that sends them: counted from the server,
+  // or from the results when an older server leaves the total out.
+  nextData = {
+    sentCount: 0,
+    failedCount: 0,
+    skippedCount: 0,
+    results: [
+      { clientId: 1, status: "QUEUED" },
+      { clientId: 2, status: "queued" },
+    ],
+  };
+  assert.equal((await moduleExports.sendBulkDebtSms([1, 2])).queuedCount, 2);
+  nextData = { sentCount: 0, queuedCount: 5, failedCount: 0, skippedCount: 0, results: [] };
+  assert.equal((await moduleExports.sendBulkDebtSms([1, 2])).queuedCount, 5);
   const before = calls.length;
   await assert.rejects(() => moduleExports.sendBulkDebtSms([0, -1]));
   assert.equal(calls.length, before);

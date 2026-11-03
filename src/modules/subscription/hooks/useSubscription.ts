@@ -18,22 +18,24 @@ export function useCurrentSubscription() {
   });
 }
 
-export function useSubscriptionPlans() {
+/** `enabled: false` until shown, for a view that is mounted but hidden. */
+export function useSubscriptionPlans({ enabled = true }: { enabled?: boolean } = {}) {
   const { user } = useAuth();
   return useQuery({
     queryKey: queryKeys.subscriptionPlans(),
     queryFn: ({ signal }) => getSubscriptionPlans(signal),
-    enabled: Boolean(user),
+    enabled: enabled && Boolean(user),
     staleTime: 5 * 60_000,
   });
 }
 
-export function useSmsPackages() {
+/** `enabled: false` until shown, for a view that is mounted but hidden. */
+export function useSmsPackages({ enabled = true }: { enabled?: boolean } = {}) {
   const { user } = useAuth();
   return useQuery({
     queryKey: queryKeys.subscriptionSmsPackages(),
     queryFn: ({ signal }) => getSmsPackages(signal),
-    enabled: Boolean(user),
+    enabled: enabled && Boolean(user),
     staleTime: 5 * 60_000,
   });
 }

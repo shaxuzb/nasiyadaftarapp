@@ -9,6 +9,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
 import { useTheme } from "../hooks/useTheme";
 import { useThemeContext } from "../context/ThemeContext";
 import {
@@ -128,6 +129,12 @@ function TabNavigator({
       ? "Customers"
       : initialRouteName;
   const bottomPadding = Math.max(insets.bottom, 8);
+  // The bar runs edge to edge, but on a tablet its tabs gather over the
+  // centred column the screens sit in, instead of spreading across the width.
+  // The same side margin as a sheet's; none on a phone.
+  const columnFrame = useSheetFrameStyle();
+  const tabInset =
+    typeof columnFrame?.marginHorizontal === "number" ? columnFrame.marginHorizontal : 0;
 
   return (
     <Tab.Navigator
@@ -146,7 +153,7 @@ function TabNavigator({
           height: 64 + bottomPadding,
           paddingTop: 7,
           paddingBottom: bottomPadding,
-          paddingHorizontal: 8,
+          paddingHorizontal: 8 + tabInset,
           backgroundColor: theme.tabBar,
           borderTopColor: theme.tabBarBorder,
           borderTopWidth: 1,
@@ -217,16 +224,24 @@ function renderMainStackScreen({
   );
 }
 
+// The tabs re-render for their own reasons (the user, the theme); not every
+// time the stack around them does, which the inline screen below would cause.
+const MemoTabNavigator = React.memo(TabNavigator);
+
+// A screen covered by another one stops re-rendering until it is shown again,
+// as the tabs already do. One object, so the options are not new each render.
+const MAIN_STACK_OPTIONS = { headerShown: false, freezeOnBlur: true } as const;
+
 function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
   const regionalCapabilities = useRegionalProductCapabilities();
 
   return (
     <Stack.Navigator
-      screenOptions={{ headerShown: false }}
+      screenOptions={MAIN_STACK_OPTIONS}
       screenLayout={renderMainStackScreen}
     >
       <Stack.Screen name="MainTabs">
-        {() => <TabNavigator initialRouteName={initialTab} />}
+        {() => <MemoTabNavigator initialRouteName={initialTab} />}
       </Stack.Screen>
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />

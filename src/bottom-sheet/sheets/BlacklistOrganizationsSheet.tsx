@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "../../context/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
-import { formatLocalizedDate, useTranslation } from "../../i18n";
+import { formatLocalizedDateTime, useTranslation } from "../../i18n";
 import { useClientBlacklist } from "../../modules/clients/hooks/useClientBlacklist";
 import type { BlacklistedOrganization } from "../../modules/clients/types";
 import { radius, spacing, typography } from "../../theme";
@@ -168,7 +168,7 @@ const OrganizationCard = memo(function OrganizationCard({
       {since ? (
         <DetailRow
           label={t("customers.blacklistSince")}
-          value={formatLocalizedDate(since, locale)}
+          value={formatLocalizedDateTime(since, locale)}
         />
       ) : null}
       {organization.blacklistAfterDays !== undefined ? (

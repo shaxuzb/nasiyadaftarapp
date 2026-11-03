@@ -1,4 +1,4 @@
-import { Mask } from "react-native-mask-input";
+import type { Mask } from "react-native-mask-input";
 
 export const uzPhoneMask: Mask = [
   "+",
@@ -20,11 +20,31 @@ export const uzPhoneMask: Mask = [
   /\d/,
 ];
 
+/**
+ * The nine digits after +998, from whatever was typed, pasted or stored:
+ *
+ *   "+998 93 998 70 55", "998939987055", "93 998 70 55", "(93) 998-70-55"
+ *     -> "939987055"
+ *
+ * Phone fields always show their own "+998 ", so a number pasted into one
+ * arrives with it in front: "+998 +998 93 998 70 55", "+998 998939987055".
+ * Taking off only the first 998 turned those into "+998 99 893 99 87". Here
+ * the field's prefix comes off first, then any whole international number
+ * pasted after it.
+ *
+ * 998 is removed only from twelve digits or more, a full number with its
+ * country code. Nine digits are always a local number, even one that starts
+ * with 998 itself ("99 812 34 56").
+ */
 export function normalizeUzPhoneDigits(input: string): string {
-  const digits = input.replace(/\D/g, "");
+  const compact = input.replace(/\s/g, "");
+  // Backspacing into the field's "+998" ("+99", "+9", "+") leaves no number.
+  if ("+998".startsWith(compact)) return "";
+  let digits = (compact.startsWith("+998") ? compact.slice(4) : compact).replace(/\D/g, "");
 
-  if (digits.startsWith("998")) return digits.slice(3, 12);
-  if (digits.startsWith("0")) return digits.slice(1, 10);
+  while (digits.length >= 12 && digits.startsWith("998")) digits = digits.slice(3);
+  // A trunk zero some write before the operator: "0 93 998 70 55".
+  if (digits.startsWith("0")) digits = digits.slice(1);
 
   return digits.slice(0, 9);
 }

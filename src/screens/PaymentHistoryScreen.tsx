@@ -18,7 +18,7 @@ import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
 import {
   formatLocalizedCurrency,
-  formatLocalizedDate,
+  formatLocalizedDateTime,
   useTranslation,
 } from "../i18n";
 import { getPaymentCopy } from "../modules/payments/i18n/paymentCopy";
@@ -61,7 +61,7 @@ export function PaymentHistoryScreen() {
           {item.productName}
         </Text>
         <Text style={styles.date}>
-          {formatLocalizedDate(item.paidDate ?? item.createdDate, locale)}
+          {formatLocalizedDateTime(item.paidDate ?? item.createdDate, locale)}
         </Text>
       </View>
       <View style={styles.right}>

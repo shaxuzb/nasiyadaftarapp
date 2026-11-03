@@ -53,11 +53,20 @@ try {
   /* 2. The row says "sent today" where the reason goes, not "can't send". */
 
   const row = read("src/modules/client-sms/components/SmsRecipientRow.tsx");
+  // With the queue an SMS "today" may still be waiting, so the line says one
+  // exists rather than that it went. A known cooldown date says more and comes
+  // first; a status chip already on the row makes the line redundant.
   assert.match(
     row,
-    /\) : recipient\.smsSentToday \? \([\s\S]*?sms\.sentToday"[\s\S]*?\) : !recipient\.canSend \? \(/,
-    "A client sent to today must read 'sent today' on the reason line, checked before the generic reason",
+    /: recipient\.nextSmsAvailableDate\s*\?[\s\S]*?sms\.nextAvailable"[\s\S]*?: recipient\.smsSentToday && !recipient\.lastSmsStatus\s*\?[\s\S]*?sms\.smsToday"[\s\S]*?: !recipient\.canSend && !recipient\.lastSmsStatus\s*\?/,
+    "A client sent to today must say so on the reason line, checked before the generic reason",
   );
+  // The reason line is the card's own second line, full width: in the name's
+  // column the balance beside it cut a long date short.
+  assert.match(row, /\{note \? \(\s*<View style=\{\[styles\.note, selectable \? styles\.noteSelectable : null\]\}>/);
+  assert.match(row, /<Text\s+numberOfLines=\{2\}\s+style=\{\[\s*styles\.noteText,/, "Wraps rather than ending in an ellipsis");
+  assert.match(row, /note: \{\s*flexBasis: "100%",/);
+  assert.match(row, /flexWrap: "wrap",/);
   assert.doesNotMatch(
     row,
     /sentTodayBadge/,
@@ -92,6 +101,11 @@ try {
     /loading=\{sendingTarget === "bulk"\}\s*disabled=\{sendingTarget !== null\}/,
     "The bulk button must stay disabled until the request finishes",
   );
+  // The bar under a selection: the words give way and wrap, the button keeps
+  // its size. A longer language once pushed the button off the screen.
+  assert.match(screen, /<View style=\{styles\.footerCopy\}>[\s\S]{0,300}?numberOfLines=\{2\}>\s*\{t\("sms\.selectedHint"\)\}/);
+  assert.match(screen, /footerCopy: \{ flex: 1, minWidth: 0 \},/);
+  assert.match(screen, /footerButton: \{ minHeight: 38, minWidth: 142, flexShrink: 0 \},/);
   assert.doesNotMatch(
     screen,
     /onSend=\{\(value\) =>/,

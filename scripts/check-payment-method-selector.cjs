@@ -78,8 +78,8 @@ assert.match(
 );
 assert.match(
   sheet,
-  /startCheckout\(\{\s*productType: props\.productType,\s*productId: product\.id,\s*provider: showMethods \? method : null,\s*\}\)/,
-  "The chosen provider goes with the request; without a list, none does",
+  /startCheckout\(\{\s*productType: props\.productType,\s*productId: product\.id,\s*provider: showMethods \? method : null,\s*months: period \? period\.months : null,\s*renew,\s*\}\)/,
+  "The chosen provider goes with the request (without a list, none does), with the term and whether it renews",
 );
 assert.match(sheet, /const showMethods = needsMethod && providers\.length > 0;/, "No list, no tiles");
 assert.match(

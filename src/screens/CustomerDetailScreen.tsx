@@ -1,5 +1,5 @@
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
-import React, { useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -26,12 +26,13 @@ import { CustomerEditSheet } from "../modules/clients/components/CustomerEditShe
 import { useClientDetail } from "../modules/clients/hooks/useClientDetail";
 import { getInitials } from "../utils";
 import { APP_NAME } from "../constants";
+import type { Transaction } from "../modules/transactions/types";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
 import {
   formatLocalizedCurrency,
-  formatLocalizedDate,
+  formatLocalizedDateTime,
   formatLocalizedDisplayedBalance,
   getLocalizedApiErrorMessage,
   useTranslation,
@@ -147,7 +148,7 @@ export function CustomerDetailScreen() {
           (balance === undefined
             ? ""
             : `\n${t("transactions.balance")}: ${formatLocalizedDisplayedBalance(balance, locale)}`) +
-          `\n${t("transactions.date")}: ${formatLocalizedDate(new Date(), locale)}`,
+          `\n${t("transactions.date")}: ${formatLocalizedDateTime(new Date(), locale)}`,
       });
     } catch (error) {
       showToast(
@@ -213,6 +214,31 @@ export function CustomerDetailScreen() {
     </View>
   );
 
+  // The rows stay as they are while the screen around them changes (the
+  // actions menu, the footer measuring itself, a sheet opening): one memoised
+  // row each, and the same open handler for all. The name is read when a row
+  // is tapped, so the handler does not change with it.
+  const customerNameRef = useRef("");
+  const openTransactionDetail = useCallback(
+    (tx: Transaction) =>
+      openSheet("transactionDetail", {
+        transaction: tx,
+        customerName: customerNameRef.current,
+      }),
+    [openSheet],
+  );
+  const renderTransaction = useCallback(
+    ({ item }: { item: Transaction }) => (
+      <TransactionRow
+        tx={item}
+        onOpen={openTransactionDetail}
+        theme={theme}
+        styles={styles}
+      />
+    ),
+    [openTransactionDetail, styles, theme],
+  );
+
   if (!customer)
     return (
       <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -265,6 +291,7 @@ export function CustomerDetailScreen() {
     customer.fullName.trim() ||
     customer.phone ||
     t("transactions.customerFallback");
+  customerNameRef.current = displayName;
 
   function openTransactionSheet() {
     if (!customer || deleting) return;
@@ -637,46 +664,7 @@ export function CustomerDetailScreen() {
             )}
           </>
         }
-        renderItem={({ item: tx }) => (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`${formatLocalizedDate(tx.date, locale)}, ${tx.type === "debt" ? t("transactions.detailDebt") : t("transactions.detailPayment")}, ${formatLocalizedCurrency(tx.amount, locale)}`}
-            onPress={() =>
-              openSheet("transactionDetail", {
-                transaction: tx,
-                customerName: displayName,
-              })
-            }
-            style={({ pressed }) => [styles.txRow, pressed && styles.pressed]}
-          >
-            <View style={styles.txCopy}>
-              <Text style={styles.txDate}>
-                {formatLocalizedDate(tx.date, locale)}
-              </Text>
-              <Text style={styles.txLabel}>{tx.note}</Text>
-            </View>
-            <Text
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.7}
-              style={[
-                styles.txAmount,
-                {
-                  color:
-                    tx.type === "debt" ? theme.debtColor : theme.paymentColor,
-                },
-              ]}
-            >
-              {tx.type === "debt" ? "−" : "+"}
-              {formatLocalizedCurrency(tx.amount, locale)}
-            </Text>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={theme.textMuted}
-            />
-          </Pressable>
-        )}
+        renderItem={renderTransaction}
         ListEmptyComponent={
           history.isPending ? (
             <ActivityIndicator style={styles.loading} color={theme.primary} />
@@ -760,6 +748,50 @@ export function CustomerDetailScreen() {
     </SafeAreaView>
   );
 }
+
+const TransactionRow = memo(function TransactionRow({
+  tx,
+  onOpen,
+  theme,
+  styles,
+}: {
+  tx: Transaction;
+  onOpen: (tx: Transaction) => void;
+  theme: AppTheme;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const { locale, t } = useTranslation();
+  const date = formatLocalizedDateTime(tx.date, locale);
+  const amount = formatLocalizedCurrency(tx.amount, locale);
+  const isDebt = tx.type === "debt";
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${date}, ${isDebt ? t("transactions.detailDebt") : t("transactions.detailPayment")}, ${amount}`}
+      onPress={() => onOpen(tx)}
+      style={({ pressed }) => [styles.txRow, pressed && styles.pressed]}
+    >
+      <View style={styles.txCopy}>
+        <Text style={styles.txDate}>{date}</Text>
+        <Text style={styles.txLabel}>{tx.note}</Text>
+      </View>
+      <Text
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.7}
+        style={[
+          styles.txAmount,
+          { color: isDebt ? theme.debtColor : theme.paymentColor },
+        ]}
+      >
+        {isDebt ? "−" : "+"}
+        {amount}
+      </Text>
+      <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+    </Pressable>
+  );
+});
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({

@@ -43,14 +43,18 @@ export function usePushNotificationList(pageSize = DEFAULT_PAGE_SIZE) {
   });
 }
 
-export function useUnreadPushNotificationCount() {
+/**
+ * The bell's count. A push that arrives refreshes it already; `poll` is the
+ * fallback for one that did not, and only while the bell is on screen.
+ */
+export function useUnreadPushNotificationCount({ poll = false }: { poll?: boolean } = {}) {
   const scope = usePushScope();
   return useQuery({
     queryKey: queryKeys.pushUnreadCount(scope),
     queryFn: ({ signal }) => getUnreadPushNotificationCount(signal),
     enabled: scope !== "anonymous",
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    refetchInterval: poll ? 60_000 : false,
   });
 }
 

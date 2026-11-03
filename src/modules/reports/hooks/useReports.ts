@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../context/AuthContext";
 import { getOrganizationQueryScope } from "../../../core/query/organizationScope";
 import { queryKeys } from "../../../core/query/queryKeys";
+import { useRefetchInvalidatedOnFocus } from "../../../hooks/useRefetchInvalidatedOnFocus";
 import { getReports } from "../services/reportsService";
 import { ReportsQueryParams } from "../types";
 
@@ -19,8 +20,11 @@ export function useReports(
     currentOrganization?.id,
   );
 
+  const queryKey = queryKeys.reports(scope, params);
+  // Payments and customers change it from other tabs; see clientInvalidation.
+  useRefetchInvalidatedOnFocus(queryKey);
   const query = useQuery({
-    queryKey: queryKeys.reports(scope, params),
+    queryKey,
     queryFn: ({ signal }) => getReports(params, signal),
     placeholderData: (previousData) => previousData,
     enabled,
