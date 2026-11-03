@@ -10,20 +10,18 @@ import { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useTheme } from "../../hooks/useTheme";
-import { useTranslation } from "../../i18n";
+import { useTranslation, type TranslateKey } from "../../i18n";
 import { radius, spacing, typography } from "../../theme";
 import { AppTheme } from "../../types";
 import type { Locale } from "../../i18n";
+import { flagOf } from "../../modules/phone/utils/phoneNumber";
+import { SETUP_LANGUAGES } from "../../modules/setup/data/setupOptions";
 import type { SheetRenderProps } from "../types";
 
-const LANGUAGE_OPTIONS: ReadonlyArray<{
-  locale: Locale;
-  labelKey: "auth.uzbek" | "auth.russian";
-}> = [
-  { locale: "uz", labelKey: "auth.uzbek" },
-  { locale: "ru", labelKey: "auth.russian" },
-];
-
+/**
+ * The same languages as on first launch, with their flags: the translated
+ * ones to choose from, the rest listed as coming soon.
+ */
 export function LanguageSheet({
   closeSheet,
 }: SheetRenderProps<"language">) {
@@ -34,12 +32,7 @@ export function LanguageSheet({
 
   const handleSelect = useCallback(
     (nextLocale: Locale) => {
-      if (nextLocale === locale) {
-        closeSheet();
-        return;
-      }
-
-      setLocale(nextLocale);
+      if (nextLocale !== locale) setLocale(nextLocale);
       closeSheet();
     },
     [closeSheet, locale, setLocale],
@@ -66,29 +59,52 @@ export function LanguageSheet({
         </Pressable>
       </View>
 
-      <View style={styles.options}>
-        {LANGUAGE_OPTIONS.map((option) => {
-          const selected = option.locale === locale;
+      <View style={styles.options} accessibilityRole="radiogroup">
+        {SETUP_LANGUAGES.map((language) => {
+          const available = language.locale !== null;
+          const selected = language.locale === locale;
+          const localName = t(`setup.languageNames.${language.code}` as TranslateKey);
           return (
             <Pressable
-              key={option.locale}
+              key={language.code}
               accessibilityRole="radio"
-              accessibilityLabel={t(option.labelKey)}
-              accessibilityState={{ selected }}
-              onPress={() => handleSelect(option.locale)}
+              accessibilityLabel={[
+                language.nativeName,
+                localName,
+                available ? null : t("setup.comingSoon"),
+              ]
+                .filter(Boolean)
+                .join(", ")}
+              accessibilityState={{ selected, disabled: !available }}
+              disabled={!available}
+              onPress={() => language.locale && handleSelect(language.locale)}
               style={({ pressed }) => [
                 styles.option,
                 selected && styles.optionSelected,
+                !available && styles.optionDisabled,
                 pressed && styles.pressed,
               ]}
             >
-              <View style={[styles.localeBadge, selected && styles.localeBadgeSelected]}>
-                <Text style={[styles.localeCode, selected && styles.localeCodeSelected]}>
-                  {option.locale.toUpperCase()}
+              <View style={styles.flagWrap}>
+                <Text style={styles.flag}>{flagOf(language.flag)}</Text>
+              </View>
+              <View style={styles.optionCopy}>
+                <Text
+                  style={[styles.optionLabel, selected && styles.optionLabelSelected]}
+                  numberOfLines={1}
+                >
+                  {language.nativeName}
+                </Text>
+                <Text style={styles.optionHint} numberOfLines={1}>
+                  {localName}
                 </Text>
               </View>
-              <Text style={styles.optionLabel}>{t(option.labelKey)}</Text>
-              {selected ? (
+              {!available ? (
+                <View style={styles.soonBadge}>
+                  <Ionicons name="time-outline" size={12} color={theme.textSecondary} />
+                  <Text style={styles.soonText}>{t("setup.comingSoon")}</Text>
+                </View>
+              ) : selected ? (
                 <Ionicons name="checkmark-circle" size={22} color={theme.primary} />
               ) : (
                 <View style={styles.unselectedMark} />
@@ -140,13 +156,15 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: radius.full,
       backgroundColor: theme.inputBackground,
     },
-    options: { gap: spacing.xs },
+    options: { gap: 6 },
+    // Compact enough for all eight on a small phone, without scrolling.
     option: {
-      minHeight: 62,
+      minHeight: 54,
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
       paddingHorizontal: spacing.sm,
+      paddingVertical: 6,
       borderRadius: radius.md,
       borderWidth: 1,
       borderColor: theme.border,
@@ -156,27 +174,34 @@ const createStyles = (theme: AppTheme) =>
       borderColor: theme.primary,
       backgroundColor: theme.primaryLight,
     },
-    localeBadge: {
+    optionDisabled: { opacity: 0.55 },
+    flagWrap: {
       width: 38,
       height: 38,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 12,
+      borderRadius: radius.full,
       backgroundColor: theme.inputBackground,
     },
-    localeBadgeSelected: { backgroundColor: theme.surface },
-    localeCode: {
-      ...typography.caption,
-      color: theme.textSecondary,
-      fontWeight: "800",
-    },
-    localeCodeSelected: { color: theme.primary },
+    flag: { fontSize: 22, lineHeight: 28 },
+    optionCopy: { flex: 1, minWidth: 0, gap: 1 },
     optionLabel: {
-      flex: 1,
       ...typography.bodyMedium,
       color: theme.text,
       fontWeight: "700",
     },
+    optionLabelSelected: { color: theme.primary },
+    optionHint: { ...typography.caption, color: theme.textSecondary },
+    soonBadge: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
+      borderRadius: radius.full,
+      backgroundColor: theme.inputBackground,
+    },
+    soonText: { ...typography.caption, color: theme.textSecondary, fontWeight: "700" },
     unselectedMark: {
       width: 22,
       height: 22,

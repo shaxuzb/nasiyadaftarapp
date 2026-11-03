@@ -157,7 +157,10 @@ export function ReportsScreen() {
     if (isExporting) return;
     setIsExporting(true);
     try {
-      await exportClientsReport(t("reports.exportDialogTitle"));
+      await exportClientsReport(
+        t("reports.exportDialogTitle"),
+        t("reports.exportFileName"),
+      );
       showToast(t("reports.exportReady"), "success");
     } catch (error) {
       showToast(getLocalizedApiErrorMessage(error, "reports.exportError", t), "error");

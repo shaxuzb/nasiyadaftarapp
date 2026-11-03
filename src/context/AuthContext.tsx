@@ -55,6 +55,7 @@ import { queryClient } from "../core/query/queryClient";
 import { queryKeys } from "../core/query/queryKeys";
 import { getOrganizationSelectionBackAction } from "./organizationSelection";
 import { unregisterPushDevice } from "../modules/push/services/pushService";
+import { createOrganizationLimitError } from "../i18n/apiErrors";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -351,10 +352,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (
         !canCreateOrganization(user.subscription, existingOrganizations.length)
       ) {
-        const limit = user.subscription?.maxOrganizations ?? 0;
-        throw new Error(
-          `Joriy tarif bo'yicha ko'pi bilan ${limit} ta tashkilot yaratish mumkin`,
-        );
+        throw createOrganizationLimitError(user.subscription?.maxOrganizations ?? 0);
       }
 
       const created = await createOrganization(payload);

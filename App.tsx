@@ -23,6 +23,7 @@ import { AccountSecurityProvider } from "./src/modules/account/context/AccountSe
 import { AppLockProvider } from "./src/modules/pin-auth/context/AppLockContext";
 import { OfferAcceptanceGate } from "./src/modules/offer/components/OfferAcceptanceGate";
 import { PaymentRecoveryGate } from "./src/modules/payments/components/PaymentRecoveryGate";
+import { AppSetupProvider } from "./src/modules/setup/context/AppSetupContext";
 import { LanguageProvider } from "./src/i18n";
 import { PushNotificationProvider } from "./src/modules/push/context/PushNotificationContext";
 
@@ -54,25 +55,27 @@ function ThemedApp() {
                       <AppLockProvider>
                         <AccountSecurityProvider>
                           <AppProvider>
-                            <BottomSheetModalProvider>
-                              <ConfirmDialogProvider>
-                                <BottomSheetProvider>
-                                  <AppUpdateGate>
-                                    <PaymentRecoveryGate enabled={true} />
-                                    <StatusBar
-                                      style={
-                                        resolvedScheme === "dark"
-                                          ? "light"
-                                          : "dark"
-                                      }
-                                      backgroundColor={theme.background}
-                                    />
-                                    <AppNavigator />
-                                    <OfferAcceptanceGate />
-                                  </AppUpdateGate>
-                                </BottomSheetProvider>
-                              </ConfirmDialogProvider>
-                            </BottomSheetModalProvider>
+                            <AppSetupProvider>
+                              <BottomSheetModalProvider>
+                                <ConfirmDialogProvider>
+                                  <BottomSheetProvider>
+                                    <AppUpdateGate>
+                                      <PaymentRecoveryGate enabled={true} />
+                                      <StatusBar
+                                        style={
+                                          resolvedScheme === "dark"
+                                            ? "light"
+                                            : "dark"
+                                        }
+                                        backgroundColor={theme.background}
+                                      />
+                                      <AppNavigator />
+                                      <OfferAcceptanceGate />
+                                    </AppUpdateGate>
+                                  </BottomSheetProvider>
+                                </ConfirmDialogProvider>
+                              </BottomSheetModalProvider>
+                            </AppSetupProvider>
                           </AppProvider>
                         </AccountSecurityProvider>
                       </AppLockProvider>

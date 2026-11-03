@@ -19,8 +19,9 @@ export function formatDisplayedBalance(amount: number): string {
 }
 
 
-export function getFullName(customer: Customer): string {
-  return customer.fullName.trim() || customer.phone || "Noma'lum mijoz";
+/** The name, else the phone, else `fallback`: a translated "Customer". */
+export function getFullName(customer: Customer, fallback: string): string {
+  return customer.fullName.trim() || customer.phone || fallback;
 }
 
 export function getInitials(customer: Customer): string {

@@ -34,7 +34,7 @@ import {
   rememberCodeRequest,
 } from "../modules/auth/utils/codeRequestCooldown";
 import { useTheme } from "../hooks/useTheme";
-import { maskUzPhoneForDisplay } from "../utils/masks";
+import { maskPhoneForDisplay } from "../modules/phone/utils/phoneNumber";
 import { spacing, typography } from "../theme";
 
 const OTP_LENGTH = 6;
@@ -65,7 +65,7 @@ export function PhoneAuthVerifyScreen({
 
   const [code, setCode] = useState("");
   const [phoneMaskedValue, setPhoneMaskedValue] = useState(
-    maskedPhone || maskUzPhoneForDisplay(phoneNumber),
+    maskedPhone || maskPhoneForDisplay(phoneNumber),
   );
   // Counts down to when the server will accept another request, which is what
   // the "resend" button waits for.

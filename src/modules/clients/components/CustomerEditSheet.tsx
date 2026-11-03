@@ -31,11 +31,15 @@ import { useDismissSheetOnAppLock } from "../../../bottom-sheet/useDismissSheetO
 import { useToast } from "../../../context/ToastContext";
 import { useBottomSheetBackHandler } from "../../../bottom-sheet";
 import { AndroidSheetKeyboardBridge } from "../../../bottom-sheet/AndroidSheetKeyboardBridge";
+import { PhoneNumberInput } from "../../phone/components/PhoneNumberInput";
+import { useAccountPhoneCountry } from "../../phone/hooks/useAccountPhoneCountry";
 import {
-  formatUzPhoneFromDigits,
-  isOptionalUzPhoneValid,
-  toOptionalStoredUzPhone,
-} from "../../../utils/masks";
+  isOptionalPhoneValid,
+  phoneFromStored,
+  readPhoneInput,
+  toE164,
+  type PhoneValue,
+} from "../../phone/utils/phoneNumber";
 import { hapticSuccess } from "../../../utils/haptics";
 import { useContactPicker } from "../hooks/useContactPicker";
 import type { ClientUpdateRequest, Customer } from "../types";
@@ -72,33 +76,34 @@ export function CustomerEditSheet({
   const submitting = useRef(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(customer.fullName);
-  const [phone, setPhone] = useState(formatUzPhoneFromDigits(customer.phone));
-  // The phone field keeps its own text while typing; this puts a new number
-  // into it (a contact picked, the customer reloaded).
-  const [phoneResetKey, setPhoneResetKey] = useState(0);
+  // A customer without a number starts on the account's own country.
+  const accountCountry = useAccountPhoneCountry();
+  const [phone, setPhone] = useState<PhoneValue>(() =>
+    phoneFromStored(customer.phone, accountCountry),
+  );
   const [phoneError, setPhoneError] = useState<string>();
   const previousDataState = useRef(dataState);
   const pickContact = useContactPicker();
   // The phone is optional, as it is when a customer is added: empty is a
   // valid value, and clearing the field removes the number. Only a number
-  // that was started and left unfinished is an error.
+  // that was started and left unfinished is an error. Compared as stored,
+  // so a number saved in an older form is not taken for a change.
   const changed =
     name.trim() !== customer.fullName ||
-    toOptionalStoredUzPhone(phone) !== customer.phone;
-  const handlePhoneChange = useCallback((value: string) => {
-    setPhone(formatUzPhoneFromDigits(value));
+    toE164(phone) !== toE164(phoneFromStored(customer.phone, accountCountry));
+  const handlePhoneChange = useCallback((value: PhoneValue) => {
+    setPhone(value);
     setPhoneError(undefined);
   }, []);
 
   useEffect(() => {
     if (previousDataState.current !== "ready" && dataState === "ready") {
       setName(customer.fullName);
-      setPhone(formatUzPhoneFromDigits(customer.phone));
-      setPhoneResetKey((key) => key + 1);
+      setPhone(phoneFromStored(customer.phone, accountCountry));
       setPhoneError(undefined);
     }
     previousDataState.current = dataState;
-  }, [customer, dataState]);
+  }, [accountCountry, customer, dataState]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => sheetControls.present());
@@ -129,17 +134,15 @@ export function CustomerEditSheet({
     if (!contact) return;
     // What the contact has replaces its field; what it lacks stays as it is.
     if (contact.fullName) setName(contact.fullName);
-    if (contact.phone) {
-      setPhone(formatUzPhoneFromDigits(contact.phone));
-      setPhoneResetKey((key) => key + 1);
-    }
+    // A number saved with its "+" brings its own country.
+    if (contact.phone) setPhone(readPhoneInput(contact.phone, phone.country));
     setPhoneError(undefined);
     showToast(t("customers.contactsFilled"), "success");
   }
 
   async function save() {
     if (submitting.current || !ready || dataState !== "ready") return;
-    if (!isOptionalUzPhoneValid(phone)) {
+    if (!isOptionalPhoneValid(phone)) {
       setPhoneError(t("transactions.phoneIncomplete"));
       return;
     }
@@ -148,7 +151,7 @@ export function CustomerEditSheet({
     try {
       await onSave({
         fullName: name.trim().replace(/\s+/g, " "),
-        phoneNumber: toOptionalStoredUzPhone(phone),
+        phoneNumber: toE164(phone),
         // Not edited here any more, but sent as it is so saving never
         // clears a note the customer already has.
         note: customer.note ?? "",
@@ -225,20 +228,14 @@ export function CustomerEditSheet({
           submitBehavior="submit"
           onSubmitEditing={() => phoneRef.current?.focus()}
         />
-        <AppInput
+        <PhoneNumberInput
           variant="sheet"
           compact
           inputRef={phoneRef}
-          inputResetKey={phoneResetKey}
           label={t("customers.phoneOptional")}
-          uncontrolled
-          defaultValue={phone}
-          transformText={formatUzPhoneFromDigits}
-          onChangeText={handlePhoneChange}
-          placeholder={t("customers.phonePlaceholder")}
+          value={phone}
+          onChange={handlePhoneChange}
           editable={!saving}
-          keyboardType="phone-pad"
-          autoComplete="tel"
           error={phoneError}
           trailingAccessory={
             <Pressable
@@ -270,7 +267,7 @@ export function CustomerEditSheet({
             !ready ||
             dataState !== "ready" ||
             !changed ||
-            !isOptionalUzPhoneValid(phone)
+            !isOptionalPhoneValid(phone)
           }
         />
       </BottomSheetScrollView>

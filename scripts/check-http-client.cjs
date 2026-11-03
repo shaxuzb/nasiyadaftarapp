@@ -1,7 +1,8 @@
 // The HTTP client, run against a fake server.
 //
 // 1. Every request says which app is calling (X-App-Version, X-Platform,
-//    X-App-Build, X-Device-Id).
+//    X-App-Build, X-Device-Id), and in which language to answer
+//    (Accept-Language, the language the app is in).
 // 2. An expired token is refreshed exactly once, however many requests notice.
 //    The backend rejects a second refresh made with the same refresh token, so
 //    two of them at once means a spurious 401 and, at worst, a sign-out.
@@ -101,6 +102,7 @@ function createClient() {
     "../modules/auth/types": {},
     "./accountRoute": accountRoute,
     "./appHeaders": appHeaders,
+    "../i18n/currentLocale": { getCurrentLocale: () => "ru" },
     "./authStorage": {
       getAuthSessionSync: () => env.session,
       hydrateAuthSession: async () => env.session,
@@ -138,14 +140,15 @@ async function main() {
       "X-Platform": "android",
       "X-App-Build": "19",
       "X-Device-Id": "device-1",
+      "Accept-Language": "ru",
     },
   );
   plain.env.session = null;
   const signedOut = await plain.requestInterceptor({ url: "/account/phone/request", method: "post", headers: {} });
   assert.deepEqual(
     { ...signedOut.headers },
-    { "X-App-Version": "1.1.5", "X-Platform": "android", "X-App-Build": "19" },
-    "Without a session there is no token and no device id, but still a version",
+    { "X-App-Version": "1.1.5", "X-Platform": "android", "X-App-Build": "19", "Accept-Language": "ru" },
+    "Without a session there is no token and no device id, but still a version and the language",
   );
 
   /* 2. Several requests notice the expiry at once: one refresh, all retried. */

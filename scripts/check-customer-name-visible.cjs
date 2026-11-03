@@ -9,7 +9,7 @@ const fs = require("node:fs");
 const read = (file) => fs.readFileSync(file, "utf8");
 
 const lists = [
-  ["src/components/CustomerCard.tsx", /<Text style=\{styles\.name\} numberOfLines=\{3\}>\s*\{getFullName\(customer\)\}/],
+  ["src/components/CustomerCard.tsx", /<Text style=\{styles\.name\} numberOfLines=\{3\}>\s*\{fullName\}/],
   ["src/modules/client-sms/components/SmsRecipientRow.tsx", /<Text numberOfLines=\{3\} style=\{styles\.name\}>\s*\{displayName\}/],
   ["src/modules/client-sms/components/SmsHistoryRow.tsx", /<Text numberOfLines=\{3\} style=\{styles\.name\}>/],
   // The report's debtor rows are tighter, with the amount beside the name:

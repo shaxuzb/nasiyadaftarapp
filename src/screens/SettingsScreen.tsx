@@ -52,6 +52,8 @@ import {
 import type { TranslateKey } from "../i18n";
 import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
 import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
+import { flagOf } from "../modules/phone/utils/phoneNumber";
+import { getSetupLanguage } from "../modules/setup/data/setupOptions";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -90,6 +92,9 @@ interface ProfileMenuRowProps {
   icon: IconName;
   iconColor: string;
   iconBackground: string;
+  /** In the icon's place, when the row is better told by a picture: the
+   * flag of the language in use. */
+  leading?: React.ReactNode;
   title: string;
   description?: string;
   onPress: () => void;
@@ -108,6 +113,7 @@ function ProfileMenuRow({
   isLast = false,
   loading = false,
   badge,
+  leading,
 }: ProfileMenuRowProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -128,7 +134,7 @@ function ProfileMenuRow({
       ]}
     >
       <View style={[styles.menuIcon, { backgroundColor: iconBackground }]}>
-        <Ionicons name={icon} size={20} color={iconColor} />
+        {leading ?? <Ionicons name={icon} size={20} color={iconColor} />}
       </View>
       <View style={styles.menuCopy}>
         <Text style={styles.menuTitle} numberOfLines={2}>
@@ -158,6 +164,7 @@ export function SettingsScreen() {
   const navigation = useNavigation<Navigation>();
   const { mode, setMode } = useThemeContext();
   const { locale, t } = useTranslation();
+  const currentLanguage = getSetupLanguage(locale);
   const { openSheet } = useBottomSheet();
   const { user, currentOrganization, logout, openOrganizationSelector } =
     useAuth();
@@ -660,9 +667,12 @@ export function SettingsScreen() {
           <ProfileMenuRow
             icon="language-outline"
             iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
+            iconBackground={theme.inputBackground}
+            leading={
+              <Text style={styles.languageFlag}>{flagOf(currentLanguage.flag)}</Text>
+            }
             title={t("auth.language")}
-            description={locale === "ru" ? t("auth.russian") : t("auth.uzbek")}
+            description={currentLanguage.nativeName}
             onPress={() => openSheet("language", {})}
           />
           <View style={styles.themeSelector}>
@@ -949,6 +959,7 @@ const createStyles = (theme: AppTheme) =>
       paddingVertical: spacing.sm,
     },
     rowDivider: { borderBottomWidth: 1, borderBottomColor: theme.border },
+    languageFlag: { fontSize: 22, lineHeight: 28 },
     menuIcon: {
       width: 38,
       height: 38,

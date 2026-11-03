@@ -56,11 +56,15 @@ import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet, useBottomSheetBackHandler } from "../bottom-sheet";
 import { AndroidSheetKeyboardBridge } from "../bottom-sheet/AndroidSheetKeyboardBridge";
+import { PhoneNumberInput } from "../modules/phone/components/PhoneNumberInput";
+import { useAccountPhoneCountry } from "../modules/phone/hooks/useAccountPhoneCountry";
 import {
-  formatUzPhoneFromDigits,
-  isOptionalUzPhoneValid,
-  toOptionalStoredUzPhone,
-} from "../utils/masks";
+  emptyPhone,
+  isOptionalPhoneValid,
+  readPhoneInput,
+  toE164,
+  type PhoneValue,
+} from "../modules/phone/utils/phoneNumber";
 import {
   getLocalizedApiErrorMessage,
   useTranslation,
@@ -169,8 +173,9 @@ export function CustomersScreen() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("+998 ");
-  const [phoneInputKey, setPhoneInputKey] = useState(0);
+  // Every new customer starts on the account's own country.
+  const accountCountry = useAccountPhoneCountry();
+  const [phone, setPhone] = useState<PhoneValue>(() => emptyPhone(accountCountry));
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const creatingCustomerRef = useRef(false);
   const [errors, setErrors] = useState<{ phone?: string }>({});
@@ -200,8 +205,8 @@ export function CustomersScreen() {
     }
   }, []);
 
-  const handleAddPhoneChange = useCallback((value: string) => {
-    setPhone(formatUzPhoneFromDigits(value));
+  const handleAddPhoneChange = useCallback((value: PhoneValue) => {
+    setPhone(value);
     setErrors((current) =>
       current.phone ? { ...current, phone: undefined } : current,
     );
@@ -307,8 +312,7 @@ export function CustomersScreen() {
 
   function resetCustomerForm() {
     setFullName("");
-    setPhone("+998 ");
-    setPhoneInputKey((key) => key + 1);
+    setPhone(emptyPhone(accountCountry));
     setBalanceDirection("debt");
     setBalanceDate(null);
     balanceAmountRef.current = "";
@@ -320,7 +324,7 @@ export function CustomersScreen() {
   function validateForm(): boolean {
     const e: { phone?: string } = {};
 
-    if (!isOptionalUzPhoneValid(phone)) e.phone = t("customers.phoneInvalid");
+    if (!isOptionalPhoneValid(phone)) e.phone = t("customers.phoneInvalid");
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -345,7 +349,7 @@ export function CustomersScreen() {
       const balanceAmount = parseAmountInput(balanceAmountRef.current);
       await addCustomer({
         fullName: fullName.trim().replace(/\s+/g, " "),
-        phone: toOptionalStoredUzPhone(phone),
+        phone: toE164(phone),
         note: "",
         // An empty or zero amount sends neither field, and no date either: a
         // date with no balance behind it means nothing to the backend.
@@ -381,10 +385,8 @@ export function CustomersScreen() {
     // What the contact has fills its field; what it lacks leaves the field
     // as the user typed it.
     if (contact.fullName) setFullName(contact.fullName);
-    if (contact.phone) {
-      setPhone(formatUzPhoneFromDigits(contact.phone));
-      setPhoneInputKey((key) => key + 1);
-    }
+    // A number saved with its "+" brings its own country.
+    if (contact.phone) setPhone(readPhoneInput(contact.phone, phone.country));
     setErrors({});
     showToast(t("customers.contactsFilled"), "success");
   }
@@ -678,20 +680,14 @@ export function CustomersScreen() {
               submitBehavior="submit"
               onSubmitEditing={() => phoneInputRef.current?.focus()}
             />
-            <AppInput
+            <PhoneNumberInput
               variant="sheet"
               compact
               inputRef={phoneInputRef}
-              inputResetKey={phoneInputKey}
               label={t("customers.phoneOptional")}
-              uncontrolled
-              defaultValue={phone}
-              transformText={formatUzPhoneFromDigits}
-              onChangeText={handleAddPhoneChange}
-              placeholder={t("customers.phonePlaceholder")}
+              value={phone}
+              onChange={handleAddPhoneChange}
               editable={!isCreatingCustomer}
-              autoComplete="tel"
-              keyboardType="phone-pad"
               returnKeyType="none"
               onSubmitEditing={handleAddPhoneSubmit}
               error={errors.phone}
@@ -817,7 +813,7 @@ export function CustomersScreen() {
             label={t("customers.addAction")}
             onPress={handleCreateCustomer}
             loading={isCreatingCustomer}
-            disabled={!isOptionalUzPhoneValid(phone)}
+            disabled={!isOptionalPhoneValid(phone)}
             style={styles.sheetSaveButton}
           />
         </BottomSheetScrollView>

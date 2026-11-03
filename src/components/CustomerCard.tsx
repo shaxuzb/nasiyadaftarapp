@@ -23,10 +23,11 @@ export const CustomerCard = memo(function CustomerCard({
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const blacklisted = isCustomerBlacklisted(customer);
+  const fullName = getFullName(customer, t("transactions.customerFallback"));
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${getFullName(customer)}, ${formatDisplayedBalance(balance)}${
+      accessibilityLabel={`${fullName}, ${formatDisplayedBalance(balance)}${
         blacklisted ? `. ${t("customers.blacklistWarning")}` : ""
       }`}
       accessibilityHint={t("common.openTransactionSheet")}
@@ -40,7 +41,7 @@ export const CustomerCard = memo(function CustomerCard({
         {/* Wraps rather than cuts: a name such as "Sherzod aka Mahalla fuqaro
             yig'inidan" is how the seller tells two customers apart. */}
         <Text style={styles.name} numberOfLines={3}>
-          {getFullName(customer)}
+          {fullName}
         </Text>
         <Text
           style={[styles.phone, !customer.phone.trim() && styles.phoneMissing]}
@@ -65,7 +66,7 @@ export const CustomerCard = memo(function CustomerCard({
         <BlacklistBadge
           style={styles.blacklistCorner}
           customerId={customer.id}
-          customerName={getFullName(customer)}
+          customerName={fullName}
         />
       ) : null}
     </Pressable>

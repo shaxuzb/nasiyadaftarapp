@@ -1,11 +1,12 @@
 import React, { useCallback, useMemo } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
 
 import { useBottomSheet } from "../bottom-sheet";
 import { useTranslation } from "../i18n";
 import { radius, spacing, typography } from "../theme";
 import { useTheme } from "../hooks/useTheme";
+import { flagOf } from "../modules/phone/utils/phoneNumber";
+import { getSetupLanguage } from "../modules/setup/data/setupOptions";
 
 export const LanguageSelectorButton = React.memo(
   function LanguageSelectorButton() {
@@ -26,7 +27,8 @@ export const LanguageSelectorButton = React.memo(
         onPress={handlePress}
         style={({ pressed }) => [styles.button, pressed && styles.pressed]}
       >
-        <Ionicons name="language-outline" size={18} color={theme.primary} />
+        {/* The language in use, by its flag, as in the profile. */}
+        <Text style={styles.flag}>{flagOf(getSetupLanguage(locale).flag)}</Text>
         <Text style={styles.label}>{locale.toUpperCase()}</Text>
       </Pressable>
     );
@@ -53,5 +55,6 @@ const createStyles = (theme: ReturnType<typeof useTheme>) =>
       color: theme.primary,
       fontWeight: "800",
     },
+    flag: { fontSize: 17, lineHeight: 22 },
     pressed: { opacity: 0.72 },
   });

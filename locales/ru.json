@@ -1,0 +1,5 @@
+{
+  "NSContactsUsageDescription": "Разрешите доступ к контактам, чтобы быстро добавлять клиентов из них.",
+  "NSCameraUsageDescription": "Разрешите доступ к камере, чтобы подключить телефон SMS Gateway по QR-коду.",
+  "NSFaceIDUsageDescription": "Qarz Daftar использует Face ID для защиты вашего аккаунта."
+}

@@ -8,6 +8,7 @@ import {
 import { AuthRefreshResponse } from "../modules/auth/types";
 import { isPublicAccountRoute } from "./accountRoute";
 import { buildAppRequestHeaders } from "./appHeaders";
+import { getCurrentLocale } from "../i18n/currentLocale";
 import {
   clearAuthSession,
   getAuthSessionSync,
@@ -115,6 +116,7 @@ apiClient.interceptors.request.use(async (config) => {
     platform: APP_PLATFORM,
     build: APP_BUILD,
     deviceId: session?.uniqueId,
+    language: getCurrentLocale(),
   });
   for (const name of Object.keys(appHeaders)) {
     config.headers[name] = appHeaders[name];

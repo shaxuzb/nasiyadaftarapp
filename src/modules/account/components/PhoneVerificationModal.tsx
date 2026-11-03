@@ -9,16 +9,18 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 
-import { AppInput } from "../../../components/AppInput";
 import { OtpInput, OtpInputHandle } from "../../../components/OtpInput";
 import { PrimaryButton } from "../../../components/PrimaryButton";
 import { useTheme } from "../../../hooks/useTheme";
 import { AppTheme } from "../../../types";
+import { PhoneNumberInput } from "../../phone/components/PhoneNumberInput";
+import { useAccountPhoneCountry } from "../../phone/hooks/useAccountPhoneCountry";
 import {
-  isValidUzPhone,
-  toStoredUzPhone,
-  uzPhoneMask,
-} from "../../../utils/masks";
+  isPhoneValid,
+  phoneFromStored,
+  toE164,
+  type PhoneValue,
+} from "../../phone/utils/phoneNumber";
 import {
   requestProfilePhoneCode,
 } from "../services/accountService";
@@ -75,7 +77,11 @@ export function PhoneVerificationModal({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const otpRef = useRef<OtpInputHandle>(null);
   const requestingRef = useRef(false);
-  const [phoneNumber, setPhoneNumber] = useState(currentPhone || "+998 ");
+  // The number being changed, in its own country; otherwise the account's.
+  const accountCountry = useAccountPhoneCountry();
+  const [phone, setPhone] = useState<PhoneValue>(() =>
+    phoneFromStored(currentPhone, accountCountry),
+  );
   const [requestedPhone, setRequestedPhone] = useState("");
   const [maskedPhone, setMaskedPhone] = useState("");
   const [code, setCode] = useState("");
@@ -85,8 +91,8 @@ export function PhoneVerificationModal({
 
   const isChange = Boolean(currentPhone?.trim());
 
-  const handlePhoneChange = useCallback((value: string) => {
-    setPhoneNumber(value);
+  const handlePhoneChange = useCallback((value: PhoneValue) => {
+    setPhone(value);
     setError((current) => (current ? undefined : current));
   }, []);
 
@@ -97,21 +103,21 @@ export function PhoneVerificationModal({
 
   useEffect(() => {
     if (!visible) return;
-    setPhoneNumber(currentPhone || "+998 ");
+    setPhone(phoneFromStored(currentPhone, accountCountry));
     setRequestedPhone("");
     setMaskedPhone("");
     setCode("");
     setStage("phone");
     setError(undefined);
-  }, [currentPhone, visible]);
+  }, [accountCountry, currentPhone, visible]);
 
   async function handleRequest() {
-    if (!isValidUzPhone(phoneNumber)) {
+    if (!isPhoneValid(phone)) {
       setError(t("errors.validation"));
       return;
     }
 
-    const normalizedPhone = toStoredUzPhone(phoneNumber);
+    const normalizedPhone = toE164(phone);
 
     // "Change number" and back again with the same number: the code already
     // sent is still good and another would be refused, so go straight to it.
@@ -217,15 +223,10 @@ export function PhoneVerificationModal({
           ) : null}
 
           {stage === "phone" ? (
-            <AppInput
+            <PhoneNumberInput
               label={t("security.phoneNumber")}
-              uncontrolled
-              defaultValue={phoneNumber}
-              onChangeText={handlePhoneChange}
-              placeholder="+998 XX XXX XX XX"
-              iconName="call-outline"
-              keyboardType="phone-pad"
-              mask={uzPhoneMask}
+              value={phone}
+              onChange={handlePhoneChange}
               error={error}
               autoFocus
             />

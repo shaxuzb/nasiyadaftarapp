@@ -29,7 +29,13 @@ assert.match(
   /phoneRef\.current\?\.blur\(\);\s*const contact = await pickContact\(\);/,
   "Editing a customer picks from contacts the same way",
 );
-assert.match(editSheet, /inputResetKey=\{phoneResetKey\}/, "A picked number reaches the edit sheet's phone field");
+// A picked number reaches the field through its value; PhoneNumberInput
+// writes a value set from outside into the field without remounting it.
+for (const [name, source] of [["CustomersScreen", customersScreen], ["CustomerEditSheet", editSheet]]) {
+  assert.match(source, /if \(contact\.phone\) setPhone\(readPhoneInput\(contact\.phone, phone\.country\)\);/, `${name}: a picked number reaches the phone field`);
+  assert.doesNotMatch(source, /<PhoneNumberInput[^>]*\bkey=/, `${name}: the phone field is never remounted`);
+}
+assert.match(read("src/modules/phone/components/PhoneNumberInput.tsx"), /inputResetKey=\{resetKey\}/);
 assert.match(editSheet, /onPress=\{\(\) => void fillFromContact\(\)\}/);
 for (const [name, source] of [["CustomersScreen", customersScreen], ["CustomerEditSheet", editSheet]]) {
   assert.match(source, /if \(contact\.fullName\) /, `${name}: a contact without a name leaves the name as typed`);
@@ -37,16 +43,6 @@ for (const [name, source] of [["CustomersScreen", customersScreen], ["CustomerEd
 // The note is no longer edited here, and saving keeps the one already there.
 assert.doesNotMatch(editSheet, /label=\{t\("transactions\.note"\)\}|setNote/);
 assert.match(editSheet, /note: customer\.note \?\? "",/);
-assert.match(
-  customersScreen,
-  /inputResetKey=\{phoneInputKey\}/,
-  "customer contact selection must reset the local phone value without remounting the input",
-);
-assert.doesNotMatch(
-  customersScreen,
-  /key=\{phoneInputKey\}/,
-  "customer contact selection must not remount BottomSheetTextInput",
-);
 assert.match(
   appInput,
   /inputResetKey\?: string \| number/,

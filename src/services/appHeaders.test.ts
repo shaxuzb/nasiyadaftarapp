@@ -49,4 +49,16 @@ assert.deepEqual(
 
 assert.deepEqual(buildAppRequestHeaders({}), {});
 
+/* The app's language, so the server answers in it; only a language tag. */
+
+assert.deepEqual(buildAppRequestHeaders({ version: "1.1.5", platform: "ios", language: "ru" }), {
+  "X-App-Version": "1.1.5",
+  "X-Platform": "ios",
+  "Accept-Language": "ru",
+});
+assert.equal(buildAppRequestHeaders({ language: "uz-UZ" })["Accept-Language"], "uz-UZ");
+for (const bad of ["", "  ", "russian language", "ru\nX-Evil: 1", "ру", null]) {
+  assert.equal("Accept-Language" in buildAppRequestHeaders({ language: bad }), false, `left out: ${JSON.stringify(bad)}`);
+}
+
 console.log("App request header tests passed");

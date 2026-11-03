@@ -1,0 +1,5 @@
+{
+  "NSContactsUsageDescription": "Mijozni kontaktlardan tez qo‘shish uchun kontaktlarga ruxsat bering.",
+  "NSCameraUsageDescription": "QR kod orqali SMS Gateway telefonini ulash uchun kameraga ruxsat bering.",
+  "NSFaceIDUsageDescription": "Qarz Daftar hisobingizni himoyalash uchun Face ID’dan foydalanadi."
+}

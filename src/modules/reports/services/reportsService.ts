@@ -163,21 +163,25 @@ export async function getReports(
 const EXCEL_MIME_TYPE =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
-function createExportFileName(): string {
+// Letters, digits and dashes only, so every app it is shared to accepts it.
+function createExportFileName(baseName: string): string {
+  const safeName = baseName.replace(/[^A-Za-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "report";
   const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-  return `mijozlar-hisoboti-${timestamp}.xlsx`;
+  return `${safeName}-${timestamp}.xlsx`;
 }
 
 /** Downloads the currently selected organization's client report and opens the native save/share sheet. */
 export async function exportClientsReport(
   dialogTitle = "Mijozlar hisoboti",
+  /** The file's name, in the app's language: "mijozlar-hisoboti". */
+  fileBaseName = "mijozlar-hisoboti",
 ): Promise<string> {
   // `apiClient` retains the application's token refresh/error behavior.
   const { data } = await apiClient.get<ArrayBuffer>("/reports/export/clients", {
     responseType: "arraybuffer",
     headers: { Accept: EXCEL_MIME_TYPE },
   });
-  const file = new File(Paths.cache, createExportFileName());
+  const file = new File(Paths.cache, createExportFileName(fileBaseName));
   file.create({ overwrite: true });
   file.write(new Uint8Array(data));
 

@@ -19,11 +19,6 @@ import MaskInput, { Mask } from "react-native-mask-input";
 import { useTheme } from "../hooks/useTheme";
 import { useTranslation } from "../i18n";
 import { spacing, radius, typography } from "../theme";
-import {
-  formatUzPhoneFromDigits,
-  normalizeUzPhoneDigits,
-  uzPhoneMask,
-} from "../utils/masks";
 
 interface Props extends TextInputProps {
   label?: string;
@@ -40,6 +35,8 @@ interface Props extends TextInputProps {
   transformText?: (value: string, previousValue: string) => string;
   /** Updates a locally-controlled input without remounting its native view. */
   inputResetKey?: string | number;
+  /** Before the text, inside the field: the country of a phone number. */
+  leadingAccessory?: React.ReactNode;
   trailingAccessory?: React.ReactNode;
   inputRef?: React.Ref<TextInput>;
 }
@@ -178,6 +175,7 @@ export function AppInput({
   uncontrolled = false,
   transformText,
   inputResetKey,
+  leadingAccessory,
   trailingAccessory,
   inputRef,
   secureTextEntry,
@@ -211,19 +209,6 @@ export function AppInput({
       : typeof defaultValue === "string"
         ? defaultValue
         : "";
-
-  // A phone field reads what was typed or pasted through one rule
-  // (normalizeUzPhoneDigits), the same as every other phone field. The mask
-  // library could not: it kept the first "998" of a number pasted after the
-  // field's own "+998 " and shifted the rest.
-  const isUzPhone = mask === uzPhoneMask;
-  const handlePhoneText = useCallback(
-    (formatted: string) => {
-      onChangeText?.(formatted);
-      onChangeRawText?.(normalizeUzPhoneDigits(formatted));
-    },
-    [onChangeRawText, onChangeText],
-  );
 
   const borderColor = error
     ? theme.dangerColor
@@ -297,8 +282,9 @@ export function AppInput({
             style={styles.icon}
           />
         ) : null}
+        {leadingAccessory}
 
-        {mask && uncontrolled && !isUzPhone ? (
+        {mask && uncontrolled ? (
           <LocalMaskInput
             initialValue={initialValue}
             inputRef={setInputRef}
@@ -312,7 +298,7 @@ export function AppInput({
             secureTextEntry={shouldHidePassword}
             {...rest}
           />
-        ) : uncontrolled ? (
+        ) : !mask && uncontrolled ? (
           <LocalTextInput
             InputComponent={isSheet ? BottomSheetTextInput : TextInput}
             initialValue={initialValue}
@@ -322,8 +308,8 @@ export function AppInput({
             placeholderTextColor={theme.textMuted}
             onFocus={handleFocus}
             onBlur={handleBlur}
-            onChangeText={isUzPhone ? handlePhoneText : onChangeText}
-            transformText={isUzPhone ? formatUzPhoneFromDigits : transformText}
+            onChangeText={onChangeText}
+            transformText={transformText}
             secureTextEntry={shouldHidePassword}
             {...rest}
           />
