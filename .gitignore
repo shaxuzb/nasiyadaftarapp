@@ -43,3 +43,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Gradle caches, anywhere (local native modules included)
+.gradle/
