@@ -8,10 +8,10 @@ import { SheetRenderProps } from "../types";
 import { AppTheme } from "../../types";
 import { useTheme } from "../../hooks/useTheme";
 import {
-  formatLocalizedCurrency,
   formatLocalizedDateTime,
   useTranslation,
 } from "../../i18n";
+import { useMoney } from "../../modules/currency/hooks/useMoney";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -46,6 +46,7 @@ export function TransactionDetailSheet({
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { locale, t } = useTranslation();
+  const money = useMoney();
   const { transaction } = props;
   const isDebt = transaction.type === "debt";
   const accentColor = isDebt ? theme.debtColor : theme.paymentColor;
@@ -90,7 +91,7 @@ export function TransactionDetailSheet({
           {isDebt ? t("transactions.debtAmount") : t("transactions.paymentAmount")}
         </Text>
         <Text selectable style={[styles.amount, { color: accentColor }]}>
-          {isDebt ? "−" : "+"} {formatLocalizedCurrency(transaction.amount, locale)}
+          {isDebt ? "−" : "+"} {money.format(transaction.amount)}
         </Text>
         <Text selectable style={styles.amountDate}>
           {formatLocalizedDateTime(transaction.date, locale)}
@@ -121,7 +122,8 @@ export function TransactionDetailSheet({
         <DetailRow
           icon="key-outline"
           label={t("transactions.transactionId")}
-          value={String(transaction.id)}
+          // Not yet on the server: it has no number there yet.
+          value={transaction.pendingSync ? "—" : String(transaction.id)}
         />
       </View>
 

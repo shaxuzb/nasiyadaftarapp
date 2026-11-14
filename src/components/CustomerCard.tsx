@@ -2,7 +2,8 @@ import React, { memo, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AppTheme, Customer } from "../types";
-import { formatDisplayedBalance, getFullName, getInitials } from "../utils";
+import { getFullName, getInitials } from "../utils";
+import { useMoney } from "../modules/currency/hooks/useMoney";
 import { useTheme } from "../hooks/useTheme";
 import { useTranslation } from "../i18n";
 import { BlacklistBadge } from "../modules/clients/components/BlacklistBadge";
@@ -21,13 +22,14 @@ export const CustomerCard = memo(function CustomerCard({
 }: Props) {
   const theme = useTheme();
   const { t } = useTranslation();
+  const money = useMoney();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const blacklisted = isCustomerBlacklisted(customer);
   const fullName = getFullName(customer, t("transactions.customerFallback"));
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${fullName}, ${formatDisplayedBalance(balance)}${
+      accessibilityLabel={`${fullName}, ${money.formatBalance(balance)}${
         blacklisted ? `. ${t("customers.blacklistWarning")}` : ""
       }`}
       accessibilityHint={t("common.openTransactionSheet")}
@@ -59,7 +61,7 @@ export const CustomerCard = memo(function CustomerCard({
           { color: balance > 0 ? theme.debtColor : theme.paymentColor },
         ]}
       >
-        {formatDisplayedBalance(balance)}
+        {money.formatBalance(balance)}
       </Text>
       <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
       {blacklisted ? (

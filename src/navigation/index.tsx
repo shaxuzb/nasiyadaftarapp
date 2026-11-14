@@ -61,6 +61,7 @@ import {
   navigationRef,
 } from "./navigationRef";
 import { shouldMountMainNavigator } from "./appNavigatorState";
+import { guardServerRoutes } from "./serverRouteGuard";
 import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -142,6 +143,8 @@ function TabNavigator({
     <Tab.Navigator
       initialRouteName={resolvedInitialRouteName}
       screenLayout={renderResponsiveScreen}
+      // The SMS tab needs the server; offline it explains why instead.
+      UNSTABLE_router={guardServerRoutes}
       screenOptions={({ route }) => ({
         headerShown: false,
         lazy: true,
@@ -241,6 +244,8 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
     <Stack.Navigator
       screenOptions={MAIN_STACK_OPTIONS}
       screenLayout={renderMainStackScreen}
+      // Screens that need the server explain why instead, while it cannot be used.
+      UNSTABLE_router={guardServerRoutes}
     >
       <Stack.Screen name="MainTabs">
         {() => <MemoTabNavigator initialRouteName={initialTab} />}

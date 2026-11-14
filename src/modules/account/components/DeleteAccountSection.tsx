@@ -17,40 +17,32 @@ import { SensitiveActionReauthModal } from "../../pin-auth/components/SensitiveA
 import { pinStorage } from "../../pin-auth/services/pinStorage";
 import { deleteMyAccount } from "../services/accountDeletionService";
 
-const COPY = {
-  uz: {
-    section: "Xavfli amallar",
-    title: "Akkauntni o‘chirish",
-    description: "Akkauntga kirish yopiladi. Bu amalni ehtiyotkorlik bilan bajaring.",
-    confirmTitle: "Akkauntni o‘chirasizmi?",
-    confirmMessage:
-      "Akkaunt o‘chirilgandan keyin ushbu qurilmadagi sessiya va PIN ma’lumotlari ham tozalanadi.",
-    reauthTitle: "Shaxsingizni tasdiqlang",
-    reauthDescription: "Akkauntni o‘chirishdan oldin PIN yoki biometrika bilan tasdiqlang.",
-    invalidPin: "PIN-kod noto‘g‘ri. {count} urinish qoldi.",
-    pinLockedOut: "Juda ko‘p urinish. Biroz kutib, qayta urinib ko‘ring.",
-    error: "Akkauntni o‘chirib bo‘lmadi",
-  },
-  ru: {
-    section: "Опасные действия",
-    title: "Удалить аккаунт",
-    description: "Доступ к аккаунту будет закрыт. Выполняйте это действие внимательно.",
-    confirmTitle: "Удалить аккаунт?",
-    confirmMessage:
-      "После удаления аккаунта с этого устройства также будут удалены сессия и данные PIN-кода.",
-    reauthTitle: "Подтвердите личность",
-    reauthDescription: "Перед удалением аккаунта подтвердите действие PIN-кодом или биометрией.",
-    invalidPin: "Неверный PIN-код. Осталось попыток: {count}.",
-    pinLockedOut: "Слишком много попыток. Подождите и попробуйте снова.",
-    error: "Не удалось удалить аккаунт",
-  },
-} as const;
+const COPY_KEYS = [
+  "section",
+  "title",
+  "description",
+  "confirmTitle",
+  "confirmMessage",
+  "reauthTitle",
+  "reauthDescription",
+  "invalidPin",
+  "pinLockedOut",
+  "error",
+] as const;
 
 export function DeleteAccountSection() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale, t } = useTranslation();
-  const copy = COPY[locale === "ru" ? "ru" : "uz"];
+  // The section's words, in the app's language.
+  const copy = useMemo(
+    () =>
+      Object.fromEntries(COPY_KEYS.map((key) => [key, t(`accountDeletion.${key}`)])) as Record<
+        (typeof COPY_KEYS)[number],
+        string
+      >,
+    [t],
+  );
   const { user, logout } = useAuth();
   const { confirm } = useConfirmDialog();
   const { showToast } = useToast();

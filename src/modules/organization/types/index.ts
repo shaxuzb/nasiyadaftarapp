@@ -6,6 +6,8 @@ export interface OrganizationRequest {
   note: string;
   /** Present only when the user agreed to the public offer; never false. */
   offerAccepted?: true;
+  /** The book's currency ("USD"); the server takes UZS when it is left out. */
+  currencyCode?: string;
 }
 
 export interface UpdateCurrentOrganizationRequest {
@@ -24,6 +26,8 @@ export interface OrganizationResponse {
   createdDate?: string;
   clientCount?: number;
   userCount?: number;
+  /** The currency every debt and payment of this organization is in ("UZS", "USD"…). */
+  currencyCode?: string;
 }
 
 export interface OrganizationMembership extends OrganizationResponse {

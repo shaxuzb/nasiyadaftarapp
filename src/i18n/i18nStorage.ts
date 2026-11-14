@@ -19,6 +19,16 @@ export async function readStoredLocale(): Promise<Locale> {
   }
 }
 
+/** The language the user chose, if they ever did; null on a fresh install. */
+export async function readStoredLocalePreference(): Promise<Locale | null> {
+  try {
+    const value = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isSupportedLocale(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function writeStoredLocale(locale: Locale): Promise<void> {
   if (!isSupportedLocale(locale)) return;
 

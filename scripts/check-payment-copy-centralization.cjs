@@ -14,10 +14,19 @@ const copy = fs.readFileSync(
   "utf8",
 );
 
-assert.match(copy, /export const PAYMENT_COPY/);
+assert.match(copy, /export const PAYMENT_COPY: Record<Locale, PaymentCopy>/, "Every language has the payment words");
 assert.match(copy, /getPaymentCopy/);
-assert.match(copy, /pending/);
-assert.match(copy, /fulfilled/);
+// The words themselves, one file per language, shaped like the Uzbek one.
+const uzCopy = fs.readFileSync("src/modules/payments/i18n/locales/uz.ts", "utf8");
+assert.match(uzCopy, /pending/);
+assert.match(uzCopy, /fulfilled/);
+for (const locale of ["ru", "en", "kk", "tg", "ky", "tr", "tk"]) {
+  assert.match(copy, new RegExp(`  ${locale}: ${locale}PaymentCopy,`), `${locale}: payment words registered`);
+  assert.match(
+    fs.readFileSync(`src/modules/payments/i18n/locales/${locale}.ts`, "utf8"),
+    new RegExp(`export const ${locale}PaymentCopy: PaymentCopy =`),
+  );
+}
 
 for (const file of files) {
   const source = fs.readFileSync(file, "utf8");

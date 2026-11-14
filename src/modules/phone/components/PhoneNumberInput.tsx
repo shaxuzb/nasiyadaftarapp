@@ -35,6 +35,11 @@ interface Props {
   onSubmitEditing?: () => void;
   /** After the number, inside the field: the contacts button, say. */
   trailingAccessory?: React.ReactNode;
+  /**
+   * The only country this field takes (sign-in: +998). Its code is shown but
+   * not a button, and a pasted number from elsewhere is read as one of its own.
+   */
+  lockedCountry?: CountryCode;
 }
 
 /**
@@ -60,6 +65,7 @@ export function PhoneNumberInput({
   submitBehavior,
   onSubmitEditing,
   trailingAccessory,
+  lockedCountry,
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -73,11 +79,18 @@ export function PhoneNumberInput({
   const emittedRef = useRef<PhoneValue>(value);
   const lastReadRef = useRef<PhoneValue | null>(null);
 
-  const transformText = useCallback((text: string) => {
-    const next = readPhoneInput(text, valueRef.current.country);
-    lastReadRef.current = next;
-    return formatNational(next);
-  }, []);
+  const transformText = useCallback(
+    (text: string) => {
+      let next = readPhoneInput(text, valueRef.current.country);
+      // Locked: a "+7…" pasted does not move the field to another country.
+      if (lockedCountry && next.country !== lockedCountry) {
+        next = readPhoneInput(text.replace(/\+/g, ""), lockedCountry);
+      }
+      lastReadRef.current = next;
+      return formatNational(next);
+    },
+    [lockedCountry],
+  );
   const handleChangeText = useCallback(() => {
     const next = lastReadRef.current ?? valueRef.current;
     emittedRef.current = next;
@@ -135,6 +148,20 @@ export function PhoneNumberInput({
         submitBehavior={submitBehavior}
         onSubmitEditing={onSubmitEditing}
         leadingAccessory={
+          lockedCountry ? (
+            <View
+              accessible
+              accessibilityLabel={t("phone.countryA11y", {
+                name: getCountryName(value.country, locale),
+                code: callingCode,
+              })}
+              style={styles.country}
+            >
+              <Text style={styles.flag}>{flagOf(value.country)}</Text>
+              <Text style={styles.code}>{callingCode}</Text>
+              <View style={styles.divider} />
+            </View>
+          ) : (
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("phone.countryA11y", {
@@ -152,6 +179,7 @@ export function PhoneNumberInput({
             <Ionicons name="chevron-down" size={14} color={theme.textMuted} />
             <View style={styles.divider} />
           </Pressable>
+          )
         }
         trailingAccessory={trailingAccessory}
       />

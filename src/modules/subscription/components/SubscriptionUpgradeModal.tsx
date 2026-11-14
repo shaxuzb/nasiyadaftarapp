@@ -53,6 +53,7 @@ import {
   useBottomSheet,
   useBottomSheetBackHandler,
 } from "../../../bottom-sheet";
+import type { Locale } from "../../../i18n/types";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -63,7 +64,7 @@ interface SubscriptionUpgradeModalProps {
   onClose: () => void;
 }
 
-function priceLabel(price: number, locale: "uz" | "ru", freeLabel: string) {
+function priceLabel(price: number, locale: Locale, freeLabel: string) {
   return price === 0 ? freeLabel : formatLocalizedCurrency(price, locale);
 }
 

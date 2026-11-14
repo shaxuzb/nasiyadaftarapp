@@ -31,12 +31,15 @@ const accountCountry = read("src/modules/phone/hooks/useAccountPhoneCountry.ts")
 assert.match(accountCountry, /countryOfStored\(phoneNumber\) \?\? DEFAULT_PHONE_COUNTRY/);
 assert.match(read("src/screens/CustomersScreen.tsx"), /setPhone\(emptyPhone\(accountCountry\)\);/, "Each new customer form starts there again");
 assert.match(read("src/modules/clients/components/CustomerEditSheet.tsx"), /phoneFromStored\(customer\.phone, accountCountry\)/);
-assert.match(read("src/screens/PhoneAuthScreen.tsx"), /useState<PhoneValue>\(\(\) => emptyPhone\(\)\)/);
+// Signing in and signing up: Uzbek numbers only, the country fixed.
+assert.match(read("src/screens/PhoneAuthScreen.tsx"), /useState<PhoneValue>\(\(\) => emptyPhone\("UZ"\)\)/);
+assert.match(read("src/screens/PhoneAuthScreen.tsx"), /<PhoneNumberInput[\s\S]{0,200}?lockedCountry="UZ"/);
+assert.match(read("src/modules/phone/components/PhoneNumberInput.tsx"), /lockedCountry \? \(\s*<View/, "Locked: the code shown, not a button");
 
 /* The field. */
 
 const input = read("src/modules/phone/components/PhoneNumberInput.tsx");
-assert.match(input, /const next = readPhoneInput\(text, valueRef\.current\.country\);/, "Typed and pasted text goes through the one rule");
+assert.match(input, /let next = readPhoneInput\(text, valueRef\.current\.country\);/, "Typed and pasted text goes through the one rule");
 assert.match(input, /leadingAccessory=\{/);
 assert.match(input, /<Text style=\{styles\.flag\}>\{flagOf\(value\.country\)\}<\/Text>\s*<Text style=\{styles\.code\}>\{callingCode\}<\/Text>/);
 assert.match(input, /\{pickerOpen \? \(\s*<CountryPickerSheet/, "The country list is mounted only while open");

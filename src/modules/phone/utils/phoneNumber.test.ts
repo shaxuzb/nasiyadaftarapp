@@ -32,6 +32,17 @@ for (const pasted of [
 }
 assert.equal(formatNational(UZ), "93 998 70 55");
 
+/* Uzbek numbers by their shape: any nine digits, "** *** ** **". */
+
+assert.deepEqual(readPhoneInput("00 001 12 34", "UZ"), { country: "UZ", digits: "000011234" }, "00 starts a number here");
+assert.equal(formatNational({ country: "UZ", digits: "000011234" }), "00 001 12 34");
+assert.equal(isPhoneValid({ country: "UZ", digits: "000011234" }), true, "No operator list to turn it away");
+assert.equal(isPhoneValid({ country: "UZ", digits: "77123456" }), false, "Eight digits are not a number");
+assert.equal(readPhoneInput("93 998 70 55 12", "UZ").digits, "939987055", "No more than nine");
+assert.equal(formatNational({ country: "UZ", digits: "93998" }), "93 998");
+assert.equal(formatPhoneForDisplay("+998000011234"), "+998 00 001 12 34");
+assert.equal(maskPhoneForDisplay("+998000011234"), "+998 ** *** ** 34");
+
 /* A local number that itself starts with the calling code is not cut. */
 
 assert.deepEqual(readPhoneInput("99 812 34 56", "UZ"), { country: "UZ", digits: "998123456" });

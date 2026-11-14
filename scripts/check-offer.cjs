@@ -193,7 +193,7 @@ async function main() {
   // the same question the profile asks comes first.
   assert.match(
     modal,
-    /const accepted = await confirm\(\{\s*title: t\("profile\.logoutTitle"\),\s*message: t\("profile\.logoutMessage"\),\s*confirmText: t\("profile\.logout"\),\s*cancelText: t\("common\.cancel"\),\s*variant: "danger",\s*\}\);\s*if \(accepted\) onLogout\(\);/,
+    /const accepted = await confirm\(\{\s*title: t\("profile\.logoutTitle"\),\s*message: withUnsentWarning\(t\("profile\.logoutMessage"\), t\),\s*confirmText: t\("profile\.logout"\),\s*cancelText: t\("common\.cancel"\),\s*variant: "danger",\s*\}\);\s*if \(accepted\) onLogout\(\);/,
   );
   assert.doesNotMatch(modal, /onPress=\{onLogout\}/, "Signing out is never one tap away");
   assert.match(

@@ -57,6 +57,17 @@ export async function updateCurrentOrganization(
   await apiClient.put("/organizations/current", payload);
 }
 
+/**
+ * The organization's currency. Amounts are not converted: what was 250 000
+ * so'm reads 250 000 $ afterwards. Answers with the organization as it now is.
+ */
+export async function updateCurrentOrganizationCurrency(
+  currencyCode: string,
+): Promise<OrganizationResponse | null> {
+  const { data } = await apiClient.put<unknown>("/organizations/current/currency", { currencyCode });
+  return extractOrganization(data);
+}
+
 function parseOrganizationMembership(
   value: unknown,
   index: number,
@@ -84,6 +95,10 @@ function parseOrganizationMembership(
         : undefined,
     isSelected:
       typeof item.isSelected === "boolean" ? item.isSelected : undefined,
+    currencyCode:
+      typeof item.currencyCode === "string" && item.currencyCode.trim()
+        ? item.currencyCode.trim().toUpperCase()
+        : undefined,
   };
 }
 

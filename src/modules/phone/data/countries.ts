@@ -2,15 +2,19 @@ import countryNames from "i18n-iso-countries";
 import en from "i18n-iso-countries/langs/en.json";
 import ru from "i18n-iso-countries/langs/ru.json";
 import uz from "i18n-iso-countries/langs/uz.json";
+import kk from "i18n-iso-countries/langs/kk.json";
+import ky from "i18n-iso-countries/langs/ky.json";
+import tg from "i18n-iso-countries/langs/tg.json";
+import tk from "i18n-iso-countries/langs/tk.json";
+import tr from "i18n-iso-countries/langs/tr.json";
 import { getCountries, getCountryCallingCode, type CountryCode } from "libphonenumber-js";
 
 import type { Locale } from "../../../i18n/types";
 import { flagOf } from "../utils/phoneNumber";
+import { localeTag } from "../../../i18n/formatters";
 
-// Only the app's languages, plus English for searching ("Uzbekistan").
-countryNames.registerLocale(en);
-countryNames.registerLocale(ru);
-countryNames.registerLocale(uz);
+// The app's languages (English also for searching, "Uzbekistan").
+for (const names of [en, ru, uz, kk, ky, tg, tk, tr]) countryNames.registerLocale(names);
 
 export interface PhoneCountry {
   code: CountryCode;
@@ -54,7 +58,7 @@ export function getPhoneCountries(locale: Locale): readonly PhoneCountry[] {
       searchText: `${name} ${englishName} ${code} ${callingCode} ${callingCode.slice(1)}`.toLowerCase(),
     };
   });
-  const collator = new Intl.Collator(locale === "ru" ? "ru-RU" : "uz-UZ");
+  const collator = new Intl.Collator(localeTag(locale));
   const popular = POPULAR_PHONE_COUNTRIES.map((code) => all.find((country) => country.code === code))
     .filter((country): country is PhoneCountry => Boolean(country));
   const rest = all

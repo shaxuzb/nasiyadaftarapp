@@ -2,6 +2,13 @@
 
 Har bir blokni to‘g‘ridan-to‘g‘ri nusxalab qo‘yish mumkin. Belgilar soni skript bilan sanalgan.
 
+## Rasmiy havolalar va listing sinovi
+
+- Google Play Console’da **Store settings → Store listing contact details → Website** maydoniga `https://qarzdaftar.rbsx.uz/` ni kiriting.
+- App Store Connect’da **Marketing URL** uchun `https://qarzdaftar.rbsx.uz/` ni kiriting. **Support URL** ishlaydigan yordam sahifasiga, **Privacy Policy URL** esa amaldagi maxfiylik siyosatiga olib borsin. Landingdagi huquqiy sahifa to‘ldirilib, e’lon qilingach, siyosat havolasini yangi domenga o‘tkazing.
+- Rasmiy listinglar: [Google Play](https://play.google.com/store/apps/details?id=com.rbsx.nasiyadaftarapp) va [App Store](https://apps.apple.com/app/id6766420125).
+- Google Play’da hozirgi nom va tavsifni asos sifatida saqlab, avval o‘zbekcha skrinshotlarning birinchi uchtasini sinang. Tartib: **Mijozlar qarzi**, **Qarz va to‘lovlar tarixi**, **SMS eslatmalar**. Do‘kon sahifasini ko‘rganlardan nechtasi ilovani o‘rnatganini solishtiring.
+
 ## Google Play
 
 Play Console → Store listing → **Manage translations** orqali uchala tilni qo‘shing.

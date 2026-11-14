@@ -30,10 +30,13 @@ import type { Transaction } from "../modules/transactions/types";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
+import { useThemeContext } from "../context/ThemeContext";
+import { floatingActionElevation } from "../theme/floatingAction";
+import { SavedDataNotice } from "../modules/offline/components/SavedDataNotice";
+import { requireServer } from "../modules/offline/state/connectionNotice";
+import { useMoney } from "../modules/currency/hooks/useMoney";
 import {
-  formatLocalizedCurrency,
   formatLocalizedDateTime,
-  formatLocalizedDisplayedBalance,
   getLocalizedApiErrorMessage,
   useTranslation,
   type TranslateKey,
@@ -52,9 +55,16 @@ const filters: { key: TxDateFilter; labelKey: TranslateKey }[] = [
 export function CustomerDetailScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  // A shadow on a light page, a glow on a dark one: see floatingActionElevation.
+  const { resolvedScheme } = useThemeContext();
+  const fabElevation = useMemo(
+    () => floatingActionElevation(theme, resolvedScheme === "dark"),
+    [resolvedScheme, theme],
+  );
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<Nav>();
   const { locale, t } = useTranslation();
+  const money = useMoney();
   const {
     params: { customerId },
   } = useRoute<Route>();
@@ -62,8 +72,18 @@ export function CustomerDetailScreen() {
   const { openSheet } = useBottomSheet();
   const { confirm } = useConfirmDialog();
   const { deleteCustomer } = useApp();
-  const { detail, history, update } = useClientDetail(customerId);
+  const { detail, history, update, resolvedId } = useClientDetail(customerId);
   const customer = detail.data;
+  // Added offline and not yet on the server: only debts and payments can be
+  // written for it (they wait with it); changing or removing it waits too.
+  const onlyOnPhone = resolvedId < 0;
+  const showLockedNotice = () => showToast(t("offline.pendingCustomerLocked"), "info");
+  // Editing needs the server: offline it says why (and opens once it is back).
+  const openEditor = () => setEditing(true);
+  const startEditing = () => {
+    if (onlyOnPhone) showLockedNotice();
+    else if (requireServer(openEditor)) openEditor();
+  };
   const [txDateFilter, setTxDateFilter] = useState<TxDateFilter>("all");
   const [showActions, setShowActions] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -72,8 +92,11 @@ export function CustomerDetailScreen() {
   const deletePending = useRef(false);
 
   const { txs, totalDebt, totalPaid } = useMemo(() => {
+    // Not yet sent first (newest written first), then by date.
     const txs = [...(history.data ?? [])].sort(
       (a, b) =>
+        Number(Boolean(b.pendingSync)) - Number(Boolean(a.pendingSync)) ||
+        (a.pendingSync ? a.id - b.id : 0) ||
         (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0) || b.id - a.id,
     );
     let totalDebt = 0;
@@ -116,7 +139,7 @@ export function CustomerDetailScreen() {
       `${t("customers.sheetTitle")}, ${customerName}!\n${APP_NAME}` +
       (balance === undefined
         ? ""
-        : `\n${t("transactions.balance")}: ${formatLocalizedCurrency(Math.max(balance, 0), locale)}`);
+        : `\n${t("transactions.balance")}: ${money.format(Math.max(balance, 0))}`);
     const url = whatsApp
       ? `https://wa.me/${customer.phone.replace(/\D/g, "")}?text=${encodeURIComponent(message)}`
       : `tel:${customer.phone}`;
@@ -139,7 +162,7 @@ export function CustomerDetailScreen() {
       customer.phone ||
       t("transactions.customerFallback");
     const totals = history.data
-      ? `\n${t("transactions.totalDebt")}: ${formatLocalizedCurrency(totalDebt, locale)}\n${t("transactions.totalPayment")}: ${formatLocalizedCurrency(totalPaid, locale)}`
+      ? `\n${t("transactions.totalDebt")}: ${money.format(totalDebt)}\n${t("transactions.totalPayment")}: ${money.format(totalPaid)}`
       : "";
     try {
       await Share.share({
@@ -147,7 +170,7 @@ export function CustomerDetailScreen() {
           `${APP_NAME}\n${t("transactions.customer")}: ${customerName}\n${t("transactions.phone")}: ${customer.phone}${totals}` +
           (balance === undefined
             ? ""
-            : `\n${t("transactions.balance")}: ${formatLocalizedDisplayedBalance(balance, locale)}`) +
+            : `\n${t("transactions.balance")}: ${money.formatBalance(balance)}`) +
           `\n${t("transactions.date")}: ${formatLocalizedDateTime(new Date(), locale)}`,
       });
     } catch (error) {
@@ -159,6 +182,12 @@ export function CustomerDetailScreen() {
   }
 
   async function remove() {
+    if (onlyOnPhone) {
+      showLockedNotice();
+      return;
+    }
+    // Deleting needs the server: offline it says why, and nothing is asked.
+    if (!requireServer()) return;
     if (deletePending.current) return;
     deletePending.current = true;
     try {
@@ -171,7 +200,7 @@ export function CustomerDetailScreen() {
       });
       if (!accepted) return;
       setDeleting(true);
-      await deleteCustomer(customerId);
+      await deleteCustomer(resolvedId);
       showToast(t("transactions.deleted"), "success");
       goBack();
     } catch (error) {
@@ -296,13 +325,13 @@ export function CustomerDetailScreen() {
   function openTransactionSheet() {
     if (!customer || deleting) return;
     openSheet("transaction", {
-      customerId,
+      customerId: resolvedId,
       customerName: displayName,
       customerPhone: customer.phone,
       isBlacklisted: showBlacklistBadge,
       onOpenProfile: () =>
         navigation.navigate("CustomerDetail", {
-          customerId,
+          customerId: resolvedId,
         }),
       currentBalance: balance,
     });
@@ -332,7 +361,7 @@ export function CustomerDetailScreen() {
       color: hasPhone ? theme.primary : theme.textMuted,
       muted: !hasPhone,
       accessibilityLabel: hasPhone ? undefined : addPhoneLabel,
-      onPress: hasPhone ? () => void openContact() : () => setEditing(true),
+      onPress: hasPhone ? () => void openContact() : startEditing,
     },
     {
       label: t("transactions.whatsapp"),
@@ -340,7 +369,7 @@ export function CustomerDetailScreen() {
       color: hasPhone ? theme.paymentColor : theme.textMuted,
       muted: !hasPhone,
       accessibilityLabel: hasPhone ? undefined : addPhoneLabel,
-      onPress: hasPhone ? () => void openContact(true) : () => setEditing(true),
+      onPress: hasPhone ? () => void openContact(true) : startEditing,
     },
     {
       label: t("transactions.share"),
@@ -351,13 +380,15 @@ export function CustomerDetailScreen() {
     {
       label: t("transactions.edit"),
       icon: "create-outline",
-      color: theme.textSecondary,
-      onPress: () => setEditing(true),
+      color: onlyOnPhone ? theme.textMuted : theme.textSecondary,
+      muted: onlyOnPhone,
+      onPress: startEditing,
     },
     {
       label: deleteLabel,
       icon: "trash-outline",
-      color: theme.dangerColor,
+      color: onlyOnPhone ? theme.textMuted : theme.dangerColor,
+      muted: onlyOnPhone,
       onPress: () => void remove(),
     },
   ];
@@ -380,6 +411,7 @@ export function CustomerDetailScreen() {
         }}
         ListHeaderComponent={
           <>
+            <SavedDataNotice style={styles.savedNotice} />
             <View style={styles.identity}>
               <View style={styles.avatar}>
                 <Text style={styles.initials}>{getInitials(customer)}</Text>
@@ -403,7 +435,7 @@ export function CustomerDetailScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`${addPhoneLabel}: ${displayName}`}
                     hitSlop={6}
-                    onPress={() => setEditing(true)}
+                    onPress={startEditing}
                     style={styles.phoneAction}
                   >
                     <Ionicons
@@ -488,14 +520,14 @@ export function CustomerDetailScreen() {
                 // {
                 //   label: t("transactions.totalDebt"),
                 //   value: history.data
-                //     ? formatLocalizedCurrency(totalDebt, locale)
+                //     ? money.format(totalDebt)
                 //     : "—",
                 //   color: theme.debtColor,
                 // },
                 // {
                 //   label: t("transactions.totalPayment"),
                 //   value: history.data
-                //     ? formatLocalizedCurrency(totalPaid, locale)
+                //     ? money.format(totalPaid)
                 //     : "—",
                 //   color: theme.paymentColor,
                 // },
@@ -504,7 +536,7 @@ export function CustomerDetailScreen() {
                   value:
                     balance === undefined
                       ? "—"
-                      : formatLocalizedDisplayedBalance(balance, locale),
+                      : money.formatBalance(balance),
                   color: balanceColor,
                 },
               ].map((stat, index) => (
@@ -547,14 +579,14 @@ export function CustomerDetailScreen() {
                       onPress={() => {
                         setShowActions(false);
                         openSheet("transaction", {
-                          customerId,
+                          customerId: resolvedId,
                           type,
                           customerName: displayName,
                           customerPhone: customer.phone,
                           isBlacklisted: showBlacklistBadge,
                           onOpenProfile: () =>
                             navigation.navigate("CustomerDetail", {
-                              customerId,
+                              customerId: resolvedId,
                             }),
                           currentBalance: balance,
                         });
@@ -725,6 +757,7 @@ export function CustomerDetailScreen() {
         onPress={openTransactionSheet}
         style={({ pressed }) => [
           styles.floatingActionButton,
+          fabElevation,
           {
             bottom: (footerHeight > 0 ? footerHeight : 92) + insets.bottom + 12,
           },
@@ -761,8 +794,9 @@ const TransactionRow = memo(function TransactionRow({
   styles: ReturnType<typeof createStyles>;
 }) {
   const { locale, t } = useTranslation();
+  const money = useMoney();
   const date = formatLocalizedDateTime(tx.date, locale);
-  const amount = formatLocalizedCurrency(tx.amount, locale);
+  const amount = money.format(tx.amount);
   const isDebt = tx.type === "debt";
 
   return (
@@ -995,6 +1029,7 @@ const createStyles = (theme: AppTheme) =>
       lineHeight: 14,
       textAlign: "center",
     },
+    savedNotice: { marginBottom: 12 },
     floatingActionButton: {
       position: "absolute",
       right: 18,
@@ -1005,11 +1040,6 @@ const createStyles = (theme: AppTheme) =>
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.primary,
-      shadowColor: "#000",
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.2,
-      shadowRadius: 8,
-      elevation: 10,
       zIndex: 10,
     },
     error: { paddingVertical: 12 },

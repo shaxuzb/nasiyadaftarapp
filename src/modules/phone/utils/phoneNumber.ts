@@ -24,6 +24,31 @@ export interface PhoneValue {
 /** E.164 allows fifteen digits in all, the calling code included. */
 const MAX_E164_DIGITS = 15;
 
+/**
+ * Uzbek numbers are read by their shape alone: nine digits, written
+ * "** *** ** **". Not by libphonenumber's list of operator codes, which
+ * lags behind new codes and turned away numbers people really have
+ * ("00 001 12 34" could not even be typed).
+ */
+const UZ_DIGITS = 9;
+
+function formatUzbek(digits: string): string {
+  return [digits.slice(0, 2), digits.slice(2, 5), digits.slice(5, 7), digits.slice(7, 9)]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** The nine national digits in whatever was typed into an Uzbek field. */
+function readUzbekDigits(compact: string): string {
+  let digits = compact.replace(/\D/g, "");
+  // Pasted with the calling code ("998 93 998 70 55") or the international
+  // prefix ("00998 93 998 70 55"), or with a trunk zero ("0 93 998 70 55").
+  if (digits.startsWith("00998") && digits.length === 14) digits = digits.slice(5);
+  else if (digits.startsWith("998") && digits.length === 12) digits = digits.slice(3);
+  else if (digits.startsWith("0") && digits.length === 10) digits = digits.slice(1);
+  return digits.slice(0, UZ_DIGITS);
+}
+
 export function emptyPhone(country: CountryCode = DEFAULT_PHONE_COUNTRY): PhoneValue {
   return { country, digits: "" };
 }
@@ -55,9 +80,11 @@ export function flagOf(country: string): string {
  */
 export function readPhoneInput(text: string, country: CountryCode): PhoneValue {
   const compact = text.replace(/[\s()\-.]/g, "");
+  // In an Uzbek field "00" is the start of a number ("00 001 12 34"), not the
+  // international prefix; "00998…" is read below as the whole number it is.
   const international = compact.startsWith("+")
     ? compact
-    : compact.startsWith("00")
+    : compact.startsWith("00") && country !== "UZ"
       ? `+${compact.slice(2)}`
       : null;
 
@@ -67,8 +94,10 @@ export function readPhoneInput(text: string, country: CountryCode): PhoneValue {
       return { country: parsed.country, digits: limit(parsed.nationalNumber, parsed.country) };
     }
     // A "+" with a partial or unknown number: keep its digits in this field.
+    if (country === "UZ") return { country, digits: readUzbekDigits(international) };
     return { country, digits: limit(stripCallingCode(international.replace(/\D/g, ""), country), country) };
   }
+  if (country === "UZ") return { country, digits: readUzbekDigits(compact) };
 
   let digits = stripCallingCode(compact.replace(/\D/g, ""), country);
   // A trunk zero some write before the number ("0 93 998 70 55"), which
@@ -110,6 +139,7 @@ function limit(digits: string, country: CountryCode): string {
 /** The national digits formatted as they are typed: "93 998 70 55". */
 export function formatNational(value: PhoneValue): string {
   if (!value.digits) return "";
+  if (value.country === "UZ") return formatUzbek(value.digits);
   return new AsYouType(value.country).input(value.digits);
 }
 
@@ -118,6 +148,7 @@ export function isPhoneEmpty(value: PhoneValue): boolean {
 }
 
 export function isPhoneValid(value: PhoneValue): boolean {
+  if (value.country === "UZ") return /^\d{9}$/.test(value.digits);
   return value.digits.length > 0 && isValidPhoneNumber(value.digits, value.country);
 }
 
@@ -154,6 +185,8 @@ export function countryOfStored(stored: string | null | undefined): CountryCode 
 
 /** "+998 93 998 70 55" for display; the text as it is when it cannot be read. */
 export function formatPhoneForDisplay(stored: string): string {
+  const uzbek = /^\+?998(\d{9})$/.exec(stored.replace(/\s/g, ""));
+  if (uzbek) return `+998 ${formatUzbek(uzbek[1])}`;
   const parsed = parsePhoneNumberFromString(stored.startsWith("+") ? stored : `+${stored}`);
   return parsed?.isValid() ? parsed.formatInternational() : stored;
 }
@@ -161,6 +194,8 @@ export function formatPhoneForDisplay(stored: string): string {
 /** "+998 ** *** ** 55": the number's last two digits, for a screen that only
  * confirms where a code went. */
 export function maskPhoneForDisplay(stored: string): string {
+  const uzbek = /^\+?998(\d{9})$/.exec(stored.replace(/\s/g, ""));
+  if (uzbek) return `+998 ** *** ** ${uzbek[1].slice(7)}`;
   const parsed = parsePhoneNumberFromString(stored.startsWith("+") ? stored : `+${stored}`);
   if (!parsed?.isValid()) return stored;
   const national = parsed.formatNational();

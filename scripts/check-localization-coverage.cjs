@@ -32,11 +32,15 @@ assert.deepEqual(app.locales, { uz: "./locales/uz.json", ru: "./locales/ru.json"
 assert.equal(app.ios.infoPlist.CFBundleAllowMixedLocalizations, true);
 const PERMISSIONS = ["NSContactsUsageDescription", "NSCameraUsageDescription", "NSFaceIDUsageDescription"];
 for (const file of ["locales/uz.json", "locales/ru.json"]) {
-  const strings = JSON.parse(read(file));
+  // Under "ios" only: written for Android too, they have no default-language
+  // string there and lint stops the release build (ExtraTranslation).
+  const locale = JSON.parse(read(file));
+  assert.deepEqual(Object.keys(locale), ["ios"], `${file}: iOS permission texts only`);
+  const strings = locale.ios;
   assert.deepEqual(Object.keys(strings).sort(), [...PERMISSIONS].sort(), `${file}: every permission the app asks for`);
   for (const key of PERMISSIONS) assert.ok(strings[key].trim().length > 20, `${file}: ${key} says why`);
 }
-assert.match(JSON.parse(read("locales/ru.json")).NSContactsUsageDescription, /[а-я]/, "The Russian ones are Russian");
+assert.match(JSON.parse(read("locales/ru.json")).ios.NSContactsUsageDescription, /[а-я]/, "The Russian ones are Russian");
 
 /* 3. The sentences that were written into code. */
 

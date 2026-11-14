@@ -18,4 +18,18 @@ assert(parseAmountInput("") === null, "Blank means no initial balance");
 assert(parseAmountInput("0") === null, "Zero means no initial balance");
 assert(parseAmountInput("   ") === null, "Whitespace means no initial balance");
 
+/* Cents, for every currency but the sum. */
+
+assert(formatAmountInput("120,5", true) === "120,5", "A comma and the cents");
+assert(formatAmountInput("1200.505", true) === "1 200,50", "A point becomes the comma; two digits at most");
+assert(formatAmountInput(",5", true) === "0,5", "A leading comma gets its zero");
+assert(formatAmountInput("12,3,4", true) === "12,34", "One comma only");
+assert(formatAmountInput("120,5") === "1 205", "The sum: no comma, as before");
+
+assert(parseAmountInput("120,50") === 120.5, "Reads the cents");
+assert(parseAmountInput("1 200,05") === 1200.05, "Grouped, with cents");
+assert(parseAmountInput("120,") === 120, "A comma with nothing after it yet");
+assert(parseAmountInput("0,00") === null, "Zero with cents is still zero");
+assert(parseAmountInput("1,234") === null, "Never more than two digits after the comma");
+
 console.log("Amount input formatting tests passed");

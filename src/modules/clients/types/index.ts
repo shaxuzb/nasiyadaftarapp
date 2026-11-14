@@ -8,7 +8,12 @@ export interface BlacklistedOrganization {
 }
 
 export interface Customer {
+  /** The server's id; negative for a customer added offline and not yet sent. */
   id: number;
+  /** The id the phone and the server share (offline sync). */
+  uuid?: string;
+  /** Written on the phone and not yet on the server (offline sync). */
+  pendingSync?: boolean;
   fullName: string;
   phone: string;
   note?: string;
@@ -39,6 +44,8 @@ export interface ClientCreateRequest extends ClientUpdateRequest {
    * date rather than the day it was typed in.
    */
   initialBalanceDate?: string;
+  /** Written once by the phone: the server never records the same uuid twice. */
+  uuid?: string;
 }
 
 /** What the add-customer form hands to the client list. */
@@ -47,6 +54,7 @@ export type NewCustomerInput = Omit<Customer, "id" | "createdAt"> &
 
 export interface ClientDto {
   id: number | string;
+  uuid?: string;
   fullName: string;
   phoneNumber: string;
   note?: string;

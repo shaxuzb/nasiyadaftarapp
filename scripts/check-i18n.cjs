@@ -138,9 +138,36 @@ try {
   const uz = translator.createTranslator("uz");
   const ru = translator.createTranslator("ru");
 
-  assert.equal(translator.isSupportedLocale("uz"), true);
-  assert.equal(translator.isSupportedLocale("ru"), true);
-  assert.equal(translator.isSupportedLocale("en"), false);
+  const LOCALES = ["uz", "ru", "en", "kk", "tg", "ky", "tr", "tk"];
+  for (const locale of LOCALES) assert.equal(translator.isSupportedLocale(locale), true, locale);
+  assert.equal(translator.isSupportedLocale("de"), false);
+  assert.deepEqual([...translator.SUPPORTED_LOCALES].sort(), [...LOCALES].sort());
+
+  // Every language complete: every text there, not empty, with the same
+  // {placeholders} as Uzbek, and translated rather than copied.
+  const leaves = (tree, prefix = "", out = new Map()) => {
+    for (const [key, value] of Object.entries(tree)) {
+      const name = prefix ? `${prefix}.${key}` : key;
+      if (typeof value === "string") out.set(name, value);
+      else leaves(value, name, out);
+    }
+    return out;
+  };
+  const placeholders = (text) => [...text.matchAll(/\{([\w.]+)\}/g)].map((match) => match[1]).sort().join(",");
+  const source = leaves(require(path.join(root, "src", "i18n", "translations", "uz.ts")).uzTranslations);
+  for (const locale of LOCALES.filter((code) => code !== "uz")) {
+    const file = require(path.join(root, "src", "i18n", "translations", `${locale}.ts`));
+    const texts = leaves(file[`${locale}Translations`]);
+    assert.deepEqual([...texts.keys()], [...source.keys()], `${locale}: the same texts as Uzbek, in the same order`);
+    let copied = 0;
+    for (const [key, uzText] of source) {
+      const text = texts.get(key);
+      assert.ok(text.trim().length > 0 || uzText.trim().length === 0, `${locale}: ${key} is empty`);
+      assert.equal(placeholders(text), placeholders(uzText), `${locale}: ${key} keeps its placeholders`);
+      if (text === uzText && /[a-zA-ZЀ-ӿ]{4,}/.test(uzText)) copied += 1;
+    }
+    assert.ok(copied / source.size < 0.05, `${locale}: ${copied} of ${source.size} texts are still the Uzbek ones`);
+  }
   assert.equal(uz("common.save"), "Saqlash");
   assert.equal(ru("common.save"), "Сохранить");
   assert.equal(

@@ -1,5 +1,6 @@
 // First launch, before signing in: choose the language (it applies at once),
-// then the currency, on one familiar page with a search. Languages without a
+// on a page with a search; nothing else. The currency belongs to an
+// organization and is asked for once one is created (OrganizationCurrencySetupGate). Languages without a
 // translation are listed as coming soon. Someone already signed in from
 // before is never sent through it.
 
@@ -30,9 +31,9 @@ assert.match(
 assert.match(flow, /if \(language\?\.locale\) setLocale\(language\.locale\);/, "The language applies the moment it is tapped");
 assert.match(flow, /disabled: language\.locale === null,/, "Untranslated languages are listed, not choosable");
 assert.match(flow, /selectedKey=\{locale\}/);
-assert.match(flow, /await setup\.completeSetup\(currency\);/);
-assert.match(flow, /onBack=\{backToLanguage\}/);
-assert.match(flow, /entering=\{entering\} exiting=\{exiting\}/, "The steps slide, the way they are going");
+assert.match(flow, /await setup\.completeSetup\(\);/);
+assert.doesNotMatch(flow, /useNamedCurrencies|setCurrency|currencyChoices/, "No currency on first launch");
+assert.match(flow, /stepCount=\{1\}/);
 
 /* The page. */
 
@@ -62,15 +63,16 @@ assert.match(read("src/components/LanguageSelectorButton.tsx"), /flagOf\(getSetu
 
 for (const [name, source] of [["uz.ts", uz], ["ru.ts", ru]]) {
   const section = source.slice(source.indexOf("\n  setup: {"));
-  for (const key of ["languageTitle", "languageSubtitle", "currencyTitle", "currencySubtitle", "comingSoon", "continue", "start"]) {
+  for (const key of ["languageTitle", "languageSubtitle", "comingSoon", "continue", "start"]) {
     assert.match(section, new RegExp("\\n    " + key + ': "'), `${name}: setup.${key}`);
   }
   for (const code of ["uz", "ru", "en", "kk", "tg", "ky", "tr", "tk"]) {
     assert.match(section, new RegExp("\\n      " + code + ': "'), `${name}: setup.languageNames.${code}`);
   }
-  for (const code of ["UZS", "USD", "EUR", "RUB", "KZT", "KGS", "TJS", "TRY", "AED", "CNY"]) {
+  // The currencies GET /currencies offers, each named in the app's languages.
+  for (const code of ["UZS", "USD", "EUR", "RUB", "KZT", "KGS", "TJS", "TMT", "AZN", "BYN", "AMD"]) {
     assert.match(section, new RegExp("\\n      " + code + ': "'), `${name}: setup.currencyNames.${code}`);
   }
 }
 
-console.log("First launch: language then currency, before signing in");
+console.log("First launch: the language only, before signing in");

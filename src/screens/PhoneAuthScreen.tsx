@@ -8,6 +8,7 @@ import React, {
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   Platform,
   StyleSheet,
   Text,
@@ -15,7 +16,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
 
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import { AppleAuthButton } from "../components/AppleAuthButton";
@@ -66,7 +67,7 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
   const { showToast } = useToast();
   const { loginWithGoogleIdToken, loginWithAppleCredential } = useAuth();
   // Before signing in there is no account to take a country from.
-  const [phone, setPhone] = useState<PhoneValue>(() => emptyPhone());
+  const [phone, setPhone] = useState<PhoneValue>(() => emptyPhone("UZ"));
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
@@ -100,6 +101,10 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
       showToast(t("auth.phoneAuth.phoneError"), "error");
       return;
     }
+    // The number is right: the keyboard goes, so the button's progress and
+    // the next screen are seen whole. A wrong number keeps it, to correct.
+    Keyboard.dismiss();
+    void KeyboardController.dismiss();
 
     const normalizedPhone = toE164(phone);
 
@@ -220,10 +225,12 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
           </View>
 
           <View style={styles.form}>
+            {/* Signing in and signing up: Uzbek numbers only (+998). */}
             <PhoneNumberInput
               label={t("auth.phoneAuth.phoneLabel")}
               value={phone}
               onChange={setPhone}
+              lockedCountry="UZ"
               returnKeyType="done"
               onSubmitEditing={() => {
                 void handleRequestCode();

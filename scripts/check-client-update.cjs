@@ -76,6 +76,25 @@ async function main() {
     "../../../core/query/queryKeys": { queryKeys },
     "../services/clientsService": api,
     "../../transactions/services/transactionsService": api,
+    // The copy kept on the phone (modules/offline) plays no part in editing.
+    "../../offline/db/savedDataRepository": {
+      loadCustomer: async () => null,
+      loadHistory: async () => null,
+      saveCustomer: () => undefined,
+      saveHistory: () => undefined,
+    },
+    "../../offline/hooks/useSeedFromSaved": { useSeedFromSaved: () => undefined },
+    "../../offline/state/savedDataStatus": {
+      reportSavedDataShown: () => undefined,
+      reportServerAnswered: () => undefined,
+    },
+    "../../offline/utils/savedData": load("src/modules/offline/utils/savedData.ts"),
+    // Nothing queued offline in this test: the overlay passes the server's data through.
+    react: { useMemo: (factory) => factory() },
+    "../../offline/db/outboxRepository": { useOutbox: () => [] },
+    "../../offline/state/serverStatus": { isServerDown: () => false },
+    "../../offline/hooks/useClientAlias": { useClientAlias: () => null },
+    "../../offline/sync/pendingOverlay": load("src/modules/offline/sync/pendingOverlay.ts"),
   });
   hook.useClientDetail(82);
   assert.equal(queries[0].initialData(), old);

@@ -82,6 +82,7 @@ function mapClient(dto: ClientDto): Customer {
 
   return {
     id: readRequiredId(dto.id, "client"),
+    ...(typeof dto.uuid === "string" && dto.uuid ? { uuid: dto.uuid } : {}),
     fullName: dto.fullName?.trim() ?? "",
     phone: dto.phoneNumber ?? "",
     note: dto.note ?? "",
@@ -116,6 +117,7 @@ function mapTransaction(
     amount: Number(dto.amount ?? fallbackPayload.amount),
     date: dto.date ?? fallbackPayload.date,
     note: dto.note ?? fallbackPayload.note,
+    ...(typeof dto.uuid === "string" && dto.uuid ? { uuid: dto.uuid } : {}),
   };
 }
 

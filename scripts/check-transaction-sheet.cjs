@@ -35,6 +35,7 @@ const code = ts.transpileModule(
 ).outputText;
 
 const queryExports = load("src/core/query/queryKeys.ts");
+const amountInput = load("src/utils/amountInput.ts");
 const organizationScope = load("src/core/query/organizationScope.ts");
 const clientInvalidation = load("src/core/query/clientInvalidation.ts", {
   "./queryKeys": queryExports,
@@ -44,6 +45,9 @@ function createHarness({
   amount = "200 000",
   balance = 500000,
   failure = false,
+  unreachable = false,
+  knownDown = false,
+  noInternet = false,
   type = "debt",
 } = {}) {
   let stateIndex = 0;
@@ -52,6 +56,7 @@ function createHarness({
   const messages = [];
   const locks = [];
   const invalidations = [];
+  const queued = [];
   let closes = 0;
   let reviewNotes = 0;
   let release;
@@ -112,6 +117,25 @@ function createHarness({
         calls.push(args);
         await gate;
         if (failure) throw new Error("offline");
+        if (unreachable) {
+          const error = new Error("no answer");
+          error.unreachable = true;
+          throw error;
+        }
+      },
+    },
+    "expo-crypto": { randomUUID: () => "6f1c1a52-3b0e-4c86-9a63-0f4f9c1b2d11" },
+    "../../utils/amountInput": amountInput,
+    "../../modules/offline/state/connectionNotice": { requireInternet: () => !noInternet },
+    "../../modules/currency/hooks/useMoney": {
+      useMoney: () => ({ currencyCode: "UZS", label: "so'm", allowsFraction: false, format: String, formatBalance: String }),
+    },
+    "../../modules/offline/db/savedDataRepository": { loadClientAlias: async () => null },
+    "../../modules/offline/sync/offlineWrites": {
+      isUnreachableWrite: (error) => error?.unreachable === true,
+      shouldQueueRightAway: () => knownDown,
+      queueTransactionCreate: async (input) => {
+        queued.push(input);
       },
     },
     "../../core/query/clientInvalidation": clientInvalidation,
@@ -149,6 +173,7 @@ function createHarness({
     messages,
     locks,
     invalidations,
+    queued,
     release,
     closed: () => closes,
     reviewNotes: () => reviewNotes,
@@ -165,6 +190,11 @@ async function main() {
     "A customer who is not blacklisted must not get the warning",
   );
   assert.equal(debt.format("000200000"), "200 000");
+  assert.equal(debt.format("120,5", true), "120,5", "Cents for the currencies that have them");
+  const usd = createHarness({ amount: "120,50" });
+  usd.release();
+  await usd.controller.save("debt");
+  assert.equal(usd.calls[0][1].amount, 120.5, "Cents are sent as the amount");
   const pending = debt.controller.save("debt");
   await debt.controller.save("payment");
   assert.equal(
@@ -175,6 +205,11 @@ async function main() {
   assert.equal(debt.calls[0][1].type, "debt");
   assert.equal(debt.calls[0][1].amount, 200000);
   assert.equal(debt.calls[0][1].note, "Test izoh");
+  assert.equal(
+    debt.calls[0][1].uuid,
+    "6f1c1a52-3b0e-4c86-9a63-0f4f9c1b2d11",
+    "Every write carries the phone's uuid, so a repeat is never recorded twice",
+  );
   debt.release();
   await pending;
   assert.equal(debt.closed(), 1);
@@ -233,8 +268,34 @@ async function main() {
   assert.equal(failed.locks.at(-1), false);
   await failed.controller.save("debt");
   assert.equal(failed.calls.length, 2, "Allow a retry after failure");
+  assert.equal(failed.queued.length, 0, "A refused write is never queued");
+
+  const offline = createHarness({ unreachable: true });
+  offline.release();
+  await offline.controller.save("debt");
+  assert.equal(offline.queued.length, 1, "With no answer from the server the write is queued");
+  assert.equal(offline.queued[0].data.uuid, offline.calls[0][1].uuid, "The queued copy keeps the same uuid");
+  assert.equal(offline.queued[0].organizationId, 7);
+  assert.equal(offline.queued[0].userId, 9);
+  assert.equal(offline.closed(), 1, "A queued write closes the sheet like a saved one");
+  assert.equal(offline.invalidations.length, 0, "Nothing new on the server: nothing to refetch");
+  assert.equal(offline.messages.at(-1)[0], "offline.queuedTransaction");
+
+  const down = createHarness({ knownDown: true });
+  down.release();
+  await down.controller.save("payment");
+  assert.equal(down.calls.length, 0, "Server known down: no request left waiting for its timeout");
+  assert.equal(down.queued.length, 1, "Server known down: queued at once");
+  assert.equal(down.queued[0].data.type, "payment");
+  assert.equal(down.closed(), 1);
+
+  const disconnected = createHarness({ noInternet: true });
+  disconnected.release();
+  await disconnected.controller.save("debt");
+  assert.equal(disconnected.calls.length + disconnected.queued.length, 0, "No internet: nothing sent, nothing queued");
+  assert.equal(disconnected.closed(), 0, "The sheet stays, with what was typed");
   console.log(
-    "Transaction sheet: debt/payment payloads, duplicate submits, active-organization invalidation, credit balances, validation and retry checks passed",
+    "Transaction sheet: debt/payment payloads, uuid, offline queue, duplicate submits, active-organization invalidation, credit balances, validation and retry checks passed",
   );
 }
 main().catch((error) => {

@@ -5,9 +5,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Keyboard, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { KeyboardAwareScrollView, KeyboardController } from "react-native-keyboard-controller";
 
 import { OtpInput, OtpInputHandle } from "../../../components/OtpInput";
 import { PrimaryButton } from "../../../components/PrimaryButton";
@@ -116,6 +116,9 @@ export function PhoneVerificationModal({
       setError(t("errors.validation"));
       return;
     }
+    // The number is right: the keyboard goes while the code is requested.
+    Keyboard.dismiss();
+    void KeyboardController.dismiss();
 
     const normalizedPhone = toE164(phone);
 

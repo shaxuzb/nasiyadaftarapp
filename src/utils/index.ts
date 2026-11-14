@@ -1,24 +1,5 @@
 import { Customer } from "../modules/clients/types";
 
-const currencyFormatter = new Intl.NumberFormat("uz-UZ");
-
-export function formatCurrency(amount: number): string {
-  return `${currencyFormatter.format(amount)} so'm`;
-}
-
-export function formatBalance(amount: number): string {
-  const value = Number.isFinite(amount) ? amount : 0;
-  if (value > 0) return `+${formatCurrency(value)}`;
-  if (value < 0) return `-${formatCurrency(Math.abs(value))}`;
-  return formatCurrency(0);
-}
-
-/** Presentation-only balance format: API sign is displayed inverted. */
-export function formatDisplayedBalance(amount: number): string {
-  return formatBalance(-amount);
-}
-
-
 /** The name, else the phone, else `fallback`: a translated "Customer". */
 export function getFullName(customer: Customer, fallback: string): string {
   return customer.fullName.trim() || customer.phone || fallback;

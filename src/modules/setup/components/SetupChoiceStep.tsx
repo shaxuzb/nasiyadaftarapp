@@ -10,11 +10,14 @@ import { useTranslation } from "../../../i18n";
 import { radius, spacing, typography } from "../../../theme";
 import type { AppTheme } from "../../../types";
 import { flagOf } from "../../phone/utils/phoneNumber";
+import { CurrencyCodeBadge } from "../../currency/components/CurrencyCodeBadge";
 
 export interface SetupChoice {
   key: string;
-  /** Country code whose flag is shown. */
-  flag: string;
+  /** Country code whose flag is shown (a language). */
+  flag?: string;
+  /** Shown instead of a flag: a currency's code, "USD". */
+  code?: string;
   title: string;
   subtitle?: string;
   /** Shown on the right, a currency's symbol say. */
@@ -38,6 +41,8 @@ interface Props {
   onAction: () => void;
   actionLoading?: boolean;
   onBack?: () => void;
+  /** A line above the button: why the last try did not go through. */
+  errorText?: string | null;
 }
 
 /**
@@ -61,6 +66,7 @@ export function SetupChoiceStep({
   onAction,
   actionLoading,
   onBack,
+  errorText,
 }: Props) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -82,8 +88,11 @@ export function SetupChoiceStep({
   );
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + spacing.sm }]}>
+    <View style={[styles.root, { paddingTop: insets.top + spacing.md }]}>
       <View style={styles.column}>
+        {/* Only when there is somewhere to go back to or steps to count:
+            otherwise the title starts at the top, with no empty bar above. */}
+        {onBack || stepCount > 1 ? (
         <View style={styles.topBar}>
           {onBack ? (
             <Pressable
@@ -98,18 +107,24 @@ export function SetupChoiceStep({
           ) : (
             <View style={styles.backButton} />
           )}
-          {/* Where the user is: one bar per step, the done ones filled. */}
-          <View
-            style={styles.progress}
-            accessibilityRole="progressbar"
-            accessibilityLabel={t("setup.stepOf", { step, count: stepCount })}
-          >
-            {Array.from({ length: stepCount }, (_, index) => (
-              <View key={index} style={[styles.progressBar, index < step && styles.progressBarDone]} />
-            ))}
-          </View>
-          <Text style={styles.stepText}>{t("setup.stepOf", { step, count: stepCount })}</Text>
+          {/* Where the user is: one bar per step, the done ones filled. A
+              single step needs no counting. */}
+          {stepCount > 1 ? (
+            <>
+              <View
+                style={styles.progress}
+                accessibilityRole="progressbar"
+                accessibilityLabel={t("setup.stepOf", { step, count: stepCount })}
+              >
+                {Array.from({ length: stepCount }, (_, index) => (
+                  <View key={index} style={[styles.progressBar, index < step && styles.progressBarDone]} />
+                ))}
+              </View>
+              <Text style={styles.stepText}>{t("setup.stepOf", { step, count: stepCount })}</Text>
+            </>
+          ) : null}
         </View>
+        ) : null}
 
         <Text style={styles.title} accessibilityRole="header">
           {title}
@@ -138,6 +153,11 @@ export function SetupChoiceStep({
         />
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+          {errorText ? (
+            <Text style={styles.errorText} accessibilityLiveRegion="polite">
+              {errorText}
+            </Text>
+          ) : null}
           <PrimaryButton
             label={actionLabel}
             onPress={onAction}
@@ -181,9 +201,13 @@ const ChoiceRow = memo(function ChoiceRow({
         pressed && styles.pressed,
       ]}
     >
-      <View style={styles.flagWrap}>
-        <Text style={styles.flag}>{flagOf(choice.flag)}</Text>
-      </View>
+      {choice.code ? (
+        <CurrencyCodeBadge code={choice.code} selected={selected} />
+      ) : (
+        <View style={styles.flagWrap}>
+          <Text style={styles.flag}>{choice.flag ? flagOf(choice.flag) : "🌐"}</Text>
+        </View>
+      )}
       <View style={styles.copy}>
         <Text style={[styles.rowTitle, selected && styles.rowTitleSelected]} numberOfLines={1}>
           {choice.title}
@@ -213,6 +237,12 @@ const ChoiceRow = memo(function ChoiceRow({
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
+    errorText: {
+      ...typography.bodySmall,
+      color: theme.dangerColor,
+      textAlign: "center",
+      marginBottom: spacing.sm,
+    },
     root: { flex: 1, alignItems: "center", backgroundColor: theme.background },
     // A centred column on a tablet; the full width on a phone.
     column: { flex: 1, width: "100%", maxWidth: 560, paddingHorizontal: spacing.md },

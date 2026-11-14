@@ -35,7 +35,17 @@ import { useApp } from "../../context/AppContext";
 import { useAuth } from "../../context/AuthContext";
 import { getInitials } from "../../utils";
 import { hapticError, hapticSuccess } from "../../utils/haptics";
+import * as Crypto from "expo-crypto";
+import { formatAmountInput, parseAmountInput } from "../../utils/amountInput";
+import { useMoney } from "../../modules/currency/hooks/useMoney";
+import { requireInternet } from "../../modules/offline/state/connectionNotice";
 import { createClientTransaction } from "../../modules/transactions/services/transactionsService";
+import { loadClientAlias } from "../../modules/offline/db/savedDataRepository";
+import {
+  isUnreachableWrite,
+  queueTransactionCreate,
+  shouldQueueRightAway,
+} from "../../modules/offline/sync/offlineWrites";
 import { invalidateClientDomain } from "../../core/query/clientInvalidation";
 import { getOrganizationQueryScope } from "../../core/query/organizationScope";
 import { BlacklistBadge } from "../../modules/clients/components/BlacklistBadge";
@@ -44,7 +54,6 @@ import { noteSuccessfulTransaction } from "../../modules/app-review/services/rev
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme, TransactionType } from "../../types";
 import {
-  formatLocalizedDisplayedBalance,
   getLocalizedApiErrorMessage,
   useTranslation,
 } from "../../i18n";
@@ -54,14 +63,6 @@ function getLocalDateOnly(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 }
 
-function formatAmountInput(value: string): string {
-  return value
-    .replace(/\D/g, "")
-    .replace(/^0+(?=\d)/, "")
-    .slice(0, 13)
-    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
-}
-
 type TransactionAmountInputProps = Omit<
   React.ComponentProps<typeof BottomSheetTextInput>,
   "value" | "defaultValue" | "onChangeText"
@@ -69,6 +70,8 @@ type TransactionAmountInputProps = Omit<
   initialValue: string;
   onValueChange: (value: string) => void;
   inputRef?: React.Ref<TransactionInputRef>;
+  /** Cents can be typed (every currency but the sum). */
+  allowFraction: boolean;
 };
 type TransactionInputRef = React.ComponentRef<typeof BottomSheetTextInput>;
 
@@ -77,17 +80,18 @@ const TransactionAmountInput = React.memo(
     initialValue,
     onValueChange,
     inputRef,
+    allowFraction,
     ...rest
   }: TransactionAmountInputProps) {
     const [value, setValue] = useState(initialValue);
 
     const handleChangeText = React.useCallback(
       (nextValue: string) => {
-        const formattedValue = formatAmountInput(nextValue);
+        const formattedValue = formatAmountInput(nextValue, allowFraction);
         setValue(formattedValue);
         onValueChange(formattedValue);
       },
-      [onValueChange],
+      [allowFraction, onValueChange],
     );
 
     return (
@@ -132,8 +136,9 @@ function useTransactionController({
     props.type ?? "debt",
   );
   const submitting = useRef(false);
-  const parsedAmount = Number(amount.replace(/\s/g, ""));
-  const validAmount = Number.isSafeInteger(parsedAmount) && parsedAmount > 0;
+  // Whole for the sum, to the cent for the other currencies.
+  const parsedAmount = parseAmountInput(amount) ?? 0;
+  const validAmount = parsedAmount > 0;
   const currentBalance = props.currentBalance ?? customer?.currentBalance ?? 0;
   const nextBalance =
     currentBalance +
@@ -161,6 +166,9 @@ function useTransactionController({
       showToast(t("transactions.amountError"), "error");
       return;
     }
+    // No internet on the phone: nothing is written (offline mode is only for
+    // the server being down). Connected again, "Qayta tekshirish" saves it.
+    if (!requireInternet(() => void save(type))) return;
     submitting.current = true;
     setSaving(type);
     setDismissLocked(true);
@@ -168,7 +176,7 @@ function useTransactionController({
     Keyboard.dismiss();
     void KeyboardController.dismiss();
     try {
-      await createClientTransaction(props.customerId, {
+      const request = {
         type,
         amount: parsedAmount,
         date: getLocalDateOnly(),
@@ -177,19 +185,53 @@ function useTransactionController({
           (type === "debt"
             ? t("transactions.debtNote")
             : t("transactions.paymentNote")),
-      });
-      // A completed POST must not fail just because a background refresh failed.
-      void invalidateClientDomain(
-        queryClient,
-        scope,
-        "transaction",
-        props.customerId,
-      ).catch(() => undefined);
+      };
+      // Made once and kept: the server never records the same write twice,
+      // whether this request is repeated or the write goes to the queue.
+      const uuid = Crypto.randomUUID();
+      // A customer added offline that the server has since received: its real id.
+      let customerId = props.customerId;
+      if (customerId < 0) customerId = (await loadClientAlias(scope, customerId))?.serverId ?? customerId;
+      const queue = async () => {
+        const organizationId = currentOrganization?.id;
+        const target = customer ?? { id: customerId, uuid: undefined, fullName: name, phone };
+        if (!user || !organizationId || (target.id < 0 && !target.uuid)) {
+          throw new Error("Cannot queue the write");
+        }
+        await queueTransactionCreate({ userId: user.id, organizationId, customer: target, data: { uuid, ...request } });
+      };
+
+      let queued = false;
+      if (customerId < 0 || shouldQueueRightAway()) {
+        // Only the phone has this customer yet, or the server is known to be
+        // down: the write waits on the phone, without a request timing out.
+        await queue();
+        queued = true;
+      } else {
+        try {
+          await createClientTransaction(customerId, { ...request, uuid });
+        } catch (error) {
+          if (!isUnreachableWrite(error)) throw error;
+          await queue();
+          queued = true;
+        }
+      }
+      if (!queued) {
+        // A completed POST must not fail just because a background refresh failed.
+        void invalidateClientDomain(
+          queryClient,
+          scope,
+          "transaction",
+          customerId,
+        ).catch(() => undefined);
+      }
       hapticSuccess();
       showToast(
-        type === "debt"
-          ? t("transactions.debtSaved")
-          : t("transactions.paymentSaved"),
+        queued
+          ? t("offline.queuedTransaction")
+          : type === "debt"
+            ? t("transactions.debtSaved")
+            : t("transactions.paymentSaved"),
         "success",
       );
       setDismissLocked(false);
@@ -347,7 +389,9 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
 
 export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const theme = useTheme();
-  const { locale, t } = useTranslation();
+  const { t } = useTranslation();
+  // The organization's currency: its sign, and whether cents can be typed.
+  const money = useMoney();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const tx = useTransaction();
@@ -410,7 +454,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
             numberOfLines={1}
             adjustsFontSizeToFit
           >
-            {formatLocalizedDisplayedBalance(tx.currentBalance, locale)}
+            {money.formatBalance(tx.currentBalance)}
           </Text>
         </View>
         {tx.props.onOpenProfile && (
@@ -440,8 +484,9 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
             inputRef={amountRef}
             initialValue=""
             onValueChange={tx.setAmount}
+            allowFraction={money.allowsFraction}
             editable={!tx.saving}
-            keyboardType="number-pad"
+            keyboardType={money.allowsFraction ? "decimal-pad" : "number-pad"}
             returnKeyType="none"
             submitBehavior="blurAndSubmit"
             onSubmitEditing={dismissKeyboard}
@@ -454,7 +499,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
             accessibilityLabel={t("transactions.amountA11y")}
           />
         </View>
-        <Text style={styles.currency}>{t("transactions.currency")}</Text>
+        <Text style={styles.currency}>{money.label}</Text>
       </Pressable>
       <Pressable
         onPress={() => noteRef.current?.focus()}
@@ -495,7 +540,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
             },
           ]}
         >
-          {formatLocalizedDisplayedBalance(tx.nextBalance, locale)}
+          {money.formatBalance(tx.nextBalance)}
         </Text>
       </View>
     </BottomSheetScrollView>

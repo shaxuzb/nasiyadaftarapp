@@ -62,18 +62,25 @@ assert.match(
 );
 assert.match(
   customerDetail,
-  /onPress: hasPhone \? \(\) => void openContact\(\) : \(\) => setEditing\(true\)/,
+  // startEditing opens the edit sheet (or, for a customer only on the phone
+  // yet, says why it cannot be edited until it is sent).
+  /onPress: hasPhone \? \(\) => void openContact\(\) : (?:\(\) => setEditing\(true\)|startEditing)/,
   "Calling without a number must open the edit sheet",
 );
 assert.match(
   customerDetail,
-  /onPress: hasPhone \? \(\) => void openContact\(true\) : \(\) => setEditing\(true\)/,
+  /onPress: hasPhone \? \(\) => void openContact\(true\) : (?:\(\) => setEditing\(true\)|startEditing)/,
   "Messaging without a number must open the edit sheet",
 );
 assert.doesNotMatch(
   customerDetail,
   /disabled=\{!hasPhone\}/,
   "The contact buttons must stay pressable so they can lead to the edit sheet",
+);
+assert.match(
+  customerDetail,
+  /const openEditor = \(\) => setEditing\(true\);\s*const startEditing = \(\) => \{\s*if \(onlyOnPhone\) showLockedNotice\(\);\s*else if \(requireServer\(openEditor\)\) openEditor\(\);/,
+  "startEditing must open the edit sheet for a customer the server has",
 );
 assert.match(
   customerDetail,

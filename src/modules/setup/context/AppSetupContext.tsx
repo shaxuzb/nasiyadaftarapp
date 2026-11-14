@@ -10,20 +10,15 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import {
-  INITIAL_APP_SETUP,
-  parseAppSetup,
-  type AppSetup,
-  type CurrencyCode,
-} from "../data/setupOptions";
+import { INITIAL_APP_SETUP, parseAppSetup, type AppSetup } from "../data/setupOptions";
 
 const STORAGE_KEY = "app_setup_v1";
 
 interface AppSetupContextValue extends AppSetup {
   /** The stored setup has been read; until then nothing is decided. */
   ready: boolean;
-  /** Ends first launch with the currency chosen. */
-  completeSetup: (currency: CurrencyCode) => Promise<void>;
+  /** Ends first launch (the language is already chosen). */
+  completeSetup: () => Promise<void>;
   /** Ends it without asking, for someone already signed in from before. */
   markCompleted: () => Promise<void>;
 }
@@ -39,7 +34,7 @@ async function save(setup: AppSetup) {
   }
 }
 
-/** First launch: whether it is done, and the currency it chose. */
+/** First launch: whether it is done. */
 export function AppSetupProvider({ children }: { children: ReactNode }) {
   const [setup, setSetup] = useState<AppSetup>(INITIAL_APP_SETUP);
   const setupRef = useRef(setup);
@@ -60,8 +55,8 @@ export function AppSetupProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const completeSetup = useCallback(async (currency: CurrencyCode) => {
-    const next: AppSetup = { completed: true, currency };
+  const completeSetup = useCallback(async () => {
+    const next: AppSetup = { completed: true };
     setSetup(next);
     await save(next);
   }, []);

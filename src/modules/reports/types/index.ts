@@ -28,6 +28,8 @@ export interface ReportsResponse {
   currentMonthBalance: number;
   topDebtors: ReportTopDebtor[];
   monthlyStatistics: MonthlyStatistic[];
+  /** Made on the phone while the server is down: only the total is real. */
+  computedOnPhone?: boolean;
 }
 
 export interface ReportsQueryParams {

@@ -1,4 +1,5 @@
-export type Locale = "uz" | "ru";
+/** The languages the app is translated into (each has a full file in translations/). */
+export type Locale = "uz" | "ru" | "en" | "kk" | "tg" | "ky" | "tr" | "tk";
 
 export const DEFAULT_LOCALE: Locale = "uz";
 export const LANGUAGE_STORAGE_KEY = "language_preference_v1";

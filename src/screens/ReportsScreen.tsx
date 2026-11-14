@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { useReports } from "../modules/reports/hooks/useReports";
+import { SavedDataNotice } from "../modules/offline/components/SavedDataNotice";
 import type { ReportTopDebtor, ReportsResponse } from "../modules/reports/types";
 import type { AppTheme, RootStackParamList } from "../types";
 import { useTheme } from "../hooks/useTheme";
@@ -26,9 +27,10 @@ import {
   getLocalizedApiErrorMessage,
   useTranslation,
   formatLocalizedCurrency,
-  formatLocalizedDisplayedBalance,
 } from "../i18n";
 import { exportClientsReport } from "../modules/reports/services/reportsService";
+import { useMoney } from "../modules/currency/hooks/useMoney";
+import { requireServer } from "../modules/offline/state/connectionNotice";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type DebtorLimit = 10 | 30 | 50;
@@ -62,6 +64,8 @@ type DebtorRowProps = {
   index: number;
   isLast: boolean;
   locale: ReturnType<typeof useTranslation>["locale"];
+  /** The organization's currency. */
+  currencyCode: string;
   debtCaption: string;
   phoneMissing: string;
   styles: ReturnType<typeof createStyles>;
@@ -70,9 +74,9 @@ type DebtorRowProps = {
 };
 
 const DebtorRow = React.memo(function DebtorRow({
-  item, index, isLast, locale, debtCaption, phoneMissing, styles, mutedColor, onOpen,
+  item, index, isLast, locale, currencyCode, debtCaption, phoneMissing, styles, mutedColor, onOpen,
 }: DebtorRowProps) {
-  const balanceText = formatLocalizedCurrency(item.balance, locale);
+  const balanceText = formatLocalizedCurrency(item.balance, locale, currencyCode);
   return (
     <Pressable
       accessibilityRole="button"
@@ -114,6 +118,7 @@ export function ReportsScreen() {
   const styles = React.useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Nav>();
   const { locale, t } = useTranslation();
+  const money = useMoney();
   const { showToast } = useToast();
 
   const [topDebtorsLimit, setTopDebtorsLimit] = React.useState<DebtorLimit>(10);
@@ -131,6 +136,7 @@ export function ReportsScreen() {
     refetch,
   } = useReports(params);
   const data = report ?? EMPTY_REPORT;
+  const phoneOnly = report?.computedOnPhone === true;
   const topDebtors = data.topDebtors;
   const isInitialLoading = isLoading && !report;
   const hasDebt = data.remainingBalance > 0;
@@ -155,6 +161,8 @@ export function ReportsScreen() {
 
   const handleExport = React.useCallback(async () => {
     if (isExporting) return;
+    // The file is made by the server: offline, say why instead of failing.
+    if (!requireServer()) return;
     setIsExporting(true);
     try {
       await exportClientsReport(
@@ -177,13 +185,14 @@ export function ReportsScreen() {
       index={index}
       isLast={index === topDebtors.length - 1}
       locale={locale}
+      currencyCode={money.currencyCode}
       debtCaption={t("reports.debtCaption")}
       phoneMissing={t("customers.phoneMissing")}
       mutedColor={theme.textMuted}
       onOpen={openDebtor}
       styles={styles}
     />
-  ), [topDebtors.length, locale, t, theme.textMuted, openDebtor, styles]);
+  ), [topDebtors.length, locale, money.currencyCode, t, theme.textMuted, openDebtor, styles]);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -208,7 +217,7 @@ export function ReportsScreen() {
       </View>
 
       <FlatList<ReportTopDebtor>
-        data={isInitialLoading || (dataError && !report) ? [] : topDebtors}
+        data={isInitialLoading || (dataError && !report) || phoneOnly ? [] : topDebtors}
         keyExtractor={(item) => String(item.clientId)}
         renderItem={renderDebtor}
         contentInsetAdjustmentBehavior="automatic"
@@ -237,6 +246,7 @@ export function ReportsScreen() {
             </View>
           ) : (
             <View style={styles.listHeader}>
+              <SavedDataNotice />
               <View style={[
                 styles.heroCard, hasDebt ? styles.heroDebtCard : styles.heroSuccessCard,
               ]}>
@@ -250,7 +260,7 @@ export function ReportsScreen() {
                   style={[styles.heroValue, {
                     color: hasDebt ? theme.debtColor : theme.paymentColor,
                   }]}>
-                  {formatLocalizedDisplayedBalance(data.remainingBalance, locale)}
+                  {money.formatBalance(data.remainingBalance)}
                 </Text>
                 {!hasDebt ? (
                   <Text style={styles.heroCaption}>
@@ -259,6 +269,8 @@ export function ReportsScreen() {
                 ) : null}
               </View>
 
+              {/* Server down: the total alone; the debtors come back with it. */}
+              {phoneOnly ? null : (
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionHeading}>
                   <Text style={styles.sectionTitle}>{t("reports.topDebtors")}</Text>
@@ -291,11 +303,12 @@ export function ReportsScreen() {
                   </View>
                 </View>
               </View>
+              )}
             </View>
           )
         }
         ListEmptyComponent={
-          !isInitialLoading && !(dataError && !report) ? (
+          !isInitialLoading && !(dataError && !report) && !phoneOnly ? (
             <View style={styles.emptyState}>
               <Ionicons name="checkmark-circle" size={27} color={theme.paymentColor} />
               <Text style={styles.emptyTitle}>{t("reports.activeDebtorsEmpty")}</Text>

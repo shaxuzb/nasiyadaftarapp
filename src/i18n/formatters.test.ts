@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
-// @ts-expect-error Standalone Node test imports the TypeScript module directly.
-import { formatLocalizedDate, formatLocalizedDateTime } from "./formatters.ts";
+import {
+  formatLocalizedCurrency,
+  formatLocalizedDate,
+  formatLocalizedDateTime,
+  formatLocalizedDisplayedBalance,
+  registerCurrencySymbols,
+  // @ts-expect-error Standalone Node test imports the TypeScript module directly.
+} from "./formatters.ts";
 
 const day = formatLocalizedDate(new Date(2026, 9, 21), "uz");
 
@@ -33,3 +39,18 @@ assert.equal(
 );
 
 console.log("Date and time formatting tests passed");
+
+/* Amounts: the sum by default (plans, SMS packages), the organization's currency otherwise. */
+
+const nbsp = (text: string) => text.replace(/[  ]/g, " ");
+assert.equal(nbsp(formatLocalizedCurrency(250000, "uz")), "250 000 so‘m");
+assert.equal(nbsp(formatLocalizedCurrency(250000, "ru")), "250 000 сум");
+assert.match(nbsp(formatLocalizedCurrency(120.5, "uz", "USD")), /^120,5 \$$/, "The symbol after the amount");
+assert.match(nbsp(formatLocalizedCurrency(120.456, "ru", "EUR")), /^120,46 €$/, "Cents to two places");
+assert.equal(nbsp(formatLocalizedCurrency(300, "ru", "EUR")), "300 €", "No cents, none shown");
+assert.equal(formatLocalizedCurrency(5, "uz", "GBP").endsWith(" GBP"), true, "An unknown code shows itself");
+registerCurrencySymbols([{ code: "GBP", symbol: "£" }]);
+assert.equal(formatLocalizedCurrency(5, "uz", "GBP").endsWith(" £"), true, "Then the symbol the server gave");
+assert.equal(nbsp(formatLocalizedDisplayedBalance(150, "ru", "USD")), "-150 $", "Owed shows as minus, as before");
+
+console.log("Localized formatter currency tests passed");

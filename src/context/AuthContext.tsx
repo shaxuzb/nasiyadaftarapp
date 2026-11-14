@@ -37,11 +37,13 @@ import {
 import { setUnauthorizedHandler } from "../services/axiosService";
 import {
   createOrganization,
+  getCurrentOrganization,
   getManualOrganizations,
 } from "../modules/organization/services/organizationService";
 import {
   OrganizationMembership,
   OrganizationRequest,
+  OrganizationResponse,
 } from "../modules/organization/types";
 import { getCurrentSubscription } from "../modules/subscription/services/subscriptionService";
 import { canCreateOrganization } from "../modules/subscription/utils/entitlements";
@@ -56,6 +58,8 @@ import { queryKeys } from "../core/query/queryKeys";
 import { getOrganizationSelectionBackAction } from "./organizationSelection";
 import { unregisterPushDevice } from "../modules/push/services/pushService";
 import { createOrganizationLimitError } from "../i18n/apiErrors";
+import { clearSavedData } from "../modules/offline/db/savedDataRepository";
+import { markCurrencySetupPending } from "../modules/currency/state/currencySetup";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -73,6 +77,8 @@ interface AuthContextValue {
     payload: OrganizationRequest,
   ) => Promise<void>;
   refreshOrganizations: () => Promise<void>;
+  /** The organization as the server now has it (a new currency, say): on screen and kept on the phone. */
+  applyOrganizationUpdate: (organization: OrganizationResponse) => Promise<void>;
   refreshSubscription: () => Promise<void>;
   selectOrganization: (organizationId: number) => Promise<void>;
   openOrganizationSelector: () => Promise<void>;
@@ -166,6 +172,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [persistUser],
   );
 
+  // The organization as the server now has it, laid over the one in the app:
+  // in the list, as the current one, and in the account kept on the phone, so
+  // its currency is right offline too. Only what the answer says is changed.
+  const applyOrganizationUpdate = useCallback(
+    async (update: OrganizationResponse) => {
+      const changes: Partial<OrganizationMembership> = {};
+      for (const [key, value] of Object.entries(update)) {
+        if (value !== undefined && value !== null) (changes as Record<string, unknown>)[key] = value;
+      }
+      if (typeof changes.currencyCode === "string") changes.currencyCode = changes.currencyCode.trim().toUpperCase();
+      const merge = (organization: OrganizationMembership) =>
+        organization.id === update.id ? { ...organization, ...changes } : organization;
+
+      setOrganizations((list) => list.map(merge));
+      setCurrentOrganization((current) => (current && current.id === update.id ? merge(current) : current));
+      const session = getAuthSessionSync() ?? (await hydrateAuthSession());
+      const base = session?.user;
+      if (!base) return;
+      await persistUser({ ...base, organizations: (base.organizations ?? []).map(merge) });
+    },
+    [persistUser],
+  );
+
+  // The organization list (/manual/organizations) may not say the currency;
+  // GET /organizations/current always does. Asked once, only when missing, and
+  // kept with the organization from then on. A failure leaves the sum shown.
+  const fillOrganizationCurrency = useCallback(
+    (organization: OrganizationMembership) => {
+      if (organization.currencyCode) return;
+      void getCurrentOrganization()
+        .then((current) => {
+          if (current?.id === organization.id && current.currencyCode) {
+            return applyOrganizationUpdate({ id: current.id, name: current.name, currencyCode: current.currencyCode });
+          }
+          return undefined;
+        })
+        .catch(() => undefined);
+    },
+    [applyOrganizationUpdate],
+  );
+
   const applyOrganizationSelection = useCallback(
     async (
       baseUser: AuthUser,
@@ -209,8 +256,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOrganizationSelectionReturnTab(null);
       setCurrentOrganization(selected);
       setUser(nextUser);
+      fillOrganizationCurrency(selected);
     },
-    [],
+    [fillOrganizationCurrency],
   );
 
   const resolveOrganizations = useCallback(
@@ -246,6 +294,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             hasOrganization: true,
             organizationName: selected.name,
           });
+          fillOrganizationCurrency(selected);
           return;
         }
 
@@ -272,7 +321,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!silent) setIsOrganizationLoading(false);
       }
     },
-    [applyOrganizationSelection, persistUser],
+    [applyOrganizationSelection, fillOrganizationCurrency, persistUser],
   );
 
   const completeAuth = useCallback(
@@ -372,6 +421,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setOrganizations(availableOrganizations);
+      // Its currency is asked for once, as soon as it opens (before its
+      // screens show amounts).
+      await markCurrencySetupPending(user.id, target.id);
       setIsOrganizationLoading(true);
       try {
         await applyOrganizationSelection(
@@ -414,6 +466,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryClient.removeQueries({ queryKey: queryKeys.paymentsRoot() });
     queryClient.removeQueries({ queryKey: ["push"] });
     clearOrganizationQueries();
+    // The copy of customers and debts kept on the phone goes with the account.
+    await clearSavedData();
     await clearAuthSession();
     previousOrganizationRef.current = null;
     setOrganizationSelectionReturnTab(null);
@@ -609,6 +663,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       linkAppleAccount,
       createOrganizationForCurrentUser,
       refreshOrganizations,
+      applyOrganizationUpdate,
       refreshSubscription,
       selectOrganization,
       openOrganizationSelector,
@@ -634,6 +689,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       organizationSelectionReturnTab,
       organizations,
       refreshOrganizations,
+      applyOrganizationUpdate,
       refreshSubscription,
       selectOrganization,
       updateUserProfile,
