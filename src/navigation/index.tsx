@@ -29,6 +29,7 @@ import { OrganizationSelectScreen } from "../screens/OrganizationSelectScreen";
 import { AccountSecurityScreen } from "../screens/AccountSecurityScreen";
 import { PinChangeScreen } from "../modules/pin-auth/screens/PinChangeScreen";
 import { ClientSmsScreen } from "../screens/ClientSmsScreen";
+import { DueClientsScreen } from "../screens/DueClientsScreen";
 import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
 import { SmsSettingsScreen } from "../screens/SmsSettingsScreen";
 import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
@@ -56,7 +57,9 @@ import { PushInAppBanner } from "../modules/push/components/PushInAppBanner";
 import { useAppSetup } from "../modules/setup/context/AppSetupContext";
 import { FirstLaunchSetup } from "../modules/setup/screens/FirstLaunchSetup";
 import {
+  consumeDeferredInternalRoute,
   consumePendingPushNavigation,
+  navigateToInternalRoute,
   navigateToPushNotification,
   navigationRef,
 } from "./navigationRef";
@@ -253,6 +256,7 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <Stack.Screen name="PinChange" component={PinChangeScreen} />
+      <Stack.Screen name="DueClients" component={DueClientsScreen} />
       {regionalCapabilities.clientSmsVisible ? (
         <>
           <Stack.Screen name="ClientSms" component={ClientSmsScreen} />
@@ -470,6 +474,8 @@ export function AppNavigator() {
           setNavigationReady(true);
           const pending = consumePendingPushNavigation();
           if (pending !== undefined) navigateToPushNotification(pending);
+          const deferred = consumeDeferredInternalRoute();
+          if (deferred) navigateToInternalRoute(deferred);
         }}
         theme={navTheme}
       >

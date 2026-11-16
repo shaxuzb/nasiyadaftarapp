@@ -58,6 +58,20 @@ export function navigateToInternalRoute(route: InternalRoute): boolean {
   return true;
 }
 
+// A screen to open once the navigator is back: following a link that first
+// switched the organization, which remounts every screen.
+let deferredInternalRoute: InternalRoute | null = null;
+
+export function deferInternalRoute(route: InternalRoute | null) {
+  deferredInternalRoute = route;
+}
+
+export function consumeDeferredInternalRoute(): InternalRoute | null {
+  const route = deferredInternalRoute;
+  deferredInternalRoute = null;
+  return route;
+}
+
 export function consumePendingPushNavigation() {
   if (!hasPendingPushNavigation) return undefined;
   hasPendingPushNavigation = false;

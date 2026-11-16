@@ -79,6 +79,7 @@ import { useMoney } from "../modules/currency/hooks/useMoney";
 import { todayDateOnly, type DateOnly } from "../utils/dateOnly";
 import { radius, spacing } from "../theme";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
+import { DueClientsBanner } from "../modules/debt-due/components/DueClientsBanner";
 import { RenewalReminderBanner } from "../modules/subscription/components/RenewalReminderBanner";
 import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
 import { useContactPicker } from "../modules/clients/hooks/useContactPicker";
@@ -535,6 +536,7 @@ export function CustomersScreen() {
 
         <RenewalReminderBanner />
         <PendingPaymentBanner />
+        <DueClientsBanner />
 
         <FlatList
           data={isListLoading && listData.length === 0 ? [] : listData}

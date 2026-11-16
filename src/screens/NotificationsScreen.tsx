@@ -28,10 +28,8 @@ import {
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme, RootStackParamList } from "../types";
 import type { PushNotification } from "../modules/push/types";
-import {
-  describeNotificationLink,
-  openNotificationLink,
-} from "../modules/push/services/notificationNavigation";
+import { describeNotificationLink } from "../modules/push/services/notificationNavigation";
+import { useFollowNotificationLink } from "../modules/push/hooks/useOpenNotification";
 
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 type ScreenRoute = RouteProp<RootStackParamList, "Notifications">;
@@ -46,6 +44,7 @@ export function NotificationsScreen() {
   const listRef = useRef<FlatList<PushNotification>>(null);
   const query = usePushNotificationList();
   const markRead = useMarkPushNotificationRead();
+  const followLink = useFollowNotificationLink();
   const items = useMemo(
     () => query.data?.pages.flatMap((page) => page.results) ?? [],
     [query.data],
@@ -85,7 +84,7 @@ export function NotificationsScreen() {
           // the app could not follow must say so, or the tap looks broken.
           const link = item.link;
           if (!link) return;
-          void openNotificationLink(link).then((opened) => {
+          void followLink(link).then((opened) => {
             if (opened) return;
             const message = t("notifications.linkOpenError");
             // While developing, show what actually arrived: a missing scheme or

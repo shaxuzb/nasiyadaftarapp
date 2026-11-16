@@ -21,7 +21,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { type RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SearchBar } from "../components/SearchBar";
 import { EmptyState } from "../components/EmptyState";
@@ -121,7 +121,12 @@ function ClientSmsContent({
   const { requireVerifiedPhone } = useAccountSecurity();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Opened from the due-debts list: those customers come ticked.
+  const route = useRoute<RouteProp<RootStackParamList, "ClientSms">>();
+  const preselectedIds = route.params?.preselectedIds;
+  const [selected, setSelected] = useState<Set<number>>(
+    () => new Set(preselectedIds ?? []),
+  );
   const [bulkSummary, setBulkSummary] = useState<BulkSmsResponse | null>(null);
   // Skipped and failed recipients grouped by reason, so a batch where thirty
   // clients already had today's SMS reads as one line, not the first of thirty.
@@ -147,10 +152,21 @@ function ClientSmsContent({
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(timer);
   }, [search]);
+  // A new search starts a new selection, but not the first run: that would
+  // drop what the screen was opened with.
+  const searchedOnce = useRef(false);
   useEffect(() => {
+    if (!searchedOnce.current) {
+      searchedOnce.current = true;
+      return;
+    }
     setSelected(new Set());
     setBulkSummary(null);
   }, [debouncedSearch]);
+  // Sent here again from the due list while already open.
+  useEffect(() => {
+    if (preselectedIds?.length) setSelected(new Set(preselectedIds));
+  }, [preselectedIds]);
   // The list is who a debt reminder can go to: customers who owe something.
   // That is fixed, not a switch on the screen, so nobody has to remember to
   // turn it on and nobody is shown a customer there is nothing to remind of.

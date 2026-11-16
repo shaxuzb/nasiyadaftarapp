@@ -44,6 +44,9 @@ export const queryKeys = {
     ["clients", scope, "search"] as const,
   clientSearch: (scope: QueryScope, search: string) =>
     ["clients", scope, "search", search] as const,
+  /** Under the customers' key: any customer or debt change refreshes it. */
+  dueClients: (scope: QueryScope, date: string) =>
+    ["clients", scope, "due", date] as const,
   clientRoot: () => ["client"] as const,
   client: (scope: QueryScope, id: number) => ["client", scope, id] as const,
   transactionsRoot: () => ["transactions"] as const,

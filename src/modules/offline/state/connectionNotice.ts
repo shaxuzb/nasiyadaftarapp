@@ -17,6 +17,7 @@ export const SERVER_ONLY_ROUTES: ReadonlySet<string> = new Set([
   "BlacklistSettings",
   "ClientSms",
   "ClientSmsHistory",
+  "DueClients",
   "SmsSettings",
   "Subscription",
   "PaymentHistory",

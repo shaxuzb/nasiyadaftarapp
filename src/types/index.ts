@@ -33,7 +33,10 @@ export type RootStackParamList = {
   CustomerDetail: { customerId: number };
   AccountSecurity: undefined;
   PinChange: undefined;
-  ClientSms: undefined;
+  /** Customers who were to pay back on `date` ("YYYY-MM-DD", today when absent). */
+  DueClients: { date?: string; organizationId?: number } | undefined;
+  /** `preselectedIds` opens with those customers ticked (from the due list). */
+  ClientSms: { preselectedIds?: number[] } | undefined;
   ClientSmsHistory: undefined;
   SmsSettings: undefined;
   BlacklistSettings: undefined;
