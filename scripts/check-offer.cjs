@@ -139,9 +139,11 @@ async function main() {
       file + " must not take the offer's link from the API",
     );
   }
+  // "Read" shows the published text in the app; its fallback is the fixed
+  // page above (see check-legal-documents), never the API's `url`.
   assert.match(
     read("src/modules/offer/components/OfferAcceptanceGate.tsx"),
-    /openExternalLink\(TERMS_OF_SERVICE_URL\)/,
+    /openLegalDocument\("offer"\)/,
   );
 
   /* ---------- The gate: who is asked, and when ---------- */

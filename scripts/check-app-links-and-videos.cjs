@@ -256,9 +256,23 @@ async function main() {
     }
   })(path.join(root, "src"));
   assert.deepEqual(
-    users,
-    ["src/modules/video-lessons/components/YouTubePlayer.tsx"],
-    "The WebView is for the video player and nothing else",
+    users.sort(),
+    [
+      "src/modules/legal/LegalDocumentProvider.tsx",
+      "src/modules/video-lessons/components/YouTubePlayer.tsx",
+    ],
+    "The WebView is for the video player and the legal documents, nothing else",
+  );
+  // The documents are text: no script runs in them, and a link leaves for the browser.
+  const legalViewer = fs.readFileSync(
+    path.join(root, "src/modules/legal/LegalDocumentProvider.tsx"),
+    "utf8",
+  );
+  assert.match(legalViewer, /javaScriptEnabled=\{false\}/, "No script may run in a legal document");
+  assert.match(
+    legalViewer,
+    /onShouldStartLoadWithRequest=\{onNavigate\}/,
+    "A link in a legal document must not navigate the viewer",
   );
 
   /* 8. The lessons as the server sends them. */

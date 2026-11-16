@@ -806,7 +806,9 @@ export const tgTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   legal: {
     sheetTitle: "Ҳуҷҷатҳои ҳуқуқӣ",
-    sheetSubtitle: "Ҳуҷҷат дар браузер кушода мешавад",
+    sheetSubtitle: "Қоидаҳои истифодаи барнома",
+    loadError: "Ҳуҷҷатро бор кардан нашуд. Интернетро санҷед ва бори дигар кӯшиш кунед.",
+    openWebsite: "Дар сомона кушодан",
     terms: {
       title: "Офертаи оммавӣ",
       description: "Шартҳои истифодаи барнома",

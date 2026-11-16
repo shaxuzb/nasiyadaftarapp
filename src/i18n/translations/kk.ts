@@ -806,7 +806,9 @@ export const kkTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   legal: {
     sheetTitle: "Құқықтық құжаттар",
-    sheetSubtitle: "Құжат браузерде ашылады",
+    sheetSubtitle: "Қолданбаны пайдалану ережелері",
+    loadError: "Құжатты жүктеу мүмкін болмады. Интернетті тексеріп, қайталап көріңіз.",
+    openWebsite: "Сайтта ашу",
     terms: {
       title: "Жария оферта",
       description: "Қолданбаны пайдалану шарттары",

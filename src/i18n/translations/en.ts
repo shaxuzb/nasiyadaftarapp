@@ -795,7 +795,9 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   legal: {
     sheetTitle: "Legal documents",
-    sheetSubtitle: "The document opens in the browser",
+    sheetSubtitle: "The rules for using the app",
+    loadError: "Couldn't load the document. Check your internet and try again.",
+    openWebsite: "Open on the website",
     terms: {
       title: "Terms of service",
       description: "Terms of using the app",

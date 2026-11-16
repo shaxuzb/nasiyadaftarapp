@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { TERMS_OF_SERVICE_URL } from "../../../config/legalLinks";
 import { useAuth } from "../../../context/AuthContext";
 import { useToast } from "../../../context/ToastContext";
 import { queryKeys } from "../../../core/query/queryKeys";
@@ -13,7 +12,7 @@ import {
 } from "../../../i18n/apiErrors";
 import { getApiErrorStatus } from "../../../utils/apiError";
 import { useAppLock } from "../../pin-auth/context/AppLockContext";
-import { openExternalLink } from "../../support/services/appLinksService";
+import { useLegalDocument } from "../../legal/LegalDocumentProvider";
 import { useOfferStatus } from "../hooks/useOffer";
 import { acceptOffer } from "../services/offerService";
 import { OfferAcceptanceModal } from "./OfferAcceptanceModal";
@@ -32,6 +31,7 @@ const RECHECK_AFTER_MS = 30 * 60_000;
  */
 export function OfferAcceptanceGate() {
   const { t } = useTranslation();
+  const { openLegalDocument } = useLegalDocument();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { user, currentOrganization, isBootstrapping, logout } = useAuth();
@@ -107,11 +107,8 @@ export function OfferAcceptanceGate() {
     }
   }, [organizationId, queryClient, refetch, status, t, userId]);
 
-  const handleRead = useCallback(() => {
-    void openExternalLink(TERMS_OF_SERVICE_URL).catch(() => {
-      setError(t("support.linkOpenError"));
-    });
-  }, [t]);
+  // In the app, from the published text; the site until one is published.
+  const handleRead = useCallback(() => openLegalDocument("offer"), [openLegalDocument]);
 
   // Reached only after the user said yes to "sign out?" inside the modal.
   // Ends the way signing out from the profile does: a toast once it is done

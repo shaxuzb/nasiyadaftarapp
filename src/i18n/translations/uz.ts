@@ -804,7 +804,9 @@ export const uzTranslations = {
   },
   legal: {
     sheetTitle: "Huquqiy hujjatlar",
-    sheetSubtitle: "Hujjat brauzerda ochiladi",
+    sheetSubtitle: "Ilovadan foydalanish qoidalari",
+    loadError: "Hujjatni yuklab bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.",
+    openWebsite: "Saytda ochish",
     terms: {
       title: "Ommaviy oferta",
       description: "Ilovadan foydalanish shartlari",

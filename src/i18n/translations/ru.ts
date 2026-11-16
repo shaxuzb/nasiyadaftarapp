@@ -808,7 +808,9 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   legal: {
     sheetTitle: "Правовые документы",
-    sheetSubtitle: "Документ откроется в браузере",
+    sheetSubtitle: "Правила использования приложения",
+    loadError: "Не удалось загрузить документ. Проверьте интернет и попробуйте снова.",
+    openWebsite: "Открыть на сайте",
     terms: {
       title: "Публичная оферта",
       description: "Условия использования приложения",

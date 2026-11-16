@@ -806,7 +806,9 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   legal: {
     sheetTitle: "Укуктук документтер",
-    sheetSubtitle: "Документ браузерде ачылат",
+    sheetSubtitle: "Колдонмону колдонуу эрежелери",
+    loadError: "Документти жүктөө мүмкүн болбоду. Интернетти текшерип, кайра аракет кылыңыз.",
+    openWebsite: "Сайтта ачуу",
     terms: {
       title: "Ачык оферта",
       description: "Тиркемени колдонуу шарттары",

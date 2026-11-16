@@ -806,7 +806,9 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   legal: {
     sheetTitle: "Hukuk resminamalary",
-    sheetSubtitle: "Resminama brauzerde açylýar",
+    sheetSubtitle: "Programmany ulanmagyň düzgünleri",
+    loadError: "Resminamany ýükläp bolmady. Interneti barlap, gaýtadan synanyşyň.",
+    openWebsite: "Saýtda açmak",
     terms: {
       title: "Köpçülik ofertasy",
       description: "Programmany ulanmagyň şertleri",

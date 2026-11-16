@@ -806,7 +806,9 @@ export const trTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   legal: {
     sheetTitle: "Yasal belgeler",
-    sheetSubtitle: "Belge tarayıcıda açılır",
+    sheetSubtitle: "Uygulama kullanım kuralları",
+    loadError: "Belge yüklenemedi. İnternetinizi kontrol edip tekrar deneyin.",
+    openWebsite: "Web sitesinde aç",
     terms: {
       title: "Kullanıcı sözleşmesi",
       description: "Uygulama kullanım koşulları",
