@@ -27,7 +27,7 @@ import {
   type BottomSheetModalProps,
   type BottomSheetScrollViewMethods,
 } from "@gorhom/bottom-sheet";
-import { KeyboardController } from "react-native-keyboard-controller";
+import { KeyboardController, KeyboardEvents } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { SheetRenderProps } from "../types";
@@ -383,6 +383,15 @@ function useTransactionController({
 const TransactionContext = createContext<ReturnType<
   typeof useTransactionController
 > | null>(null);
+/**
+ * The fixed footer's measured height. The content keeps that much room under
+ * the note itself: the library's footer margin did not reach the sheet's
+ * dynamic size on device, so the note sat behind the footer with the screen
+ * half empty above.
+ */
+const FooterHeightContext = createContext(0);
+const SetFooterHeightContext = createContext<(height: number) => void>(() => undefined);
+
 function useTransaction() {
   const context = useContext(TransactionContext);
   if (!context) throw new Error("Transaction sheet must have its controller");
@@ -415,6 +424,12 @@ export function TransactionSheetProvider({
     };
   });
   useLayoutEffect(() => store.update(value), [store, value]);
+  const [footerHeight, setFooterHeight] = useState(0);
+  // Rounded so sub-pixel relayouts do not resize the sheet back and forth.
+  const reportFooterHeight = React.useCallback((height: number) => {
+    const next = Math.ceil(height);
+    setFooterHeight((current) => (current === next ? current : next));
+  }, []);
   // Keep the footer component identity stable so press-in state updates cannot
   // remount the button and cancel its ensuing press/submit event.
   const footer = useMemo(
@@ -427,20 +442,24 @@ export function TransactionSheetProvider({
         );
         return (
           <TransactionContext.Provider value={snapshot}>
-            <TransactionFooter {...footerProps} />
+            <SetFooterHeightContext.Provider value={reportFooterHeight}>
+              <TransactionFooter {...footerProps} />
+            </SetFooterHeightContext.Provider>
           </TransactionContext.Provider>
         );
       },
-    [store],
+    [store, reportFooterHeight],
   );
   // Modal content is portaled: put the controller inside BOTH rendered slots.
   return React.cloneElement(
     modal,
     { footerComponent: footer },
     <TransactionContext.Provider value={value}>
-      {typeof modal.props.children === "function"
-        ? React.createElement(modal.props.children)
-        : modal.props.children}
+      <FooterHeightContext.Provider value={footerHeight}>
+        {typeof modal.props.children === "function"
+          ? React.createElement(modal.props.children)
+          : modal.props.children}
+      </FooterHeightContext.Provider>
     </TransactionContext.Provider>,
   );
 }
@@ -452,9 +471,13 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const money = useMoney();
   const { saving, validAmount, save, setPreviewType, previewType, nextBalance } = useTransaction();
+  const reportFooterHeight = useContext(SetFooterHeightContext);
   return (
     <BottomSheetFooter {...footerProps} bottomInset={insets.bottom}>
-      <View style={styles.footer}>
+      <View
+        style={styles.footer}
+        onLayout={(event) => reportFooterHeight(event.nativeEvent.layout.height)}
+      >
         {/* The balance after this one, fixed with the buttons that make it. */}
         <View style={styles.preview}>
           <Text style={styles.previewLabel} numberOfLines={1}>
@@ -520,6 +543,19 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const tx = useTransaction();
+  const footerHeight = useContext(FooterHeightContext);
+  // With the keyboard up the footer sits right on it, not above the system
+  // navigation bar, so that inset is no longer room the content needs.
+  // "Will" events: the padding changes with the keyboard, not after it.
+  const [keyboardShown, setKeyboardShown] = useState(() => KeyboardController.isVisible());
+  React.useEffect(() => {
+    const show = KeyboardEvents.addListener("keyboardWillShow", () => setKeyboardShown(true));
+    const hide = KeyboardEvents.addListener("keyboardWillHide", () => setKeyboardShown(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   const [focused, setFocused] = useState<FocusedField | null>(null);
   const keepVisible = useKeepFocusedFieldVisible(focused);
   const amountRef = useRef<TransactionInputRef>(null);
@@ -536,10 +572,10 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
       ref={keepVisible.scrollRef}
       onLayout={keepVisible.onViewportLayout}
       onContentSizeChange={keepVisible.onContentSizeChange}
-      enableFooterMarginAdjustment
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: insets.bottom + 12 },
+        // Room for the fixed footer, measured, plus the inset it sits above.
+        { paddingBottom: (keyboardShown ? 0 : insets.bottom) + 12 + footerHeight },
       ]}
       keyboardShouldPersistTaps="always"
       keyboardDismissMode="interactive"

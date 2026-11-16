@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Keyboard, Pressable, StyleSheet, Text, View } from "react-native";
+import { KeyboardController } from "react-native-keyboard-controller";
 import { Ionicons } from "@expo/vector-icons";
 import {
   BottomSheetBackdrop,
@@ -53,10 +54,38 @@ export function DueDateToggle({ value, onChange, disabled }: DueDateToggleProps)
   const checked = value !== null;
   const tomorrow = addDays(todayDateOnly(), 1);
 
+  // A pending "present after the keyboard went down", if any.
+  const pendingOpen = useRef<(() => void) | null>(null);
+  useEffect(() => () => pendingOpen.current?.(), []);
+
   const openCalendar = useCallback(
     (date: DateOnly) => {
       setPickerValue(date);
-      calendar.present();
+      pendingOpen.current?.();
+      if (!KeyboardController.isVisible()) {
+        calendar.present();
+        return;
+      }
+      // The calendar has no field of its own: with the keyboard still up it
+      // would open behind it. Put the keyboard away first, then present once
+      // it is gone (or after a short fallback, should the event never come).
+      let done = false;
+      const present = () => {
+        if (done) return;
+        cancel();
+        calendar.present();
+      };
+      const subscription = Keyboard.addListener("keyboardDidHide", present);
+      const timer = setTimeout(present, 450);
+      const cancel = () => {
+        done = true;
+        subscription.remove();
+        clearTimeout(timer);
+        pendingOpen.current = null;
+      };
+      pendingOpen.current = cancel;
+      Keyboard.dismiss();
+      void KeyboardController.dismiss();
     },
     [calendar],
   );
