@@ -271,6 +271,7 @@ export const uzTranslations = {
     blacklistLimit: "Qora ro'yxat muddati",
     blacklistLimitValue: "{days} kun",
     blacklistOwnOrganization: "Sizning tashkilotingiz",
+    blacklistOverdue: "Muddati o'tgan qarz",
     blacklistLimitHint:
       "Qora ro'yxat muddati — har bir tashkilot o'zi belgilaydigan kunlar soni. To'lov shundan ko'p kechiksa, mijoz o'sha tashkilotda qora ro'yxatga tushadi.",
     addPhone: "Telefonni qo'shish",

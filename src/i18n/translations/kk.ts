@@ -274,6 +274,7 @@ export const kkTranslations: TranslationSchema<typeof uzTranslations> = {
     blacklistLimit: "Қара тізім мерзімі",
     blacklistLimitValue: "{days} күн",
     blacklistOwnOrganization: "Сіздің ұйымыңыз",
+    blacklistOverdue: "Мерзімі өткен қарыз",
     blacklistLimitHint:
       "Қара тізім мерзімі — әр ұйым өзі белгілейтін күндер саны. Төлем одан көп кешіксе, клиент сол ұйымда қара тізімге түседі.",
     addPhone: "Телефон қосу",

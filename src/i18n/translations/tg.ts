@@ -274,6 +274,7 @@ export const tgTranslations: TranslationSchema<typeof uzTranslations> = {
     blacklistLimit: "Мӯҳлати рӯйхати сиёҳ",
     blacklistLimitValue: "{days} рӯз",
     blacklistOwnOrganization: "Ташкилоти шумо",
+    blacklistOverdue: "Қарзи мӯҳлаташ гузашта",
     blacklistLimitHint:
       "Мӯҳлати рӯйхати сиёҳ — шумораи рӯзҳоест, ки ҳар ташкилот худаш муайян мекунад. Агар пардохт аз ин зиёд таъхир шавад, мизоҷ дар он ташкилот ба рӯйхати сиёҳ меафтад.",
     addPhone: "Илова кардани телефон",

@@ -274,6 +274,7 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
     blacklistLimit: "Gara sanaw möhleti",
     blacklistLimitValue: "{days} gün",
     blacklistOwnOrganization: "Siziň guramaňyz",
+    blacklistOverdue: "Möhleti geçen bergi",
     blacklistLimitHint:
       "Gara sanaw möhleti — her guramanyň özi belleýän günleriniň sany. Töleg şondan köp gijikse, müşderi şol guramada gara sanawa düşýär.",
     addPhone: "Telefon goşmak",

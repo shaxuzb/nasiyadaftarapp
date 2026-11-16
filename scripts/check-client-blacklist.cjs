@@ -89,15 +89,24 @@ const detailed = moduleExports.mapClientUnderTest({
   ],
 });
 assert.deepEqual(JSON.parse(JSON.stringify(detailed.blacklistedOrganizations)), [
-  { id: 18, name: "Korzinka", blacklistedSince: "2026-09-02", blacklistAfterDays: 12 },
-  { id: 11, name: "Sarvara", blacklistedSince: "2026-08-20", blacklistAfterDays: 30 },
+  { id: 18, name: "Korzinka", blacklistedSince: "2026-09-02", blacklistAfterDays: 12, overdueBalance: 150000 },
+  { id: 11, name: "Sarvara", blacklistedSince: "2026-08-20", blacklistAfterDays: 30, overdueBalance: 200000 },
   { id: 5, name: "Chala" },
 ]);
-// The per-organization amount arrives in the response and is deliberately not
-// carried into the app, so no screen can show it by accident.
-assert.equal(
-  JSON.stringify(detailed.blacklistedOrganizations).includes("overdueBalance"),
-  false,
+// Another shop's amount comes as 0 and is dropped, never shown as "0 so'm".
+const otherShop = moduleExports.mapClientUnderTest({
+  id: 83,
+  fullName: "Ali",
+  blacklistedOrganizations: [{ organizationId: 7, organizationName: "Boshqa", overdueBalance: 0 }],
+});
+assert.deepEqual(JSON.parse(JSON.stringify(otherShop.blacklistedOrganizations)), [
+  { id: 7, name: "Boshqa" },
+]);
+// And the sheet shows an amount for the user's own shop only.
+assert.match(
+  fs.readFileSync("src/bottom-sheet/sheets/BlacklistOrganizationsSheet.tsx", "utf8"),
+  /\{isOwn && organization\.overdueBalance \? \(/,
+  "Only the user's own shop may show what the customer owes there",
 );
 
 // The profile badge opens the sheet, and only when there is a list to show.
@@ -170,10 +179,17 @@ assert.match(
 for (const key of ["blacklistSince", "blacklistLimit"]) {
   assert.match(sheet, new RegExp(`customers\\.${key}"`), `The sheet must show ${key}`);
 }
+// An amount appears for the user's own shop only (checked above), in the
+// shop's currency.
+assert.equal(
+  (sheet.match(/overdueBalance/g) ?? []).length,
+  2,
+  "The amount must be read in one place only, behind isOwn",
+);
 assert.doesNotMatch(
   sheet,
-  /overdue|formatLocalizedCurrency/i,
-  "The sheet must not show any amount",
+  /formatLocalizedCurrency/,
+  "The amount goes through useMoney, in the shop's currency",
 );
 assert.match(
   fs.readFileSync("src/bottom-sheet/registry.ts", "utf8"),

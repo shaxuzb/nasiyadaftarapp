@@ -274,6 +274,7 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     blacklistLimit: "Срок до чёрного списка",
     blacklistLimitValue: "{days} дн.",
     blacklistOwnOrganization: "Ваша организация",
+    blacklistOverdue: "Просроченный долг",
     blacklistLimitHint:
       "Срок до чёрного списка — число дней, которое каждая организация задаёт сама. Если оплата задерживается дольше, клиент попадает в её чёрный список.",
     addPhone: "Добавить телефон",

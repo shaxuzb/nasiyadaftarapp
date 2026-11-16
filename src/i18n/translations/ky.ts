@@ -274,6 +274,7 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
     blacklistLimit: "Кара тизме мөөнөтү",
     blacklistLimitValue: "{days} күн",
     blacklistOwnOrganization: "Сиздин уюмуңуз",
+    blacklistOverdue: "Мөөнөтү өткөн карыз",
     blacklistLimitHint:
       "Кара тизме мөөнөтү — ар бир уюм өзү белгилеген күндөрдүн саны. Төлөм андан көп кечиксе, кардар ошол уюмдун кара тизмесине кирет.",
     addPhone: "Телефон кошуу",

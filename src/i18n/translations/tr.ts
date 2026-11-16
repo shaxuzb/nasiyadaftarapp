@@ -274,6 +274,7 @@ export const trTranslations: TranslationSchema<typeof uzTranslations> = {
     blacklistLimit: "Kara liste süresi",
     blacklistLimitValue: "{days} gün",
     blacklistOwnOrganization: "Sizin işletmeniz",
+    blacklistOverdue: "Vadesi geçmiş borç",
     blacklistLimitHint:
       "Kara liste süresi, her işletmenin kendi belirlediği gün sayısıdır. Ödeme bundan fazla gecikirse müşteri o işletmede kara listeye girer.",
     addPhone: "Telefon ekle",

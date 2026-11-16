@@ -269,6 +269,7 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
     blacklistLimit: "Blacklist period",
     blacklistLimitValue: "{days} days",
     blacklistOwnOrganization: "Your organization",
+    blacklistOverdue: "Overdue debt",
     blacklistLimitHint:
       "The blacklist period is the number of days each organization sets for itself. If a payment is late by more than that, the customer is blacklisted at that organization.",
     addPhone: "Add phone",

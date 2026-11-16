@@ -54,13 +54,15 @@ function mapBlacklistedOrganizations(input: unknown) {
     const id = Number(rawId);
     // The detail endpoint adds these; the list sends names only. A value that
     // is missing or makes no sense is left out rather than shown as zero. What
-    // the customer owes there also arrives, and is deliberately not read.
+    // the customer owes there is real for the user's own shop only (the
+    // server sends 0 for the others), so only a positive amount is kept.
     const since =
       typeof item.blacklistedSince === "string" &&
       /^\d{4}-\d{2}-\d{2}/.test(item.blacklistedSince)
         ? item.blacklistedSince.slice(0, 10)
         : undefined;
     const blacklistAfterDays = Number(item.blacklistAfterDays);
+    const overdueBalance = Number(item.overdueBalance);
     return [
       {
         ...(Number.isInteger(id) && id > 0 ? { id } : {}),
@@ -68,6 +70,9 @@ function mapBlacklistedOrganizations(input: unknown) {
         ...(since ? { blacklistedSince: since } : {}),
         ...(Number.isInteger(blacklistAfterDays) && blacklistAfterDays > 0
           ? { blacklistAfterDays }
+          : {}),
+        ...(item.overdueBalance !== null && Number.isFinite(overdueBalance) && overdueBalance > 0
+          ? { overdueBalance }
           : {}),
       },
     ];

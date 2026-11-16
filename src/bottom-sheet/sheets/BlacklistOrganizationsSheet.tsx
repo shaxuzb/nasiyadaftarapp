@@ -1,4 +1,5 @@
 import React, { memo, useMemo } from "react";
+import { useMoney } from "../../modules/currency/hooks/useMoney";
 import {
   ActivityIndicator,
   Pressable,
@@ -30,7 +31,7 @@ import type { SheetRenderProps } from "../types";
  * profile already has the organizations; from the lists the sheet reads the
  * customer's record itself, so it opens at once and fills in a moment later.
  *
- * Amounts are deliberately not shown here, only where and since when.
+ * Amounts are shown for the user's own shop only, only where and since when.
  */
 export function BlacklistOrganizationsSheet({
   closeSheet,
@@ -143,6 +144,7 @@ const OrganizationCard = memo(function OrganizationCard({
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { locale, t } = useTranslation();
+  const money = useMoney();
   const since = organization.blacklistedSince
     ? parseDateOnly(organization.blacklistedSince)
     : null;
@@ -171,6 +173,15 @@ const OrganizationCard = memo(function OrganizationCard({
           value={formatLocalizedDateTime(since, locale)}
         />
       ) : null}
+      {/* The amount is the user's own shop's business only; for any other
+          shop the server sends none, and none is shown. */}
+      {isOwn && organization.overdueBalance ? (
+        <DetailRow
+          label={t("customers.blacklistOverdue")}
+          value={money.format(organization.overdueBalance)}
+          valueColor={theme.debtColor}
+        />
+      ) : null}
       {organization.blacklistAfterDays !== undefined ? (
         <DetailRow
           label={t("customers.blacklistLimit")}
@@ -183,7 +194,15 @@ const OrganizationCard = memo(function OrganizationCard({
   );
 });
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+}) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
 
@@ -194,7 +213,10 @@ function DetailRow({ label, value }: { label: string; value: string }) {
       style={styles.detailRow}
     >
       <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue} numberOfLines={1}>
+      <Text
+        style={[styles.detailValue, valueColor ? { color: valueColor } : null]}
+        numberOfLines={1}
+      >
         {value}
       </Text>
     </View>
