@@ -1081,6 +1081,13 @@ export const uzTranslations = {
     changed: "Valyuta o‘zgartirildi: {name}",
     changeError: "Valyutani o‘zgartirib bo‘lmadi. Qayta urinib ko‘ring.",
   },
+  quickMenu: {
+    open: "Tezkor menyuni ochish",
+    title: "Tezkor sozlamalar",
+    subtitle: "Tashkilot, til va valyuta",
+    switchOrganization: "Almashtirish",
+    currencyLocked: "Valyutani o‘zgartirishga ruxsatingiz yo‘q",
+  },
   offline: {
     savedNotice: "Server bilan aloqa yo‘q. Telefonda saqlangan ma’lumotlar ko‘rsatilmoqda · {time}",
     modeTitle: "Oflayn rejim",

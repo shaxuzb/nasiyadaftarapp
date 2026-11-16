@@ -1083,6 +1083,13 @@ export const tgTranslations: TranslationSchema<typeof uzTranslations> = {
     changed: "Асъор иваз шуд: {name}",
     changeError: "Асъорро иваз кардан нашуд. Аз нав кӯшиш кунед.",
   },
+  quickMenu: {
+    open: "Менюи зудро кушодан",
+    title: "Танзимоти зуд",
+    subtitle: "Ташкилот, забон ва асъор",
+    switchOrganization: "Иваз кардан",
+    currencyLocked: "Шумо барои иваз кардани асъор иҷозат надоред",
+  },
   offline: {
     savedNotice: "Бо сервер пайваст нест. Маълумоти дар телефон нигоҳдошташуда нишон дода мешавад · {time}",
     modeTitle: "Реҷаи офлайн",

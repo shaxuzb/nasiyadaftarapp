@@ -81,12 +81,16 @@ interface AuthContextValue {
   applyOrganizationUpdate: (organization: OrganizationResponse) => Promise<void>;
   refreshSubscription: () => Promise<void>;
   selectOrganization: (organizationId: number) => Promise<void>;
-  openOrganizationSelector: () => Promise<void>;
+  /** `returnTab`: the tab to come back to if the choice is cancelled. */
+  openOrganizationSelector: (returnTab?: OrganizationSelectionReturnTab) => Promise<void>;
   cancelOrganizationSelection: () => Promise<void>;
-  organizationSelectionReturnTab: "Settings" | null;
+  organizationSelectionReturnTab: OrganizationSelectionReturnTab | null;
   updateUserProfile: (patch: Partial<AuthUser>) => Promise<void>;
   logout: (options?: LogoutOptions) => Promise<void>;
 }
+
+/** Where the organization choice was opened from: Settings, or the customers' quick menu. */
+export type OrganizationSelectionReturnTab = "Settings" | "Customers";
 
 export interface LogoutOptions {
   /**
@@ -121,8 +125,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isOrganizationLoading, setIsOrganizationLoading] = useState(false);
   const previousOrganizationRef = useRef<OrganizationMembership | null>(null);
+  const selectionOpenedFromRef = useRef<OrganizationSelectionReturnTab>("Settings");
   const [organizationSelectionReturnTab, setOrganizationSelectionReturnTab] =
-    useState<"Settings" | null>(null);
+    useState<OrganizationSelectionReturnTab | null>(null);
 
   const persistUser = useCallback(async (nextUser: AuthUser) => {
     // A refresh mostly brings back what is already there (the same plan, the
@@ -385,10 +390,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyOrganizationSelection, organizations, user],
   );
 
-  const openOrganizationSelector = useCallback(async () => {
+  const openOrganizationSelector = useCallback(async (returnTab: OrganizationSelectionReturnTab = "Settings") => {
     if (!user) return;
     previousOrganizationRef.current = currentOrganization;
-    setOrganizationSelectionReturnTab(currentOrganization ? "Settings" : null);
+    selectionOpenedFromRef.current = returnTab;
+    setOrganizationSelectionReturnTab(currentOrganization ? returnTab : null);
     setCurrentOrganization(null);
     await updateUserProfile({ organizationId: null, organizationName: null });
   }, [currentOrganization, updateUserProfile, user]);
@@ -488,7 +494,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setOrganizationSelectionReturnTab("Settings");
+    setOrganizationSelectionReturnTab(selectionOpenedFromRef.current);
     setCurrentOrganization(action.organization);
     await updateUserProfile({
       organizationId: action.organization.id,

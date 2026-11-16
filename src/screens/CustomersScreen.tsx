@@ -41,6 +41,7 @@ import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapab
 import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
 import { useDismissSheetOnAppLock } from "../bottom-sheet/useDismissSheetOnAppLock";
 import { SearchBar } from "../components/SearchBar";
+import { QuickMenuDrawer } from "../components/QuickMenuDrawer";
 import { CustomerCard } from "../modules/clients/components/CustomerCard";
 import { CustomerCardSkeleton } from "../modules/clients/components/CustomerCardSkeleton";
 import { isCustomerBlacklisted } from "../modules/clients/utils/blacklist";
@@ -186,6 +187,7 @@ export function CustomersScreen() {
   const addCustomerSheet = useDismissSheetOnAppLock(bottomSheetRef);
   const phoneInputRef = useRef<TextInput>(null);
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
+  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -459,6 +461,15 @@ export function CustomersScreen() {
       <View style={styles.mainKeyboardWrap}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("quickMenu.open")}
+              onPress={() => setIsQuickMenuOpen(true)}
+              activeOpacity={0.82}
+              style={styles.quickMenuBtn}
+            >
+              <Ionicons name="menu" size={22} color={theme.text} />
+            </TouchableOpacity>
             <View style={styles.titleBlock}>
               <Text
                 style={styles.screenTitle}
@@ -849,6 +860,7 @@ export function CustomersScreen() {
           />
         </BottomSheetScrollView>
       </BottomSheetModal>
+      <QuickMenuDrawer visible={isQuickMenuOpen} onClose={() => setIsQuickMenuOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -896,6 +908,18 @@ const createStyles = (theme: AppTheme) =>
       lineHeight: 14,
       fontWeight: "900",
       letterSpacing: 0.4,
+    },
+    // The quick menu: organization, language, currency. Same size as the bell.
+    quickMenuBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+      marginRight: -4,
     },
     titleBlock: {
       flex: 1,

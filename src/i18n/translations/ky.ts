@@ -1083,6 +1083,13 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
     changed: "Валюта өзгөртүлдү: {name}",
     changeError: "Валютаны өзгөртүү мүмкүн болгон жок. Кайра аракет кылыңыз.",
   },
+  quickMenu: {
+    open: "Ыкчам менюну ачуу",
+    title: "Ыкчам жөндөөлөр",
+    subtitle: "Уюм, тил жана валюта",
+    switchOrganization: "Алмаштыруу",
+    currencyLocked: "Валютаны өзгөртүүгө уруксатыңыз жок",
+  },
   offline: {
     savedNotice: "Сервер менен байланыш жок. Телефондо сакталган маалыматтар көрсөтүлүүдө · {time}",
     modeTitle: "Оффлайн режим",

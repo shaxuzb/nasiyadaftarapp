@@ -1083,6 +1083,13 @@ export const kkTranslations: TranslationSchema<typeof uzTranslations> = {
     changed: "Валюта өзгертілді: {name}",
     changeError: "Валютаны өзгерту мүмкін болмады. Қайталап көріңіз.",
   },
+  quickMenu: {
+    open: "Жылдам мәзірді ашу",
+    title: "Жылдам баптаулар",
+    subtitle: "Ұйым, тіл және валюта",
+    switchOrganization: "Ауыстыру",
+    currencyLocked: "Валютаны өзгертуге рұқсатыңыз жоқ",
+  },
   offline: {
     savedNotice: "Сервермен байланыс жоқ. Телефонда сақталған деректер көрсетілуде · {time}",
     modeTitle: "Офлайн режим",

@@ -1063,6 +1063,13 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
     changed: "Currency changed: {name}",
     changeError: "Could not change the currency. Try again.",
   },
+  quickMenu: {
+    open: "Open quick menu",
+    title: "Quick settings",
+    subtitle: "Organization, language and currency",
+    switchOrganization: "Switch",
+    currencyLocked: "You don't have permission to change the currency",
+  },
   offline: {
     savedNotice: "No connection to the server. Showing data saved on the phone · {time}",
     modeTitle: "Offline mode",

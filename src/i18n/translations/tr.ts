@@ -1083,6 +1083,13 @@ export const trTranslations: TranslationSchema<typeof uzTranslations> = {
     changed: "Para birimi değiştirildi: {name}",
     changeError: "Para birimi değiştirilemedi. Tekrar deneyin.",
   },
+  quickMenu: {
+    open: "Hızlı menüyü aç",
+    title: "Hızlı ayarlar",
+    subtitle: "Kuruluş, dil ve para birimi",
+    switchOrganization: "Değiştir",
+    currencyLocked: "Para birimini değiştirme izniniz yok",
+  },
   offline: {
     savedNotice: "Sunucuyla bağlantı yok. Telefonda kayıtlı veriler gösteriliyor · {time}",
     modeTitle: "Çevrimdışı mod",

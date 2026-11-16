@@ -1083,6 +1083,13 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
     changed: "Pul birligi üýtgedildi: {name}",
     changeError: "Pul birligini üýtgedip bolmady. Gaýtadan synanyşyň.",
   },
+  quickMenu: {
+    open: "Çalt menýuny aç",
+    title: "Çalt sazlamalar",
+    subtitle: "Gurama, dil we pul birligi",
+    switchOrganization: "Çalyşmak",
+    currencyLocked: "Pul birligini üýtgetmäge rugsadyňyz ýok",
+  },
   offline: {
     savedNotice: "Serwer bilen aragatnaşyk ýok. Telefonda saklanan maglumatlar görkezilýär · {time}",
     modeTitle: "Oflaýn tertip",

@@ -1084,6 +1084,13 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
     changed: "Валюта изменена: {name}",
     changeError: "Не удалось сменить валюту. Попробуйте ещё раз.",
   },
+  quickMenu: {
+    open: "Открыть быстрое меню",
+    title: "Быстрые настройки",
+    subtitle: "Организация, язык и валюта",
+    switchOrganization: "Сменить",
+    currencyLocked: "У вас нет права менять валюту",
+  },
   offline: {
     savedNotice: "Нет связи с сервером. Показаны данные, сохранённые на телефоне · {time}",
     modeTitle: "Офлайн-режим",
