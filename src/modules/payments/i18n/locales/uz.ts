@@ -1,0 +1,98 @@
+/** Words of the payment flow (checkout, status, history), in Uzbek: the shape every language follows. */
+export const uzPaymentCopy = {
+  checkout: {
+    externalHint:
+      "To‘lov xavfsiz tashqi sahifada davom etadi. Karta ma’lumotlari ilovaga kiritilmaydi.",
+    freeHint:
+      "Bu tarif bepul. Tasdiqlagandan keyin backend orqali faollashtirish boshlanadi.",
+    methodTitle: "To‘lov usuli",
+    methodHint: "Davom etish uchun to‘lov usulini tanlang",
+    pay: "{amount} to‘lash",
+    activate: "Tarifga o‘tish",
+    buyPackage: "SMS paketni sotib olish",
+    processing: "To‘lov tayyorlanmoqda...",
+    cancel: "Bekor qilish",
+    error: "To‘lov buyurtmasini yaratib bo‘lmadi",
+  },
+  pendingBanner: {
+    title: "To‘lov kutilmoqda",
+    multiple: "{count} ta to‘lov kutilmoqda",
+    select: "Davom ettirish uchun tanlang",
+    plan: "Tarif",
+    package: "SMS paketi",
+    action: "Davom ettirish",
+  },
+  pendingSheet: {
+    title: "Kutilayotgan to‘lovlar",
+    description: "Davom ettirish uchun buyurtmani tanlang.",
+    plan: "Tarif",
+    package: "SMS paketi",
+    pending: "To‘lov kutilmoqda",
+    holding: "To‘lov qayta ishlanmoqda",
+    activating: "Faollashtirilmoqda",
+    loading: "To‘lov ma’lumoti yuklanmoqda...",
+    continue: "Davom ettirish",
+    close: "Yopish",
+    empty: "Kutilayotgan to‘lovlar topilmadi.",
+  },
+  statusSheet: {
+    title: "To‘lov holati",
+    waiting:
+      "To‘lov hali yakunlanmagan. To‘lov oynasini davom ettirishingiz yoki holatni tekshirishingiz mumkin.",
+    holding:
+      "To‘lov provayder tomonidan qayta ishlanmoqda. Birozdan keyin holatni yangilang.",
+    activating:
+      "To‘lov qabul qilindi. Xizmat backend tomonidan faollashtirilmoqda.",
+    success: "To‘lov muvaffaqiyatli yakunlandi va xizmat faollashtirildi.",
+    refunded:
+      "To‘lov qaytarilgan. Yangi xarid uchun tarif yoki SMS paketni tanlang.",
+    terminal:
+      "Ushbu to‘lov yakunlangan. Yangi xarid uchun tarif yoki SMS paketni qayta tanlang.",
+    continue: "To‘lovni davom ettirish",
+    refresh: "Holatni yangilash",
+    cancel: "To‘lovni bekor qilish",
+    close: "Yopish",
+    cancelTitle: "To‘lovni bekor qilasizmi?",
+    cancelMessage: "Faqat hali to‘lanmagan buyurtma bekor qilinadi.",
+    error: "To‘lov holatini yangilab bo‘lmadi",
+    openError: "To‘lov sahifasini ochib bo‘lmadi",
+    loading: "To‘lov ma’lumoti yuklanmoqda...",
+  },
+  detailSheet: {
+    title: "To‘lov tafsilotlari",
+    continue: "To‘lovni davom ettirish",
+    refresh: "Holatni yangilash",
+    cancel: "To‘lovni bekor qilish",
+    close: "Yopish",
+    cancelTitle: "To‘lovni bekor qilasizmi?",
+    cancelMessage: "Faqat hali to‘lanmagan buyurtma bekor qilinadi.",
+    error: "To‘lov ma’lumotini yangilab bo‘lmadi",
+    openError: "To‘lov sahifasini ochib bo‘lmadi",
+    loading: "To‘lov tafsilotlari yuklanmoqda...",
+  },
+  history: {
+    title: "To‘lovlar tarixi",
+    empty: "Hali to‘lovlar yo‘q",
+    error: "To‘lovlarni yuklab bo‘lmadi",
+    retry: "Qayta urinish",
+    fulfilled: "Faollashtirildi",
+  },
+  order: {
+    status: {
+      pending: "To‘lov kutilmoqda",
+      holding: "To‘lov qayta ishlanmoqda",
+      paid: "To‘lov qabul qilindi",
+      cancelled: "To‘lov bekor qilindi",
+      failed: "To‘lov amalga oshmadi",
+      expired: "To‘lov muddati tugadi",
+      refunded: "To‘lov qaytarildi",
+    },
+    fulfilled: "Xizmat faollashtirildi",
+    provider: "Provayder",
+    account: "Hisob raqami",
+    created: "Yaratilgan",
+    paid: "To‘langan",
+    fulfilledAt: "Faollashtirilgan",
+    orderId: "Buyurtma ID",
+  },
+} as const;

@@ -17,6 +17,8 @@ import {
 } from "./types";
 import { createTranslator, Translate, TranslateKey } from "./translate";
 import { readStoredLocale, writeStoredLocale } from "./i18nStorage";
+import { getCurrentLocale, setCurrentLocale } from "./currentLocale";
+import { queryClient } from "../core/query/queryClient";
 
 interface LanguageContextValue {
   locale: Locale;
@@ -39,6 +41,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
     void readStoredLocale().then((storedLocale) => {
       if (!active) return;
+      setCurrentLocale(storedLocale);
       setLocaleState(storedLocale);
       setIsHydrated(true);
     });
@@ -49,8 +52,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setLocale = useCallback((nextLocale: Locale) => {
+    const changed = getCurrentLocale() !== nextLocale;
+    // Before the state, so requests made by the re-render already ask the
+    // server for the new language.
+    setCurrentLocale(nextLocale);
     setLocaleState(nextLocale);
     void writeStoredLocale(nextLocale);
+    // What the server wrote (plan names, lesson titles, notifications, SMS
+    // text) was cached in the old language: fetched again in the new one.
+    if (changed) void queryClient.invalidateQueries();
   }, []);
 
   const t = useMemo(() => createTranslator(locale), [locale]);

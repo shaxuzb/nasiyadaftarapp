@@ -18,6 +18,7 @@ import { useTheme } from "../../../hooks/useTheme";
 import { useTranslation } from "../../../i18n";
 import { radius, spacing, typography } from "../../../theme";
 import type { AppTheme } from "../../../types";
+import { withUnsentWarning } from "../../offline/utils/unsentWarning";
 
 interface CardProps {
   /** The document's name as the server gives it; the app's own otherwise. */
@@ -94,7 +95,7 @@ function OfferAcceptanceCard({
   const handleLogoutPress = useCallback(async () => {
     const accepted = await confirm({
       title: t("profile.logoutTitle"),
-      message: t("profile.logoutMessage"),
+      message: withUnsentWarning(t("profile.logoutMessage"), t),
       confirmText: t("profile.logout"),
       cancelText: t("common.cancel"),
       variant: "danger",

@@ -32,6 +32,8 @@ assert(
   "transaction amount must not round-trip formatted value through the parent on every keypress",
 );
 
+// Every phone field is PhoneNumberInput, which formats in the local input:
+// the parent hears the number, not every formatted keystroke round-tripped.
 for (const filename of [
   "src/screens/CustomersScreen.tsx",
   "src/modules/clients/components/CustomerEditSheet.tsx",
@@ -39,22 +41,18 @@ for (const filename of [
   "src/modules/account/components/PhoneVerificationModal.tsx",
 ]) {
   assert(
-    /uncontrolled/.test(read(filename)),
-    `${filename} must use the local formatted input mode`,
+    /<PhoneNumberInput\b/.test(read(filename)),
+    `${filename} must use the local formatted phone input`,
   );
 }
-
+const phoneInput = read("src/modules/phone/components/PhoneNumberInput.tsx");
 assert(
-  /uncontrolled[\s\S]{0,120}transformText=\{formatUzPhoneFromDigits\}/.test(
-    read("src/screens/CustomersScreen.tsx"),
-  ),
-  "customer creation phone input must format locally",
+  /uncontrolled[\s\S]{0,200}transformText=\{transformText\}/.test(phoneInput),
+  "the phone input must format locally",
 );
 assert(
-  /uncontrolled[\s\S]{0,120}transformText=\{formatUzPhoneFromDigits\}/.test(
-    read("src/modules/clients/components/CustomerEditSheet.tsx"),
-  ),
-  "customer edit phone input must format locally",
+  /inputResetKey=\{resetKey\}/.test(phoneInput),
+  "a number set from outside must reach the field without remounting it",
 );
 
 console.log("Formatted input performance checks passed.");

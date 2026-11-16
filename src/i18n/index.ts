@@ -18,6 +18,9 @@ export {
   writeStoredLocale,
 } from "./i18nStorage";
 export {
+  BASE_CURRENCY_CODE,
+  currencyLabel,
+  registerCurrencySymbols,
   formatLocalizedCurrency,
   formatLocalizedDate,
   formatLocalizedDateTime,

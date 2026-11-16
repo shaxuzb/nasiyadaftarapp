@@ -14,6 +14,7 @@ import {
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
 import { useDismissOnAppLock } from "../modules/pin-auth/hooks/useDismissOnAppLock";
+import { requireServer, SERVER_ONLY_SHEETS } from "../modules/offline/state/connectionNotice";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   KeyboardController,
@@ -105,9 +106,13 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
   const activeEntryRef = useRef(activeEntry);
   activeEntryRef.current = activeEntry;
 
+  const openSheetRef = useRef<BottomSheetContextValue["openSheet"] | null>(null);
   const openSheet = useCallback(
     <T extends SheetType>(type: T, props: SheetPropsMap[T]) => {
       if (dismissLockedRef.current) return;
+      // A sheet that needs the server explains why instead, while it cannot be
+      // used; checked again and back, it opens as asked.
+      if (SERVER_ONLY_SHEETS.has(type) && !requireServer(() => openSheetRef.current?.(type, props))) return;
       if (
         isOpenRef.current &&
         isSamePayload(activeEntryRef.current, type, props as SheetPropsMap[SheetType])
@@ -137,6 +142,7 @@ export function BottomSheetProvider({ children }: { children: ReactNode }) {
     },
     [setDismissLocked],
   );
+  openSheetRef.current = openSheet;
 
   useEffect(() => {
     presentedRef.current = false;

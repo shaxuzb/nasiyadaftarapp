@@ -10,11 +10,10 @@ import { isSmsRecipientSelectable } from "../utils/recipientSelection";
 import { SmsStatusBadge } from "./SmsStatusBadge";
 import { formatSmsShortDate } from "../utils/smsStatusPresentation";
 import {
-  formatLocalizedCurrency,
   formatLocalizedDateTime,
-  formatLocalizedDisplayedBalance,
   useTranslation,
 } from "../../../i18n";
+import { useMoney } from "../../currency/hooks/useMoney";
 
 interface Props {
   recipient: SmsRecipient;
@@ -45,6 +44,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
 }: Props) {
   const theme = useTheme();
   const { locale, t } = useTranslation();
+  const money = useMoney();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const displayName = recipient.fullName.trim() || t("sms.clientFallback");
   const displayPhone = recipient.phone.trim();
@@ -90,7 +90,7 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
         checked: selectable && canSend ? selected : undefined,
         disabled: selectable && !canSend && !onAddPhone,
       }}
-      accessibilityLabel={`${displayName}, ${formatLocalizedDisplayedBalance(recipient.currentBalance, locale)}`}
+      accessibilityLabel={`${displayName}, ${money.formatBalance(recipient.currentBalance)}`}
       disabled={selectable && !canSend && !onAddPhone}
       onPress={() => {
         if (selectable && canSend) {
@@ -177,12 +177,12 @@ export const SmsRecipientRow = memo(function SmsRecipientRow({
             },
           ]}
         >
-          {formatLocalizedDisplayedBalance(recipient.currentBalance, locale)}
+          {money.formatBalance(recipient.currentBalance)}
         </Text>
         {recipient.overdueBalance > 0 ? (
           <Text style={styles.overdue}>
             {t("sms.overdue", {
-              amount: formatLocalizedCurrency(recipient.overdueBalance, locale),
+              amount: money.format(recipient.overdueBalance),
             })}
           </Text>
         ) : null}

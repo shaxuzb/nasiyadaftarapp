@@ -1,0 +1,99 @@
+import type { PaymentCopy } from "../paymentCopy";
+
+export const tkPaymentCopy: PaymentCopy = {
+  checkout: {
+    externalHint:
+      "Töleg howpsuz daşky sahypada dowam eder. Kart maglumatlary programma girizilmeýär.",
+    freeHint:
+      "Bu tarif mugt. Tassyklanyňyzdan soň serwer arkaly işjeňleşdirmek başlanýar.",
+    methodTitle: "Töleg usuly",
+    methodHint: "Dowam etmek üçin töleg usulyny saýlaň",
+    pay: "Tölemek: {amount}",
+    activate: "Tarife geçmek",
+    buyPackage: "SMS bukjasyny satyn almak",
+    processing: "Töleg taýýarlanýar...",
+    cancel: "Ýatyrmak",
+    error: "Töleg sargydyny döredip bolmady",
+  },
+  pendingBanner: {
+    title: "Tölege garaşylýar",
+    multiple: "Garaşylýan tölegler: {count}",
+    select: "Dowam etdirmek üçin saýlaň",
+    plan: "Tarif",
+    package: "SMS bukjasy",
+    action: "Dowam etdirmek",
+  },
+  pendingSheet: {
+    title: "Garaşylýan tölegler",
+    description: "Dowam etdirmek üçin sargydy saýlaň.",
+    plan: "Tarif",
+    package: "SMS bukjasy",
+    pending: "Tölege garaşylýar",
+    holding: "Töleg işlenýär",
+    activating: "Işjeňleşdirilýär",
+    loading: "Töleg maglumaty ýüklenýär...",
+    continue: "Dowam etdirmek",
+    close: "Ýapmak",
+    empty: "Garaşylýan tölegler tapylmady.",
+  },
+  statusSheet: {
+    title: "Tölegiň ýagdaýy",
+    waiting:
+      "Töleg entek tamamlanmady. Töleg penjiresini dowam etdirip ýa-da ýagdaýy barlap bilersiňiz.",
+    holding:
+      "Töleg üpjün ediji tarapyndan işlenýär. Biraz soňra ýagdaýy täzeläň.",
+    activating:
+      "Töleg kabul edildi. Hyzmat serwer tarapyndan işjeňleşdirilýär.",
+    success: "Töleg üstünlikli tamamlandy we hyzmat işjeňleşdirildi.",
+    refunded:
+      "Töleg yzyna gaýtaryldy. Täze satyn alyş üçin tarifi ýa-da SMS bukjasyny saýlaň.",
+    terminal:
+      "Bu töleg tamamlandy. Täze satyn alyş üçin tarifi ýa-da SMS bukjasyny täzeden saýlaň.",
+    continue: "Tölegi dowam etdirmek",
+    refresh: "Ýagdaýy täzelemek",
+    cancel: "Tölegi ýatyrmak",
+    close: "Ýapmak",
+    cancelTitle: "Tölegi ýatyrýarsyňyzmy?",
+    cancelMessage: "Diňe entek tölenmedik sargyt ýatyrylýar.",
+    error: "Tölegiň ýagdaýyny täzeläp bolmady",
+    openError: "Töleg sahypasyny açyp bolmady",
+    loading: "Töleg maglumaty ýüklenýär...",
+  },
+  detailSheet: {
+    title: "Tölegiň jikme-jiklikleri",
+    continue: "Tölegi dowam etdirmek",
+    refresh: "Ýagdaýy täzelemek",
+    cancel: "Tölegi ýatyrmak",
+    close: "Ýapmak",
+    cancelTitle: "Tölegi ýatyrýarsyňyzmy?",
+    cancelMessage: "Diňe entek tölenmedik sargyt ýatyrylýar.",
+    error: "Töleg maglumatyny täzeläp bolmady",
+    openError: "Töleg sahypasyny açyp bolmady",
+    loading: "Tölegiň jikme-jiklikleri ýüklenýär...",
+  },
+  history: {
+    title: "Tölegler taryhy",
+    empty: "Entek töleg ýok",
+    error: "Tölegleri ýükläp bolmady",
+    retry: "Gaýtadan synanyşmak",
+    fulfilled: "Işjeňleşdirildi",
+  },
+  order: {
+    status: {
+      pending: "Tölege garaşylýar",
+      holding: "Töleg işlenýär",
+      paid: "Töleg kabul edildi",
+      cancelled: "Töleg ýatyryldy",
+      failed: "Töleg amala aşmady",
+      expired: "Tölegiň möhleti gutardy",
+      refunded: "Töleg yzyna gaýtaryldy",
+    },
+    fulfilled: "Hyzmat işjeňleşdirildi",
+    provider: "Üpjün ediji",
+    account: "Hasap belgisi",
+    created: "Döredildi",
+    paid: "Tölendi",
+    fulfilledAt: "Işjeňleşdirildi",
+    orderId: "Sargyt ID",
+  },
+};

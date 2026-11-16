@@ -45,11 +45,12 @@ assert.doesNotMatch(screen, /sourceCustomers\.filter\(|filteredCustomers/, "No h
 assert.match(utils, /export function sortCustomerList\(\s*items: readonly CustomerListItem\[\],\s*\): CustomerListItem\[\]/);
 assert.doesNotMatch(utils, /\.filter\(/, "Sorting never drops a customer");
 
-/* The row under the search field is just the count now. */
+/* The row under the search field is the count, and offline the small
+   "Oflayn rejim" chip beside it; no filter switches. */
 
 assert.match(
   screen,
-  /<View style=\{styles\.searchMeta\}>\s*<Text style=\{styles\.customerCount\}>\{customerCountLabel\}<\/Text>\s*<\/View>/,
+  /<View style=\{styles\.searchMeta\}>\s*<Text style=\{styles\.customerCount\}>\{customerCountLabel\}<\/Text>\s*(?:\{\/\*[^*]*\*\/\}\s*)?<SavedDataNotice style=\{styles\.offlineChip\} \/>\s*<\/View>/,
 );
 
 /* An empty list always offers to add the first customer, unless a search is

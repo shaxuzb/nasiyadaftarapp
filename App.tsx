@@ -15,7 +15,6 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./src/core/query/queryClient";
 import { NetworkProvider } from "./src/core/network/NetworkProvider";
-import { OfflineBanner } from "./src/core/network/OfflineBanner";
 import { BottomSheetProvider } from "./src/bottom-sheet";
 import { AppUpdateGate } from "./src/modules/app-update";
 import { AppErrorBoundary } from "./src/components/AppErrorBoundary";
@@ -23,6 +22,11 @@ import { AccountSecurityProvider } from "./src/modules/account/context/AccountSe
 import { AppLockProvider } from "./src/modules/pin-auth/context/AppLockContext";
 import { OfferAcceptanceGate } from "./src/modules/offer/components/OfferAcceptanceGate";
 import { PaymentRecoveryGate } from "./src/modules/payments/components/PaymentRecoveryGate";
+import { AppSetupProvider } from "./src/modules/setup/context/AppSetupContext";
+import { OfflineSyncController } from "./src/modules/offline/components/OfflineSyncController";
+import { ServerHealthMonitor } from "./src/modules/offline/components/ServerHealthMonitor";
+import { ConnectionNoticeModal } from "./src/modules/offline/components/ConnectionNoticeModal";
+import { OrganizationCurrencySetupGate } from "./src/modules/currency/components/OrganizationCurrencySetupGate";
 import { LanguageProvider } from "./src/i18n";
 import { PushNotificationProvider } from "./src/modules/push/context/PushNotificationContext";
 
@@ -46,7 +50,6 @@ function ThemedApp() {
         <NetworkProvider>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaProvider>
-              <OfflineBanner />
               <ToastProvider>
                 <KeyboardProvider>
                   <AuthProvider>
@@ -54,25 +57,31 @@ function ThemedApp() {
                       <AppLockProvider>
                         <AccountSecurityProvider>
                           <AppProvider>
-                            <BottomSheetModalProvider>
-                              <ConfirmDialogProvider>
-                                <BottomSheetProvider>
-                                  <AppUpdateGate>
-                                    <PaymentRecoveryGate enabled={true} />
-                                    <StatusBar
-                                      style={
-                                        resolvedScheme === "dark"
-                                          ? "light"
-                                          : "dark"
-                                      }
-                                      backgroundColor={theme.background}
-                                    />
-                                    <AppNavigator />
-                                    <OfferAcceptanceGate />
-                                  </AppUpdateGate>
-                                </BottomSheetProvider>
-                              </ConfirmDialogProvider>
-                            </BottomSheetModalProvider>
+                            <AppSetupProvider>
+                              <BottomSheetModalProvider>
+                                <ConfirmDialogProvider>
+                                  <BottomSheetProvider>
+                                    <AppUpdateGate>
+                                      <PaymentRecoveryGate enabled={true} />
+                                      <ServerHealthMonitor />
+                                      <OfflineSyncController />
+                                      <ConnectionNoticeModal />
+                                      <StatusBar
+                                        style={
+                                          resolvedScheme === "dark"
+                                            ? "light"
+                                            : "dark"
+                                        }
+                                        backgroundColor={theme.background}
+                                      />
+                                      <AppNavigator />
+                                      <OfferAcceptanceGate />
+                                      <OrganizationCurrencySetupGate />
+                                    </AppUpdateGate>
+                                  </BottomSheetProvider>
+                                </ConfirmDialogProvider>
+                              </BottomSheetModalProvider>
+                            </AppSetupProvider>
                           </AppProvider>
                         </AccountSecurityProvider>
                       </AppLockProvider>

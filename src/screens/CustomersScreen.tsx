@@ -35,6 +35,8 @@ import { useApp } from "../context/AppContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
+import { useThemeContext } from "../context/ThemeContext";
+import { floatingActionElevation } from "../theme/floatingAction";
 import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
 import { useDismissSheetOnAppLock } from "../bottom-sheet/useDismissSheetOnAppLock";
@@ -56,11 +58,15 @@ import { hapticError, hapticSuccess, hapticTap } from "../utils/haptics";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet, useBottomSheetBackHandler } from "../bottom-sheet";
 import { AndroidSheetKeyboardBridge } from "../bottom-sheet/AndroidSheetKeyboardBridge";
+import { PhoneNumberInput } from "../modules/phone/components/PhoneNumberInput";
+import { useAccountPhoneCountry } from "../modules/phone/hooks/useAccountPhoneCountry";
 import {
-  formatUzPhoneFromDigits,
-  isOptionalUzPhoneValid,
-  toOptionalStoredUzPhone,
-} from "../utils/masks";
+  emptyPhone,
+  isOptionalPhoneValid,
+  readPhoneInput,
+  toE164,
+  type PhoneValue,
+} from "../modules/phone/utils/phoneNumber";
 import {
   getLocalizedApiErrorMessage,
   useTranslation,
@@ -68,12 +74,15 @@ import {
 } from "../i18n";
 import { formatDateOnly, formatRelativeDateOnly } from "../i18n/calendarLabels";
 import { formatAmountInput, parseAmountInput } from "../utils/amountInput";
+import { useMoney } from "../modules/currency/hooks/useMoney";
 import { todayDateOnly, type DateOnly } from "../utils/dateOnly";
 import { radius, spacing } from "../theme";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
 import { RenewalReminderBanner } from "../modules/subscription/components/RenewalReminderBanner";
 import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
 import { useContactPicker } from "../modules/clients/hooks/useContactPicker";
+import { SavedDataNotice } from "../modules/offline/components/SavedDataNotice";
+import { requireInternet } from "../modules/offline/state/connectionNotice";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -132,10 +141,22 @@ const BALANCE_DIRECTIONS: ReadonlyArray<{
 export function CustomersScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
+  // A shadow on a light page, a glow on a dark one: see floatingActionElevation.
+  const { resolvedScheme } = useThemeContext();
+  const fabElevation = useMemo(
+    () => floatingActionElevation(theme, resolvedScheme === "dark"),
+    [resolvedScheme, theme],
+  );
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const navigation = useNavigation<Nav>();
   const { t } = useTranslation();
+  const money = useMoney();
+  // Cents in the opening balance too, for every currency but the sum.
+  const formatBalanceInput = useCallback(
+    (value: string) => formatAmountInput(value, money.allowsFraction),
+    [money.allowsFraction],
+  );
   const {
     customers,
     transactions,
@@ -169,8 +190,9 @@ export function CustomersScreen() {
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("+998 ");
-  const [phoneInputKey, setPhoneInputKey] = useState(0);
+  // Every new customer starts on the account's own country.
+  const accountCountry = useAccountPhoneCountry();
+  const [phone, setPhone] = useState<PhoneValue>(() => emptyPhone(accountCountry));
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
   const creatingCustomerRef = useRef(false);
   const [errors, setErrors] = useState<{ phone?: string }>({});
@@ -200,8 +222,8 @@ export function CustomersScreen() {
     }
   }, []);
 
-  const handleAddPhoneChange = useCallback((value: string) => {
-    setPhone(formatUzPhoneFromDigits(value));
+  const handleAddPhoneChange = useCallback((value: PhoneValue) => {
+    setPhone(value);
     setErrors((current) =>
       current.phone ? { ...current, phone: undefined } : current,
     );
@@ -307,8 +329,7 @@ export function CustomersScreen() {
 
   function resetCustomerForm() {
     setFullName("");
-    setPhone("+998 ");
-    setPhoneInputKey((key) => key + 1);
+    setPhone(emptyPhone(accountCountry));
     setBalanceDirection("debt");
     setBalanceDate(null);
     balanceAmountRef.current = "";
@@ -320,7 +341,7 @@ export function CustomersScreen() {
   function validateForm(): boolean {
     const e: { phone?: string } = {};
 
-    if (!isOptionalUzPhoneValid(phone)) e.phone = t("customers.phoneInvalid");
+    if (!isOptionalPhoneValid(phone)) e.phone = t("customers.phoneInvalid");
 
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -336,6 +357,9 @@ export function CustomersScreen() {
       showToast(t("customers.formCheck"), "error");
       return;
     }
+    // No internet on the phone: nothing is written (offline mode is only for
+    // the server being down). Connected again, "Qayta tekshirish" saves it.
+    if (!requireInternet(() => void handleCreateCustomer())) return;
 
     void KeyboardController.dismiss();
 
@@ -343,9 +367,9 @@ export function CustomersScreen() {
     try {
       setIsCreatingCustomer(true);
       const balanceAmount = parseAmountInput(balanceAmountRef.current);
-      await addCustomer({
+      const created = await addCustomer({
         fullName: fullName.trim().replace(/\s+/g, " "),
-        phone: toOptionalStoredUzPhone(phone),
+        phone: toE164(phone),
         note: "",
         // An empty or zero amount sends neither field, and no date either: a
         // date with no balance behind it means nothing to the backend.
@@ -361,7 +385,10 @@ export function CustomersScreen() {
       resetCustomerForm();
       closeAddCustomerSheet();
       hapticSuccess();
-      showToast(t("customers.added"), "success");
+      showToast(
+        created.pendingSync ? t("offline.queuedCustomer") : t("customers.added"),
+        "success",
+      );
     } catch (error) {
       hapticError();
       showToast(
@@ -381,10 +408,8 @@ export function CustomersScreen() {
     // What the contact has fills its field; what it lacks leaves the field
     // as the user typed it.
     if (contact.fullName) setFullName(contact.fullName);
-    if (contact.phone) {
-      setPhone(formatUzPhoneFromDigits(contact.phone));
-      setPhoneInputKey((key) => key + 1);
-    }
+    // A number saved with its "+" brings its own country.
+    if (contact.phone) setPhone(readPhoneInput(contact.phone, phone.country));
     setErrors({});
     showToast(t("customers.contactsFilled"), "success");
   }
@@ -492,15 +517,6 @@ export function CustomersScreen() {
                   </View>
                 ) : null}
               </TouchableOpacity>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t("customers.addCustomer")}
-                onPress={openAddCustomerSheet}
-                activeOpacity={0.82}
-                style={styles.addBtn}
-              >
-                <Ionicons name="add" size={26} color="#FFFFFF" />
-              </TouchableOpacity>
             </View>
           </View>
           <View style={styles.searchWrap}>
@@ -512,6 +528,8 @@ export function CustomersScreen() {
           </View>
           <View style={styles.searchMeta}>
             <Text style={styles.customerCount}>{customerCountLabel}</Text>
+            {/* Offline: a small chip beside the count, not a row of its own. */}
+            <SavedDataNotice style={styles.offlineChip} />
           </View>
         </View>
 
@@ -617,6 +635,20 @@ export function CustomersScreen() {
             />
           }
         />
+        {/* Adding a customer, where the thumb already is, as adding a debt is
+            on the customer's page. Inside the screen's column, so on a tablet
+            it sits by the list rather than at the far edge of the window. */}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("customers.addCustomer")}
+          onPress={openAddCustomerSheet}
+          hitSlop={6}
+          style={({ pressed }) => [styles.addFab, fabElevation, pressed && styles.addFabPressed]}
+        >
+          {/* A person with a plus beside them: "add a customer". Nudged right,
+              so the person, not the whole glyph, sits in the middle. */}
+          <Ionicons name="person-add" size={30} color="#FFFFFF" style={styles.addFabIcon} />
+        </Pressable>
       </View>
       <BottomSheetModal
         ref={bottomSheetRef}
@@ -678,20 +710,14 @@ export function CustomersScreen() {
               submitBehavior="submit"
               onSubmitEditing={() => phoneInputRef.current?.focus()}
             />
-            <AppInput
+            <PhoneNumberInput
               variant="sheet"
               compact
               inputRef={phoneInputRef}
-              inputResetKey={phoneInputKey}
               label={t("customers.phoneOptional")}
-              uncontrolled
-              defaultValue={phone}
-              transformText={formatUzPhoneFromDigits}
-              onChangeText={handleAddPhoneChange}
-              placeholder={t("customers.phonePlaceholder")}
+              value={phone}
+              onChange={handleAddPhoneChange}
               editable={!isCreatingCustomer}
-              autoComplete="tel"
-              keyboardType="phone-pad"
               returnKeyType="none"
               onSubmitEditing={handleAddPhoneSubmit}
               error={errors.phone}
@@ -769,11 +795,12 @@ export function CustomersScreen() {
                 inputResetKey={balanceInputKey}
                 uncontrolled
                 defaultValue=""
-                transformText={formatAmountInput}
+                transformText={formatBalanceInput}
                 onChangeText={handleBalanceAmountChange}
-                placeholder={t("customers.initialBalancePlaceholder")}
+                // "0 so‘m", "0 $": which currency the amount is in.
+                placeholder={`${t("customers.initialBalancePlaceholder")} ${money.label}`}
                 editable={!isCreatingCustomer}
-                keyboardType="number-pad"
+                keyboardType={money.allowsFraction ? "decimal-pad" : "number-pad"}
                 returnKeyType="none"
                 onSubmitEditing={handleAddPhoneSubmit}
                 trailingAccessory={
@@ -817,7 +844,7 @@ export function CustomersScreen() {
             label={t("customers.addAction")}
             onPress={handleCreateCustomer}
             loading={isCreatingCustomer}
-            disabled={!isOptionalUzPhoneValid(phone)}
+            disabled={!isOptionalPhoneValid(phone)}
             style={styles.sheetSaveButton}
           />
         </BottomSheetScrollView>
@@ -887,15 +914,20 @@ const createStyles = (theme: AppTheme) =>
       lineHeight: 16,
       fontWeight: "400",
     },
-    addBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 27,
+    addFab: {
+      position: "absolute",
+      right: 16,
+      bottom: 16,
+      width: 62,
+      height: 62,
+      borderRadius: 31,
       alignItems: "center",
       justifyContent: "center",
       backgroundColor: theme.primary,
-      boxShadow: theme.cardShadow,
+      zIndex: 10,
     },
+    addFabIcon: { marginLeft: 3 },
+    addFabPressed: { opacity: 0.85, transform: [{ scale: 0.96 }] },
     // Same size as the bell beside it.
     videoLessonBtn: { width: 44, height: 44 },
     notificationBtn: {
@@ -935,6 +967,7 @@ const createStyles = (theme: AppTheme) =>
       alignItems: "center",
       marginTop: -8,
     },
+    offlineChip: { alignSelf: "center", flexShrink: 1, marginLeft: 8 },
     customerCount: {
       flex: 1,
       color: theme.textMuted,
@@ -945,7 +978,8 @@ const createStyles = (theme: AppTheme) =>
     list: {
       paddingHorizontal: 16,
       paddingTop: 5,
-      paddingBottom: 28,
+      // The add button's height and margins, so the last card is not under it.
+      paddingBottom: 96,
       flexGrow: 1,
     },
     sheetBackground: {

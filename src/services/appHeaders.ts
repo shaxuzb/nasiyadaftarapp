@@ -7,12 +7,15 @@
  *   X-Platform      android | ios  required
  *   X-App-Build     19             optional
  *   X-Device-Id     <id>           optional; the same id push registers with
+ *   Accept-Language uz | ru        optional; the language the app is in, so
+ *                                  the server writes its texts in it
  */
 export interface AppRequestInfo {
   version?: string | null;
   platform?: string | null;
   build?: string | null;
   deviceId?: string | null;
+  language?: string | null;
 }
 
 // A header value must be one line of plain characters; anything else is not
@@ -38,6 +41,12 @@ export function buildAppRequestHeaders(info: AppRequestInfo): Record<string, str
 
   const deviceId = clean(info.deviceId);
   if (deviceId) headers["X-Device-Id"] = deviceId;
+
+  // A language tag only ("uz", "ru", "uz-UZ"); anything else is left out.
+  const language = clean(info.language);
+  if (language && /^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$/.test(language)) {
+    headers["Accept-Language"] = language;
+  }
 
   return headers;
 }

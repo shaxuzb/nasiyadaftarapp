@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "../../../config/env";
+import { getCurrentLocale } from "../../../i18n/currentLocale";
 import { APP_UPDATE_REQUEST_TIMEOUT_MS } from "../constants/appUpdate.constants";
 import type {
   AppUpdatePlatform,
@@ -33,6 +34,8 @@ export async function fetchAppVersionCheck(
         "Cache-Control": "no-cache",
         "X-App-Version": currentVersion,
         "X-Platform": platform,
+        // Release notes in the app's language, where the server has them.
+        "Accept-Language": getCurrentLocale(),
       },
       signal: controller.signal,
     });

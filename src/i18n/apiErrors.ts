@@ -4,6 +4,19 @@ import type { Translate, TranslateKey } from "./translate";
 import { getApiErrorDetail, getApiErrorStatus } from "../utils/apiError";
 import { OFFLINE_MUTATION_ERROR_CODE } from "../core/network/networkState";
 
+/**
+ * The plan's organization limit, checked by the app before asking the
+ * server. Raised by name and said in the user's language, instead of the
+ * generic "could not create" that hid the reason.
+ */
+export const ORGANIZATION_LIMIT_ERROR = "ORGANIZATION_LIMIT";
+
+export function createOrganizationLimitError(limit: number): Error {
+  const error = new Error(`Organization limit reached: ${limit}`);
+  error.name = ORGANIZATION_LIMIT_ERROR;
+  return Object.assign(error, { limit });
+}
+
 const ERROR_CODE_KEYS: Record<string, TranslateKey> = {
   UNAUTHORIZED: "errors.unauthorized",
   AUTHENTICATION_REQUIRED: "errors.unauthorized",
@@ -77,6 +90,10 @@ export function getLocalizedApiErrorMessage(
   // sees "could not save", which reads as a server problem.
   if (error instanceof Error && error.name === OFFLINE_MUTATION_ERROR_CODE) {
     return error.message;
+  }
+  if (error instanceof Error && error.name === ORGANIZATION_LIMIT_ERROR) {
+    const limit = (error as Error & { limit?: number }).limit ?? 0;
+    return `${t("organization.limitTitle")}. ${t("organization.limitHint", { limit })}`;
   }
 
   const status = getApiErrorStatus(error);

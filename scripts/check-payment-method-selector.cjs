@@ -204,8 +204,11 @@ assert.doesNotMatch(
   "No icon or 'confirm' title above the product name",
 );
 
-const copy = read("src/modules/payments/i18n/paymentCopy.ts");
-assert.equal((copy.match(/methodTitle:/g) ?? []).length, 2, "Wording in both languages");
-assert.equal((copy.match(/methodHint:/g) ?? []).length, 2);
+// Wording in every language (one file each, shaped like the Uzbek one).
+for (const locale of ["uz", "ru", "en", "kk", "tg", "ky", "tr", "tk"]) {
+  const copy = read(`src/modules/payments/i18n/locales/${locale}.ts`);
+  assert.equal((copy.match(/methodTitle:/g) ?? []).length, 1, `${locale}: methodTitle`);
+  assert.equal((copy.match(/methodHint:/g) ?? []).length, 1, `${locale}: methodHint`);
+}
 
 console.log("Payment provider tiles: server list, default, sent choice and hand-over to the payment page passed");

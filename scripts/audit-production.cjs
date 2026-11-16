@@ -76,6 +76,29 @@ const REVIEWED = {
       "Not in the Android or iOS bundle. The only fix offered is a major " +
       "downgrade of React Native Firebase.",
   },
+  re2js: {
+    scope: BUILD,
+    via: "@react-native-firebase/app -> firebase -> @firebase/firestore",
+    note:
+      "Regular expressions inside the Firebase web SDK's Firestore, which " +
+      "React Native Firebase loads only on the web platform (see @grpc/grpc-js). " +
+      "The app uses messaging only. Not in the Android or iOS bundle.",
+  },
+  deepmerge: {
+    scope: BUILD,
+    via: "expo -> @expo/config",
+    note: "Merges app.json with plugin config during prebuild. Not bundled.",
+  },
+  glob: {
+    scope: BUILD,
+    via: "@expo/config-plugins, @expo/cli",
+    note: "Finds native project files during prebuild and in the CLI. Not bundled.",
+  },
+  minimatch: {
+    scope: BUILD,
+    via: "@expo/config-plugins -> glob",
+    note: "Pattern matching for glob during prebuild. Not bundled.",
+  },
   "node-forge": {
     scope: BUILD,
     via: "@expo/cli -> @expo/code-signing-certificates",

@@ -43,16 +43,6 @@ import type { AppTheme, RootStackParamList } from "../types";
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
 type PlanIconName = React.ComponentProps<typeof Ionicons>["name"];
 
-const SCREEN_COPY = {
-  uz: {
-    currentBadge: "Joriy tarif", oneMonth: "Tariflar",
-    more: "Yana", smsSubtitle: "Qo‘shimcha SMS", info: "Tarif yoki SMS paketni tanlang.",
-  },
-  ru: {
-    currentBadge: "Текущий тариф", oneMonth: "Тарифы",
-    more: "Ещё", smsSubtitle: "Дополнительные SMS", info: "Выберите тариф или SMS-пакет.",
-  },
-} as const;
 function getPlanAccent(code: string, theme: AppTheme) {
   if (code.trim().toUpperCase() === "PREMIUM") return { color: theme.warningColor, soft: theme.warningColor + "14" };
   if (code.trim().toUpperCase() === "STANDARD") return { color: theme.primary, soft: theme.primaryLight };
@@ -73,7 +63,16 @@ export function SubscriptionScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const navigation = useNavigation<Navigation>();
   const { locale, t } = useTranslation();
-  const copy = SCREEN_COPY[locale === "ru" ? "ru" : "uz"];
+  const copy = useMemo(
+    () => ({
+      currentBadge: t("subscriptionScreen.currentBadge"),
+      oneMonth: t("subscriptionScreen.oneMonth"),
+      more: t("subscriptionScreen.more"),
+      smsSubtitle: t("subscriptionScreen.smsSubtitle"),
+      info: t("subscriptionScreen.info"),
+    }),
+    [t],
+  );
   const { openSheet } = useBottomSheet();
   const { user, refreshSubscription } = useAuth();
   const { showToast } = useToast();

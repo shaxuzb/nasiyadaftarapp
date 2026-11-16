@@ -53,6 +53,7 @@ export function OrganizationSetupScreen() {
   const handleCreateOrganization = useCallback(
     async (payload: OrganizationRequest) => {
       try {
+        // Created in so'm (the server's default); its currency is chosen right after.
         await createOrganizationForCurrentUser(payload);
         showToast(t("organization.created"), "success");
       } catch (error) {

@@ -10,7 +10,6 @@ import React, {
 } from "react";
 
 import { useTranslation } from "../../i18n";
-import { getNetworkCopy } from "./networkCopy";
 import {
   NetworkStatus,
   normalizeNetworkStatus,
@@ -27,12 +26,12 @@ type NetworkContextValue = {
 const NetworkContext = createContext<NetworkContextValue | undefined>(undefined);
 
 export function NetworkProvider({ children }: { children: ReactNode }) {
-  const { locale } = useTranslation();
+  const { t } = useTranslation();
   const [status, setStatus] = useState<NetworkStatus>("unknown");
 
   useEffect(() => {
-    setOfflineMutationMessage(getNetworkCopy(locale).internetRequired);
-  }, [locale]);
+    setOfflineMutationMessage(t("network.internetRequired"));
+  }, [t]);
 
   useEffect(() => {
     const unsubscribe = NetInfo.addEventListener((state) => {

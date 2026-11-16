@@ -14,6 +14,7 @@ import { TelegramBotsSheet } from "./sheets/TelegramBotsSheet";
 import { LegalSheet } from "./sheets/LegalSheet";
 import { DatePickerSheet } from "./sheets/DatePickerSheet";
 import { BlacklistOrganizationsSheet } from "./sheets/BlacklistOrganizationsSheet";
+import { OrganizationCurrencySheet } from "./sheets/OrganizationCurrencySheet";
 
 export const sheetRegistry: SheetRegistry = {
   transaction: {
@@ -81,6 +82,11 @@ export const sheetRegistry: SheetRegistry = {
   },
   blacklistOrganizations: {
     component: BlacklistOrganizationsSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+  },
+  organizationCurrency: {
+    component: OrganizationCurrencySheet,
     enableDynamicSizing: true,
     enablePanDownToClose: true,
   },

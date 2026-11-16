@@ -52,6 +52,11 @@ import {
 import type { TranslateKey } from "../i18n";
 import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
 import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
+import { flagOf } from "../modules/phone/utils/phoneNumber";
+import { getSetupLanguage } from "../modules/setup/data/setupOptions";
+import { withUnsentWarning } from "../modules/offline/utils/unsentWarning";
+import { useNamedCurrencies } from "../modules/currency/hooks/useCurrencies";
+import { useOrganizationCurrencyCode } from "../modules/currency/hooks/useMoney";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -90,12 +95,17 @@ interface ProfileMenuRowProps {
   icon: IconName;
   iconColor: string;
   iconBackground: string;
+  /** In the icon's place, when the row is better told by a picture: the
+   * flag of the language in use. */
+  leading?: React.ReactNode;
   title: string;
   description?: string;
   onPress: () => void;
   isLast?: boolean;
   loading?: boolean;
   badge?: string;
+  /** The setting's current value, at the end of the row: "UZS". */
+  trailing?: React.ReactNode;
 }
 
 function ProfileMenuRow({
@@ -108,6 +118,8 @@ function ProfileMenuRow({
   isLast = false,
   loading = false,
   badge,
+  leading,
+  trailing,
 }: ProfileMenuRowProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -128,7 +140,7 @@ function ProfileMenuRow({
       ]}
     >
       <View style={[styles.menuIcon, { backgroundColor: iconBackground }]}>
-        <Ionicons name={icon} size={20} color={iconColor} />
+        {leading ?? <Ionicons name={icon} size={20} color={iconColor} />}
       </View>
       <View style={styles.menuCopy}>
         <Text style={styles.menuTitle} numberOfLines={2}>
@@ -142,6 +154,7 @@ function ProfileMenuRow({
       </View>
       <View style={styles.rowEnd}>
         {badge ? <Text style={styles.proBadge}>{badge}</Text> : null}
+        {trailing}
         {loading ? (
           <ActivityIndicator size="small" color={theme.primary} />
         ) : (
@@ -158,6 +171,7 @@ export function SettingsScreen() {
   const navigation = useNavigation<Navigation>();
   const { mode, setMode } = useThemeContext();
   const { locale, t } = useTranslation();
+  const currentLanguage = getSetupLanguage(locale);
   const { openSheet } = useBottomSheet();
   const { user, currentOrganization, logout, openOrganizationSelector } =
     useAuth();
@@ -181,6 +195,18 @@ export function SettingsScreen() {
   const canOpenSmsSettings =
     regionalCapabilities.clientSmsVisible &&
     getClientSmsCapabilities(user?.permissions).canView;
+  // The book's currency, changed by whoever may edit the organization.
+  const canChangeCurrency =
+    Boolean(currentOrganization) && (user?.permissions ?? []).includes("ORGANIZATION_UPDATE");
+  const organizationCurrencyCode = useOrganizationCurrencyCode();
+  const namedCurrencies = useNamedCurrencies();
+  const organizationCurrency = namedCurrencies.find((currency) => currency.code === organizationCurrencyCode);
+  // "AQSh dollari" under the title; "USD $" at the end, as the value.
+  const organizationCurrencyName = organizationCurrency?.displayName ?? organizationCurrencyCode;
+  const organizationCurrencySymbol =
+    organizationCurrency && organizationCurrency.symbol !== organizationCurrencyCode
+      ? organizationCurrency.symbol
+      : null;
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const showSubscriptionUi =
     !isAdministrator && regionalCapabilities.subscriptionVisible;
@@ -309,7 +335,7 @@ export function SettingsScreen() {
   const handleLogout = useCallback(async () => {
     const accepted = await confirm({
       title: t("profile.logoutTitle"),
-      message: t("profile.logoutMessage"),
+      message: withUnsentWarning(t("profile.logoutMessage"), t),
       confirmText: t("profile.logout"),
       cancelText: t("common.cancel"),
       variant: "danger",
@@ -577,6 +603,25 @@ export function SettingsScreen() {
             }}
             isLast={false}
           />
+          {canChangeCurrency ? (
+            <ProfileMenuRow
+              icon="cash-outline"
+              iconColor={theme.primary}
+              iconBackground={theme.primaryLight}
+              title={t("currency.rowTitle")}
+              description={organizationCurrencyName}
+              trailing={
+                <View style={styles.currencyValue}>
+                  <Text style={styles.currencyValueCode}>{organizationCurrencyCode}</Text>
+                  {organizationCurrencySymbol ? (
+                    <Text style={styles.currencyValueSymbol}>{organizationCurrencySymbol}</Text>
+                  ) : null}
+                </View>
+              }
+              onPress={() => openSheet("organizationCurrency", {})}
+              isLast={false}
+            />
+          ) : null}
           {canOpenSmsSettings ? (
             <ProfileMenuRow
               icon="chatbubbles-outline"
@@ -660,9 +705,12 @@ export function SettingsScreen() {
           <ProfileMenuRow
             icon="language-outline"
             iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
+            iconBackground={theme.inputBackground}
+            leading={
+              <Text style={styles.languageFlag}>{flagOf(currentLanguage.flag)}</Text>
+            }
             title={t("auth.language")}
-            description={locale === "ru" ? t("auth.russian") : t("auth.uzbek")}
+            description={currentLanguage.nativeName}
             onPress={() => openSheet("language", {})}
           />
           <View style={styles.themeSelector}>
@@ -949,6 +997,7 @@ const createStyles = (theme: AppTheme) =>
       paddingVertical: spacing.sm,
     },
     rowDivider: { borderBottomWidth: 1, borderBottomColor: theme.border },
+    languageFlag: { fontSize: 22, lineHeight: 28 },
     menuIcon: {
       width: 38,
       height: 38,
@@ -966,6 +1015,24 @@ const createStyles = (theme: AppTheme) =>
     },
     menuDescription: { ...typography.caption, color: theme.textMuted },
     rowEnd: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    // The currency in use, as a value: its code, and its sign beside it.
+    currencyValue: {
+      flexDirection: "row",
+      alignItems: "baseline",
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 5,
+      borderRadius: radius.full,
+      backgroundColor: theme.primaryLight,
+    },
+    currencyValueCode: {
+      color: theme.primary,
+      fontSize: 13,
+      lineHeight: 17,
+      fontWeight: "800",
+      letterSpacing: 0.5,
+    },
+    currencyValueSymbol: { color: theme.primary, fontSize: 12, lineHeight: 16, fontWeight: "600", opacity: 0.8 },
     proBadge: {
       paddingHorizontal: 7,
       paddingVertical: 3,

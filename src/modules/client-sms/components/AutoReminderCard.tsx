@@ -9,11 +9,14 @@ import { SubscriptionUpgradeModal } from "../../subscription/components/Subscrip
 import { useToast } from "../../../context/ToastContext";
 import { useTranslation } from "../../../i18n";
 import { useAutoReminderSettings, useUpdateAutoReminderSettings } from "../hooks/useClientSms";
+import { useMoney } from "../../currency/hooks/useMoney";
 
 /** No second settings screen: this card belongs to the existing SMS settings flow. */
 export function AutoReminderCard() {
   const theme = useTheme();
   const { t } = useTranslation();
+  // The threshold is a customer's debt: in the organization's currency.
+  const money = useMoney();
   const { showToast } = useToast();
   const query = useAutoReminderSettings();
   const update = useUpdateAutoReminderSettings();
@@ -122,9 +125,9 @@ export function AutoReminderCard() {
                 </Text>
               </View>
               <View style={styles.field}>
-                <Text style={[styles.label, { color: theme.textSecondary }]}>{t("smsSettings.autoReminderBalance")}</Text>
+                <Text style={[styles.label, { color: theme.textSecondary }]}>{t("smsSettings.autoReminderBalance", { currency: money.label })}</Text>
                 <TextInput value={balance} onChangeText={setBalance} editable={!update.isPending}
-                  keyboardType="numeric" maxLength={14} accessibilityLabel={t("smsSettings.autoReminderBalance")}
+                  keyboardType="numeric" maxLength={14} accessibilityLabel={t("smsSettings.autoReminderBalance", { currency: money.label })}
                   style={[styles.input, { color: theme.text, borderColor: theme.border, backgroundColor: theme.inputBackground }]} />
               </View>
             </View>

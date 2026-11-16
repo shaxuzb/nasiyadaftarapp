@@ -53,12 +53,15 @@ import { useTranslation } from "../i18n";
 import { usePushNotifications } from "../modules/push/hooks/usePushNotifications";
 import { useOpenNotification } from "../modules/push/hooks/useOpenNotification";
 import { PushInAppBanner } from "../modules/push/components/PushInAppBanner";
+import { useAppSetup } from "../modules/setup/context/AppSetupContext";
+import { FirstLaunchSetup } from "../modules/setup/screens/FirstLaunchSetup";
 import {
   consumePendingPushNavigation,
   navigateToPushNotification,
   navigationRef,
 } from "./navigationRef";
 import { shouldMountMainNavigator } from "./appNavigatorState";
+import { guardServerRoutes } from "./serverRouteGuard";
 import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapabilities";
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -140,6 +143,8 @@ function TabNavigator({
     <Tab.Navigator
       initialRouteName={resolvedInitialRouteName}
       screenLayout={renderResponsiveScreen}
+      // The SMS tab needs the server; offline it explains why instead.
+      UNSTABLE_router={guardServerRoutes}
       screenOptions={({ route }) => ({
         headerShown: false,
         lazy: true,
@@ -239,6 +244,8 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
     <Stack.Navigator
       screenOptions={MAIN_STACK_OPTIONS}
       screenLayout={renderMainStackScreen}
+      // Screens that need the server explain why instead, while it cannot be used.
+      UNSTABLE_router={guardServerRoutes}
     >
       <Stack.Screen name="MainTabs">
         {() => <MemoTabNavigator initialRouteName={initialTab} />}
@@ -363,6 +370,7 @@ export function AppNavigator() {
     clearPendingNotification,
   } = usePushNotifications();
   const openNotification = useOpenNotification();
+  const appSetup = useAppSetup();
   const [navigationReady, setNavigationReady] = React.useState(false);
   const [unlockedUserId, setUnlockedUserId] = React.useState<number | null>(
     null,
@@ -380,6 +388,13 @@ export function AppNavigator() {
       setUnlockedUserId(userId);
     }
   }, [currentOrganizationId, isLocked, setupRequired, userId]);
+
+  // Signed in from before first launch existed: nothing to ask, so it is
+  // simply done, and signing out later does not bring it back.
+  const { markCompleted } = appSetup;
+  React.useEffect(() => {
+    if (userId !== null && appSetup.ready && !appSetup.completed) void markCompleted();
+  }, [appSetup.completed, appSetup.ready, markCompleted, userId]);
 
   const shouldMountMain = shouldMountMainNavigator({
     userId,
@@ -432,7 +447,7 @@ export function AppNavigator() {
     user,
   ]);
 
-  if (isBootstrapping || isOrganizationLoading || isPinResolving) {
+  if (isBootstrapping || isOrganizationLoading || isPinResolving || !appSetup.ready) {
     return (
       <View
         style={[styles.loader, { backgroundColor: navTheme.colors.background }]}
@@ -440,6 +455,11 @@ export function AppNavigator() {
         <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
+  }
+
+  // First launch: the language and the currency, before signing in.
+  if (!user && !appSetup.completed) {
+    return <FirstLaunchSetup />;
   }
 
   return (

@@ -8,6 +8,7 @@ import React, {
 import {
   ActivityIndicator,
   Image,
+  Keyboard,
   Platform,
   StyleSheet,
   Text,
@@ -15,11 +16,10 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, KeyboardController } from "react-native-keyboard-controller";
 
 import { AdminContactButton } from "../modules/support/components/AdminContactButton";
 import { AppleAuthButton } from "../components/AppleAuthButton";
-import { AppInput } from "../components/AppInput";
 import { LanguageSelectorButton } from "../components/LanguageSelectorButton";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenContainer } from "../components/ScreenContainer";
@@ -45,12 +45,13 @@ import {
 import { useTheme } from "../hooks/useTheme";
 import { APP_NAME } from "../constants";
 import { radius, spacing, typography } from "../theme";
+import { PhoneNumberInput } from "../modules/phone/components/PhoneNumberInput";
 import {
-  formatUzPhoneFromDigits,
-  isValidUzPhone,
-  toStoredUzPhone,
-  uzPhoneMask,
-} from "../utils/masks";
+  emptyPhone,
+  isPhoneValid,
+  toE164,
+  type PhoneValue,
+} from "../modules/phone/utils/phoneNumber";
 
 interface Props {
   onGoToVerify: (params: {
@@ -65,15 +66,16 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
   const { t } = useTranslation();
   const { showToast } = useToast();
   const { loginWithGoogleIdToken, loginWithAppleCredential } = useAuth();
-  const [phoneNumber, setPhoneNumber] = useState("+998 ");
+  // Before signing in there is no account to take a country from.
+  const [phone, setPhone] = useState<PhoneValue>(() => emptyPhone("UZ"));
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
   const [appleAvailable, setAppleAvailable] = useState(false);
 
   const canSubmit = useMemo(
-    () => isValidUzPhone(phoneNumber) && !loading,
-    [loading, phoneNumber],
+    () => isPhoneValid(phone) && !loading,
+    [loading, phone],
   );
 
   useEffect(() => {
@@ -94,17 +96,17 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
   }, []);
 
   const requestingRef = useRef(false);
-  const handlePhoneChange = useCallback((value: string) => {
-    setPhoneNumber(value);
-  }, []);
-
   const handleRequestCode = useCallback(async () => {
-    if (!isValidUzPhone(phoneNumber)) {
+    if (!isPhoneValid(phone)) {
       showToast(t("auth.phoneAuth.phoneError"), "error");
       return;
     }
+    // The number is right: the keyboard goes, so the button's progress and
+    // the next screen are seen whole. A wrong number keeps it, to correct.
+    Keyboard.dismiss();
+    void KeyboardController.dismiss();
 
-    const normalizedPhone = toStoredUzPhone(phoneNumber);
+    const normalizedPhone = toE164(phone);
 
     // A code was sent to this number moments ago and the server will not send
     // another yet. Coming back from the code screen and tapping again used to
@@ -150,7 +152,7 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
       requestingRef.current = false;
       setLoading(false);
     }
-  }, [onGoToVerify, phoneNumber, showToast, t]);
+  }, [onGoToVerify, phone, showToast, t]);
 
   const handleGoogleLogin = useCallback(async () => {
     if (googleLoading || loading) return;
@@ -223,24 +225,12 @@ export function PhoneAuthScreen({ onGoToVerify }: Props) {
           </View>
 
           <View style={styles.form}>
-            <AppInput
+            {/* Signing in and signing up: Uzbek numbers only (+998). */}
+            <PhoneNumberInput
               label={t("auth.phoneAuth.phoneLabel")}
-              uncontrolled
-              defaultValue={phoneNumber}
-              onChangeText={handlePhoneChange}
-              onChangeRawText={(raw) => {
-                if (raw.length === 9) {
-                  setPhoneNumber(formatUzPhoneFromDigits(raw));
-                }
-              }}
-              mask={uzPhoneMask}
-              autoCapitalize="none"
-              autoCorrect={false}
-              iconName="call-outline"
-              placeholder={t("auth.phoneAuth.phonePlaceholder")}
-              keyboardType="phone-pad"
-              textContentType="telephoneNumber"
-              autoComplete="tel"
+              value={phone}
+              onChange={setPhone}
+              lockedCountry="UZ"
               returnKeyType="done"
               onSubmitEditing={() => {
                 void handleRequestCode();

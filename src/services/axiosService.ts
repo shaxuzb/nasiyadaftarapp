@@ -3,11 +3,15 @@ import { APP_BUILD, APP_PLATFORM, APP_VERSION } from "../config/appInfo";
 import { API_BASE_URL } from "../config/env";
 import {
   assertOnlineForMutation,
+  getCurrentNetworkStatus,
   isServerMutationMethod,
 } from "../core/network/networkState";
 import { AuthRefreshResponse } from "../modules/auth/types";
 import { isPublicAccountRoute } from "./accountRoute";
 import { buildAppRequestHeaders } from "./appHeaders";
+import { getCurrentLocale } from "../i18n/currentLocale";
+import { reportServerDown, reportServerUp } from "../modules/offline/state/serverStatus";
+import { isServerUnreachable } from "../modules/offline/utils/savedData";
 import {
   clearAuthSession,
   getAuthSessionSync,
@@ -115,6 +119,7 @@ apiClient.interceptors.request.use(async (config) => {
     platform: APP_PLATFORM,
     build: APP_BUILD,
     deviceId: session?.uniqueId,
+    language: getCurrentLocale(),
   });
   for (const name of Object.keys(appHeaders)) {
     config.headers[name] = appHeaders[name];
@@ -170,5 +175,22 @@ apiClient.interceptors.response.use(
       }
       return Promise.reject(refreshError);
     }
+  },
+);
+
+// Whether the server is up, learnt from the app's own requests: any answer
+// says it is, no answer (or 502/503/504) says it is not. Nothing is sent just
+// to check while it answers; GET /health is asked only while it does not.
+apiClient.interceptors.response.use(
+  (response) => {
+    reportServerUp();
+    return response;
+  },
+  (error: unknown) => {
+    // No internet on the phone says nothing about the server: only with a
+    // connection does "no answer" mean the server is down (offline mode).
+    if (isServerUnreachable(error) && getCurrentNetworkStatus() !== "offline") reportServerDown();
+    else if (axios.isAxiosError(error) && error.response) reportServerUp();
+    return Promise.reject(error);
   },
 );

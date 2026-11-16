@@ -1,7 +1,8 @@
 // The HTTP client, run against a fake server.
 //
 // 1. Every request says which app is calling (X-App-Version, X-Platform,
-//    X-App-Build, X-Device-Id).
+//    X-App-Build, X-Device-Id), and in which language to answer
+//    (Accept-Language, the language the app is in).
 // 2. An expired token is refreshed exactly once, however many requests notice.
 //    The backend rejects a second refresh made with the same refresh token, so
 //    two of them at once means a spurious 401 and, at worst, a sign-out.
@@ -62,6 +63,7 @@ function createClient() {
     refreshResults: [],
     sent: [],
     signedOut: 0,
+    serverReports: [],
   };
   let requestInterceptor;
   let responseError;
@@ -76,7 +78,16 @@ function createClient() {
   };
   client.interceptors = {
     request: { use: (handler) => (requestInterceptor = handler) },
-    response: { use: (_ok, onError) => (responseError = onError) },
+    // The first is the token refresh under test; the one after it only
+    // notes whether the server answered (checked at the end).
+    response: {
+      use: (onOk, onError) => {
+        if (responseError) {
+          env.statusOk = onOk;
+          env.statusError = onError;
+        } else responseError = onError;
+      },
+    },
   };
 
   const axios = {
@@ -97,10 +108,20 @@ function createClient() {
     "../core/network/networkState": {
       assertOnlineForMutation() {},
       isServerMutationMethod: () => false,
+      getCurrentNetworkStatus: () => env.network ?? "online",
     },
     "../modules/auth/types": {},
     "./accountRoute": accountRoute,
     "./appHeaders": appHeaders,
+    "../i18n/currentLocale": { getCurrentLocale: () => "ru" },
+    "../modules/offline/state/serverStatus": {
+      reportServerDown: () => env.serverReports.push("down"),
+      reportServerUp: () => env.serverReports.push("up"),
+    },
+    "../modules/offline/utils/savedData": {
+      isServerUnreachable: (error) =>
+        Boolean(error?.isAxiosError) && (!error.response || [502, 503, 504].includes(error.response.status)),
+    },
     "./authStorage": {
       getAuthSessionSync: () => env.session,
       hydrateAuthSession: async () => env.session,
@@ -138,14 +159,15 @@ async function main() {
       "X-Platform": "android",
       "X-App-Build": "19",
       "X-Device-Id": "device-1",
+      "Accept-Language": "ru",
     },
   );
   plain.env.session = null;
   const signedOut = await plain.requestInterceptor({ url: "/account/phone/request", method: "post", headers: {} });
   assert.deepEqual(
     { ...signedOut.headers },
-    { "X-App-Version": "1.1.5", "X-Platform": "android", "X-App-Build": "19" },
-    "Without a session there is no token and no device id, but still a version",
+    { "X-App-Version": "1.1.5", "X-Platform": "android", "X-App-Build": "19", "Accept-Language": "ru" },
+    "Without a session there is no token and no device id, but still a version and the language",
   );
 
   /* 2. Several requests notice the expiry at once: one refresh, all retried. */
@@ -237,7 +259,27 @@ async function main() {
   );
   assert.match(versionCheck, /"X-App-Version": currentVersion,\s*"X-Platform": platform,/);
 
-  console.log("HTTP client: app headers on every request, one refresh per expiry");
+  /* 7. Whether the server is up, from the app's own requests (no extra calls). */
+
+  const status = createClient();
+  status.env.statusOk({ data: "ok" });
+  await assert.rejects(status.env.statusError({ isAxiosError: true }));
+  await assert.rejects(status.env.statusError({ isAxiosError: true, response: { status: 503 } }));
+  await assert.rejects(status.env.statusError({ isAxiosError: true, response: { status: 404 } }));
+  await assert.rejects(status.env.statusError({ isAxiosError: true, response: { status: 500 } }));
+  await assert.rejects(status.env.statusError(new Error("parse")));
+  assert.deepEqual(
+    status.env.serverReports,
+    ["up", "down", "down", "up", "up"],
+    "An answer means up; no answer or 502-504 means down; a non-HTTP error says nothing",
+  );
+  // No internet on the phone: a failed request says nothing about the server.
+  status.env.serverReports.length = 0;
+  status.env.network = "offline";
+  await assert.rejects(status.env.statusError({ isAxiosError: true }));
+  assert.deepEqual(status.env.serverReports, [], "No internet is not the server being down");
+
+  console.log("HTTP client: app headers on every request, one refresh per expiry, server status from responses");
 }
 
 main().catch((error) => {

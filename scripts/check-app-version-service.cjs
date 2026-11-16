@@ -35,6 +35,7 @@ async function main() {
     "src/modules/app-update/services/appUpdateService.ts",
     {
       "../../../config/env": { API_BASE_URL: "https://api.example.com/api" },
+      "../../../i18n/currentLocale": { getCurrentLocale: () => "ru" },
       "../constants/appUpdate.constants": {
         APP_UPDATE_REQUEST_TIMEOUT_MS: 8000,
       },
@@ -67,6 +68,7 @@ async function main() {
   );
   assert.equal(calls[0].options.method, "GET");
   assert.equal(calls[0].options.headers.Accept, "application/json");
+  assert.equal(calls[0].options.headers["Accept-Language"], "ru", "Release notes in the app's language");
   assert.ok(calls[0].options.signal, "request must use an abort signal");
   assert.deepEqual(parserArgs, {
     value: { backend: true },

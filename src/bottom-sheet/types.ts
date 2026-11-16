@@ -24,7 +24,8 @@ export type SheetType =
   | "telegramBots"
   | "legal"
   | "datePicker"
-  | "blacklistOrganizations";
+  | "blacklistOrganizations"
+  | "organizationCurrency";
 
 export interface TransactionSheetProps {
   customerId: number;
@@ -47,6 +48,8 @@ export type LanguageSheetProps = Record<never, never>;
 export type TelegramBotsSheetProps = Record<never, never>;
 
 export type LegalSheetProps = Record<never, never>;
+
+export type OrganizationCurrencySheetProps = Record<never, never>;
 
 export interface BlacklistOrganizationsSheetProps {
   customerId: number;
@@ -113,6 +116,7 @@ export interface SheetPropsMap {
   legal: LegalSheetProps;
   datePicker: DatePickerSheetProps;
   blacklistOrganizations: BlacklistOrganizationsSheetProps;
+  organizationCurrency: OrganizationCurrencySheetProps;
 }
 
 export interface SheetRenderProps<T extends SheetType> {
