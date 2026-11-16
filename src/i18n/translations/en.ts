@@ -1066,8 +1066,6 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Open quick menu",
     title: "Quick settings",
-    subtitle: "Organization, language and currency",
-    switchOrganization: "Switch",
     currencyLocked: "You don't have permission to change the currency",
   },
   offline: {

@@ -1087,8 +1087,6 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Открыть быстрое меню",
     title: "Быстрые настройки",
-    subtitle: "Организация, язык и валюта",
-    switchOrganization: "Сменить",
     currencyLocked: "У вас нет права менять валюту",
   },
   offline: {

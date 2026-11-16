@@ -1084,8 +1084,6 @@ export const uzTranslations = {
   quickMenu: {
     open: "Tezkor menyuni ochish",
     title: "Tezkor sozlamalar",
-    subtitle: "Tashkilot, til va valyuta",
-    switchOrganization: "Almashtirish",
     currencyLocked: "Valyutani o‘zgartirishga ruxsatingiz yo‘q",
   },
   offline: {

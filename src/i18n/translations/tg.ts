@@ -1086,8 +1086,6 @@ export const tgTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Менюи зудро кушодан",
     title: "Танзимоти зуд",
-    subtitle: "Ташкилот, забон ва асъор",
-    switchOrganization: "Иваз кардан",
     currencyLocked: "Шумо барои иваз кардани асъор иҷозат надоред",
   },
   offline: {

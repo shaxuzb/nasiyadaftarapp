@@ -1086,8 +1086,6 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Çalt menýuny aç",
     title: "Çalt sazlamalar",
-    subtitle: "Gurama, dil we pul birligi",
-    switchOrganization: "Çalyşmak",
     currencyLocked: "Pul birligini üýtgetmäge rugsadyňyz ýok",
   },
   offline: {

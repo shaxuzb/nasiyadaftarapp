@@ -17,38 +17,82 @@ import { useBottomSheet } from "../bottom-sheet";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
-import { getLocalizedApiErrorMessage, useTranslation, type Locale } from "../i18n";
+import { getLocalizedApiErrorMessage, useTranslation } from "../i18n";
 import { useNamedCurrencies } from "../modules/currency/hooks/useCurrencies";
 import { useOrganizationCurrencyCode } from "../modules/currency/hooks/useMoney";
 import { flagOf } from "../modules/phone/utils/phoneNumber";
 import { useDismissOnAppLock } from "../modules/pin-auth/hooks/useDismissOnAppLock";
-import { SETUP_LANGUAGES } from "../modules/setup/data/setupOptions";
+import { getSetupLanguage } from "../modules/setup/data/setupOptions";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme } from "../types";
+
+type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
 const ENTER_MS = 260;
 const EXIT_MS = 200;
 /** A drawer, not a screen: most of the width on a phone, a column on a tablet. */
-const MAX_WIDTH = 380;
+const MAX_WIDTH = 360;
 
 interface QuickMenuDrawerProps {
   visible: boolean;
   onClose: () => void;
 }
 
-/** "Nasiya Market" → "NM"; one word → its first two letters. */
-function organizationInitials(name: string | undefined): string {
-  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+interface MenuRowProps {
+  icon: IconName;
+  /** In the icon's place: the flag of the language in use. */
+  leading?: React.ReactNode;
+  title: string;
+  description?: string;
+  /** The current value, before the chevron: "UZS so'm". */
+  trailing?: React.ReactNode;
+  locked?: boolean;
+  isLast?: boolean;
+  onPress: () => void;
+}
+
+/** A row as in Profile: icon tile, title, the value under it, chevron. */
+function MenuRow({ icon, leading, title, description, trailing, locked, isLast, onPress }: MenuRowProps) {
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      accessibilityHint={description}
+      accessibilityState={{ disabled: locked }}
+      disabled={locked}
+      onPress={onPress}
+      style={({ pressed }) => [styles.row, !isLast && styles.rowDivider, pressed && styles.pressed]}
+    >
+      <View style={styles.rowIcon}>{leading ?? <Ionicons name={icon} size={20} color={theme.primary} />}</View>
+      <View style={styles.rowCopy}>
+        <Text style={styles.rowTitle} numberOfLines={1}>
+          {title}
+        </Text>
+        {description ? (
+          <Text style={styles.rowDescription} numberOfLines={2}>
+            {description}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.rowEnd}>
+        {trailing}
+        <Ionicons
+          name={locked ? "lock-closed-outline" : "chevron-forward"}
+          size={locked ? 17 : 20}
+          color={theme.textMuted}
+        />
+      </View>
+    </Pressable>
+  );
 }
 
 /**
- * The customers screen's quick menu, sliding in from the left: the
- * organization (switch it), the app's language (changed at once, in place)
- * and the organization's currency (through its own sheet, which warns that
- * amounts are not converted). The same actions as in Settings, one tap away.
+ * The customers screen's quick menu, sliding in from the left. Laid out as
+ * Profile is: the organization's card, then one card of rows — switch the
+ * organization, the language, the currency — each opening the same screen or
+ * sheet as in Settings. The drawer closes first, so what opens is on top.
  */
 export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
   const theme = useTheme();
@@ -56,7 +100,8 @@ export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
   const insets = useSafeAreaInsets();
   // Its own width, as drawn ("86%", at most MAX_WIDTH): how far it slides and is swiped.
   const [width, setWidth] = useState(MAX_WIDTH);
-  const { locale, setLocale, t } = useTranslation();
+  const { locale, t } = useTranslation();
+  const currentLanguage = getSetupLanguage(locale);
   const { user, currentOrganization, openOrganizationSelector } = useAuth();
   const { openSheet } = useBottomSheet();
   const { showToast } = useToast();
@@ -120,16 +165,13 @@ export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
     });
   }, [closeThen, openOrganizationSelector, showToast, t]);
 
+  const handleLanguage = useCallback(() => {
+    closeThen(() => openSheet("language", {}));
+  }, [closeThen, openSheet]);
+
   const handleCurrency = useCallback(() => {
     closeThen(() => openSheet("organizationCurrency", {}));
   }, [closeThen, openSheet]);
-
-  const handleLanguage = useCallback(
-    (next: Locale) => {
-      if (next !== locale) setLocale(next);
-    },
-    [locale, setLocale],
-  );
 
   // Swiped back to the left, it follows the finger and closes past a third.
   const panResponder = useMemo(
@@ -149,8 +191,6 @@ export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
   );
 
   if (!mounted) return null;
-
-  const organizationName = currentOrganization?.name ?? "";
 
   return (
     <Modal
@@ -172,7 +212,7 @@ export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
         style={[
           styles.panel,
           {
-            paddingTop: insets.top + spacing.sm,
+            paddingTop: insets.top + spacing.md,
             transform: [
               { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [-width - 24, 0] }) },
             ],
@@ -180,14 +220,9 @@ export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
         ]}
       >
         <View style={styles.header}>
-          <View style={styles.headerCopy}>
-            <Text style={styles.title} accessibilityRole="header" numberOfLines={1}>
-              {t("quickMenu.title")}
-            </Text>
-            <Text style={styles.subtitle} numberOfLines={1}>
-              {t("quickMenu.subtitle")}
-            </Text>
-          </View>
+          <Text style={styles.title} accessibilityRole="header" numberOfLines={1}>
+            {t("quickMenu.title")}
+          </Text>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={t("common.close")}
@@ -195,99 +230,61 @@ export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
             hitSlop={8}
             style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
           >
-            <Ionicons name="close" size={22} color={theme.textSecondary} />
+            <Ionicons name="close" size={20} color={theme.textSecondary} />
           </Pressable>
         </View>
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={[styles.content, { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md }]}
+          contentContainerStyle={[
+            styles.content,
+            { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md },
+          ]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Organization: whose book this is, and the way to another. */}
-          <Text style={styles.sectionTitle}>{t("profile.currentOrganization")}</Text>
+          {/* Whose book this is, as on the Profile card. */}
           <View style={styles.organizationCard}>
-            <View style={styles.organizationRow}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{organizationInitials(organizationName)}</Text>
-              </View>
+            <View style={styles.organizationAvatar}>
+              <Ionicons name="business-outline" size={26} color={theme.primary} />
+            </View>
+            <View style={styles.organizationIdentity}>
+              <Text style={styles.organizationEyebrow}>{t("profile.currentOrganization")}</Text>
               <Text style={styles.organizationName} numberOfLines={2}>
-                {organizationName}
+                {currentOrganization?.name || t("profile.organizationNotSelected")}
               </Text>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t("organization.selectTitle")}
+          </View>
+
+          <View style={styles.card}>
+            <MenuRow
+              icon="swap-horizontal-outline"
+              title={t("organization.selectTitle")}
               onPress={handleSwitchOrganization}
-              style={({ pressed }) => [styles.switchButton, pressed && styles.pressed]}
-            >
-              <Ionicons name="swap-horizontal" size={18} color={theme.primary} />
-              <Text style={styles.switchText}>{t("quickMenu.switchOrganization")}</Text>
-            </Pressable>
-          </View>
-
-          {/* Language: tapped, the app changes at once; the drawer stays. */}
-          <Text style={styles.sectionTitle}>{t("auth.language")}</Text>
-          <View style={styles.languageGrid} accessibilityRole="radiogroup">
-            {SETUP_LANGUAGES.map((language) => {
-              if (!language.locale) return null;
-              const code = language.locale;
-              const selected = code === locale;
-              return (
-                <Pressable
-                  key={language.code}
-                  accessibilityRole="radio"
-                  accessibilityLabel={language.nativeName}
-                  accessibilityState={{ selected }}
-                  onPress={() => handleLanguage(code)}
-                  style={({ pressed }) => [
-                    styles.languageOption,
-                    selected && styles.languageOptionSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={styles.flag}>{flagOf(language.flag)}</Text>
-                  <Text
-                    style={[styles.languageName, selected && styles.languageNameSelected]}
-                    numberOfLines={1}
-                  >
-                    {language.nativeName}
-                  </Text>
-                  {selected ? <Ionicons name="checkmark-circle" size={16} color={theme.primary} /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Currency: through its sheet, which asks first and says amounts stay as they are. */}
-          <Text style={styles.sectionTitle}>{t("currency.rowTitle")}</Text>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canChangeCurrency }}
-            disabled={!canChangeCurrency}
-            onPress={handleCurrency}
-            style={({ pressed }) => [styles.currencyRow, pressed && styles.pressed]}
-          >
-            <View style={styles.currencyBadge}>
-              <Text style={styles.currencyCode}>{currencyCode}</Text>
-              {currencySymbol ? <Text style={styles.currencySymbol}>{currencySymbol}</Text> : null}
-            </View>
-            <View style={styles.currencyCopy}>
-              <Text style={styles.currencyName} numberOfLines={1}>
-                {currency?.displayName ?? currencyCode}
-              </Text>
-              {canChangeCurrency ? null : (
-                <Text style={styles.currencyHint} numberOfLines={2}>
-                  {t("quickMenu.currencyLocked")}
-                </Text>
-              )}
-            </View>
-            <Ionicons
-              name={canChangeCurrency ? "chevron-forward" : "lock-closed-outline"}
-              size={canChangeCurrency ? 20 : 17}
-              color={theme.textMuted}
             />
-          </Pressable>
+            <MenuRow
+              icon="language-outline"
+              leading={<Text style={styles.flag}>{flagOf(currentLanguage.flag)}</Text>}
+              title={t("auth.language")}
+              description={currentLanguage.nativeName}
+              onPress={handleLanguage}
+            />
+            <MenuRow
+              icon="cash-outline"
+              title={t("currency.rowTitle")}
+              description={
+                canChangeCurrency ? currency?.displayName ?? currencyCode : t("quickMenu.currencyLocked")
+              }
+              trailing={
+                <View style={styles.currencyValue}>
+                  <Text style={styles.currencyCode}>{currencyCode}</Text>
+                  {currencySymbol ? <Text style={styles.currencySymbol}>{currencySymbol}</Text> : null}
+                </View>
+              }
+              locked={!canChangeCurrency}
+              onPress={handleCurrency}
+              isLast
+            />
+          </View>
         </ScrollView>
       </Animated.View>
     </Modal>
@@ -308,8 +305,8 @@ const createStyles = (theme: AppTheme) =>
       width: "86%",
       maxWidth: MAX_WIDTH,
       backgroundColor: theme.background,
-      borderTopRightRadius: 28,
-      borderBottomRightRadius: 28,
+      borderTopRightRadius: radius.xl,
+      borderBottomRightRadius: radius.xl,
       borderCurve: "continuous",
       overflow: "hidden",
       shadowColor: "#000",
@@ -322,123 +319,103 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: spacing.sm,
-      paddingHorizontal: spacing.lg,
+      paddingHorizontal: spacing.md,
       paddingBottom: spacing.md,
     },
-    headerCopy: { flex: 1, gap: 2 },
     title: {
-      ...typography.headingLarge,
+      flex: 1,
       color: theme.text,
+      fontSize: 22,
+      lineHeight: 28,
       fontWeight: "800",
-      letterSpacing: -0.4,
+      letterSpacing: -0.5,
     },
-    subtitle: { ...typography.bodySmall, color: theme.textSecondary },
     closeButton: {
-      width: 40,
-      height: 40,
+      width: 38,
+      height: 38,
       alignItems: "center",
       justifyContent: "center",
-      borderRadius: 20,
+      borderRadius: radius.full,
       backgroundColor: theme.surface,
       borderWidth: 1,
       borderColor: theme.border,
     },
     scroll: { flex: 1 },
-    content: { paddingHorizontal: spacing.lg },
-    sectionTitle: {
-      ...typography.caption,
-      color: theme.textSecondary,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      letterSpacing: 0.6,
-      marginTop: spacing.md,
-      marginBottom: spacing.sm,
-    },
+    content: { paddingHorizontal: spacing.md, gap: spacing.md },
     organizationCard: {
-      gap: 14,
-      padding: 14,
-      borderRadius: radius.lg,
-      borderCurve: "continuous",
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
-    },
-    organizationRow: { flexDirection: "row", alignItems: "center", gap: 12 },
-    avatar: {
-      width: 48,
-      height: 48,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 16,
-      borderCurve: "continuous",
-      backgroundColor: theme.primary,
-    },
-    avatarText: { color: "#FFFFFF", fontSize: 17, fontWeight: "800", letterSpacing: 0.3 },
-    organizationName: {
-      flex: 1,
-      ...typography.headingSmall,
-      color: theme.text,
-      fontWeight: "800",
-    },
-    switchButton: {
-      minHeight: 44,
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "center",
-      gap: 8,
-      borderRadius: radius.md,
-      backgroundColor: theme.primaryLight,
-    },
-    switchText: { ...typography.label, color: theme.primary, fontWeight: "800" },
-    languageGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    languageOption: {
-      // Two to a row, the gap between them shared.
-      flexBasis: "47%",
-      flexGrow: 1,
-      minHeight: 46,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 12,
-      borderRadius: radius.md,
-      borderCurve: "continuous",
-      backgroundColor: theme.surface,
-      borderWidth: 1.5,
-      borderColor: theme.border,
-    },
-    languageOptionSelected: {
-      borderColor: theme.primary,
-      backgroundColor: theme.primaryLight,
-    },
-    flag: { fontSize: 18 },
-    languageName: { flex: 1, ...typography.bodySmall, color: theme.text, fontWeight: "600" },
-    languageNameSelected: { color: theme.primary, fontWeight: "800" },
-    currencyRow: {
-      minHeight: 60,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: theme.border,
+      borderRadius: radius.xl,
+      borderCurve: "continuous",
+      backgroundColor: theme.surface,
+      boxShadow: theme.cardShadow,
+    },
+    organizationAvatar: {
+      width: 52,
+      height: 52,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 17,
+      borderCurve: "continuous",
+      backgroundColor: theme.primaryLight,
+    },
+    organizationIdentity: { minWidth: 0, flex: 1, gap: 3 },
+    organizationEyebrow: {
+      ...typography.caption,
+      color: theme.textMuted,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.4,
+    },
+    organizationName: { ...typography.headingMedium, color: theme.text },
+    card: {
+      overflow: "hidden",
+      borderWidth: 1,
+      borderColor: theme.border,
       borderRadius: radius.lg,
       borderCurve: "continuous",
       backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
+      boxShadow: theme.cardShadow,
     },
-    currencyBadge: {
+    row: {
+      minHeight: 62,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      paddingHorizontal: 13,
+      paddingVertical: spacing.sm,
+    },
+    rowDivider: { borderBottomWidth: 1, borderBottomColor: theme.border },
+    rowIcon: {
+      width: 38,
+      height: 38,
+      flexShrink: 0,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 12,
+      borderCurve: "continuous",
+      backgroundColor: theme.primaryLight,
+    },
+    flag: { fontSize: 22, lineHeight: 28 },
+    rowCopy: { minWidth: 0, flex: 1, gap: 2 },
+    rowTitle: { ...typography.label, color: theme.text, fontWeight: "700" },
+    rowDescription: { ...typography.caption, color: theme.textMuted },
+    rowEnd: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
+    currencyValue: {
       flexDirection: "row",
       alignItems: "baseline",
       gap: 4,
-      paddingHorizontal: 10,
-      paddingVertical: 6,
+      paddingHorizontal: 9,
+      paddingVertical: 4,
       borderRadius: radius.full,
       backgroundColor: theme.primaryLight,
     },
-    currencyCode: { color: theme.primary, fontSize: 13, lineHeight: 17, fontWeight: "800", letterSpacing: 0.3 },
-    currencySymbol: { color: theme.primary, fontSize: 13, lineHeight: 17, fontWeight: "600" },
-    currencyCopy: { flex: 1, gap: 2 },
-    currencyName: { ...typography.bodyMedium, color: theme.text, fontWeight: "700" },
-    currencyHint: { ...typography.caption, color: theme.textMuted },
-    pressed: { opacity: 0.75 },
+    currencyCode: { color: theme.primary, fontSize: 12, lineHeight: 16, fontWeight: "800", letterSpacing: 0.3 },
+    currencySymbol: { color: theme.primary, fontSize: 12, lineHeight: 16, fontWeight: "600" },
+    pressed: { opacity: 0.7 },
   });
