@@ -290,6 +290,8 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   transactions: {
     dueDate: "Кайтаруу күнү",
+    dueOn: "Мөөнөтү: {date}",
+    dueOverdue: "мөөнөтү өттү",
     operation: "Операция",
     close: "Жабуу",
     customerProfile: "Кардардын профилин ачуу",

@@ -290,6 +290,8 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   transactions: {
     dueDate: "Дата возврата",
+    dueOn: "Срок: {date}",
+    dueOverdue: "просрочено",
     operation: "Операция",
     close: "Закрыть",
     customerProfile: "Открыть профиль клиента",

@@ -290,6 +290,8 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   transactions: {
     dueDate: "Gaýtaryş senesi",
+    dueOn: "Möhleti: {date}",
+    dueOverdue: "möhleti geçdi",
     operation: "Amal",
     close: "Ýapmak",
     customerProfile: "Müşderiniň profilini açmak",

@@ -287,6 +287,8 @@ export const uzTranslations = {
   },
   transactions: {
     dueDate: "Qaytarish sanasi",
+    dueOn: "Muddat: {date}",
+    dueOverdue: "muddati o'tdi",
     operation: "Operatsiya",
     close: "Yopish",
     customerProfile: "Mijoz profilini ochish",

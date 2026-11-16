@@ -239,8 +239,8 @@ function useTransactionController({
   const [previewType, setPreviewType] = useState<TransactionType>(
     props.type ?? "debt",
   );
-  // When the debt is to be paid back by; null when not set. Shown and chosen
-  // only for now: not sent until the server takes it (it has no field yet).
+  // When the debt is to be paid back by; null when not set. Sent with a debt
+  // only: the server refuses it on a payment.
   const [dueDate, setDueDate] = useState<DateOnly | null>(null);
   const submitting = useRef(false);
   // Whole for the sum, to the cent for the other currencies.
@@ -292,6 +292,7 @@ function useTransactionController({
           (type === "debt"
             ? t("transactions.debtNote")
             : t("transactions.paymentNote")),
+        ...(type === "debt" && dueDate ? { dueDate } : {}),
       };
       // Made once and kept: the server never records the same write twice,
       // whether this request is repeated or the write goes to the queue.

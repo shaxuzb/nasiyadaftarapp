@@ -290,6 +290,8 @@ export const tgTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   transactions: {
     dueDate: "Санаи бозгашт",
+    dueOn: "Мӯҳлат: {date}",
+    dueOverdue: "мӯҳлат гузашт",
     operation: "Амалиёт",
     close: "Пӯшидан",
     customerProfile: "Кушодани профили мизоҷ",

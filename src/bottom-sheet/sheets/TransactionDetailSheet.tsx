@@ -12,6 +12,7 @@ import {
   useTranslation,
 } from "../../i18n";
 import { useMoney } from "../../modules/currency/hooks/useMoney";
+import { formatDateOnly } from "../../i18n/calendarLabels";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
@@ -116,6 +117,13 @@ export function TransactionDetailSheet({
           label={t("transactions.date")}
           value={formatLocalizedDateTime(transaction.date, locale)}
         />
+        {isDebt && transaction.dueDate ? (
+          <DetailRow
+            icon="alarm-outline"
+            label={t("transactions.dueDate")}
+            value={formatDateOnly(transaction.dueDate, t)}
+          />
+        ) : null}
         <View style={styles.rowDivider} />
         <DetailRow icon="document-text-outline" label={t("transactions.note")} value={note} />
         <View style={styles.rowDivider} />

@@ -290,6 +290,8 @@ export const trTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   transactions: {
     dueDate: "Geri ödeme tarihi",
+    dueOn: "Vade: {date}",
+    dueOverdue: "vadesi geçti",
     operation: "İşlem",
     close: "Kapat",
     customerProfile: "Müşteri profilini aç",

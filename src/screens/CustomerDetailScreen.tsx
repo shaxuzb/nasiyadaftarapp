@@ -27,6 +27,8 @@ import { useClientDetail } from "../modules/clients/hooks/useClientDetail";
 import { getInitials } from "../utils";
 import { APP_NAME } from "../constants";
 import type { Transaction } from "../modules/transactions/types";
+import { formatDateOnly } from "../i18n/calendarLabels";
+import { todayDateOnly } from "../utils/dateOnly";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
@@ -256,16 +258,19 @@ export function CustomerDetailScreen() {
       }),
     [openSheet],
   );
+  // A passed due date is only a warning while the customer still owes.
+  const owes = (balance ?? 0) > 0;
   const renderTransaction = useCallback(
     ({ item }: { item: Transaction }) => (
       <TransactionRow
         tx={item}
+        owes={owes}
         onOpen={openTransactionDetail}
         theme={theme}
         styles={styles}
       />
     ),
-    [openTransactionDetail, styles, theme],
+    [openTransactionDetail, owes, styles, theme],
   );
 
   if (!customer)
@@ -784,11 +789,13 @@ export function CustomerDetailScreen() {
 
 const TransactionRow = memo(function TransactionRow({
   tx,
+  owes,
   onOpen,
   theme,
   styles,
 }: {
   tx: Transaction;
+  owes: boolean;
   onOpen: (tx: Transaction) => void;
   theme: AppTheme;
   styles: ReturnType<typeof createStyles>;
@@ -798,17 +805,38 @@ const TransactionRow = memo(function TransactionRow({
   const date = formatLocalizedDateTime(tx.date, locale);
   const amount = money.format(tx.amount);
   const isDebt = tx.type === "debt";
+  const dueDate = isDebt && tx.dueDate ? tx.dueDate : null;
+  const overdue = dueDate !== null && owes && dueDate < todayDateOnly();
+  const dueLabel = dueDate
+    ? t("transactions.dueOn", { date: formatDateOnly(dueDate, t) })
+    : "";
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${date}, ${isDebt ? t("transactions.detailDebt") : t("transactions.detailPayment")}, ${amount}`}
+      accessibilityLabel={`${date}, ${isDebt ? t("transactions.detailDebt") : t("transactions.detailPayment")}, ${amount}${dueLabel ? `, ${dueLabel}` : ""}${overdue ? `, ${t("transactions.dueOverdue")}` : ""}`}
       onPress={() => onOpen(tx)}
       style={({ pressed }) => [styles.txRow, pressed && styles.pressed]}
     >
       <View style={styles.txCopy}>
         <Text style={styles.txDate}>{date}</Text>
         <Text style={styles.txLabel}>{tx.note}</Text>
+        {dueDate ? (
+          <View style={styles.txDue}>
+            <Ionicons
+              name={overdue ? "alert-circle" : "calendar-outline"}
+              size={13}
+              color={overdue ? theme.dangerColor : theme.textMuted}
+            />
+            <Text
+              numberOfLines={1}
+              style={[styles.txDueText, overdue && { color: theme.dangerColor, fontWeight: "700" }]}
+            >
+              {dueLabel}
+              {overdue ? ` · ${t("transactions.dueOverdue")}` : ""}
+            </Text>
+          </View>
+        ) : null}
       </View>
       <Text
         numberOfLines={1}
@@ -999,6 +1027,8 @@ const createStyles = (theme: AppTheme) =>
     txCopy: { flex: 1, minWidth: 0, gap: 3 },
     txDate: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
     txLabel: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
+    txDue: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+    txDueText: { flexShrink: 1, color: theme.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "600" },
     txAmount: {
       maxWidth: "52%",
       fontSize: 16,

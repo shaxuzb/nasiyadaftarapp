@@ -11,6 +11,7 @@ import {
   ClientTransactionDto,
 } from "../modules/transactions/types";
 import { getClientResultCount } from "../modules/clients/utils/clientList";
+import { readDateOnly } from "../utils/dateOnly";
 
 export interface ClientListResult {
   customers: Customer[];
@@ -108,8 +109,9 @@ function mapTransaction(
   fallbackClientId: number,
   fallbackId: number,
   fallbackType: TransactionType,
-  fallbackPayload: { amount: number; date: string; note: string },
+  fallbackPayload: { amount: number; date: string; note: string; dueDate?: string },
 ): Transaction {
+  const dueDate = readDateOnly(dto.dueDate) ?? fallbackPayload.dueDate;
   return {
     id: toNumber(dto.id, fallbackId),
     customerId: toNumber(dto.clientId, fallbackClientId),
@@ -117,6 +119,7 @@ function mapTransaction(
     amount: Number(dto.amount ?? fallbackPayload.amount),
     date: dto.date ?? fallbackPayload.date,
     note: dto.note ?? fallbackPayload.note,
+    ...(dueDate ? { dueDate } : {}),
     ...(typeof dto.uuid === "string" && dto.uuid ? { uuid: dto.uuid } : {}),
   };
 }
@@ -255,6 +258,7 @@ export async function createClientTransaction(
     amount: payload.amount,
     date: payload.date,
     note: payload.note,
+    dueDate: payload.dueDate,
   });
 }
 

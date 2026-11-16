@@ -33,6 +33,7 @@ async function main() {
       },
     } },
     "../modules/clients/utils/clientList": load("src/modules/clients/utils/clientList.ts"),
+    "../utils/dateOnly": load("src/utils/dateOnly.ts"),
   });
   const payload = { fullName: "Ali Valiyev", phoneNumber: "+998901234567", note: "Yangi izoh" };
   await api.updateClient(82, payload);

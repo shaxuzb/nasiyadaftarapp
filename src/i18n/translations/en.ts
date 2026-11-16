@@ -285,6 +285,8 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   transactions: {
     dueDate: "Due date",
+    dueOn: "Due: {date}",
+    dueOverdue: "overdue",
     operation: "Transaction",
     close: "Close",
     customerProfile: "Open customer profile",
