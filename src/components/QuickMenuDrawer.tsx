@@ -1,19 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Animated,
-  Easing,
-  Modal,
-  PanResponder,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import Animated, {
+  Easing,
+  interpolate,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useBottomSheet } from "../bottom-sheet";
+import { registerBackHandler } from "../bottom-sheet/backHandlerRegistry";
+import { APP_VERSION } from "../config/appInfo";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { useTheme } from "../hooks/useTheme";
@@ -25,62 +26,58 @@ import { useDismissOnAppLock } from "../modules/pin-auth/hooks/useDismissOnAppLo
 import { getSetupLanguage } from "../modules/setup/data/setupOptions";
 import { radius, spacing, typography } from "../theme";
 import type { AppTheme } from "../types";
+import { closeQuickMenu, useQuickMenuOpen } from "./quickMenuState";
 
 type IconName = React.ComponentProps<typeof Ionicons>["name"];
 
-const ENTER_MS = 260;
-const EXIT_MS = 200;
+const ENTER_MS = 280;
+const EXIT_MS = 220;
 /** A drawer, not a screen: most of the width on a phone, a column on a tablet. */
 const MAX_WIDTH = 360;
-
-interface QuickMenuDrawerProps {
-  visible: boolean;
-  onClose: () => void;
-}
+/** Let go past this share of its width (or flicked left), it closes. */
+const CLOSE_SHARE = 0.35;
+const CLOSE_VELOCITY = 600;
 
 interface MenuRowProps {
   icon: IconName;
   /** In the icon's place: the flag of the language in use. */
   leading?: React.ReactNode;
   title: string;
-  description?: string;
-  /** The current value, before the chevron: "UZS so'm". */
+  value: string;
+  /** Before the chevron: the currency's code. */
   trailing?: React.ReactNode;
   locked?: boolean;
   isLast?: boolean;
   onPress: () => void;
 }
 
-/** A row as in Profile: icon tile, title, the value under it, chevron. */
-function MenuRow({ icon, leading, title, description, trailing, locked, isLast, onPress }: MenuRowProps) {
+/** A row as in Profile: icon tile, title, its current value, chevron. */
+function MenuRow({ icon, leading, title, value, trailing, locked, isLast, onPress }: MenuRowProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={title}
-      accessibilityHint={description}
+      accessibilityLabel={`${title}, ${value}`}
       accessibilityState={{ disabled: locked }}
       disabled={locked}
       onPress={onPress}
-      style={({ pressed }) => [styles.row, !isLast && styles.rowDivider, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.row, !isLast && styles.rowDivider, pressed && styles.rowPressed]}
     >
       <View style={styles.rowIcon}>{leading ?? <Ionicons name={icon} size={20} color={theme.primary} />}</View>
       <View style={styles.rowCopy}>
         <Text style={styles.rowTitle} numberOfLines={1}>
           {title}
         </Text>
-        {description ? (
-          <Text style={styles.rowDescription} numberOfLines={2}>
-            {description}
-          </Text>
-        ) : null}
+        <Text style={styles.rowValue} numberOfLines={2}>
+          {value}
+        </Text>
       </View>
       <View style={styles.rowEnd}>
         {trailing}
         <Ionicons
           name={locked ? "lock-closed-outline" : "chevron-forward"}
-          size={locked ? 17 : 20}
+          size={locked ? 16 : 19}
           color={theme.textMuted}
         />
       </View>
@@ -89,17 +86,21 @@ function MenuRow({ icon, leading, title, description, trailing, locked, isLast, 
 }
 
 /**
- * The customers screen's quick menu, sliding in from the left. Laid out as
- * Profile is: the organization's card, then one card of rows — switch the
- * organization, the language, the currency — each opening the same screen or
- * sheet as in Settings. The drawer closes first, so what opens is on top.
+ * The customers screen's quick menu, sliding in from the left.
+ *
+ * Drawn once over the whole app, under the bottom sheets: the language and
+ * currency sheets open on top of it and it stays open behind them, showing
+ * the new value when they close. Switching the organization leaves the
+ * screen, so that one closes it first.
+ *
+ * Closed by dragging it left (it follows the finger), tapping outside, the
+ * close button or Android back; and at once when the app locks.
  */
-export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
+export function QuickMenuDrawer() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
-  // Its own width, as drawn ("86%", at most MAX_WIDTH): how far it slides and is swiped.
-  const [width, setWidth] = useState(MAX_WIDTH);
+  const visible = useQuickMenuOpen();
   const { locale, t } = useTranslation();
   const currentLanguage = getSetupLanguage(locale);
   const { user, currentOrganization, openOrganizationSelector } = useAuth();
@@ -115,179 +116,189 @@ export function QuickMenuDrawer({ visible, onClose }: QuickMenuDrawerProps) {
 
   // Kept on screen while it slides away, after `visible` has turned false.
   const [mounted, setMounted] = useState(visible);
-  const progress = useRef(new Animated.Value(0)).current;
-  // Run once the drawer is gone: a sheet or a screen opens over the app, not under it.
+  // 0 closed … 1 open; the drag moves it directly.
+  const progress = useSharedValue(0);
+  // Its own width, as drawn ("86%", at most MAX_WIDTH).
+  const width = useSharedValue(MAX_WIDTH);
+  // Run once the drawer is gone: the organization choice opens over the app, not under it.
   const afterCloseRef = useRef<(() => void) | null>(null);
 
-  const animateTo = useCallback(
-    (toValue: 0 | 1, onDone?: () => void) => {
-      Animated.timing(progress, {
-        toValue,
-        duration: toValue ? ENTER_MS : EXIT_MS,
-        easing: toValue ? Easing.out(Easing.cubic) : Easing.in(Easing.cubic),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) onDone?.();
-      });
-    },
-    [progress],
-  );
+  const finishClose = useCallback(() => {
+    setMounted(false);
+    const next = afterCloseRef.current;
+    afterCloseRef.current = null;
+    next?.();
+  }, []);
 
   useEffect(() => {
     if (visible) {
       setMounted(true);
-      animateTo(1);
+      progress.set(withTiming(1, { duration: ENTER_MS, easing: Easing.out(Easing.cubic) }));
       return;
     }
-    animateTo(0, () => {
-      setMounted(false);
-      const next = afterCloseRef.current;
-      afterCloseRef.current = null;
-      next?.();
+    progress.set(
+      withTiming(0, { duration: EXIT_MS, easing: Easing.in(Easing.cubic) }, (finished) => {
+        if (finished) scheduleOnRN(finishClose);
+      }),
+    );
+  }, [finishClose, progress, visible]);
+
+  // Not left open over the PIN screen, nor over another account or organization.
+  useDismissOnAppLock(closeQuickMenu);
+  const organizationId = currentOrganization?.id ?? null;
+  const openedForRef = useRef(organizationId);
+  useEffect(() => {
+    if (openedForRef.current !== organizationId) closeQuickMenu();
+    openedForRef.current = organizationId;
+  }, [organizationId]);
+  useEffect(() => {
+    if (!user) closeQuickMenu();
+  }, [user]);
+
+  // Android back closes it; a sheet opened over it registers later and goes first.
+  useEffect(() => {
+    if (!visible) return undefined;
+    return registerBackHandler(() => {
+      closeQuickMenu();
+      return true;
     });
-  }, [animateTo, visible]);
-
-  useDismissOnAppLock(onClose);
-
-  const closeThen = useCallback(
-    (action: () => void) => {
-      afterCloseRef.current = action;
-      onClose();
-    },
-    [onClose],
-  );
+  }, [visible]);
 
   const handleSwitchOrganization = useCallback(() => {
-    closeThen(() => {
+    afterCloseRef.current = () => {
       openOrganizationSelector("Customers").catch((error: unknown) => {
         showToast(getLocalizedApiErrorMessage(error, "profile.switchOrganizationError", t), "error");
       });
-    });
-  }, [closeThen, openOrganizationSelector, showToast, t]);
+    };
+    closeQuickMenu();
+  }, [openOrganizationSelector, showToast, t]);
 
-  const handleLanguage = useCallback(() => {
-    closeThen(() => openSheet("language", {}));
-  }, [closeThen, openSheet]);
+  const handleLanguage = useCallback(() => openSheet("language", {}), [openSheet]);
+  const handleCurrency = useCallback(() => openSheet("organizationCurrency", {}), [openSheet]);
 
-  const handleCurrency = useCallback(() => {
-    closeThen(() => openSheet("organizationCurrency", {}));
-  }, [closeThen, openSheet]);
-
-  // Swiped back to the left, it follows the finger and closes past a third.
-  const panResponder = useMemo(
+  // Only a leftward drag takes over; vertical ones stay with the list.
+  const dragGesture = useMemo(
     () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_, g) => g.dx < -10 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
-        onPanResponderMove: (_, g) => {
-          progress.setValue(Math.max(0, Math.min(1, 1 + g.dx / width)));
-        },
-        onPanResponderRelease: (_, g) => {
-          if (g.dx < -width / 3 || g.vx < -0.6) onClose();
-          else animateTo(1);
-        },
-        onPanResponderTerminate: () => animateTo(1),
-      }),
-    [animateTo, onClose, progress, width],
+      Gesture.Pan()
+        .activeOffsetX(-12)
+        .failOffsetY([-14, 14])
+        .onUpdate((event) => {
+          const next = 1 + Math.min(0, event.translationX) / width.get();
+          progress.set(Math.max(0, Math.min(1, next)));
+        })
+        .onEnd((event) => {
+          const shouldClose =
+            event.translationX < -width.get() * CLOSE_SHARE || event.velocityX < -CLOSE_VELOCITY;
+          if (shouldClose) {
+            scheduleOnRN(closeQuickMenu);
+          } else {
+            progress.set(withTiming(1, { duration: 180, easing: Easing.out(Easing.cubic) }));
+          }
+        }),
+    [progress, width],
   );
+
+  const backdropStyle = useAnimatedStyle(() => ({ opacity: progress.get() }));
+  const panelStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: interpolate(progress.get(), [0, 1], [-width.get() - 24, 0]) }],
+  }));
 
   if (!mounted) return null;
 
-  return (
-    <Modal
-      visible
-      transparent
-      animationType="none"
-      presentationStyle="overFullScreen"
-      statusBarTranslucent
-      onRequestClose={onClose}
-    >
-      <Animated.View style={[styles.backdrop, { opacity: progress }]}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel={t("common.close")} />
-      </Animated.View>
+  const organizationName = currentOrganization?.name || t("profile.organizationNotSelected");
 
-      <Animated.View
-        accessibilityViewIsModal
-        {...panResponder.panHandlers}
-        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-        style={[
-          styles.panel,
-          {
-            paddingTop: insets.top + spacing.md,
-            transform: [
-              { translateX: progress.interpolate({ inputRange: [0, 1], outputRange: [-width - 24, 0] }) },
-            ],
-          },
-        ]}
-      >
-        <View style={styles.header}>
-          <Text style={styles.title} accessibilityRole="header" numberOfLines={1}>
-            {t("quickMenu.title")}
-          </Text>
+  return (
+    <GestureDetector gesture={dragGesture}>
+      <View style={StyleSheet.absoluteFill} accessibilityViewIsModal>
+        <Animated.View style={[styles.backdrop, backdropStyle]}>
           <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={closeQuickMenu}
             accessibilityRole="button"
             accessibilityLabel={t("common.close")}
-            onPress={onClose}
-            hitSlop={8}
-            style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="close" size={20} color={theme.textSecondary} />
-          </Pressable>
-        </View>
+          />
+        </Animated.View>
 
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.content,
-            { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.md },
-          ]}
-          showsVerticalScrollIndicator={false}
+        <Animated.View
+          onLayout={(event) => width.set(event.nativeEvent.layout.width)}
+          style={[styles.panel, panelStyle]}
         >
-          {/* Whose book this is, as on the Profile card. */}
-          <View style={styles.organizationCard}>
-            <View style={styles.organizationAvatar}>
-              <Ionicons name="business-outline" size={26} color={theme.primary} />
+          {/* The organization: whose book this is, and the way to another. */}
+          <View style={[styles.hero, { paddingTop: insets.top + spacing.md }]}>
+            <View style={styles.heroTop}>
+              <View style={styles.avatar}>
+                <Ionicons name="business" size={24} color="#FFFFFF" />
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t("common.close")}
+                onPress={closeQuickMenu}
+                hitSlop={8}
+                style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}
+              >
+                <Ionicons name="close" size={20} color={theme.textSecondary} />
+              </Pressable>
             </View>
-            <View style={styles.organizationIdentity}>
-              <Text style={styles.organizationEyebrow}>{t("profile.currentOrganization")}</Text>
-              <Text style={styles.organizationName} numberOfLines={2}>
-                {currentOrganization?.name || t("profile.organizationNotSelected")}
+            <Text style={styles.eyebrow}>{t("profile.currentOrganization")}</Text>
+            <Text style={styles.organizationName} numberOfLines={2}>
+              {organizationName}
+            </Text>
+            {user?.phoneNumber ? (
+              <Text style={styles.organizationMeta} numberOfLines={1}>
+                {user.phoneNumber}
               </Text>
-            </View>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              onPress={handleSwitchOrganization}
+              style={({ pressed }) => [styles.switchButton, pressed && styles.pressed]}
+            >
+              <Ionicons name="swap-horizontal" size={18} color={theme.primary} />
+              <Text style={styles.switchText} numberOfLines={1}>
+                {t("organization.selectTitle")}
+              </Text>
+            </Pressable>
           </View>
 
-          <View style={styles.card}>
-            <MenuRow
-              icon="swap-horizontal-outline"
-              title={t("organization.selectTitle")}
-              onPress={handleSwitchOrganization}
-            />
-            <MenuRow
-              icon="language-outline"
-              leading={<Text style={styles.flag}>{flagOf(currentLanguage.flag)}</Text>}
-              title={t("auth.language")}
-              description={currentLanguage.nativeName}
-              onPress={handleLanguage}
-            />
-            <MenuRow
-              icon="cash-outline"
-              title={t("currency.rowTitle")}
-              description={
-                canChangeCurrency ? currency?.displayName ?? currencyCode : t("quickMenu.currencyLocked")
-              }
-              trailing={
-                <View style={styles.currencyValue}>
-                  <Text style={styles.currencyCode}>{currencyCode}</Text>
-                  {currencySymbol ? <Text style={styles.currencySymbol}>{currencySymbol}</Text> : null}
-                </View>
-              }
-              locked={!canChangeCurrency}
-              onPress={handleCurrency}
-              isLast
-            />
-          </View>
-        </ScrollView>
-      </Animated.View>
-    </Modal>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text style={styles.sectionTitle}>{t("quickMenu.preferences")}</Text>
+            <View style={styles.card}>
+              <MenuRow
+                icon="language-outline"
+                leading={<Text style={styles.flag}>{flagOf(currentLanguage.flag)}</Text>}
+                title={t("auth.language")}
+                value={currentLanguage.nativeName}
+                onPress={handleLanguage}
+              />
+              <MenuRow
+                icon="cash-outline"
+                title={t("currency.rowTitle")}
+                value={canChangeCurrency ? currency?.displayName ?? currencyCode : t("quickMenu.currencyLocked")}
+                trailing={
+                  <View style={styles.currencyValue}>
+                    <Text style={styles.currencyCode}>{currencyCode}</Text>
+                    {currencySymbol ? <Text style={styles.currencySymbol}>{currencySymbol}</Text> : null}
+                  </View>
+                }
+                locked={!canChangeCurrency}
+                onPress={handleCurrency}
+                isLast
+              />
+            </View>
+          </ScrollView>
+
+          {APP_VERSION ? (
+            <Text style={[styles.footer, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+              Qarz Daftar · v{APP_VERSION}
+            </Text>
+          ) : null}
+        </Animated.View>
+      </View>
+    </GestureDetector>
   );
 }
 
@@ -310,69 +321,81 @@ const createStyles = (theme: AppTheme) =>
       borderCurve: "continuous",
       overflow: "hidden",
       shadowColor: "#000",
-      shadowOffset: { width: 6, height: 0 },
-      shadowOpacity: 0.16,
-      shadowRadius: 20,
-      elevation: 18,
+      shadowOffset: { width: 8, height: 0 },
+      shadowOpacity: 0.18,
+      shadowRadius: 24,
+      elevation: 24,
     },
-    header: {
+    hero: {
+      paddingHorizontal: spacing.lg,
+      paddingBottom: spacing.lg,
+      backgroundColor: theme.surface,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.border,
+    },
+    heroTop: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: spacing.sm,
-      paddingHorizontal: spacing.md,
-      paddingBottom: spacing.md,
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      marginBottom: spacing.md,
     },
-    title: {
-      flex: 1,
-      color: theme.text,
-      fontSize: 22,
-      lineHeight: 28,
-      fontWeight: "800",
-      letterSpacing: -0.5,
+    avatar: {
+      width: 56,
+      height: 56,
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 18,
+      borderCurve: "continuous",
+      backgroundColor: theme.primary,
     },
     closeButton: {
-      width: 38,
-      height: 38,
+      width: 36,
+      height: 36,
       alignItems: "center",
       justifyContent: "center",
       borderRadius: radius.full,
-      backgroundColor: theme.surface,
-      borderWidth: 1,
-      borderColor: theme.border,
+      backgroundColor: theme.inputBackground,
     },
-    scroll: { flex: 1 },
-    content: { paddingHorizontal: spacing.md, gap: spacing.md },
-    organizationCard: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 12,
-      padding: 14,
-      borderWidth: 1,
-      borderColor: theme.border,
-      borderRadius: radius.xl,
-      borderCurve: "continuous",
-      backgroundColor: theme.surface,
-      boxShadow: theme.cardShadow,
-    },
-    organizationAvatar: {
-      width: 52,
-      height: 52,
-      flexShrink: 0,
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: 17,
-      borderCurve: "continuous",
-      backgroundColor: theme.primaryLight,
-    },
-    organizationIdentity: { minWidth: 0, flex: 1, gap: 3 },
-    organizationEyebrow: {
+    eyebrow: {
       ...typography.caption,
       color: theme.textMuted,
       fontWeight: "700",
       textTransform: "uppercase",
-      letterSpacing: 0.4,
+      letterSpacing: 0.5,
     },
-    organizationName: { ...typography.headingMedium, color: theme.text },
+    organizationName: {
+      marginTop: 2,
+      color: theme.text,
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: "800",
+      letterSpacing: -0.3,
+    },
+    organizationMeta: { ...typography.bodySmall, marginTop: 2, color: theme.textSecondary },
+    switchButton: {
+      minHeight: 44,
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 8,
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.md,
+      borderRadius: radius.md,
+      borderCurve: "continuous",
+      backgroundColor: theme.primaryLight,
+    },
+    switchText: { ...typography.label, color: theme.primary, fontWeight: "800" },
+    scroll: { flex: 1 },
+    content: { padding: spacing.md, paddingTop: spacing.lg },
+    sectionTitle: {
+      ...typography.caption,
+      marginBottom: spacing.sm,
+      marginLeft: 4,
+      color: theme.textMuted,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      letterSpacing: 0.5,
+    },
     card: {
       overflow: "hidden",
       borderWidth: 1,
@@ -383,17 +406,18 @@ const createStyles = (theme: AppTheme) =>
       boxShadow: theme.cardShadow,
     },
     row: {
-      minHeight: 62,
+      minHeight: 64,
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
-      paddingHorizontal: 13,
+      paddingHorizontal: 14,
       paddingVertical: spacing.sm,
     },
+    rowPressed: { backgroundColor: theme.inputBackground },
     rowDivider: { borderBottomWidth: 1, borderBottomColor: theme.border },
     rowIcon: {
-      width: 38,
-      height: 38,
+      width: 40,
+      height: 40,
       flexShrink: 0,
       alignItems: "center",
       justifyContent: "center",
@@ -404,7 +428,7 @@ const createStyles = (theme: AppTheme) =>
     flag: { fontSize: 22, lineHeight: 28 },
     rowCopy: { minWidth: 0, flex: 1, gap: 2 },
     rowTitle: { ...typography.label, color: theme.text, fontWeight: "700" },
-    rowDescription: { ...typography.caption, color: theme.textMuted },
+    rowValue: { ...typography.caption, color: theme.textMuted },
     rowEnd: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
     currencyValue: {
       flexDirection: "row",
@@ -417,5 +441,11 @@ const createStyles = (theme: AppTheme) =>
     },
     currencyCode: { color: theme.primary, fontSize: 12, lineHeight: 16, fontWeight: "800", letterSpacing: 0.3 },
     currencySymbol: { color: theme.primary, fontSize: 12, lineHeight: 16, fontWeight: "600" },
+    footer: {
+      ...typography.caption,
+      paddingTop: spacing.sm,
+      textAlign: "center",
+      color: theme.textMuted,
+    },
     pressed: { opacity: 0.7 },
   });

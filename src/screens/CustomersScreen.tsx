@@ -41,7 +41,7 @@ import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapab
 import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
 import { useDismissSheetOnAppLock } from "../bottom-sheet/useDismissSheetOnAppLock";
 import { SearchBar } from "../components/SearchBar";
-import { QuickMenuDrawer } from "../components/QuickMenuDrawer";
+import { openQuickMenu } from "../components/quickMenuState";
 import { CustomerCard } from "../modules/clients/components/CustomerCard";
 import { CustomerCardSkeleton } from "../modules/clients/components/CustomerCardSkeleton";
 import { isCustomerBlacklisted } from "../modules/clients/utils/blacklist";
@@ -187,7 +187,6 @@ export function CustomersScreen() {
   const addCustomerSheet = useDismissSheetOnAppLock(bottomSheetRef);
   const phoneInputRef = useRef<TextInput>(null);
   const [isAddCustomerSheetOpen, setIsAddCustomerSheetOpen] = useState(false);
-  const [isQuickMenuOpen, setIsQuickMenuOpen] = useState(false);
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -461,29 +460,17 @@ export function CustomersScreen() {
       <View style={styles.mainKeyboardWrap}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("quickMenu.open")}
-              onPress={() => setIsQuickMenuOpen(true)}
-              activeOpacity={0.82}
-              style={styles.quickMenuBtn}
-            >
-              <Ionicons name="menu" size={22} color={theme.text} />
-            </TouchableOpacity>
-            <View style={styles.titleBlock}>
-              <Text
-                style={styles.screenTitle}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
+            <View style={styles.headerLead}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("quickMenu.open")}
+                onPress={openQuickMenu}
+                activeOpacity={0.82}
+                style={styles.quickMenuBtn}
               >
-                {t("customers.screenTitle")}
-              </Text>
-              {/* <Text style={styles.screenSubtitle}>
-                Qarz va to'lovlarni boshqaring
-              </Text> */}
-            </View>
-            <View style={styles.headerActions}>
+                <Ionicons name="menu" size={22} color={theme.text} />
+              </TouchableOpacity>
+              {/* Where the title was: the way to PRO, until it is bought. */}
               {showProBadge ? (
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -500,6 +487,8 @@ export function CustomersScreen() {
                   <Text style={styles.proButtonText}>PRO</Text>
                 </TouchableOpacity>
               ) : null}
+            </View>
+            <View style={styles.headerActions}>
               <VideoLessonButton
                 code="customers"
                 style={styles.videoLessonBtn}
@@ -860,7 +849,6 @@ export function CustomersScreen() {
           />
         </BottomSheetScrollView>
       </BottomSheetModal>
-      <QuickMenuDrawer visible={isQuickMenuOpen} onClose={() => setIsQuickMenuOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -890,7 +878,7 @@ const createStyles = (theme: AppTheme) =>
       gap: 8,
     },
     proButton: {
-      minWidth: 58,
+      minWidth: 64,
       height: 36,
       flexDirection: "row",
       alignItems: "center",
@@ -919,24 +907,12 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: theme.surface,
       borderWidth: 1,
       borderColor: theme.border,
-      marginRight: -4,
     },
-    titleBlock: {
+    headerLead: {
       flex: 1,
-      gap: 2,
-    },
-    screenTitle: {
-      color: theme.text,
-      fontSize: 26,
-      lineHeight: 29,
-      fontWeight: "800",
-      letterSpacing: -0.8,
-    },
-    screenSubtitle: {
-      color: theme.textSecondary,
-      fontSize: 14,
-      lineHeight: 16,
-      fontWeight: "400",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
     },
     addFab: {
       position: "absolute",

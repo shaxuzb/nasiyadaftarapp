@@ -1086,6 +1086,7 @@ export const trTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Hızlı menüyü aç",
     title: "Hızlı ayarlar",
+    preferences: "Ayarlar",
     currencyLocked: "Para birimini değiştirme izniniz yok",
   },
   offline: {

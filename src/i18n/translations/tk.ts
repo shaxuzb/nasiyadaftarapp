@@ -1086,6 +1086,7 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Çalt menýuny aç",
     title: "Çalt sazlamalar",
+    preferences: "Sazlamalar",
     currencyLocked: "Pul birligini üýtgetmäge rugsadyňyz ýok",
   },
   offline: {

@@ -1086,6 +1086,7 @@ export const kkTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Жылдам мәзірді ашу",
     title: "Жылдам баптаулар",
+    preferences: "Баптаулар",
     currencyLocked: "Валютаны өзгертуге рұқсатыңыз жоқ",
   },
   offline: {

@@ -1086,6 +1086,7 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Ыкчам менюну ачуу",
     title: "Ыкчам жөндөөлөр",
+    preferences: "Жөндөөлөр",
     currencyLocked: "Валютаны өзгөртүүгө уруксатыңыз жок",
   },
   offline: {

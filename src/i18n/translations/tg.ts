@@ -1086,6 +1086,7 @@ export const tgTranslations: TranslationSchema<typeof uzTranslations> = {
   quickMenu: {
     open: "Менюи зудро кушодан",
     title: "Танзимоти зуд",
+    preferences: "Танзимот",
     currencyLocked: "Шумо барои иваз кардани асъор иҷозат надоред",
   },
   offline: {
