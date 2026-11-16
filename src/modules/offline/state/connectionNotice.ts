@@ -18,6 +18,8 @@ export const SERVER_ONLY_ROUTES: ReadonlySet<string> = new Set([
   "ClientSms",
   "ClientSmsHistory",
   "DueClients",
+  "History",
+  "DeletedClient",
   "SmsSettings",
   "Subscription",
   "PaymentHistory",

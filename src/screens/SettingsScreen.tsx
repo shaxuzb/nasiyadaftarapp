@@ -603,6 +603,15 @@ export function SettingsScreen() {
             }}
             isLast={false}
           />
+          <ProfileMenuRow
+            icon="time-outline"
+            iconColor={theme.primary}
+            iconBackground={theme.primaryLight}
+            title={t("history.title")}
+            description={t("history.rowDescription")}
+            onPress={() => navigation.navigate("History")}
+            isLast={false}
+          />
           {canChangeCurrency ? (
             <ProfileMenuRow
               icon="cash-outline"

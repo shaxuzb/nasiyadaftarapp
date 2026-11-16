@@ -30,6 +30,8 @@ import { AccountSecurityScreen } from "../screens/AccountSecurityScreen";
 import { PinChangeScreen } from "../modules/pin-auth/screens/PinChangeScreen";
 import { ClientSmsScreen } from "../screens/ClientSmsScreen";
 import { DueClientsScreen } from "../screens/DueClientsScreen";
+import { HistoryScreen } from "../screens/HistoryScreen";
+import { DeletedClientScreen } from "../screens/DeletedClientScreen";
 import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
 import { SmsSettingsScreen } from "../screens/SmsSettingsScreen";
 import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
@@ -257,6 +259,8 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <Stack.Screen name="PinChange" component={PinChangeScreen} />
       <Stack.Screen name="DueClients" component={DueClientsScreen} />
+      <Stack.Screen name="History" component={HistoryScreen} />
+      <Stack.Screen name="DeletedClient" component={DeletedClientScreen} />
       {regionalCapabilities.clientSmsVisible ? (
         <>
           <Stack.Screen name="ClientSms" component={ClientSmsScreen} />
