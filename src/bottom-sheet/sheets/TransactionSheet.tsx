@@ -12,6 +12,7 @@ import React, {
 import {
   ActivityIndicator,
   Keyboard,
+  type LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -24,6 +25,7 @@ import {
   BottomSheetTextInput,
   type BottomSheetFooterProps,
   type BottomSheetModalProps,
+  type BottomSheetScrollViewMethods,
 } from "@gorhom/bottom-sheet";
 import { KeyboardController } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -76,6 +78,106 @@ type TransactionAmountInputProps = Omit<
   allowFraction: boolean;
 };
 type TransactionInputRef = React.ComponentRef<typeof BottomSheetTextInput>;
+type FocusedField = "amount" | "note";
+
+/**
+ * Keeps the focused field above the fixed footer while the keyboard is up.
+ *
+ * With room on screen the sheet simply rises above the keyboard and nothing
+ * moves. When the sheet plus the keyboard no longer fit, the library clamps
+ * the content height and the fields at the bottom end up behind the footer;
+ * the scroll view then has to bring the focused one into view itself.
+ *
+ * Every measurement lives in a ref: layouts and keyboard events re-render
+ * nothing, and the scroll runs once per frame at most.
+ */
+function useKeepFocusedFieldVisible(focused: FocusedField | null) {
+  const scrollRef = useRef<BottomSheetScrollViewMethods>(null);
+  const layout = useRef({
+    viewport: 0,
+    content: 0,
+    amount: { y: 0, height: 0 },
+    note: { y: 0, height: 0 },
+  });
+  const focusedRef = useRef(focused);
+  focusedRef.current = focused;
+  const keyboardUp = useRef(false);
+  const frame = useRef<number | null>(null);
+
+  const reveal = React.useCallback(() => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      const field = focusedRef.current;
+      const { viewport, content, amount, note } = layout.current;
+      if (!field || !keyboardUp.current || viewport <= 0 || content <= viewport) {
+        return;
+      }
+      const box = field === "amount" ? amount : note;
+      // What sits under the last field (the footer's room and the inset) must
+      // sit under the focused one too.
+      const below = content - (note.y + note.height);
+      const maxScroll = content - viewport;
+      // Lowest scroll that shows the field above the footer, but never past
+      // the field's own top on a very short viewport.
+      const target = Math.min(box.y + box.height + below - viewport, box.y - 8);
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, Math.min(target, maxScroll)),
+        animated: true,
+      });
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => {
+      keyboardUp.current = true;
+      reveal();
+    });
+    const hide = Keyboard.addListener("keyboardDidHide", () => {
+      keyboardUp.current = false;
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+    };
+  }, [reveal]);
+
+  // Moving from the amount to the note with the keyboard already up.
+  React.useEffect(() => {
+    if (focused) reveal();
+  }, [focused, reveal]);
+
+  const onViewportLayout = React.useCallback(
+    (event: LayoutChangeEvent) => {
+      const height = event.nativeEvent.layout.height;
+      if (height === layout.current.viewport) return;
+      layout.current.viewport = height;
+      // The sheet finished making room for the keyboard.
+      reveal();
+    },
+    [reveal],
+  );
+  const onContentSizeChange = React.useCallback(
+    (_width: number, height: number) => {
+      if (height === layout.current.content) return;
+      layout.current.content = height;
+      // A note growing a line, or the footer measured.
+      reveal();
+    },
+    [reveal],
+  );
+  const onAmountLayout = React.useCallback((event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout;
+    layout.current.amount = { y, height };
+  }, []);
+  const onNoteLayout = React.useCallback((event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout;
+    layout.current.note = { y, height };
+  }, []);
+
+  return { scrollRef, onViewportLayout, onContentSizeChange, onAmountLayout, onNoteLayout };
+}
 
 const TransactionAmountInput = React.memo(
   function TransactionAmountInput({
@@ -418,7 +520,8 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const tx = useTransaction();
-  const [focused, setFocused] = useState<"amount" | "note" | null>(null);
+  const [focused, setFocused] = useState<FocusedField | null>(null);
+  const keepVisible = useKeepFocusedFieldVisible(focused);
   const amountRef = useRef<TransactionInputRef>(null);
   const noteRef = useRef<TransactionInputRef>(null);
   const dismissKeyboard = React.useCallback(() => {
@@ -430,6 +533,9 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const handleFieldBlur = React.useCallback(() => setFocused(null), []);
   return (
     <BottomSheetScrollView
+      ref={keepVisible.scrollRef}
+      onLayout={keepVisible.onViewportLayout}
+      onContentSizeChange={keepVisible.onContentSizeChange}
       enableFooterMarginAdjustment
       contentContainerStyle={[
         styles.content,
@@ -499,6 +605,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
       </View>
       <Pressable
         onPress={() => amountRef.current?.focus()}
+        onLayout={keepVisible.onAmountLayout}
         style={[styles.amountField, focused === "amount" && styles.focused]}
       >
         <View style={styles.amountCopy}>
@@ -526,6 +633,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
       </Pressable>
       <Pressable
         onPress={() => noteRef.current?.focus()}
+        onLayout={keepVisible.onNoteLayout}
         style={[styles.noteField, focused === "note" && styles.focused]}
       >
         {/* The due date's checkbox sits on the label's line: no row of its own. */}
