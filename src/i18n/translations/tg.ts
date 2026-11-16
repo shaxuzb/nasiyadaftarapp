@@ -290,11 +290,6 @@ export const tgTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   transactions: {
     dueDate: "Санаи бозгашт",
-    dueWeek: "1 ҳафта",
-    dueTwoWeeks: "2 ҳафта",
-    dueMonth: "1 моҳ",
-    dueInDays: "баъди {count} рӯз",
-    dueChoose: "Аз тақвим интихоб кардан",
     operation: "Амалиёт",
     close: "Пӯшидан",
     customerProfile: "Кушодани профили мизоҷ",

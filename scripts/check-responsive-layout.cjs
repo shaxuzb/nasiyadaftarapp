@@ -94,7 +94,7 @@ const sheets = [];
     }
   }
 })("src");
-assert.equal(sheets.length, 6, "A new bottom sheet was added: give it the sheet frame and update this count");
+assert.equal(sheets.length, 7, "A new bottom sheet was added: give it the sheet frame and update this count");
 
 for (const [file, pattern] of [
   ["src/context/ConfirmDialogContext.tsx", /maxWidth: 440/],

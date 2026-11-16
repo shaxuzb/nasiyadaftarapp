@@ -290,11 +290,6 @@ export const ruTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   transactions: {
     dueDate: "Дата возврата",
-    dueWeek: "1 неделя",
-    dueTwoWeeks: "2 недели",
-    dueMonth: "1 месяц",
-    dueInDays: "через {count} дн.",
-    dueChoose: "Выбрать в календаре",
     operation: "Операция",
     close: "Закрыть",
     customerProfile: "Открыть профиль клиента",

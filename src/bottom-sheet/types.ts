@@ -61,8 +61,10 @@ export interface BlacklistOrganizationsSheetProps {
 export interface DatePickerSheetProps {
   /** The currently chosen day, "YYYY-MM-DD". */
   value: string;
-  /** The latest pickable day, "YYYY-MM-DD"; today when omitted. */
+  /** The latest pickable day, "YYYY-MM-DD"; today when omitted, none with a `minDate`. */
   maxDate?: string;
+  /** The earliest pickable day, "YYYY-MM-DD": a date ahead, such as a due date. */
+  minDate?: string;
   title: string;
   onSelect: (value: string) => void;
 }

@@ -287,11 +287,6 @@ export const uzTranslations = {
   },
   transactions: {
     dueDate: "Qaytarish sanasi",
-    dueWeek: "1 hafta",
-    dueTwoWeeks: "2 hafta",
-    dueMonth: "1 oy",
-    dueInDays: "{count} kundan keyin",
-    dueChoose: "Kalendardan tanlash",
     operation: "Operatsiya",
     close: "Yopish",
     customerProfile: "Mijoz profilini ochish",

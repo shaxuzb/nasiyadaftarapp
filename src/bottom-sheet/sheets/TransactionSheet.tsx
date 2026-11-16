@@ -51,7 +51,7 @@ import { getOrganizationQueryScope } from "../../core/query/organizationScope";
 import { BlacklistBadge } from "../../modules/clients/components/BlacklistBadge";
 import { isCustomerBlacklisted } from "../../modules/clients/utils/blacklist";
 import { noteSuccessfulTransaction } from "../../modules/app-review/services/reviewPrompt";
-import { DueDateField, DueDateToggle } from "../../modules/transactions/components/DueDateField";
+import { DueDateToggle } from "../../modules/transactions/components/DueDateField";
 import type { DateOnly } from "../../utils/dateOnly";
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme, TransactionType } from "../../types";
@@ -348,10 +348,25 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { saving, validAmount, save, setPreviewType } = useTransaction();
+  const money = useMoney();
+  const { saving, validAmount, save, setPreviewType, previewType, nextBalance } = useTransaction();
   return (
     <BottomSheetFooter {...footerProps} bottomInset={insets.bottom}>
       <View style={styles.footer}>
+        {/* The balance after this one, fixed with the buttons that make it. */}
+        <View style={styles.preview}>
+          <Text style={styles.previewLabel} numberOfLines={1}>
+            {t("transactions.nextBalance")} ({previewType === "payment" ? t("transactions.paymentPreview") : t("transactions.debtPreview")})
+          </Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.nextBalance, { color: nextBalance > 0 ? theme.debtColor : theme.paymentColor }]}
+          >
+            {money.formatBalance(nextBalance)}
+          </Text>
+        </View>
+        <View style={styles.actions}>
         {(["payment", "debt"] as const).map((type) => (
           <Pressable
             key={type}
@@ -380,7 +395,7 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
             ) : (
               <Ionicons
                 name={type === "debt" ? "add-circle-outline" : "wallet-outline"}
-                size={24}
+                size={20}
                 color="#FFFFFF"
               />
             )}
@@ -389,6 +404,7 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
             </Text>
           </Pressable>
         ))}
+        </View>
       </View>
     </BottomSheetFooter>
   );
@@ -536,27 +552,6 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           accessibilityLabel={t("transactions.noteA11y")}
         />
       </Pressable>
-      {tx.dueDate ? (
-        <DueDateField value={tx.dueDate} onChange={tx.setDueDate} disabled={!!tx.saving} />
-      ) : null}
-      <View style={styles.preview}>
-        <Text style={styles.previewLabel}>
-          {t("transactions.nextBalance")} {tx.previewType === "payment" ? `(${t("transactions.paymentPreview")})` : `(${t("transactions.debtPreview")})`}
-          :
-        </Text>
-        <Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          style={[
-            styles.nextBalance,
-            {
-              color: tx.nextBalance > 0 ? theme.debtColor : theme.paymentColor,
-            },
-          ]}
-        >
-          {money.formatBalance(tx.nextBalance)}
-        </Text>
-      </View>
     </BottomSheetScrollView>
   );
 }
@@ -668,9 +663,9 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      paddingVertical: 10,
+      paddingHorizontal: 2,
     },
-    previewLabel: { flex: 1, color: theme.text, fontSize: 12 },
+    previewLabel: { flex: 1, color: theme.textSecondary, fontSize: 12 },
     nextBalance: {
       maxWidth: "55%",
       fontSize: 15,
@@ -678,20 +673,22 @@ const createStyles = (theme: AppTheme) =>
       fontVariant: ["tabular-nums"],
     },
     footer: {
-      flexDirection: "row",
-      gap: 10,
-      padding: 12,
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 8,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: theme.border,
       backgroundColor: theme.surface,
     },
+    actions: { flexDirection: "row", gap: 10 },
     action: {
       flex: 1,
-      minHeight: 56,
+      minHeight: 46,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 7,
+      gap: 6,
       borderRadius: 12,
       paddingHorizontal: 8,
     },
