@@ -1,4 +1,5 @@
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
+import { getOrganizationNameError } from "../modules/organization/utils/organizationNameError";
 import React, { useCallback, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -290,10 +291,13 @@ export function SettingsScreen() {
       try {
         await saveOrganizationProfile(payload);
       } catch (error) {
-        showToast(
-          getLocalizedApiErrorMessage(error, "errors.generic", t),
-          "error",
-        );
+        // A refused name is shown under the name field instead.
+        if (!getOrganizationNameError(error)) {
+          showToast(
+            getLocalizedApiErrorMessage(error, "errors.generic", t),
+            "error",
+          );
+        }
         throw error;
       }
     },

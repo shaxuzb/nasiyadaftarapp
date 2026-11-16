@@ -1,4 +1,5 @@
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
+import { getOrganizationNameError } from "../modules/organization/utils/organizationNameError";
 import React, {
   useCallback,
   useEffect,
@@ -99,10 +100,13 @@ export function OrganizationSelectScreen() {
         await createOrganizationForCurrentUser(payload);
         showToast(t("organization.createSuccess"), "success");
       } catch (error) {
-        showToast(
-          getLocalizedApiErrorMessage(error, "organization.createError", t),
-          "error",
-        );
+        // A refused name is shown under the name field instead.
+        if (!getOrganizationNameError(error)) {
+          showToast(
+            getLocalizedApiErrorMessage(error, "organization.createError", t),
+            "error",
+          );
+        }
         throw error;
       }
     },

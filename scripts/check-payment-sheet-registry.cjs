@@ -45,7 +45,7 @@ const organizationProfile = fs.readFileSync(
 );
 assert.match(
   organizationProfile,
-  /setDismissLocked\(false\);\s*closeSheet\(\);\s*\} catch \{/,
+  /setDismissLocked\(false\);\s*closeSheet\(\);\s*\} catch (\(error\) )?\{/,
   "The organization sheet unlocks itself before closing after a save",
 );
 for (const [name, source] of [["checkout", checkout]]) {

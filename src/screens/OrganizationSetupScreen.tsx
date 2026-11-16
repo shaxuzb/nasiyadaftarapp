@@ -1,4 +1,5 @@
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
+import { getOrganizationNameError } from "../modules/organization/utils/organizationNameError";
 import React, { useCallback, useState } from "react";
 import { BackHandler, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -57,10 +58,13 @@ export function OrganizationSetupScreen() {
         await createOrganizationForCurrentUser(payload);
         showToast(t("organization.created"), "success");
       } catch (error) {
-        showToast(
-          getLocalizedApiErrorMessage(error, "organization.createError", t),
-          "error",
-        );
+        // A refused name is shown under the name field instead.
+        if (!getOrganizationNameError(error)) {
+          showToast(
+            getLocalizedApiErrorMessage(error, "organization.createError", t),
+            "error",
+          );
+        }
         throw error;
       }
     },
@@ -89,8 +93,13 @@ export function OrganizationSetupScreen() {
 
     try {
       await handleCreateOrganization(payload);
-    } catch {
-      // The shared auth handler already presents the localized error toast.
+    } catch (error) {
+      // A refused name goes under the field; anything else was a toast.
+      const refused = getOrganizationNameError(error);
+      if (refused) {
+        setNameError(refused);
+        void hapticError();
+      }
     } finally {
       setIsSaving(false);
     }
