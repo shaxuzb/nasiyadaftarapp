@@ -51,6 +51,8 @@ import { getOrganizationQueryScope } from "../../core/query/organizationScope";
 import { BlacklistBadge } from "../../modules/clients/components/BlacklistBadge";
 import { isCustomerBlacklisted } from "../../modules/clients/utils/blacklist";
 import { noteSuccessfulTransaction } from "../../modules/app-review/services/reviewPrompt";
+import { DueDateField, DueDateToggle } from "../../modules/transactions/components/DueDateField";
+import type { DateOnly } from "../../utils/dateOnly";
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme, TransactionType } from "../../types";
 import {
@@ -135,6 +137,9 @@ function useTransactionController({
   const [previewType, setPreviewType] = useState<TransactionType>(
     props.type ?? "debt",
   );
+  // When the debt is to be paid back by; null when not set. Shown and chosen
+  // only for now: not sent until the server takes it (it has no field yet).
+  const [dueDate, setDueDate] = useState<DateOnly | null>(null);
   const submitting = useRef(false);
   // Whole for the sum, to the cent for the other currencies.
   const parsedAmount = parseAmountInput(amount) ?? 0;
@@ -257,6 +262,8 @@ function useTransactionController({
     setAmount,
     note,
     setNote,
+    dueDate,
+    setDueDate,
     saving,
     previewType,
     setPreviewType,
@@ -505,7 +512,11 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
         onPress={() => noteRef.current?.focus()}
         style={[styles.noteField, focused === "note" && styles.focused]}
       >
-        <Text style={styles.label}>{t("transactions.note")}</Text>
+        {/* The due date's checkbox sits on the label's line: no row of its own. */}
+        <View style={styles.noteLabelRow}>
+          <Text style={styles.label}>{t("transactions.note")}</Text>
+          <DueDateToggle value={tx.dueDate} onChange={tx.setDueDate} disabled={!!tx.saving} />
+        </View>
         <BottomSheetTextInput
           ref={noteRef}
           value={tx.note}
@@ -525,6 +536,9 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           accessibilityLabel={t("transactions.noteA11y")}
         />
       </Pressable>
+      {tx.dueDate ? (
+        <DueDateField value={tx.dueDate} onChange={tx.setDueDate} disabled={!!tx.saving} />
+      ) : null}
       <View style={styles.preview}>
         <Text style={styles.previewLabel}>
           {t("transactions.nextBalance")} {tx.previewType === "payment" ? `(${t("transactions.paymentPreview")})` : `(${t("transactions.debtPreview")})`}
@@ -633,6 +647,13 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 12,
       paddingHorizontal: 12,
       paddingVertical: 7,
+    },
+    noteLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      marginBottom: 2,
     },
     noteInput: {
       minHeight: 34,

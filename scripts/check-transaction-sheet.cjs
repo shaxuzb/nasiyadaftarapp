@@ -143,6 +143,7 @@ function createHarness({
     "../../hooks/useTheme": {},
     "../../utils/apiError": { getApiErrorMessage: () => "Saqlanmadi" },
     "../../modules/clients/components/BlacklistBadge": {},
+    "../../modules/transactions/components/DueDateField": {},
     "../../modules/app-review/services/reviewPrompt": {
       noteSuccessfulTransaction: () => {
         reviewNotes++;

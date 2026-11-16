@@ -286,6 +286,12 @@ export const uzTranslations = {
     contactPickerHint: "Mijoz ismi va telefonini kontaktlardan to'ldirish",
   },
   transactions: {
+    dueDate: "Qaytarish sanasi",
+    dueWeek: "1 hafta",
+    dueTwoWeeks: "2 hafta",
+    dueMonth: "1 oy",
+    dueInDays: "{count} kundan keyin",
+    dueChoose: "Kalendardan tanlash",
     operation: "Operatsiya",
     close: "Yopish",
     customerProfile: "Mijoz profilini ochish",

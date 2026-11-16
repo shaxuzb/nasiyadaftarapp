@@ -284,6 +284,12 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
     contactPickerHint: "Fill in customer name and phone from contacts",
   },
   transactions: {
+    dueDate: "Due date",
+    dueWeek: "1 week",
+    dueTwoWeeks: "2 weeks",
+    dueMonth: "1 month",
+    dueInDays: "in {count} days",
+    dueChoose: "Pick from calendar",
     operation: "Transaction",
     close: "Close",
     customerProfile: "Open customer profile",

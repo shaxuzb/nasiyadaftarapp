@@ -289,6 +289,12 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
     contactPickerHint: "Кардардын атын жана телефонун байланыштардан толтуруу",
   },
   transactions: {
+    dueDate: "Кайтаруу күнү",
+    dueWeek: "1 жума",
+    dueTwoWeeks: "2 жума",
+    dueMonth: "1 ай",
+    dueInDays: "{count} күндөн кийин",
+    dueChoose: "Календардан тандоо",
     operation: "Операция",
     close: "Жабуу",
     customerProfile: "Кардардын профилин ачуу",

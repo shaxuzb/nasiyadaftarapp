@@ -289,6 +289,12 @@ export const kkTranslations: TranslationSchema<typeof uzTranslations> = {
     contactPickerHint: "Клиенттің аты мен телефонын контактілерден толтыру",
   },
   transactions: {
+    dueDate: "Қайтару күні",
+    dueWeek: "1 апта",
+    dueTwoWeeks: "2 апта",
+    dueMonth: "1 ай",
+    dueInDays: "{count} күннен кейін",
+    dueChoose: "Күнтізбеден таңдау",
     operation: "Операция",
     close: "Жабу",
     customerProfile: "Клиент профилін ашу",
