@@ -71,6 +71,8 @@ export const enPaymentCopy: PaymentCopy = {
     error: "Could not refresh payment details",
     openError: "Could not open the payment page",
     loading: "Loading payment details...",
+    expiredHint: "The payment wasn't made within 24 hours, so the order was closed. This link no longer works: start a new payment to buy again.",
+    buyAgain: "Buy again",
   },
   history: {
     title: "Payment history",

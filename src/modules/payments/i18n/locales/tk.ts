@@ -70,6 +70,8 @@ export const tkPaymentCopy: PaymentCopy = {
     error: "Töleg maglumatyny täzeläp bolmady",
     openError: "Töleg sahypasyny açyp bolmady",
     loading: "Tölegiň jikme-jiklikleri ýüklenýär...",
+    expiredHint: "Töleg 24 sagadyň içinde edilmänligi sebäpli sargyt ýapyldy. Bu salgy indi işlemeýär: täzeden satyn almak üçin täze töleg dörediň.",
+    buyAgain: "Täzeden satyn almak",
   },
   history: {
     title: "Tölegler taryhy",

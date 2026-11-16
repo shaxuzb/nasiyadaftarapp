@@ -70,6 +70,8 @@ export const trPaymentCopy: PaymentCopy = {
     error: "Ödeme bilgisi yenilenemedi",
     openError: "Ödeme sayfası açılamadı",
     loading: "Ödeme ayrıntıları yükleniyor...",
+    expiredHint: "Ödeme 24 saat içinde yapılmadığı için sipariş kapatıldı. Bu bağlantı artık çalışmıyor: tekrar satın almak için yeni bir ödeme oluşturun.",
+    buyAgain: "Tekrar satın al",
   },
   history: {
     title: "Ödeme geçmişi",

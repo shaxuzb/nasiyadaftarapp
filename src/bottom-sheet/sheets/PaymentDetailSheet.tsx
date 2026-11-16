@@ -20,6 +20,7 @@ import { usePaymentOrderLifecycle } from "../../modules/payments/hooks/usePaymen
 import { radius, spacing, typography } from "../../theme";
 import type { AppTheme } from "../../types";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { navigationRef } from "../../navigation/navigationRef";
 
 export function PaymentDetailSheet({
   props,
@@ -125,6 +126,12 @@ export function PaymentDetailSheet({
   const pending = order.status === "pending";
   const holding = order.status === "holding";
   const paidPendingFulfillment = order.status === "paid" && !order.isFulfilled;
+  // Closed without being paid: its link is dead, so the way on is a new
+  // payment, chosen where the plans and packages are.
+  const canBuyAgain =
+    (order.status === "expired" || order.status === "cancelled" || order.status === "failed") &&
+    navigationRef.isReady() &&
+    navigationRef.getRootState().routeNames.includes("Subscription");
 
   return (
     <BottomSheetScrollView
@@ -136,6 +143,13 @@ export function PaymentDetailSheet({
     >
       <Text style={styles.title}>{copy.title}</Text>
       <PaymentOrderContent order={order} />
+
+      {order.status === "expired" ? (
+        <View style={styles.noteBox}>
+          <Ionicons name="time-outline" size={18} color={theme.textSecondary} />
+          <Text style={styles.noteText}>{copy.expiredHint}</Text>
+        </View>
+      ) : null}
 
       {error ? (
         <View style={styles.errorBox}>
@@ -209,6 +223,27 @@ export function PaymentDetailSheet({
           ) : null}
           <Text style={styles.primaryText}>{copy.refresh}</Text>
         </Pressable>
+      ) : canBuyAgain ? (
+        <View style={styles.actions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() =>
+              closeSheet(() => {
+                if (navigationRef.isReady()) navigationRef.navigate("Subscription");
+              })
+            }
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.primaryText}>{copy.buyAgain}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => closeSheet()}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+          >
+            <Text style={styles.secondaryText}>{copy.close}</Text>
+          </Pressable>
+        </View>
       ) : (
         <Pressable
           accessibilityRole="button"
@@ -305,6 +340,15 @@ const createStyles = (theme: AppTheme) =>
       backgroundColor: `${theme.dangerColor}10`,
     },
     errorText: { flex: 1, ...typography.bodySmall, color: theme.dangerColor },
+    noteBox: {
+      flexDirection: "row",
+      alignItems: "flex-start",
+      gap: spacing.xs,
+      padding: spacing.sm,
+      borderRadius: radius.md,
+      backgroundColor: theme.inputBackground,
+    },
+    noteText: { flex: 1, ...typography.bodySmall, color: theme.textSecondary },
     pressed: { opacity: 0.75 },
     disabled: { opacity: 0.55 },
   });
