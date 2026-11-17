@@ -1,4 +1,7 @@
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
+import { useStaffInfo } from "../modules/organization/components/StaffBadge";
+import { leaveOrganization } from "../services/organizationsApi";
 import { getOrganizationNameError } from "../modules/organization/utils/organizationNameError";
 import React, { useCallback, useMemo, useState } from "react";
 import {
@@ -174,8 +177,12 @@ export function SettingsScreen() {
   const { locale, t } = useTranslation();
   const currentLanguage = getSetupLanguage(locale);
   const { openSheet } = useBottomSheet();
-  const { user, currentOrganization, logout, openOrganizationSelector } =
+  const { user, currentOrganization, logout, openOrganizationSelector, refreshOrganizations } =
     useAuth();
+  // Staff see their work and their account here; the shop's settings, its
+  // staff, its history and buying plans are the owner's.
+  const { isOwner, isStaff, ownerName } = useOrganizationRole();
+  const showStaffInfo = useStaffInfo();
   const { permission: pushPermission } = usePushNotifications();
   const { saveOrganizationProfile } = useOrganizationProfileUpdate();
   const { openPhoneVerification, requireVerifiedPhone } = useAccountSecurity();
@@ -194,11 +201,14 @@ export function SettingsScreen() {
   // Where the SMS screen is, its settings are too: the same region rule and
   // the same permission.
   const canOpenSmsSettings =
+    isOwner &&
     regionalCapabilities.clientSmsVisible &&
     getClientSmsCapabilities(user?.permissions).canView;
   // The book's currency, changed by whoever may edit the organization.
   const canChangeCurrency =
-    Boolean(currentOrganization) && (user?.permissions ?? []).includes("ORGANIZATION_UPDATE");
+    isOwner &&
+    Boolean(currentOrganization) &&
+    (user?.permissions ?? []).includes("ORGANIZATION_UPDATE");
   const organizationCurrencyCode = useOrganizationCurrencyCode();
   const namedCurrencies = useNamedCurrencies();
   const organizationCurrency = namedCurrencies.find((currency) => currency.code === organizationCurrencyCode);
@@ -210,9 +220,9 @@ export function SettingsScreen() {
       : null;
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const showSubscriptionUi =
-    !isAdministrator && regionalCapabilities.subscriptionVisible;
+    isOwner && !isAdministrator && regionalCapabilities.subscriptionVisible;
   const showPaymentHistory =
-    !isAdministrator && regionalCapabilities.paymentHistoryVisible;
+    isOwner && !isAdministrator && regionalCapabilities.paymentHistoryVisible;
   const pushPermissionDescription =
     pushPermission === "granted"
       ? t("notifications.permissionGranted")
@@ -303,6 +313,30 @@ export function SettingsScreen() {
     },
     [saveOrganizationProfile, showToast, t],
   );
+
+  const [leaving, setLeaving] = useState(false);
+  const handleLeaveOrganization = useCallback(async () => {
+    if (!currentOrganization || leaving) return;
+    const accepted = await confirm({
+      title: t("staff.leaveConfirmTitle"),
+      message: t("staff.leaveConfirmMessage", { shop: currentOrganization.name }),
+      confirmText: t("staff.leaveConfirm"),
+      variant: "danger",
+    });
+    if (!accepted) return;
+    setLeaving(true);
+    try {
+      await leaveOrganization(currentOrganization.id);
+      showToast(t("staff.leaveSuccess"), "success");
+      // The shop is gone from the list: the app moves to the user's own shop,
+      // or asks which one when there are several.
+      await refreshOrganizations();
+    } catch (error) {
+      showToast(getLocalizedApiErrorMessage(error, "staff.leaveError", t), "error");
+    } finally {
+      setLeaving(false);
+    }
+  }, [confirm, currentOrganization, leaving, refreshOrganizations, showToast, t]);
 
   const handleOrganizationEdit = useCallback(() => {
     if (!currentOrganization) {
@@ -425,6 +459,7 @@ export function SettingsScreen() {
                 </Text>
               </View> */}
             </View>
+            {isOwner ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("profile.editOrganization")}
@@ -437,6 +472,7 @@ export function SettingsScreen() {
             >
               <Ionicons name="create-outline" size={21} color={theme.primary} />
             </Pressable>
+            ) : null}
           </View>
 
           <View style={styles.organizationContactDetails}>
@@ -607,15 +643,44 @@ export function SettingsScreen() {
             }}
             isLast={false}
           />
-          <ProfileMenuRow
-            icon="time-outline"
-            iconColor={theme.primary}
-            iconBackground={theme.primaryLight}
-            title={t("history.title")}
-            description={t("history.rowDescription")}
-            onPress={() => navigation.navigate("History")}
-            isLast={false}
-          />
+          {isStaff ? (
+            <>
+              <ProfileMenuRow
+                icon="person-outline"
+                iconColor={theme.primary}
+                iconBackground={theme.primaryLight}
+                title={t("staff.roleRowTitle")}
+                description={t("staff.roleRowDescription", {
+                  owner: ownerName ?? t("staff.ownerUnknown"),
+                })}
+                onPress={showStaffInfo}
+                isLast={false}
+              />
+              <ProfileMenuRow
+                icon="exit-outline"
+                iconColor={theme.dangerColor}
+                iconBackground={theme.inputBackground}
+                title={t("staff.leaveTitle")}
+                description={t("staff.leaveDescription")}
+                onPress={() => void handleLeaveOrganization()}
+                loading={leaving}
+                isLast
+              />
+            </>
+          ) : null}
+          {isOwner ? (
+            <>
+              <ProfileMenuRow
+                icon="people-outline"
+                iconColor={theme.primary}
+                iconBackground={theme.primaryLight}
+                title={t("staff.title")}
+                description={t("staff.rowDescription")}
+                onPress={() => navigation.navigate("Staff")}
+                isLast={false}
+              />
+            </>
+          ) : null}
           {canChangeCurrency ? (
             <ProfileMenuRow
               icon="cash-outline"
@@ -646,7 +711,7 @@ export function SettingsScreen() {
               isLast={false}
             />
           ) : null}
-{isPaidSubscription || regionalCapabilities.upgradePromptsVisible ? (
+{isOwner && (isPaidSubscription || regionalCapabilities.upgradePromptsVisible) ? (
           <ProfileMenuRow
             icon={
               isPaidSubscription ? "warning-outline" : "lock-closed-outline"

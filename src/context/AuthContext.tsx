@@ -34,7 +34,7 @@ import {
   GoogleLoginRequest,
   OrganizationSelectResponse,
 } from "../modules/auth/types";
-import { setUnauthorizedHandler } from "../services/axiosService";
+import { setForbiddenHandler, setUnauthorizedHandler } from "../services/axiosService";
 import {
   createOrganization,
   getCurrentOrganization,
@@ -58,6 +58,22 @@ import { queryKeys } from "../core/query/queryKeys";
 import { getOrganizationSelectionBackAction } from "./organizationSelection";
 import { unregisterPushDevice } from "../modules/push/services/pushService";
 import { createOrganizationLimitError } from "../i18n/apiErrors";
+import {
+  countOwnOrganizations,
+  getCurrentOrganizationRole,
+} from "../modules/organization/utils/organizationRole";
+import type { CurrentSubscription } from "../modules/subscription/types";
+
+/**
+ * GET /subscriptions/current is the user's own plan. In their own shop it is
+ * also the plan in force; in a shop they work in as staff the owner's plan is
+ * (it came with the select answer) and is left as it is.
+ */
+function withOwnSubscription(user: AuthUser, own: CurrentSubscription): AuthUser {
+  const current = user.organizations?.find((item) => item.id === user.organizationId) ?? null;
+  const staff = getCurrentOrganizationRole(user, current) === "staff";
+  return { ...user, ownSubscription: own, ...(staff ? {} : { subscription: own }) };
+}
 import { clearSavedData } from "../modules/offline/db/savedDataRepository";
 import { markCurrencySetupPending } from "../modules/currency/state/currencySetup";
 
@@ -169,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           queryKeys.subscriptionCurrent(baseUser.id),
           subscription,
         );
-        await persistUser({ ...baseUser, subscription });
+        await persistUser(withOwnSubscription(baseUser, subscription));
       } catch (error) {
         if (__DEV__) console.warn("Subscription refresh failed", error);
       }
@@ -364,7 +380,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryKeys.subscriptionCurrent(user.id),
       subscription,
     );
-    await persistUser({ ...user, subscription });
+    await persistUser(withOwnSubscription(user, subscription));
   }, [persistUser, user]);
 
   const selectOrganization = useCallback(
@@ -403,11 +419,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (payload: OrganizationRequest) => {
       if (!user) throw new Error("Tashkilot yaratish uchun tizimga kiring");
 
+      // Only the user's own shops count against their own plan; shops they
+      // work in as staff never do.
       const existingOrganizations = await getManualOrganizations();
-      if (
-        !canCreateOrganization(user.subscription, existingOrganizations.length)
-      ) {
-        throw createOrganizationLimitError(user.subscription?.maxOrganizations ?? 0);
+      const ownPlan = user.ownSubscription ?? user.subscription;
+      if (!canCreateOrganization(ownPlan, countOwnOrganizations(existingOrganizations))) {
+        throw createOrganizationLimitError(ownPlan?.maxOrganizations ?? 0);
       }
 
       const created = await createOrganization(payload);
@@ -653,6 +670,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUnauthorizedHandler(undefined);
     };
   }, [logout]);
+
+  // A 403 can mean the owner removed this user from the shop (or changed what
+  // they may do): the list is fetched again, and a shop no longer in it is
+  // left for the user's own one. At most once a minute; nothing else changes.
+  const lastForbiddenRefresh = useRef(0);
+  useEffect(() => {
+    setForbiddenHandler(() => {
+      const now = Date.now();
+      if (now - lastForbiddenRefresh.current < 60_000) return;
+      lastForbiddenRefresh.current = now;
+      void refreshOrganizations().catch(() => undefined);
+    });
+    return () => setForbiddenHandler(undefined);
+  }, [refreshOrganizations]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

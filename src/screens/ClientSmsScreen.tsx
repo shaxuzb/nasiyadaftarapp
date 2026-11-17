@@ -33,6 +33,7 @@ import { useAccountSecurity } from "../modules/account/context/AccountSecurityCo
 import { useTheme } from "../hooks/useTheme";
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import { OwnDeviceSmsStatus } from "../modules/client-sms/components/OwnDeviceSmsStatus";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { SmsRecipientRow } from "../modules/client-sms/components/SmsRecipientRow";
 import { useSmsProvider } from "../modules/client-sms/hooks/useSmsDevices";
 import { CustomerEditSheet } from "../modules/clients/components/CustomerEditSheet";
@@ -303,18 +304,28 @@ function ClientSmsContent({
     (recipient: SmsRecipient) => void sendToOne(recipient),
     [sendToOne],
   );
+  // Staff send on the owner's plan and SMS: nothing to buy or set up here;
+  // when the SMS run out, it is the owner who tops them up.
+  const { isOwner } = useOrganizationRole();
   const openUpgradeModal = useCallback(() => {
+    if (!isOwner) {
+      showToast(t("staff.smsLimitOwner"), "error");
+      return;
+    }
     setUpgradeReason("sms-limit");
     setIsUpgradeModalOpen(true);
-  }, []);
+  }, [isOwner, showToast, t]);
   const openSmsPackages = useCallback(() => {
+    if (!isOwner) {
+      showToast(t("staff.smsLimitOwner"), "info");
+      return;
+    }
     setUpgradeReason("sms-packages");
     setIsUpgradeModalOpen(true);
-  }, []);
-  const openSmsSettings = useCallback(
-    () => navigation.navigate("SmsSettings"),
-    [navigation],
-  );
+  }, [isOwner, showToast, t]);
+  const openSmsSettings = useCallback(() => {
+    if (isOwner) navigation.navigate("SmsSettings");
+  }, [isOwner, navigation]);
   const renderRecipient = useCallback(
     ({ item }: { item: SmsRecipient }) => (
       <SmsRecipientRow
@@ -362,6 +373,7 @@ function ClientSmsContent({
           action={
             <View style={styles.headerActions}>
               <VideoLessonButton code="sms" />
+              {isOwner ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("smsSettings.title")}
@@ -374,6 +386,7 @@ function ClientSmsContent({
               >
                 <Ionicons name="settings-outline" size={21} color={theme.primary} />
               </Pressable>
+              ) : null}
               {capabilities.canViewHistory ? (
                 <Pressable
                   accessibilityRole="button"

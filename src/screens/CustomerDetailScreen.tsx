@@ -30,6 +30,7 @@ import type { Transaction } from "../modules/transactions/types";
 import { formatDateOnly } from "../i18n/calendarLabels";
 import { todayDateOnly } from "../utils/dateOnly";
 import { findNextDue, unpaidDebts } from "../modules/transactions/utils/dueDate";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
@@ -77,6 +78,7 @@ export function CustomerDetailScreen() {
   const { deleteCustomer } = useApp();
   const { detail, history, update, resolvedId } = useClientDetail(customerId);
   const customer = detail.data;
+  const { isOwner } = useOrganizationRole();
   // Added offline and not yet on the server: only debts and payments can be
   // written for it (they wait with it); changing or removing it waits too.
   const onlyOnPhone = resolvedId < 0;
@@ -395,13 +397,18 @@ export function CustomerDetailScreen() {
       muted: onlyOnPhone,
       onPress: startEditing,
     },
-    {
-      label: deleteLabel,
-      icon: "trash-outline",
-      color: onlyOnPhone ? theme.textMuted : theme.dangerColor,
-      muted: onlyOnPhone,
-      onPress: () => void remove(),
-    },
+    // Deleting a customer is the owner's; staff do not get the button.
+    ...(isOwner
+      ? [
+          {
+            label: deleteLabel,
+            icon: "trash-outline" as const,
+            color: onlyOnPhone ? theme.textMuted : theme.dangerColor,
+            muted: onlyOnPhone,
+            onPress: () => void remove(),
+          },
+        ]
+      : []),
   ];
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>

@@ -44,6 +44,17 @@ function isSessionRejected(error: unknown): boolean {
   return typeof status === "number" && SESSION_REJECTED_STATUSES.has(status);
 }
 
+let forbiddenHandler: (() => void) | undefined;
+
+/**
+ * Told of a 403 on an ordinary request: the user's role or membership in the
+ * shop may have changed under them (staff removed by the owner), so the app
+ * can take a fresh look at their shops. The request still fails as before.
+ */
+export function setForbiddenHandler(handler?: () => void) {
+  forbiddenHandler = handler;
+}
+
 export function setUnauthorizedHandler(handler?: () => void) {
   unauthorizedHandler = handler;
 }
@@ -132,6 +143,10 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined;
     const status = error.response?.status;
+
+    if (status === 403 && originalRequest && !isPublicAccountRoute(originalRequest.url)) {
+      forbiddenHandler?.();
+    }
 
     if (
       !originalRequest ||

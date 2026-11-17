@@ -173,8 +173,8 @@ async function main() {
   );
   assert.match(
     customers,
-    /<VideoLessonButton\s+code="customers"[\s\S]{0,200}?\/>\s*<TouchableOpacity[\s\S]{0,300}?navigation\.navigate\("Notifications"\)/,
-    "The lesson button sits in the header, just left of the notification bell",
+    /<VideoLessonButton\s+code="customers"[\s\S]{0,200}?\/>\s*\{\/\* "Tarix"[\s\S]{0,700}?navigation\.navigate\("History"\)[\s\S]{0,400}?<TouchableOpacity[\s\S]{0,300}?navigation\.navigate\("Notifications"\)/,
+    "The lesson button sits in the header, then History (owner), then the notification bell",
   );
   // One sign for "lessons" everywhere: the graduation cap, in the header
   // buttons and on the profile row alike.

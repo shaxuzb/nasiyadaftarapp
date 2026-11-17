@@ -80,6 +80,8 @@ import { todayDateOnly, type DateOnly } from "../utils/dateOnly";
 import { radius, spacing } from "../theme";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
 import { DueClientsBanner } from "../modules/debt-due/components/DueClientsBanner";
+import { StaffBadge } from "../modules/organization/components/StaffBadge";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { RenewalReminderBanner } from "../modules/subscription/components/RenewalReminderBanner";
 import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
 import { useContactPicker } from "../modules/clients/hooks/useContactPicker";
@@ -179,8 +181,10 @@ export function CustomersScreen() {
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const isPremium =
     user?.subscription?.planCode?.trim().toUpperCase() === "PREMIUM";
+  const { isStaff, isOwner } = useOrganizationRole();
+  // Staff work under the owner's plan and buy nothing here.
   const showProBadge =
-    regionalCapabilities.subscriptionVisible && !isAdministrator && !isPremium;
+    regionalCapabilities.subscriptionVisible && !isAdministrator && !isPremium && !isStaff;
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const sheetFrame = useSheetFrameStyle();
   // Must not stay open on top of the PIN screen, and must not be "closed"
@@ -488,12 +492,27 @@ export function CustomersScreen() {
                   <Text style={styles.proButtonText}>PRO</Text>
                 </TouchableOpacity>
               ) : null}
+              <StaffBadge />
             </View>
             <View style={styles.headerActions}>
               <VideoLessonButton
                 code="customers"
                 style={styles.videoLessonBtn}
               />
+              {/* "Tarix": deleted customers, purchases, the shop's changes.
+                  The owner's only, like the screen itself. */}
+              {isOwner ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t("history.title")}
+                  accessibilityHint={t("history.rowDescription")}
+                  onPress={() => navigation.navigate("History")}
+                  activeOpacity={0.82}
+                  style={styles.notificationBtn}
+                >
+                  <Ionicons name="time-outline" size={22} color={theme.text} />
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={t("notifications.unreadA11y", {

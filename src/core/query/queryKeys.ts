@@ -66,6 +66,7 @@ export const queryKeys = {
     ["history", "user", userId, "purchases"] as const,
   historyOrganization: (scope: QueryScope) =>
     ["history", scope, "organization"] as const,
+  staff: (scope: QueryScope) => ["organizations", scope, "staff"] as const,
   pushRoot: (scope: QueryScope) => ["push", scope] as const,
   pushNotifications: (scope: QueryScope, pageSize?: number) =>
     pageSize === undefined

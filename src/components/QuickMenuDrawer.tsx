@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -111,8 +112,11 @@ export function QuickMenuDrawer() {
   const currency = namedCurrencies.find((item) => item.code === currencyCode);
   const currencySymbol = currency && currency.symbol !== currencyCode ? currency.symbol : null;
   // The same rule as the Settings row.
+  const { isOwner } = useOrganizationRole();
   const canChangeCurrency =
-    Boolean(currentOrganization) && (user?.permissions ?? []).includes("ORGANIZATION_UPDATE");
+    isOwner &&
+    Boolean(currentOrganization) &&
+    (user?.permissions ?? []).includes("ORGANIZATION_UPDATE");
 
   // Kept on screen while it slides away, after `visible` has turned false.
   const [mounted, setMounted] = useState(visible);

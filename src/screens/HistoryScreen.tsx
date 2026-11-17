@@ -373,6 +373,8 @@ const CHANGE_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
   address_changed: "location-outline",
   currency_changed: "cash-outline",
   blacklist_days_changed: "warning-outline",
+  staff_added: "person-add-outline",
+  staff_removed: "person-remove-outline",
 };
 
 const ChangeRow = memo(function ChangeRow({
@@ -412,6 +414,12 @@ const ChangeRow = memo(function ChangeRow({
       break;
     case "blacklist_days_changed":
       title = t("history.changeBlacklistDays", values);
+      break;
+    case "staff_added":
+      title = t("history.changeStaffAdded", { value: change.newValue || "—" });
+      break;
+    case "staff_removed":
+      title = t("history.changeStaffRemoved", { value: change.oldValue || "—" });
       break;
     default:
       title =

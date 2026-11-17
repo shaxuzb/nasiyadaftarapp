@@ -89,6 +89,10 @@ function parseOrganizationMembership(
     address: typeof item.address === "string" ? item.address : null,
     note: typeof item.note === "string" ? item.note : null,
     role: typeof item.role === "string" ? item.role : undefined,
+    ownerName:
+      typeof item.ownerName === "string" && item.ownerName.trim()
+        ? item.ownerName.trim()
+        : null,
     roleId:
       typeof item.roleId === "number" && Number.isInteger(item.roleId)
         ? item.roleId
@@ -122,6 +126,11 @@ function extractOrganizations(data: unknown): OrganizationMembership[] {
     throw new Error("Tashkilotlar ro'yxati noto'g'ri formatda qaytdi");
   }
   return items.map(parseOrganizationMembership);
+}
+
+/** Staff leaving a shop they work in (204); it drops out of their list. */
+export async function leaveOrganization(organizationId: number): Promise<void> {
+  await apiClient.post(`/organizations/${organizationId}/leave`);
 }
 
 export async function getManualOrganizations(): Promise<

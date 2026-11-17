@@ -32,6 +32,8 @@ import { ClientSmsScreen } from "../screens/ClientSmsScreen";
 import { DueClientsScreen } from "../screens/DueClientsScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { DeletedClientScreen } from "../screens/DeletedClientScreen";
+import { StaffScreen } from "../screens/StaffScreen";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
 import { SmsSettingsScreen } from "../screens/SmsSettingsScreen";
 import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
@@ -132,8 +134,11 @@ function TabNavigator({
   const canViewClientSms =
     regionalCapabilities.clientSmsVisible &&
     getClientSmsCapabilities(user?.permissions).canView;
+  // Reports are the owner's; staff do not see the tab at all.
+  const { isOwner } = useOrganizationRole();
   const resolvedInitialRouteName =
-    initialRouteName === "ClientSms" && !canViewClientSms
+    (initialRouteName === "ClientSms" && !canViewClientSms) ||
+    (initialRouteName === "Reports" && !isOwner)
       ? "Customers"
       : initialRouteName;
   const bottomPadding = Math.max(insets.bottom, 8);
@@ -197,11 +202,13 @@ function TabNavigator({
         component={CustomersScreen}
         options={{ title: t("customers.screenTitle") }}
       />
-      <Tab.Screen
-        name="Reports"
-        component={ReportsScreen}
-        options={{ title: t("reports.screenTitle") }}
-      />
+      {isOwner ? (
+        <Tab.Screen
+          name="Reports"
+          component={ReportsScreen}
+          options={{ title: t("reports.screenTitle") }}
+        />
+      ) : null}
       {canViewClientSms ? (
         <Tab.Screen
           name="ClientSms"
@@ -244,6 +251,9 @@ const MAIN_STACK_OPTIONS = { headerShown: false, freezeOnBlur: true } as const;
 
 function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
   const regionalCapabilities = useRegionalProductCapabilities();
+  // The shop's settings, staff, history and plans are the owner's: for staff
+  // these screens do not exist, so no link or push can open them either.
+  const { isOwner } = useOrganizationRole();
 
   return (
     <Stack.Navigator
@@ -259,8 +269,13 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <Stack.Screen name="PinChange" component={PinChangeScreen} />
       <Stack.Screen name="DueClients" component={DueClientsScreen} />
-      <Stack.Screen name="History" component={HistoryScreen} />
-      <Stack.Screen name="DeletedClient" component={DeletedClientScreen} />
+      {isOwner ? (
+        <>
+          <Stack.Screen name="History" component={HistoryScreen} />
+          <Stack.Screen name="DeletedClient" component={DeletedClientScreen} />
+          <Stack.Screen name="Staff" component={StaffScreen} />
+        </>
+      ) : null}
       {regionalCapabilities.clientSmsVisible ? (
         <>
           <Stack.Screen name="ClientSms" component={ClientSmsScreen} />
@@ -268,17 +283,21 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
             name="ClientSmsHistory"
             component={ClientSmsHistoryScreen}
           />
-          <Stack.Screen name="SmsSettings" component={SmsSettingsScreen} />
+          {isOwner ? (
+            <Stack.Screen name="SmsSettings" component={SmsSettingsScreen} />
+          ) : null}
         </>
       ) : null}
-      <Stack.Screen
-        name="BlacklistSettings"
-        component={BlacklistSettingsScreen}
-      />
-      {regionalCapabilities.subscriptionVisible ? (
+      {isOwner ? (
+        <Stack.Screen
+          name="BlacklistSettings"
+          component={BlacklistSettingsScreen}
+        />
+      ) : null}
+      {isOwner && regionalCapabilities.subscriptionVisible ? (
         <Stack.Screen name="Subscription" component={SubscriptionScreen} />
       ) : null}
-      {regionalCapabilities.paymentHistoryVisible ? (
+      {isOwner && regionalCapabilities.paymentHistoryVisible ? (
         <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
       ) : null}
       <Stack.Screen name="Notifications" component={NotificationsScreen} />

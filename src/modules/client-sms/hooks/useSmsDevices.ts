@@ -2,7 +2,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../../context/AuthContext";
 import { getOrganizationQueryScope } from "../../../core/query/organizationScope";
 import { queryKeys } from "../../../core/query/queryKeys";
-import { getSmsDevices, claimSmsDevice, deleteSmsDevice } from "../services/smsDevicesService";
+import {
+  addSmsDeviceOrganization,
+  claimSmsDevice,
+  deleteSmsDevice,
+  getSmsDevices,
+  removeSmsDeviceOrganization,
+} from "../services/smsDevicesService";
 import { getSmsProvider, updateSmsProvider } from "../services/smsProviderService";
 import type { SmsDevice } from "../types/devices";
 import type { SmsProviderCode } from "../types/provider";
@@ -136,5 +142,21 @@ export function useDeleteSmsDevice() {
         qc.invalidateQueries({ queryKey: queryKeys.clientSmsRecipientsRoot(scope) }),
       ]);
     },
+  });
+}
+
+/**
+ * Turns one of the owner's shops on or off for a phone. Every shop's device
+ * list is marked stale: the phone now shows up (or not) in the others too.
+ */
+export function useToggleSmsDeviceOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ code, organizationId, on }: { code: string; organizationId: number; on: boolean }) =>
+      on ? addSmsDeviceOrganization(code, organizationId) : removeSmsDeviceOrganization(code, organizationId),
+    onSettled: () =>
+      qc.invalidateQueries({
+        predicate: (query) => query.queryKey[0] === "client-sms" && query.queryKey[2] === "devices",
+      }),
   });
 }

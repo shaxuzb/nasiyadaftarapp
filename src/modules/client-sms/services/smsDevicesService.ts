@@ -16,3 +16,13 @@ export async function deleteSmsDevice(code: string) {
   if (!code.trim()) throw new Error("SMS qurilma kodi mavjud emas");
   await apiClient.delete("/sms/devices/" + encodeURIComponent(code.trim()));
 }
+/** Lets the same phone send SMS for another of the owner's shops too. */
+export async function addSmsDeviceOrganization(code: string, organizationId: number) {
+  await apiClient.post("/sms/devices/" + encodeURIComponent(code.trim()) + "/organizations", { organizationId });
+}
+/** Stops it sending for that shop; it keeps working for the others. */
+export async function removeSmsDeviceOrganization(code: string, organizationId: number) {
+  await apiClient.delete(
+    "/sms/devices/" + encodeURIComponent(code.trim()) + "/organizations/" + organizationId,
+  );
+}

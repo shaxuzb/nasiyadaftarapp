@@ -26,7 +26,7 @@ assert.match(
 );
 // isLoading, not isPending: a query that never runs stays pending for ever.
 assert.doesNotMatch(screen, /smsProvider\.isPending/);
-assert.match(screen, /const openSmsSettings = useCallback\(\s*\(\) => navigation\.navigate\("SmsSettings"\),/);
+assert.match(screen, /const openSmsSettings = useCallback\(\(\) => \{\s*if \(isOwner\) navigation\.navigate\("SmsSettings"\);/);
 
 /* The line itself: one line, nothing to buy, a way to the settings. */
 

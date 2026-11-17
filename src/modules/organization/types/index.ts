@@ -31,7 +31,10 @@ export interface OrganizationResponse {
 }
 
 export interface OrganizationMembership extends OrganizationResponse {
+  /** "owner" or "staff" (see organizationRole); absent from an older server. */
   role?: string;
+  /** For a shop the user works in as staff: its owner's name. */
+  ownerName?: string | null;
   roleId?: number;
   isSelected?: boolean;
 }
