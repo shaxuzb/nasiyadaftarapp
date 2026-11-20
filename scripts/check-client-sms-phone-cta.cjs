@@ -79,7 +79,8 @@ assert.doesNotMatch(
 );
 assert.match(
   customerDetail,
-  /const openEditor = \(\) => setEditing\(true\);\s*const startEditing = \(\) => \{\s*if \(onlyOnPhone\) showLockedNotice\(\);\s*else if \(requireServer\(openEditor\)\) openEditor\(\);/,
+  // …unless the shop is "faqat ko'rish", where nothing is edited.
+  /const openEditor = \(\) => setEditing\(true\);\s*const startEditing = \(\) => \{\s*if \(readOnly\) return;\s*if \(onlyOnPhone\) showLockedNotice\(\);\s*else if \(requireServer\(openEditor\)\) openEditor\(\);/,
   "startEditing must open the edit sheet for a customer the server has",
 );
 assert.match(

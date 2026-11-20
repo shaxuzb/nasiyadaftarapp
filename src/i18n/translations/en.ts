@@ -1141,6 +1141,7 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   staff: {
     badge: "Staff · {name}",
+    badgeShort: "Staff",
     badgeA11y: "You're staff at {name}. Details",
     infoTitle: "You're staff",
     infoMessage: "Owner of “{shop}”: {owner}.\n\nYou add and edit customers, record debts and payments, and send SMS.\n\nDeleting customers, reports and shop settings are for the owner only.",
@@ -1163,6 +1164,7 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
     intro: "Staff add customers, record debts and payments, and send SMS. Deleting, reports and settings stay with you.",
     add: "Add staff",
     addTitle: "Add staff",
+    addTo: "To “{shop}”",
     addHint: "Enter their phone number. When they sign in to the app with it, your shop opens for them.",
     phoneLabel: "Phone number",
     addSubmit: "Add",
@@ -1192,6 +1194,13 @@ export const enTranslations: TranslationSchema<typeof uzTranslations> = {
     deviceShared: "The daily limit is shared by all shops: {limit} SMS a day",
     deviceToggleError: "Couldn't change it",
     smsLimitOwner: "SMS come from the shop owner's plan. Ask the owner to add more.",
+  },
+  readOnly: {
+    title: "View only",
+    ownerText: "On the free plan only the first opened organization works. Turn on Premium to work here.",
+    staffText: "On the free plan only the first opened organization works. The shop owner needs to turn on Premium to work here.",
+    action: "Premium",
+    chip: "View only",
   },
   offline: {
     savedNotice: "No connection to the server. Showing data saved on the phone · {time}",

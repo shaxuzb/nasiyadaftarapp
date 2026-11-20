@@ -1161,6 +1161,7 @@ export const kkTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   staff: {
     badge: "Қызметкер · {name}",
+    badgeShort: "Қызметкер",
     badgeA11y: "Сіз {name} дүкенінің қызметкерісіз. Толығырақ",
     infoTitle: "Сіз қызметкерсіз",
     infoMessage: "«{shop}» дүкенінің иесі: {owner}.\n\nСіз клиент қосасыз және өңдейсіз, қарыз бен төлем жазасыз, SMS жібересіз.\n\nКлиентті жою, есептер және дүкен баптаулары тек иесінде.",
@@ -1183,6 +1184,7 @@ export const kkTranslations: TranslationSchema<typeof uzTranslations> = {
     intro: "Қызметкер клиент қосады, қарыз бен төлем жазады, SMS жібереді. Жою, есептер және баптаулар тек сізде қалады.",
     add: "Қызметкер қосу",
     addTitle: "Қызметкер қосу",
+    addTo: "«{shop}» дүкеніне",
     addHint: "Қызметкердің телефон нөмірін енгізіңіз. Ол осы нөмірмен қолданбаға кіргенде, дүкеніңіз онда ашылады.",
     phoneLabel: "Телефон нөмірі",
     addSubmit: "Қосу",
@@ -1212,6 +1214,13 @@ export const kkTranslations: TranslationSchema<typeof uzTranslations> = {
     deviceShared: "Күндік лимит барлық дүкендерге ортақ: күніне {limit} SMS",
     deviceToggleError: "Өзгерту мүмкін болмады",
     smsLimitOwner: "SMS лимиті дүкен иесінің тарифінен. Көбейту үшін иесіне айтыңыз.",
+  },
+  readOnly: {
+    title: "Тек қарау режимі",
+    ownerText: "Тегін тарифте тек алғаш ашылған ұйым жұмыс істейді. Мұнда жұмыс істеу үшін Premium тарифін қосыңыз.",
+    staffText: "Тегін тарифте тек алғаш ашылған ұйым жұмыс істейді. Мұнда жұмыс істеу үшін дүкен иесі Premium тарифін қосуы керек.",
+    action: "Premium",
+    chip: "Тек қарау",
   },
   offline: {
     savedNotice: "Сервермен байланыс жоқ. Телефонда сақталған деректер көрсетілуде · {time}",

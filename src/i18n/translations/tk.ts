@@ -1161,6 +1161,7 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   staff: {
     badge: "Işgär · {name}",
+    badgeShort: "Işgär",
     badgeA11y: "Siz {name} dükanynyň işgäri. Giňişleýin",
     infoTitle: "Siz işgär",
     infoMessage: "«{shop}» dükanynyň eýesi: {owner}.\n\nSiz müşderi goşýarsyňyz we üýtgedýärsiňiz, bergi we töleg ýazýarsyňyz, SMS iberýärsiňiz.\n\nMüşderini pozmak, hasabatlar we dükan sazlamalary diňe eýesinde.",
@@ -1183,6 +1184,7 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
     intro: "Işgär müşderi goşýar, bergi we töleg ýazýar, SMS iberýär. Pozmak, hasabatlar we sazlamalar diňe sizde galýar.",
     add: "Işgär goşmak",
     addTitle: "Işgär goşmak",
+    addTo: "«{shop}» dükanyna",
     addHint: "Işgäriň telefon belgisini giriziň. Ol şu belge bilen programma girende dükanyňyz onda açylar.",
     phoneLabel: "Telefon belgisi",
     addSubmit: "Goşmak",
@@ -1212,6 +1214,13 @@ export const tkTranslations: TranslationSchema<typeof uzTranslations> = {
     deviceShared: "Gündelik çäk ähli dükanlar üçin umumy: günde {limit} SMS",
     deviceToggleError: "Üýtgedip bolmady",
     smsLimitOwner: "SMS çägi dükan eýesiniň tarifinden. Köpeltmek üçin eýesine aýdyň.",
+  },
+  readOnly: {
+    title: "Diňe görmek tertibi",
+    ownerText: "Mugt tarifde diňe ilkinji açylan gurama işleýär. Bu ýerde işlemek üçin Premium tarifini açyň.",
+    staffText: "Mugt tarifde diňe ilkinji açylan gurama işleýär. Bu ýerde işlemek üçin dükan eýesi Premium tarifini açmaly.",
+    action: "Premium",
+    chip: "Diňe görmek",
   },
   offline: {
     savedNotice: "Serwer bilen aragatnaşyk ýok. Telefonda saklanan maglumatlar görkezilýär · {time}",

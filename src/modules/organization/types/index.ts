@@ -35,6 +35,11 @@ export interface OrganizationMembership extends OrganizationResponse {
   role?: string;
   /** For a shop the user works in as staff: its owner's name. */
   ownerName?: string | null;
+  /**
+   * The plan no longer covers this shop (only the first opened one works on the
+   * free plan): everything can be looked at, nothing written. Absent: works.
+   */
+  isReadOnly?: boolean;
   roleId?: number;
   isSelected?: boolean;
 }

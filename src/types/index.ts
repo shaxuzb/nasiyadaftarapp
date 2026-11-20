@@ -38,8 +38,6 @@ export type RootStackParamList = {
   /** "Tarix": deleted customers, purchases, the shop's changes. */
   History: undefined;
   DeletedClient: { clientId: number };
-  /** The owner's staff for the open shop. */
-  Staff: undefined;
   /** `preselectedIds` opens with those customers ticked (from the due list). */
   ClientSms: { preselectedIds?: number[] } | undefined;
   ClientSmsHistory: undefined;

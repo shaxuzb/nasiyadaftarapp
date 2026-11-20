@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
 import {
   ActivityIndicator,
   FlatList,
@@ -49,7 +50,8 @@ export function DueClientsScreen() {
   const { user } = useAuth();
   const regional = useRegionalProductCapabilities();
   const sms = getClientSmsCapabilities(user?.permissions, user?.subscription);
-  const canRemind = regional.clientSmsVisible && sms.canView && sms.canSendBulk;
+  const { readOnly } = useOrganizationAccess();
+  const canRemind = !readOnly && regional.clientSmsVisible && sms.canView && sms.canSendBulk;
 
   const today = todayDateOnly();
   const date = readDay(route.params?.date) ?? today;

@@ -81,6 +81,8 @@ import { radius, spacing } from "../theme";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
 import { DueClientsBanner } from "../modules/debt-due/components/DueClientsBanner";
 import { StaffBadge } from "../modules/organization/components/StaffBadge";
+import { ReadOnlyBanner } from "../modules/organization/components/ReadOnlyBanner";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
 import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { RenewalReminderBanner } from "../modules/subscription/components/RenewalReminderBanner";
 import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
@@ -182,6 +184,7 @@ export function CustomersScreen() {
   const isPremium =
     user?.subscription?.planCode?.trim().toUpperCase() === "PREMIUM";
   const { isStaff, isOwner } = useOrganizationRole();
+  const { readOnly } = useOrganizationAccess();
   // Staff work under the owner's plan and buy nothing here.
   const showProBadge =
     regionalCapabilities.subscriptionVisible && !isAdministrator && !isPremium && !isStaff;
@@ -437,6 +440,11 @@ export function CustomersScreen() {
   const handleSelectCustomer = useCallback(
     (item: ListItem) => {
       hapticTap();
+      // "Faqat ko'rish": nothing to write, so the tap opens the customer to look at.
+      if (readOnly) {
+        navigation.navigate("CustomerDetail", { customerId: item.customer.id });
+        return;
+      }
       openSheet("transaction", {
         customerId: item.customer.id,
         type: "debt",
@@ -450,7 +458,7 @@ export function CustomersScreen() {
           }),
       });
     },
-    [navigation, openSheet],
+    [navigation, openSheet, readOnly],
   );
 
   const renderItem = useCallback(
@@ -553,6 +561,7 @@ export function CustomersScreen() {
           </View>
         </View>
 
+        <ReadOnlyBanner />
         <RenewalReminderBanner />
         <PendingPaymentBanner />
         <DueClientsBanner />
@@ -624,7 +633,7 @@ export function CustomersScreen() {
                     : t("customers.emptyDescription")
                 }
                 action={
-                  !isSearchActive ? (
+                  !isSearchActive && !readOnly ? (
                     <PrimaryButton
                       label={t("customers.addAction")}
                       onPress={openAddCustomerSheet}
@@ -659,6 +668,7 @@ export function CustomersScreen() {
         {/* Adding a customer, where the thumb already is, as adding a debt is
             on the customer's page. Inside the screen's column, so on a tablet
             it sits by the list rather than at the far edge of the window. */}
+        {readOnly ? null : (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("customers.addCustomer")}
@@ -670,6 +680,7 @@ export function CustomersScreen() {
               so the person, not the whole glyph, sits in the middle. */}
           <Ionicons name="person-add" size={30} color="#FFFFFF" style={styles.addFabIcon} />
         </Pressable>
+        )}
       </View>
       <BottomSheetModal
         ref={bottomSheetRef}

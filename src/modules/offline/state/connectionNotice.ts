@@ -20,7 +20,6 @@ export const SERVER_ONLY_ROUTES: ReadonlySet<string> = new Set([
   "DueClients",
   "History",
   "DeletedClient",
-  "Staff",
   "SmsSettings",
   "Subscription",
   "PaymentHistory",
@@ -38,6 +37,7 @@ export const SERVER_ONLY_SHEETS: ReadonlySet<string> = new Set([
   "paymentDetail",
   "paymentStatus",
   "pendingPayments",
+  "staff",
   "telegramBots",
 ]);
 

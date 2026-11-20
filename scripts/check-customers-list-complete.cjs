@@ -56,6 +56,6 @@ assert.match(
 /* An empty list always offers to add the first customer, unless a search is
    what emptied it. */
 
-assert.match(screen, /action=\{\s*!isSearchActive \? \(\s*<PrimaryButton\s*label=\{t\("customers\.addAction"\)\}/);
+assert.match(screen, /action=\{\s*!isSearchActive && !readOnly \? \(\s*<PrimaryButton\s*label=\{t\("customers\.addAction"\)\}/);
 
 console.log("Customers list: always complete, no debtor filter left passed");

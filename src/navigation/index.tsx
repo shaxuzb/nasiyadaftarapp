@@ -32,7 +32,6 @@ import { ClientSmsScreen } from "../screens/ClientSmsScreen";
 import { DueClientsScreen } from "../screens/DueClientsScreen";
 import { HistoryScreen } from "../screens/HistoryScreen";
 import { DeletedClientScreen } from "../screens/DeletedClientScreen";
-import { StaffScreen } from "../screens/StaffScreen";
 import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
 import { SmsSettingsScreen } from "../screens/SmsSettingsScreen";
@@ -273,7 +272,6 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
         <>
           <Stack.Screen name="History" component={HistoryScreen} />
           <Stack.Screen name="DeletedClient" component={DeletedClientScreen} />
-          <Stack.Screen name="Staff" component={StaffScreen} />
         </>
       ) : null}
       {regionalCapabilities.clientSmsVisible ? (

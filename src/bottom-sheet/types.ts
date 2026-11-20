@@ -17,6 +17,7 @@ export type SheetType =
   | "transactionDetail"
   | "language"
   | "organizationProfile"
+  | "staff"
   | "paymentCheckout"
   | "paymentStatus"
   | "paymentDetail"
@@ -69,6 +70,9 @@ export interface DatePickerSheetProps {
   onSelect: (value: string) => void;
 }
 
+/** The open shop's staff; the shop comes from the account, not the caller. */
+export type StaffSheetProps = Record<string, never>;
+
 export interface OrganizationProfileSheetProps {
   organization: OrganizationMembership;
   onSubmit: (payload: UpdateCurrentOrganizationRequest) => Promise<void>;
@@ -110,6 +114,7 @@ export interface SheetPropsMap {
   transactionDetail: TransactionDetailSheetProps;
   language: LanguageSheetProps;
   organizationProfile: OrganizationProfileSheetProps;
+  staff: StaffSheetProps;
   paymentCheckout: PaymentCheckoutSheetProps;
   paymentStatus: PaymentStatusSheetProps;
   paymentDetail: PaymentDetailSheetProps;

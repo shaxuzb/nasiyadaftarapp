@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
+import { useOrganizationProfileUpdate } from "../modules/organization/hooks/useOrganizationProfileUpdate";
+import { getOrganizationNameError } from "../modules/organization/utils/organizationNameError";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
@@ -113,10 +116,14 @@ export function QuickMenuDrawer() {
   const currencySymbol = currency && currency.symbol !== currencyCode ? currency.symbol : null;
   // The same rule as the Settings row.
   const { isOwner } = useOrganizationRole();
-  const canChangeCurrency =
+  const { readOnly } = useOrganizationAccess();
+  const mayUpdateShop =
     isOwner &&
+    !readOnly &&
     Boolean(currentOrganization) &&
     (user?.permissions ?? []).includes("ORGANIZATION_UPDATE");
+  const canChangeCurrency = mayUpdateShop;
+  const { saveOrganizationProfile } = useOrganizationProfileUpdate();
 
   // Kept on screen while it slides away, after `visible` has turned false.
   const [mounted, setMounted] = useState(visible);
@@ -178,6 +185,25 @@ export function QuickMenuDrawer() {
   }, [openOrganizationSelector, showToast, t]);
 
   const handleLanguage = useCallback(() => openSheet("language", {}), [openSheet]);
+  // The shop's own things, for its owner: open over the menu, like language.
+  const handleStaff = useCallback(() => openSheet("staff", {}), [openSheet]);
+  const handleEditShop = useCallback(() => {
+    if (!currentOrganization) return;
+    openSheet("organizationProfile", {
+      organization: currentOrganization,
+      onSubmit: async (payload) => {
+        try {
+          await saveOrganizationProfile(payload);
+        } catch (error) {
+          // A refused name is shown under the name field instead.
+          if (!getOrganizationNameError(error)) {
+            showToast(getLocalizedApiErrorMessage(error, "errors.generic", t), "error");
+          }
+          throw error;
+        }
+      },
+    });
+  }, [currentOrganization, openSheet, saveOrganizationProfile, showToast, t]);
   const handleCurrency = useCallback(() => openSheet("organizationCurrency", {}), [openSheet]);
 
   // Only a leftward drag takes over; vertical ones stay with the list.
@@ -269,6 +295,28 @@ export function QuickMenuDrawer() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
+            {isOwner ? (
+              <>
+                <Text style={styles.sectionTitle}>{t("profile.organizationSection")}</Text>
+                <View style={[styles.card, styles.cardSpaced]}>
+                  {mayUpdateShop ? (
+                    <MenuRow
+                      icon="create-outline"
+                      title={t("profile.editOrganization")}
+                      value={t("profile.editOrganizationHint")}
+                      onPress={handleEditShop}
+                    />
+                  ) : null}
+                  <MenuRow
+                    icon="people-outline"
+                    title={t("staff.title")}
+                    value={t("staff.rowDescription")}
+                    onPress={handleStaff}
+                    isLast
+                  />
+                </View>
+              </>
+            ) : null}
             <Text style={styles.sectionTitle}>{t("quickMenu.preferences")}</Text>
             <View style={styles.card}>
               <MenuRow
@@ -400,6 +448,7 @@ const createStyles = (theme: AppTheme) =>
       textTransform: "uppercase",
       letterSpacing: 0.5,
     },
+    cardSpaced: { marginBottom: spacing.md },
     card: {
       overflow: "hidden",
       borderWidth: 1,

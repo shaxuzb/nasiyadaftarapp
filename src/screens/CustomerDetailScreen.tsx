@@ -31,6 +31,8 @@ import { formatDateOnly } from "../i18n/calendarLabels";
 import { todayDateOnly } from "../utils/dateOnly";
 import { findNextDue, unpaidDebts } from "../modules/transactions/utils/dueDate";
 import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
+import { ReadOnlyBanner } from "../modules/organization/components/ReadOnlyBanner";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
@@ -79,6 +81,8 @@ export function CustomerDetailScreen() {
   const { detail, history, update, resolvedId } = useClientDetail(customerId);
   const customer = detail.data;
   const { isOwner } = useOrganizationRole();
+  // "Faqat ko'rish": the customer and their history show; nothing is written.
+  const { readOnly } = useOrganizationAccess();
   // Added offline and not yet on the server: only debts and payments can be
   // written for it (they wait with it); changing or removing it waits too.
   const onlyOnPhone = resolvedId < 0;
@@ -86,6 +90,7 @@ export function CustomerDetailScreen() {
   // Editing needs the server: offline it says why (and opens once it is back).
   const openEditor = () => setEditing(true);
   const startEditing = () => {
+    if (readOnly) return;
     if (onlyOnPhone) showLockedNotice();
     else if (requireServer(openEditor)) openEditor();
   };
@@ -336,7 +341,7 @@ export function CustomerDetailScreen() {
   customerNameRef.current = displayName;
 
   function openTransactionSheet() {
-    if (!customer || deleting) return;
+    if (!customer || deleting || readOnly) return;
     openSheet("transaction", {
       customerId: resolvedId,
       customerName: displayName,
@@ -390,15 +395,19 @@ export function CustomerDetailScreen() {
       color: theme.primary,
       onPress: () => void share(),
     },
-    {
-      label: t("transactions.edit"),
-      icon: "create-outline",
-      color: onlyOnPhone ? theme.textMuted : theme.textSecondary,
-      muted: onlyOnPhone,
-      onPress: startEditing,
-    },
+    ...(readOnly
+      ? []
+      : [
+          {
+            label: t("transactions.edit"),
+            icon: "create-outline" as const,
+            color: onlyOnPhone ? theme.textMuted : theme.textSecondary,
+            muted: onlyOnPhone,
+            onPress: startEditing,
+          },
+        ]),
     // Deleting a customer is the owner's; staff do not get the button.
-    ...(isOwner
+    ...(isOwner && !readOnly
       ? [
           {
             label: deleteLabel,
@@ -430,6 +439,7 @@ export function CustomerDetailScreen() {
         ListHeaderComponent={
           <>
             <SavedDataNotice style={styles.savedNotice} />
+            <ReadOnlyBanner style={styles.readOnlyBanner} />
             <View style={styles.identity}>
               <View style={styles.avatar}>
                 <Text style={styles.initials}>{getInitials(customer)}</Text>
@@ -587,7 +597,7 @@ export function CustomerDetailScreen() {
                 </Text>
               </Pressable>
             )}
-            {showActions && (
+            {showActions && !readOnly && (
               <View style={styles.tools}>
                 <View style={styles.transactionActions}>
                   {(["debt", "payment"] as const).map((type) => (
@@ -768,6 +778,7 @@ export function CustomerDetailScreen() {
           </Pressable>
         ))}
       </View>
+      {readOnly ? null : (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("transactions.addTransaction")}
@@ -790,6 +801,7 @@ export function CustomerDetailScreen() {
           color={theme.surface}
         />
       </Pressable>
+      )}
       {editing && (
         <CustomerEditSheet
           customer={customer}
@@ -1107,6 +1119,7 @@ const createStyles = (theme: AppTheme) =>
     txDate: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
     txLabel: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
     txDue: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+    readOnlyBanner: { marginHorizontal: 0, marginTop: 4, marginBottom: 12 },
     dueCard: {
       flexDirection: "row",
       alignItems: "center",

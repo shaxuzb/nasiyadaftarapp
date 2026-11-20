@@ -69,6 +69,24 @@ import type { CurrentSubscription } from "../modules/subscription/types";
  * also the plan in force; in a shop they work in as staff the owner's plan is
  * (it came with the select answer) and is left as it is.
  */
+/**
+ * A refreshed list that does not say whether a shop is "faqat ko'rish" keeps
+ * what the previous list (or the sign-in answer) said: never shown as working
+ * because one answer left the field out.
+ */
+function keepKnownAccess(
+  next: OrganizationMembership[],
+  previous: OrganizationMembership[] | undefined,
+): OrganizationMembership[] {
+  if (!previous?.length) return next;
+  const known = new Map(previous.map((item) => [item.id, item.isReadOnly]));
+  return next.map((item) =>
+    item.isReadOnly === undefined && known.get(item.id) !== undefined
+      ? { ...item, isReadOnly: known.get(item.id) }
+      : item,
+  );
+}
+
 function withOwnSubscription(user: AuthUser, own: CurrentSubscription): AuthUser {
   const current = user.organizations?.find((item) => item.id === user.organizationId) ?? null;
   const staff = getCurrentOrganizationRole(user, current) === "staff";
@@ -292,7 +310,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         let availableOrganizations: OrganizationMembership[];
         try {
-          availableOrganizations = await getManualOrganizations();
+          availableOrganizations = keepKnownAccess(
+            await getManualOrganizations(),
+            baseUser.organizations,
+          );
         } catch (error) {
           if (baseUser.organizations?.length) {
             availableOrganizations = baseUser.organizations;

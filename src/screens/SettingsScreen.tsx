@@ -1,4 +1,6 @@
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
+import { ReadOnlyBanner } from "../modules/organization/components/ReadOnlyBanner";
 import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { useStaffInfo } from "../modules/organization/components/StaffBadge";
 import { leaveOrganization } from "../services/organizationsApi";
@@ -181,7 +183,11 @@ export function SettingsScreen() {
     useAuth();
   // Staff see their work and their account here; the shop's settings, its
   // staff, its history and buying plans are the owner's.
-  const { isOwner, isStaff, ownerName } = useOrganizationRole();
+  const { isOwner: isShopOwner, isStaff, ownerName } = useOrganizationRole();
+  // "Faqat ko'rish": the shop's settings can be looked at nowhere and changed
+  // nowhere; the owner's rows that change the shop go, as for staff.
+  const { readOnly } = useOrganizationAccess();
+  const isOwner = isShopOwner && !readOnly;
   const showStaffInfo = useStaffInfo();
   const { permission: pushPermission } = usePushNotifications();
   const { saveOrganizationProfile } = useOrganizationProfileUpdate();
@@ -220,9 +226,9 @@ export function SettingsScreen() {
       : null;
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const showSubscriptionUi =
-    isOwner && !isAdministrator && regionalCapabilities.subscriptionVisible;
+    isShopOwner && !isAdministrator && regionalCapabilities.subscriptionVisible;
   const showPaymentHistory =
-    isOwner && !isAdministrator && regionalCapabilities.paymentHistoryVisible;
+    isShopOwner && !isAdministrator && regionalCapabilities.paymentHistoryVisible;
   const pushPermissionDescription =
     pushPermission === "granted"
       ? t("notifications.permissionGranted")
@@ -631,6 +637,7 @@ export function SettingsScreen() {
           </Pressable>
         ) : null}
 
+        <ReadOnlyBanner style={styles.readOnlyBanner} />
         <SectionTitle title={t("profile.organizationSection")} />
         <View style={styles.card}>
           <ProfileMenuRow
@@ -668,7 +675,7 @@ export function SettingsScreen() {
               />
             </>
           ) : null}
-          {isOwner ? (
+          {isShopOwner ? (
             <>
               <ProfileMenuRow
                 icon="people-outline"
@@ -676,7 +683,7 @@ export function SettingsScreen() {
                 iconBackground={theme.primaryLight}
                 title={t("staff.title")}
                 description={t("staff.rowDescription")}
-                onPress={() => navigation.navigate("Staff")}
+                onPress={() => openSheet("staff", {})}
                 isLast={false}
               />
             </>
@@ -861,6 +868,7 @@ export function SettingsScreen() {
 
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
+    readOnlyBanner: { marginHorizontal: 0, marginTop: 8 },
     safe: { flex: 1, backgroundColor: theme.background },
     header: {
       flexDirection: "row",

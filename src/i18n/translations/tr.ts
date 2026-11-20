@@ -1161,6 +1161,7 @@ export const trTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   staff: {
     badge: "Çalışan · {name}",
+    badgeShort: "Çalışan",
     badgeA11y: "{name} mağazasında çalışansınız. Ayrıntılar",
     infoTitle: "Çalışansınız",
     infoMessage: "“{shop}” mağazasının sahibi: {owner}.\n\nMüşteri ekler ve düzenlersiniz, borç ve ödeme kaydedersiniz, SMS gönderirsiniz.\n\nMüşteri silme, raporlar ve mağaza ayarları yalnızca sahibindedir.",
@@ -1183,6 +1184,7 @@ export const trTranslations: TranslationSchema<typeof uzTranslations> = {
     intro: "Çalışan müşteri ekler, borç ve ödeme kaydeder, SMS gönderir. Silme, raporlar ve ayarlar yalnızca sizde kalır.",
     add: "Çalışan ekle",
     addTitle: "Çalışan ekle",
+    addTo: "“{shop}” mağazasına",
     addHint: "Çalışanın telefon numarasını girin. Bu numarayla uygulamaya girdiğinde mağazanız onda açılır.",
     phoneLabel: "Telefon numarası",
     addSubmit: "Ekle",
@@ -1212,6 +1214,13 @@ export const trTranslations: TranslationSchema<typeof uzTranslations> = {
     deviceShared: "Günlük sınır tüm mağazalar için ortaktır: günde {limit} SMS",
     deviceToggleError: "Değiştirilemedi",
     smsLimitOwner: "SMS hakkı mağaza sahibinin tarifesinden gelir. Artırmak için sahibine söyleyin.",
+  },
+  readOnly: {
+    title: "Yalnızca görüntüleme",
+    ownerText: "Ücretsiz tarifede yalnızca ilk açılan kuruluş çalışır. Burada çalışmak için Premium'u açın.",
+    staffText: "Ücretsiz tarifede yalnızca ilk açılan kuruluş çalışır. Burada çalışmak için mağaza sahibinin Premium'u açması gerekir.",
+    action: "Premium",
+    chip: "Yalnızca görüntüleme",
   },
   offline: {
     savedNotice: "Sunucuyla bağlantı yok. Telefonda kayıtlı veriler gösteriliyor · {time}",

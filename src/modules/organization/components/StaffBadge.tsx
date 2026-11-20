@@ -27,8 +27,9 @@ export function useStaffInfo() {
 }
 
 /**
- * "Xodim · Baraka", where staff look first: on top of the customer list, so
- * it is always plain whose shop they are working in. Nothing for the owner.
+ * "Xodim", where staff look first: on top of the customer list. Short, so the
+ * header stays tidy; tapping it says whose shop it is and what staff can do.
+ * Nothing for the owner.
  */
 export function StaffBadge() {
   const theme = useTheme();
@@ -49,7 +50,7 @@ export function StaffBadge() {
     >
       <Ionicons name="person-outline" size={15} color={theme.primary} />
       <Text style={styles.text} numberOfLines={1}>
-        {t("staff.badge", { name })}
+        {t("staff.badgeShort")}
       </Text>
     </Pressable>
   );
@@ -59,7 +60,7 @@ const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     badge: {
       flexShrink: 1,
-      maxWidth: 200,
+      maxWidth: 140,
       height: 36,
       flexDirection: "row",
       alignItems: "center",

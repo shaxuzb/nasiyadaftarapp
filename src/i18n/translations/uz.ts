@@ -1159,6 +1159,7 @@ export const uzTranslations = {
   },
   staff: {
     badge: "Xodim · {name}",
+    badgeShort: "Xodim",
     badgeA11y: "Siz {name} do‘konida xodimsiz. Batafsil",
     infoTitle: "Siz xodimsiz",
     infoMessage: "«{shop}» do‘koni egasi: {owner}.\n\nSiz mijoz qo‘shasiz va tahrirlaysiz, qarz va to‘lov yozasiz, SMS yuborasiz.\n\nMijozni o‘chirish, hisobotlar va do‘kon sozlamalari faqat egasida.",
@@ -1181,6 +1182,7 @@ export const uzTranslations = {
     intro: "Xodim mijoz qo‘shadi, qarz va to‘lov yozadi, SMS yuboradi. O‘chirish, hisobotlar va sozlamalar faqat sizda qoladi.",
     add: "Xodim qo‘shish",
     addTitle: "Xodim qo‘shish",
+    addTo: "«{shop}» do‘koniga",
     addHint: "Xodimning telefon raqamini kiriting. U shu raqam bilan ilovaga kirganda do‘koningiz unda ochiladi.",
     phoneLabel: "Telefon raqami",
     addSubmit: "Qo‘shish",
@@ -1210,6 +1212,13 @@ export const uzTranslations = {
     deviceShared: "Kunlik limit hamma do‘konlarga umumiy: kuniga {limit} ta SMS",
     deviceToggleError: "O‘zgartirib bo‘lmadi",
     smsLimitOwner: "SMS limiti do‘kon egasining tarifidan. Ko‘paytirish uchun egasiga ayting.",
+  },
+  readOnly: {
+    title: "Faqat ko‘rish rejimi",
+    ownerText: "Bepul tarifda faqat birinchi ochilgan tashkilot ishlaydi. Bu yerda ishlash uchun Premium tarifini yoqing.",
+    staffText: "Bepul tarifda faqat birinchi ochilgan tashkilot ishlaydi. Bu yerda ishlash uchun do‘kon egasi Premium tarifini yoqishi kerak.",
+    action: "Premium",
+    chip: "Faqat ko‘rish",
   },
   offline: {
     savedNotice: "Server bilan aloqa yo‘q. Telefonda saqlangan ma’lumotlar ko‘rsatilmoqda · {time}",

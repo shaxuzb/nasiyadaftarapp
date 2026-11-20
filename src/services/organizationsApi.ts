@@ -99,6 +99,8 @@ function parseOrganizationMembership(
         : undefined,
     isSelected:
       typeof item.isSelected === "boolean" ? item.isSelected : undefined,
+    // Absent (not false) when the answer does not say: then nothing is known.
+    isReadOnly: typeof item.isReadOnly === "boolean" ? item.isReadOnly : undefined,
     currencyCode:
       typeof item.currencyCode === "string" && item.currencyCode.trim()
         ? item.currencyCode.trim().toUpperCase()
@@ -137,7 +139,35 @@ export async function getManualOrganizations(): Promise<
   OrganizationMembership[]
 > {
   const { data } = await apiClient.get<unknown>("/manual/organizations");
-  return extractOrganizations(data);
+  const organizations = extractOrganizations(data);
+  if (organizations.every((item) => item.isReadOnly !== undefined)) return organizations;
+  // "Faqat ko'rish" comes with GET /organizations (and the sign-in answer);
+  // this list may not carry it. Taken from there by id, so a refresh never
+  // loses it. Without that answer the list is used as it is.
+  try {
+    const { data: full } = await apiClient.get<unknown>("/organizations");
+    const readOnly = new Map<number, boolean>();
+    const list = Array.isArray(full)
+      ? full
+      : full && typeof full === "object"
+        ? (["data", "result", "items", "results"]
+            .map((key) => (full as Record<string, unknown>)[key])
+            .find(Array.isArray) ?? [])
+        : [];
+    for (const value of list as unknown[]) {
+      if (!value || typeof value !== "object") continue;
+      const item = value as Record<string, unknown>;
+      const id = Number(item.id);
+      if (Number.isInteger(id) && typeof item.isReadOnly === "boolean") readOnly.set(id, item.isReadOnly);
+    }
+    return organizations.map((item) =>
+      item.isReadOnly === undefined && readOnly.has(item.id)
+        ? { ...item, isReadOnly: readOnly.get(item.id) }
+        : item,
+    );
+  } catch {
+    return organizations;
+  }
 }
 
 export async function updateBlacklistSettings(

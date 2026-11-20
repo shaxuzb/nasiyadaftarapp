@@ -24,6 +24,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { type RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SearchBar } from "../components/SearchBar";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
+import { ReadOnlyBanner } from "../modules/organization/components/ReadOnlyBanner";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useAuth } from "../context/AuthContext";
@@ -83,10 +85,15 @@ export function ClientSmsScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { t } = useTranslation();
   const { user } = useAuth();
-  const capabilities = getClientSmsCapabilities(
+  const permitted = getClientSmsCapabilities(
     user?.permissions,
     user?.subscription,
   );
+  // "Faqat ko'rish": the list and history show, nothing is sent from here.
+  const { readOnly } = useOrganizationAccess();
+  const capabilities = readOnly
+    ? { ...permitted, canSendOne: false, canSendBulk: false }
+    : permitted;
   const isBottomTab = isBottomTabNavigation(navigation);
   if (!capabilities.canView) {
     return (
@@ -401,6 +408,7 @@ function ClientSmsContent({
             </View>
           }
         />
+        <ReadOnlyBanner />
         <View style={styles.search}>
           <SearchBar
             value={search}

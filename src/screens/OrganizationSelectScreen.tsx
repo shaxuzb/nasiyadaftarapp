@@ -238,6 +238,7 @@ export function OrganizationSelectScreen() {
               <OrganizationRow
                 key={organization.id}
                 name={organization.name}
+                readOnly={organization.isReadOnly === true}
                 ownerLine={null}
                 isLast={index === ownOrganizations.length - 1}
                 isSelecting={selectingId === organization.id}
@@ -257,6 +258,7 @@ export function OrganizationSelectScreen() {
                 <OrganizationRow
                   key={organization.id}
                   name={organization.name}
+                  readOnly={organization.isReadOnly === true}
                   ownerLine={
                     organization.ownerName
                       ? t("staff.ownerLine", { owner: organization.ownerName })
@@ -397,6 +399,7 @@ export function OrganizationSelectScreen() {
 function OrganizationRow({
   name,
   ownerLine,
+  readOnly,
   isLast,
   isSelecting,
   disabled,
@@ -407,6 +410,8 @@ function OrganizationRow({
   name: string;
   /** "Egasi: Ali Valiyev" for a shop the user works in as staff. */
   ownerLine: string | null;
+  /** Past the plan's limit: it opens, to look at only. */
+  readOnly: boolean;
   isLast: boolean;
   isSelecting: boolean;
   disabled: boolean;
@@ -439,6 +444,12 @@ function OrganizationRow({
         <Text style={styles.organizationName} numberOfLines={1}>
           {name}
         </Text>
+        {readOnly ? (
+          <View style={styles.readOnlyChip}>
+            <Ionicons name="lock-closed" size={11} color={theme.warningColor} />
+            <Text style={styles.readOnlyChipText}>{t("readOnly.chip")}</Text>
+          </View>
+        ) : null}
         {ownerLine ? (
           <Text style={styles.organizationOwner} numberOfLines={1}>
             {ownerLine}
@@ -538,6 +549,18 @@ const createStyles = (theme: AppTheme) =>
     },
     organizationContent: { minWidth: 0, flex: 1, gap: 1 },
     organizationOwner: { color: theme.textSecondary, fontSize: 12, lineHeight: 16 },
+    readOnlyChip: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginTop: 2,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: `${theme.warningColor}1F`,
+    },
+    readOnlyChipText: { color: theme.warningColor, fontSize: 11, fontWeight: "800" },
     sectionTitle: {
       marginBottom: -6,
       paddingHorizontal: 4,

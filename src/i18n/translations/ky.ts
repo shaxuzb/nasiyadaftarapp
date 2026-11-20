@@ -1161,6 +1161,7 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
   },
   staff: {
     badge: "Кызматкер · {name}",
+    badgeShort: "Кызматкер",
     badgeA11y: "Сиз {name} дүкөнүнүн кызматкерисиз. Кененирээк",
     infoTitle: "Сиз кызматкерсиз",
     infoMessage: "«{shop}» дүкөнүнүн ээси: {owner}.\n\nСиз кардар кошосуз жана оңдойсуз, карыз жана төлөм жазасыз, SMS жөнөтөсүз.\n\nКардарды өчүрүү, отчеттор жана дүкөн жөндөөлөрү ээсинде гана.",
@@ -1183,6 +1184,7 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
     intro: "Кызматкер кардар кошот, карыз жана төлөм жазат, SMS жөнөтөт. Өчүрүү, отчеттор жана жөндөөлөр сизде гана калат.",
     add: "Кызматкер кошуу",
     addTitle: "Кызматкер кошуу",
+    addTo: "«{shop}» дүкөнүнө",
     addHint: "Кызматкердин телефон номерин жазыңыз. Ал ушул номер менен колдонмого киргенде, дүкөнүңүз ага ачылат.",
     phoneLabel: "Телефон номери",
     addSubmit: "Кошуу",
@@ -1212,6 +1214,13 @@ export const kyTranslations: TranslationSchema<typeof uzTranslations> = {
     deviceShared: "Күндүк лимит бардык дүкөндөргө жалпы: күнүнө {limit} SMS",
     deviceToggleError: "Өзгөртүү мүмкүн болбоду",
     smsLimitOwner: "SMS лимити дүкөн ээсинин тарифинен. Көбөйтүү үчүн ээсине айтыңыз.",
+  },
+  readOnly: {
+    title: "Көрүү гана режими",
+    ownerText: "Акысыз тарифте биринчи ачылган уюм гана иштейт. Бул жерде иштөө үчүн Premium тарифин күйгүзүңүз.",
+    staffText: "Акысыз тарифте биринчи ачылган уюм гана иштейт. Бул жерде иштөө үчүн дүкөн ээси Premium тарифин күйгүзүшү керек.",
+    action: "Premium",
+    chip: "Көрүү гана",
   },
   offline: {
     savedNotice: "Сервер менен байланыш жок. Телефондо сакталган маалыматтар көрсөтүлүүдө · {time}",
