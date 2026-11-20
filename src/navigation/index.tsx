@@ -133,11 +133,8 @@ function TabNavigator({
   const canViewClientSms =
     regionalCapabilities.clientSmsVisible &&
     getClientSmsCapabilities(user?.permissions).canView;
-  // Reports are the owner's; staff do not see the tab at all.
-  const { isOwner } = useOrganizationRole();
   const resolvedInitialRouteName =
-    (initialRouteName === "ClientSms" && !canViewClientSms) ||
-    (initialRouteName === "Reports" && !isOwner)
+    initialRouteName === "ClientSms" && !canViewClientSms
       ? "Customers"
       : initialRouteName;
   const bottomPadding = Math.max(insets.bottom, 8);
@@ -201,13 +198,12 @@ function TabNavigator({
         component={CustomersScreen}
         options={{ title: t("customers.screenTitle") }}
       />
-      {isOwner ? (
-        <Tab.Screen
-          name="Reports"
-          component={ReportsScreen}
-          options={{ title: t("reports.screenTitle") }}
-        />
-      ) : null}
+      {/* Reports are open to everyone in the shop, owner and staff alike. */}
+      <Tab.Screen
+        name="Reports"
+        component={ReportsScreen}
+        options={{ title: t("reports.screenTitle") }}
+      />
       {canViewClientSms ? (
         <Tab.Screen
           name="ClientSms"
