@@ -40,9 +40,12 @@ assert.match(editSheet, /onPress=\{\(\) => void fillFromContact\(\)\}/);
 for (const [name, source] of [["CustomersScreen", customersScreen], ["CustomerEditSheet", editSheet]]) {
   assert.match(source, /if \(contact\.fullName\) /, `${name}: a contact without a name leaves the name as typed`);
 }
-// The note is no longer edited here, and saving keeps the one already there.
-assert.doesNotMatch(editSheet, /label=\{t\("transactions\.note"\)\}|setNote/);
-assert.match(editSheet, /note: customer\.note \?\? "",/);
+// The note is edited here again (2026-11-20): one compact line, sent trimmed,
+// counted as a change, and reset with the rest when the customer reloads.
+assert.match(editSheet, /label=\{t\("transactions\.note"\)\}/);
+assert.match(editSheet, /note: note\.trim\(\),/);
+assert.match(editSheet, /note\.trim\(\) !== \(customer\.note \?\? ""\)\.trim\(\)/);
+assert.match(editSheet, /setNote\(customer\.note \?\? ""\);/);
 assert.match(
   appInput,
   /inputResetKey\?: string \| number/,

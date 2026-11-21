@@ -118,8 +118,18 @@ try {
   const sheet = read("src/bottom-sheet/sheets/DatePickerSheet.tsx");
   assert.match(
     sheet,
-    /disabled=\{cell !== null && cell\.date > maxDate\}/,
-    "Days after the maximum date must not be selectable",
+    /disabled=\{cell !== null && outOfRange\(cell\.date\)\}/,
+    "Days outside the range must not be selectable",
+  );
+  assert.match(
+    sheet,
+    /\(maxDate !== null && date > maxDate\) \|\| \(minDate !== null && date < minDate\)/,
+    "Days after the maximum date, and before a minimum one, are out of range",
+  );
+  assert.match(
+    sheet,
+    /const maxDate = props\.maxDate \?\? \(minDate \? null : today\)/,
+    "A past date (no minimum) still ends today",
   );
   assert.match(
     sheet,

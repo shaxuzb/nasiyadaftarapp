@@ -27,7 +27,15 @@ export interface AuthUser {
   isParent: boolean;
   modules: Array<number | string>;
   permissions: string[];
+  /**
+   * The plan in force in the open shop: for staff, the owner's. What the
+   * screens offer (blacklist, SMS limit) follows this one.
+   */
   subscription?: CurrentSubscription;
+  /** The user's own plan, for buying and their own shops' limit. */
+  ownSubscription?: CurrentSubscription;
+  /** "owner" or "staff" in the open shop; absent from an older server (owner). */
+  currentOrganizationRole?: string | null;
 }
 
 export interface GoogleLoginRequest {

@@ -288,6 +288,7 @@ function transactionFromSync(item: SyncedTransaction): Transaction {
     amount: item.amount,
     date: item.date,
     note: item.note,
+    ...(item.dueDate ? { dueDate: item.dueDate } : {}),
     uuid: item.uuid,
   };
 }

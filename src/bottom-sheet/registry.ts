@@ -1,4 +1,5 @@
 import { SheetRegistry } from "./types";
+import { StaffSheet } from "../modules/staff/components/StaffSheet";
 import {
   TransactionSheet,
   TransactionSheetProvider,
@@ -38,6 +39,12 @@ export const sheetRegistry: SheetRegistry = {
   },
   organizationProfile: {
     component: OrganizationProfileSheet,
+    enableDynamicSizing: true,
+    enablePanDownToClose: true,
+    dismissKeyboardOnOpen: false,
+  },
+  staff: {
+    component: StaffSheet,
     enableDynamicSizing: true,
     enablePanDownToClose: true,
     dismissKeyboardOnOpen: false,

@@ -100,6 +100,7 @@ export function applyPendingToHistory(
         amount: data.amount,
         date: data.date ?? operation.occurredAt.slice(0, 10),
         note: data.note,
+        ...(data.dueDate ? { dueDate: data.dueDate } : {}),
         uuid: data.uuid,
         pendingSync: true,
       };

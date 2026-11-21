@@ -24,6 +24,15 @@ export function parseSmsDevice(input: unknown): SmsDevice {
     battery: typeof data.battery === "number" && Number.isFinite(data.battery) ? data.battery : null,
     lastSeenAt: typeof data.lastSeenAt === "string" ? data.lastSeenAt : null,
     sims,
+    organizations: Array.isArray(data.organizations)
+      ? data.organizations.flatMap((v: unknown) => {
+          const item = obj(v);
+          const organizationId = num(item.organizationId);
+          return organizationId > 0
+            ? [{ organizationId, name: str(item.name), isPrimary: item.isPrimary === true }]
+            : [];
+        })
+      : null,
   };
 }
 export function parseSmsDevices(input: unknown): SmsDevice[] {

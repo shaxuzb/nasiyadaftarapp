@@ -209,14 +209,29 @@ async function main() {
 
   /* 6. A tapped push: follow the link and mark it read, or open the inbox. */
 
-  function createOpener(opens) {
-    const env = { read: [], inbox: [] };
+  function createOpener(opens, { organizationId = 1, switchFails = false } = {}) {
+    const env = { read: [], inbox: [], deferred: [], switched: [], toasts: [] };
     const hook = load("src/modules/push/hooks/useOpenNotification.ts", {
       react: { useCallback: (callback) => callback },
+      "../../../context/AuthContext": {
+        useAuth: () => ({
+          currentOrganization: { id: organizationId },
+          selectOrganization: async (id) => {
+            env.switched.push(id);
+            if (switchFails) throw new Error("not a member");
+          },
+        }),
+      },
+      "../../../context/ToastContext": {
+        useToast: () => ({ showToast: (message, type) => env.toasts.push([message, type]) }),
+      },
+      "../../../i18n": { useTranslation: () => ({ t: (key) => key }) },
       "../../../navigation/navigationRef": {
         navigateToPushNotification: (id) => env.inbox.push(id),
+        deferInternalRoute: (route) => env.deferred.push(route && plain(route)),
       },
       "../services/notificationNavigation": { openNotificationLink: async () => opens },
+      "../utils/notificationLink": linkUtils,
       "./usePushQueries": {
         useMarkPushNotificationRead: () => ({ mutate: (id) => env.read.push(id) }),
       },
@@ -238,6 +253,43 @@ async function main() {
   await fallback.open({ notificationId: 4, link: null });
   assert.deepEqual(fallback.env.inbox, [9, 4], "No usable link opens the inbox, as before");
   assert.deepEqual(fallback.env.read, [], "Opening the inbox does not mark anything read");
+
+  /* 6a. The "debts due" push: its own scheme, and its shop first. */
+
+  assert.deepEqual(
+    plain(linkUtils.parseNotificationLink("qarzdaftar://debt-due?organizationId=55&date=2026-11-16")),
+    { kind: "internal", path: "/debt-due?organizationId=55&date=2026-11-16" },
+    "The app's own scheme is a path inside the app, not an outside address",
+  );
+  assert.equal(linkUtils.parseNotificationLink("qarzdaftar://"), null);
+  assert.deepEqual(
+    plain(linkUtils.matchInternalRoute("/debt-due?organizationId=55&date=2026-11-16")),
+    { screen: "DueClients", params: { date: "2026-11-16", organizationId: 55 } },
+  );
+  assert.deepEqual(
+    plain(linkUtils.matchInternalRoute("/debt-due?date=16.11.2026")),
+    { screen: "DueClients", params: {} },
+    "A day that is not YYYY-MM-DD falls back to today",
+  );
+
+  const sameShop = createOpener(true, { organizationId: 55 });
+  await sameShop.open({ notificationId: 7, link: "qarzdaftar://debt-due?organizationId=55" });
+  assert.deepEqual(sameShop.env.switched, [], "The open shop needs no switch");
+  assert.deepEqual(sameShop.env.read, [7]);
+
+  const otherShop = createOpener(true, { organizationId: 3 });
+  await otherShop.open({ notificationId: 7, link: "qarzdaftar://debt-due?organizationId=55&date=2026-11-16" });
+  assert.deepEqual(otherShop.env.switched, [55], "Another shop's push switches to it first");
+  assert.deepEqual(otherShop.env.deferred, [
+    { screen: "DueClients", params: { date: "2026-11-16", organizationId: 55 } },
+  ], "The list opens once the switched shop's screens are up");
+  assert.deepEqual(otherShop.env.read, [7]);
+  assert.deepEqual(otherShop.env.inbox, []);
+
+  const notMember = createOpener(true, { organizationId: 3, switchFails: true });
+  await notMember.open({ notificationId: 7, link: "/debt-due?organizationId=55" });
+  assert.equal(notMember.env.deferred.at(-1), null, "A failed switch must not leave the list to open later");
+  assert.deepEqual(notMember.env.toasts, [["dueClients.switchError", "error"]]);
 
   /* 6b. The real table reaches every screen it names. */
 
@@ -285,7 +337,7 @@ async function main() {
   const inbox = read("src/screens/NotificationsScreen.tsx");
   assert.match(
     inbox,
-    /void openNotificationLink\(link\)\.then\(\(opened\) => \{\s*if \(opened\) return;[\s\S]{0,400}?showToast\(/,
+    /void followLink\(link\)\.then\(\(opened\) => \{\s*if \(opened\) return;[\s\S]{0,400}?showToast\(/,
     "An inbox row must follow its link, and say so when it could not",
   );
   assert.match(inbox, /if \(!link\) return;/, "A row without a link stays silent, as before");

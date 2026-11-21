@@ -8,10 +8,14 @@ import type { VideoLessonId } from "../../video-lessons/utils/videoLessons";
  *   - starts with "/"  → a screen inside the app
  *   - anything else    → an address to hand to the browser, Telegram, etc.
  *   - missing or empty → nowhere in particular; the inbox opens, as before
+ *
+ * "qarzdaftar://debt-due?..." is the app's own address for "/debt-due?...".
  */
 export type NotificationLinkTarget =
   | { kind: "internal"; path: string }
   | { kind: "external"; url: string };
+
+const APP_SCHEME = "qarzdaftar://";
 
 export function parseNotificationLink(value: unknown): NotificationLinkTarget | null {
   if (typeof value !== "string") return null;
@@ -20,6 +24,10 @@ export function parseNotificationLink(value: unknown): NotificationLinkTarget | 
   // "//host/path" is an address without its scheme, not a path in the app.
   if (link.startsWith("//")) return null;
   if (link.startsWith("/")) return { kind: "internal", path: link };
+  if (link.toLowerCase().startsWith(APP_SCHEME)) {
+    const rest = link.slice(APP_SCHEME.length).replace(/^\/+/, "");
+    return rest ? { kind: "internal", path: `/${rest}` } : null;
+  }
   return { kind: "external", url: link };
 }
 
@@ -83,6 +91,22 @@ export const INTERNAL_ROUTE_RULES: readonly InternalRouteRule[] = [
     build: ({ customerId }) => {
       const id = parseRouteId(customerId);
       return id ? { screen: "CustomerDetail", params: { customerId: id } } : null;
+    },
+  },
+  {
+    // The daily "debts due" push. `organizationId` is the shop it is about:
+    // the app switches to it first when another one is open.
+    pattern: "/debt-due",
+    build: (_params, { date, organizationId }) => {
+      const day = date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : null;
+      const organization = parseRouteId(organizationId);
+      return {
+        screen: "DueClients",
+        params: {
+          ...(day ? { date: day } : {}),
+          ...(organization ? { organizationId: organization } : {}),
+        },
+      };
     },
   },
   { pattern: "/reports", build: tab("Reports") },
@@ -164,4 +188,11 @@ export function parseRouteId(value: string | undefined): number | null {
   if (!value || !/^\d+$/.test(value)) return null;
   const id = Number(value);
   return Number.isSafeInteger(id) && id > 0 ? id : null;
+}
+
+/** The shop a link is about, when it names one (only "/debt-due" does). */
+export function getRouteOrganizationId(route: InternalRoute): number | null {
+  if (route.screen === "MainTabs") return null;
+  const id = route.params?.organizationId;
+  return typeof id === "number" && Number.isSafeInteger(id) && id > 0 ? id : null;
 }

@@ -151,6 +151,13 @@ function parseClient(value: unknown): SyncedClient | null {
   };
 }
 
+/** A "YYYY-MM-DD" day (or the day of a timestamp), else null. */
+function dateOnly(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const day = value.slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+}
+
 function parseTransaction(value: unknown): SyncedTransaction | null {
   const item = record(value);
   const id = positiveId(item.id);
@@ -168,6 +175,7 @@ function parseTransaction(value: unknown): SyncedTransaction | null {
     amount,
     date: text(item.date),
     note: text(item.note),
+    dueDate: dateOnly(item.dueDate),
     createdAt: nullableText(item.createdDate),
     version: finite(item.version) ?? 0,
   };

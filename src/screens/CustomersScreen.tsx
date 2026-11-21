@@ -41,6 +41,7 @@ import { useRegionalProductCapabilities } from "../hooks/useRegionalProductCapab
 import { useSheetFrameStyle } from "../hooks/useSheetFrameStyle";
 import { useDismissSheetOnAppLock } from "../bottom-sheet/useDismissSheetOnAppLock";
 import { SearchBar } from "../components/SearchBar";
+import { openQuickMenu } from "../components/quickMenuState";
 import { CustomerCard } from "../modules/clients/components/CustomerCard";
 import { CustomerCardSkeleton } from "../modules/clients/components/CustomerCardSkeleton";
 import { isCustomerBlacklisted } from "../modules/clients/utils/blacklist";
@@ -78,6 +79,11 @@ import { useMoney } from "../modules/currency/hooks/useMoney";
 import { todayDateOnly, type DateOnly } from "../utils/dateOnly";
 import { radius, spacing } from "../theme";
 import { PendingPaymentBanner } from "../modules/payments/components/PendingPaymentBanner";
+import { DueClientsBanner } from "../modules/debt-due/components/DueClientsBanner";
+import { StaffBadge } from "../modules/organization/components/StaffBadge";
+import { ReadOnlyBanner } from "../modules/organization/components/ReadOnlyBanner";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { RenewalReminderBanner } from "../modules/subscription/components/RenewalReminderBanner";
 import { useUnreadPushNotificationCount } from "../modules/push/hooks/usePushQueries";
 import { useContactPicker } from "../modules/clients/hooks/useContactPicker";
@@ -177,8 +183,11 @@ export function CustomersScreen() {
   const isAdministrator = user?.role === "Administrator" && user?.roleId === 2;
   const isPremium =
     user?.subscription?.planCode?.trim().toUpperCase() === "PREMIUM";
+  const { isStaff, isOwner } = useOrganizationRole();
+  const { readOnly } = useOrganizationAccess();
+  // Staff work under the owner's plan and buy nothing here.
   const showProBadge =
-    regionalCapabilities.subscriptionVisible && !isAdministrator && !isPremium;
+    regionalCapabilities.subscriptionVisible && !isAdministrator && !isPremium && !isStaff;
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const sheetFrame = useSheetFrameStyle();
   // Must not stay open on top of the PIN screen, and must not be "closed"
@@ -431,6 +440,11 @@ export function CustomersScreen() {
   const handleSelectCustomer = useCallback(
     (item: ListItem) => {
       hapticTap();
+      // "Faqat ko'rish": nothing to write, so the tap opens the customer to look at.
+      if (readOnly) {
+        navigation.navigate("CustomerDetail", { customerId: item.customer.id });
+        return;
+      }
       openSheet("transaction", {
         customerId: item.customer.id,
         type: "debt",
@@ -444,7 +458,7 @@ export function CustomersScreen() {
           }),
       });
     },
-    [navigation, openSheet],
+    [navigation, openSheet, readOnly],
   );
 
   const renderItem = useCallback(
@@ -459,20 +473,17 @@ export function CustomersScreen() {
       <View style={styles.mainKeyboardWrap}>
         <View style={styles.header}>
           <View style={styles.headerTop}>
-            <View style={styles.titleBlock}>
-              <Text
-                style={styles.screenTitle}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
+            <View style={styles.headerLead}>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={t("quickMenu.open")}
+                onPress={openQuickMenu}
+                activeOpacity={0.82}
+                style={styles.quickMenuBtn}
               >
-                {t("customers.screenTitle")}
-              </Text>
-              {/* <Text style={styles.screenSubtitle}>
-                Qarz va to'lovlarni boshqaring
-              </Text> */}
-            </View>
-            <View style={styles.headerActions}>
+                <Ionicons name="menu" size={22} color={theme.text} />
+              </TouchableOpacity>
+              {/* Where the title was: the way to PRO, until it is bought. */}
               {showProBadge ? (
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -489,10 +500,27 @@ export function CustomersScreen() {
                   <Text style={styles.proButtonText}>PRO</Text>
                 </TouchableOpacity>
               ) : null}
+              <StaffBadge />
+            </View>
+            <View style={styles.headerActions}>
               <VideoLessonButton
                 code="customers"
                 style={styles.videoLessonBtn}
               />
+              {/* "Tarix": deleted customers, purchases, the shop's changes.
+                  The owner's only, like the screen itself. */}
+              {isOwner ? (
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t("history.title")}
+                  accessibilityHint={t("history.rowDescription")}
+                  onPress={() => navigation.navigate("History")}
+                  activeOpacity={0.82}
+                  style={styles.notificationBtn}
+                >
+                  <Ionicons name="time-outline" size={22} color={theme.text} />
+                </TouchableOpacity>
+              ) : null}
               <TouchableOpacity
                 accessibilityRole="button"
                 accessibilityLabel={t("notifications.unreadA11y", {
@@ -533,8 +561,10 @@ export function CustomersScreen() {
           </View>
         </View>
 
+        <ReadOnlyBanner />
         <RenewalReminderBanner />
         <PendingPaymentBanner />
+        <DueClientsBanner />
 
         <FlatList
           data={isListLoading && listData.length === 0 ? [] : listData}
@@ -603,7 +633,7 @@ export function CustomersScreen() {
                     : t("customers.emptyDescription")
                 }
                 action={
-                  !isSearchActive ? (
+                  !isSearchActive && !readOnly ? (
                     <PrimaryButton
                       label={t("customers.addAction")}
                       onPress={openAddCustomerSheet}
@@ -638,6 +668,7 @@ export function CustomersScreen() {
         {/* Adding a customer, where the thumb already is, as adding a debt is
             on the customer's page. Inside the screen's column, so on a tablet
             it sits by the list rather than at the far edge of the window. */}
+        {readOnly ? null : (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("customers.addCustomer")}
@@ -649,6 +680,7 @@ export function CustomersScreen() {
               so the person, not the whole glyph, sits in the middle. */}
           <Ionicons name="person-add" size={30} color="#FFFFFF" style={styles.addFabIcon} />
         </Pressable>
+        )}
       </View>
       <BottomSheetModal
         ref={bottomSheetRef}
@@ -878,7 +910,7 @@ const createStyles = (theme: AppTheme) =>
       gap: 8,
     },
     proButton: {
-      minWidth: 58,
+      minWidth: 64,
       height: 36,
       flexDirection: "row",
       alignItems: "center",
@@ -897,22 +929,22 @@ const createStyles = (theme: AppTheme) =>
       fontWeight: "900",
       letterSpacing: 0.4,
     },
-    titleBlock: {
+    // The quick menu: organization, language, currency. Same size as the bell.
+    quickMenuBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: theme.surface,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    headerLead: {
       flex: 1,
-      gap: 2,
-    },
-    screenTitle: {
-      color: theme.text,
-      fontSize: 26,
-      lineHeight: 29,
-      fontWeight: "800",
-      letterSpacing: -0.8,
-    },
-    screenSubtitle: {
-      color: theme.textSecondary,
-      fontSize: 14,
-      lineHeight: 16,
-      fontWeight: "400",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 10,
     },
     addFab: {
       position: "absolute",

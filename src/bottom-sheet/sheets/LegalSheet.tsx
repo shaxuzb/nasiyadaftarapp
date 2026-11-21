@@ -1,36 +1,30 @@
 import React, { useMemo } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetView } from "@gorhom/bottom-sheet";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import {
-  PRIVACY_POLICY_URL,
-  TERMS_OF_SERVICE_URL,
-} from "../../config/legalLinks";
 import { useTheme } from "../../hooks/useTheme";
 import { useTranslation } from "../../i18n";
-import { useLinkOpener } from "../../modules/support/hooks/useAppLinks";
+import { useLegalDocument } from "../../modules/legal/LegalDocumentProvider";
 import { radius, spacing, typography } from "../../theme";
 import { AppTheme } from "../../types";
 import type { SheetRenderProps } from "../types";
 
-// The two documents the app is used under. Their addresses are fixed in the
-// app (config/legalLinks); nothing here comes from the server.
+// The two documents the app is used under, read in the app from the text the
+// admin publishes (the fixed page on the site until one is published).
 const DOCUMENTS = [
   {
-    key: "terms_of_service",
+    key: "offer",
     icon: "document-text-outline",
     titleKey: "legal.terms.title",
     descriptionKey: "legal.terms.description",
-    url: TERMS_OF_SERVICE_URL,
   },
   {
-    key: "privacy_policy",
+    key: "privacy",
     icon: "shield-checkmark-outline",
     titleKey: "legal.privacy.title",
     descriptionKey: "legal.privacy.description",
-    url: PRIVACY_POLICY_URL,
   },
 ] as const;
 
@@ -39,8 +33,7 @@ export function LegalSheet({ closeSheet }: SheetRenderProps<"legal">) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const { openingKey, open } = useLinkOpener();
-  const busy = openingKey !== null;
+  const { openLegalDocument } = useLegalDocument();
 
   return (
     <BottomSheetView
@@ -74,23 +67,16 @@ export function LegalSheet({ closeSheet }: SheetRenderProps<"legal">) {
 
       <View style={styles.options}>
         {DOCUMENTS.map((document) => {
-          const loading = openingKey === document.key;
           const title = t(document.titleKey);
           const description = t(document.descriptionKey);
           return (
             <Pressable
               key={document.key}
-              accessibilityRole="link"
+              accessibilityRole="button"
               accessibilityLabel={title}
               accessibilityHint={description}
-              accessibilityState={{ disabled: busy, busy: loading }}
-              disabled={busy}
-              onPress={() => void open(document)}
-              style={({ pressed }) => [
-                styles.option,
-                pressed && styles.pressed,
-                busy && !loading && styles.dimmed,
-              ]}
+              onPress={() => openLegalDocument(document.key)}
+              style={({ pressed }) => [styles.option, pressed && styles.pressed]}
             >
               <View style={styles.optionIcon}>
                 <Ionicons name={document.icon} size={20} color={theme.primary} />
@@ -103,13 +89,7 @@ export function LegalSheet({ closeSheet }: SheetRenderProps<"legal">) {
                   {description}
                 </Text>
               </View>
-              {loading ? (
-                <ActivityIndicator size="small" color={theme.primary} />
-              ) : (
-                // Leaves the app for the browser, unlike a row that goes
-                // deeper into the app.
-                <Ionicons name="open-outline" size={18} color={theme.textMuted} />
-              )}
+              <Ionicons name="chevron-forward" size={18} color={theme.textMuted} />
             </Pressable>
           );
         })}

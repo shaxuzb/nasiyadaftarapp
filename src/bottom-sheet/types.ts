@@ -17,6 +17,7 @@ export type SheetType =
   | "transactionDetail"
   | "language"
   | "organizationProfile"
+  | "staff"
   | "paymentCheckout"
   | "paymentStatus"
   | "paymentDetail"
@@ -61,11 +62,16 @@ export interface BlacklistOrganizationsSheetProps {
 export interface DatePickerSheetProps {
   /** The currently chosen day, "YYYY-MM-DD". */
   value: string;
-  /** The latest pickable day, "YYYY-MM-DD"; today when omitted. */
+  /** The latest pickable day, "YYYY-MM-DD"; today when omitted, none with a `minDate`. */
   maxDate?: string;
+  /** The earliest pickable day, "YYYY-MM-DD": a date ahead, such as a due date. */
+  minDate?: string;
   title: string;
   onSelect: (value: string) => void;
 }
+
+/** The open shop's staff; the shop comes from the account, not the caller. */
+export type StaffSheetProps = Record<string, never>;
 
 export interface OrganizationProfileSheetProps {
   organization: OrganizationMembership;
@@ -108,6 +114,7 @@ export interface SheetPropsMap {
   transactionDetail: TransactionDetailSheetProps;
   language: LanguageSheetProps;
   organizationProfile: OrganizationProfileSheetProps;
+  staff: StaffSheetProps;
   paymentCheckout: PaymentCheckoutSheetProps;
   paymentStatus: PaymentStatusSheetProps;
   paymentDetail: PaymentDetailSheetProps;

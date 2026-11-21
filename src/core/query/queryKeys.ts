@@ -44,6 +44,9 @@ export const queryKeys = {
     ["clients", scope, "search"] as const,
   clientSearch: (scope: QueryScope, search: string) =>
     ["clients", scope, "search", search] as const,
+  /** Under the customers' key: any customer or debt change refreshes it. */
+  dueClients: (scope: QueryScope, date: string) =>
+    ["clients", scope, "due", date] as const,
   clientRoot: () => ["client"] as const,
   client: (scope: QueryScope, id: number) => ["client", scope, id] as const,
   transactionsRoot: () => ["transactions"] as const,
@@ -55,6 +58,15 @@ export const queryKeys = {
     scope: QueryScope,
     params: { months: number; topDebtorsLimit: number },
   ) => ["reports", scope, params] as const,
+  historyDeletedClients: (scope: QueryScope, search: string) =>
+    ["history", scope, "deleted-clients", search] as const,
+  historyDeletedClient: (scope: QueryScope, id: number) =>
+    ["history", scope, "deleted-client", id] as const,
+  historyPurchases: (userId: QueryScope) =>
+    ["history", "user", userId, "purchases"] as const,
+  historyOrganization: (scope: QueryScope) =>
+    ["history", scope, "organization"] as const,
+  staff: (scope: QueryScope) => ["organizations", scope, "staff"] as const,
   pushRoot: (scope: QueryScope) => ["push", scope] as const,
   pushNotifications: (scope: QueryScope, pageSize?: number) =>
     pageSize === undefined

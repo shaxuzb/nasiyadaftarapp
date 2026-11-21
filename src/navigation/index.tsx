@@ -29,6 +29,10 @@ import { OrganizationSelectScreen } from "../screens/OrganizationSelectScreen";
 import { AccountSecurityScreen } from "../screens/AccountSecurityScreen";
 import { PinChangeScreen } from "../modules/pin-auth/screens/PinChangeScreen";
 import { ClientSmsScreen } from "../screens/ClientSmsScreen";
+import { DueClientsScreen } from "../screens/DueClientsScreen";
+import { HistoryScreen } from "../screens/HistoryScreen";
+import { DeletedClientScreen } from "../screens/DeletedClientScreen";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { ClientSmsHistoryScreen } from "../screens/ClientSmsHistoryScreen";
 import { SmsSettingsScreen } from "../screens/SmsSettingsScreen";
 import { BlacklistSettingsScreen } from "../screens/BlacklistSettingsScreen";
@@ -56,7 +60,9 @@ import { PushInAppBanner } from "../modules/push/components/PushInAppBanner";
 import { useAppSetup } from "../modules/setup/context/AppSetupContext";
 import { FirstLaunchSetup } from "../modules/setup/screens/FirstLaunchSetup";
 import {
+  consumeDeferredInternalRoute,
   consumePendingPushNavigation,
+  navigateToInternalRoute,
   navigateToPushNotification,
   navigationRef,
 } from "./navigationRef";
@@ -192,6 +198,7 @@ function TabNavigator({
         component={CustomersScreen}
         options={{ title: t("customers.screenTitle") }}
       />
+      {/* Reports are open to everyone in the shop, owner and staff alike. */}
       <Tab.Screen
         name="Reports"
         component={ReportsScreen}
@@ -239,6 +246,9 @@ const MAIN_STACK_OPTIONS = { headerShown: false, freezeOnBlur: true } as const;
 
 function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
   const regionalCapabilities = useRegionalProductCapabilities();
+  // The shop's settings, staff, history and plans are the owner's: for staff
+  // these screens do not exist, so no link or push can open them either.
+  const { isOwner } = useOrganizationRole();
 
   return (
     <Stack.Navigator
@@ -253,6 +263,13 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
       <Stack.Screen name="CustomerDetail" component={CustomerDetailScreen} />
       <Stack.Screen name="AccountSecurity" component={AccountSecurityScreen} />
       <Stack.Screen name="PinChange" component={PinChangeScreen} />
+      <Stack.Screen name="DueClients" component={DueClientsScreen} />
+      {isOwner ? (
+        <>
+          <Stack.Screen name="History" component={HistoryScreen} />
+          <Stack.Screen name="DeletedClient" component={DeletedClientScreen} />
+        </>
+      ) : null}
       {regionalCapabilities.clientSmsVisible ? (
         <>
           <Stack.Screen name="ClientSms" component={ClientSmsScreen} />
@@ -260,17 +277,21 @@ function MainNavigator({ initialTab }: { initialTab?: TabRouteName }) {
             name="ClientSmsHistory"
             component={ClientSmsHistoryScreen}
           />
-          <Stack.Screen name="SmsSettings" component={SmsSettingsScreen} />
+          {isOwner ? (
+            <Stack.Screen name="SmsSettings" component={SmsSettingsScreen} />
+          ) : null}
         </>
       ) : null}
-      <Stack.Screen
-        name="BlacklistSettings"
-        component={BlacklistSettingsScreen}
-      />
-      {regionalCapabilities.subscriptionVisible ? (
+      {isOwner ? (
+        <Stack.Screen
+          name="BlacklistSettings"
+          component={BlacklistSettingsScreen}
+        />
+      ) : null}
+      {isOwner && regionalCapabilities.subscriptionVisible ? (
         <Stack.Screen name="Subscription" component={SubscriptionScreen} />
       ) : null}
-      {regionalCapabilities.paymentHistoryVisible ? (
+      {isOwner && regionalCapabilities.paymentHistoryVisible ? (
         <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
       ) : null}
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
@@ -470,6 +491,8 @@ export function AppNavigator() {
           setNavigationReady(true);
           const pending = consumePendingPushNavigation();
           if (pending !== undefined) navigateToPushNotification(pending);
+          const deferred = consumeDeferredInternalRoute();
+          if (deferred) navigateToInternalRoute(deferred);
         }}
         theme={navTheme}
       >

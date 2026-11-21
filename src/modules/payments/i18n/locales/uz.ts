@@ -69,6 +69,8 @@ export const uzPaymentCopy = {
     error: "To‘lov ma’lumotini yangilab bo‘lmadi",
     openError: "To‘lov sahifasini ochib bo‘lmadi",
     loading: "To‘lov tafsilotlari yuklanmoqda...",
+    expiredHint: "To‘lov 24 soat ichida amalga oshirilmagani uchun yopildi. Bu havola endi ishlamaydi: qayta sotib olish uchun yangi to‘lov yarating.",
+    buyAgain: "Qayta sotib olish",
   },
   history: {
     title: "To‘lovlar tarixi",
@@ -84,7 +86,7 @@ export const uzPaymentCopy = {
       paid: "To‘lov qabul qilindi",
       cancelled: "To‘lov bekor qilindi",
       failed: "To‘lov amalga oshmadi",
-      expired: "To‘lov muddati tugadi",
+      expired: "Muddati o‘tdi",
       refunded: "To‘lov qaytarildi",
     },
     fulfilled: "Xizmat faollashtirildi",

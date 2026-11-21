@@ -21,9 +21,11 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { type RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { SearchBar } from "../components/SearchBar";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
+import { ReadOnlyBanner } from "../modules/organization/components/ReadOnlyBanner";
 import { EmptyState } from "../components/EmptyState";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { useAuth } from "../context/AuthContext";
@@ -33,6 +35,7 @@ import { useAccountSecurity } from "../modules/account/context/AccountSecurityCo
 import { useTheme } from "../hooks/useTheme";
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
 import { OwnDeviceSmsStatus } from "../modules/client-sms/components/OwnDeviceSmsStatus";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
 import { SmsRecipientRow } from "../modules/client-sms/components/SmsRecipientRow";
 import { useSmsProvider } from "../modules/client-sms/hooks/useSmsDevices";
 import { CustomerEditSheet } from "../modules/clients/components/CustomerEditSheet";
@@ -82,10 +85,15 @@ export function ClientSmsScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { t } = useTranslation();
   const { user } = useAuth();
-  const capabilities = getClientSmsCapabilities(
+  const permitted = getClientSmsCapabilities(
     user?.permissions,
     user?.subscription,
   );
+  // "Faqat ko'rish": the list and history show, nothing is sent from here.
+  const { readOnly } = useOrganizationAccess();
+  const capabilities = readOnly
+    ? { ...permitted, canSendOne: false, canSendBulk: false }
+    : permitted;
   const isBottomTab = isBottomTabNavigation(navigation);
   if (!capabilities.canView) {
     return (
@@ -121,7 +129,12 @@ function ClientSmsContent({
   const { requireVerifiedPhone } = useAccountSecurity();
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  // Opened from the due-debts list: those customers come ticked.
+  const route = useRoute<RouteProp<RootStackParamList, "ClientSms">>();
+  const preselectedIds = route.params?.preselectedIds;
+  const [selected, setSelected] = useState<Set<number>>(
+    () => new Set(preselectedIds ?? []),
+  );
   const [bulkSummary, setBulkSummary] = useState<BulkSmsResponse | null>(null);
   // Skipped and failed recipients grouped by reason, so a batch where thirty
   // clients already had today's SMS reads as one line, not the first of thirty.
@@ -147,10 +160,21 @@ function ClientSmsContent({
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 350);
     return () => clearTimeout(timer);
   }, [search]);
+  // A new search starts a new selection, but not the first run: that would
+  // drop what the screen was opened with.
+  const searchedOnce = useRef(false);
   useEffect(() => {
+    if (!searchedOnce.current) {
+      searchedOnce.current = true;
+      return;
+    }
     setSelected(new Set());
     setBulkSummary(null);
   }, [debouncedSearch]);
+  // Sent here again from the due list while already open.
+  useEffect(() => {
+    if (preselectedIds?.length) setSelected(new Set(preselectedIds));
+  }, [preselectedIds]);
   // The list is who a debt reminder can go to: customers who owe something.
   // That is fixed, not a switch on the screen, so nobody has to remember to
   // turn it on and nobody is shown a customer there is nothing to remind of.
@@ -287,18 +311,28 @@ function ClientSmsContent({
     (recipient: SmsRecipient) => void sendToOne(recipient),
     [sendToOne],
   );
+  // Staff send on the owner's plan and SMS: nothing to buy or set up here;
+  // when the SMS run out, it is the owner who tops them up.
+  const { isOwner } = useOrganizationRole();
   const openUpgradeModal = useCallback(() => {
+    if (!isOwner) {
+      showToast(t("staff.smsLimitOwner"), "error");
+      return;
+    }
     setUpgradeReason("sms-limit");
     setIsUpgradeModalOpen(true);
-  }, []);
+  }, [isOwner, showToast, t]);
   const openSmsPackages = useCallback(() => {
+    if (!isOwner) {
+      showToast(t("staff.smsLimitOwner"), "info");
+      return;
+    }
     setUpgradeReason("sms-packages");
     setIsUpgradeModalOpen(true);
-  }, []);
-  const openSmsSettings = useCallback(
-    () => navigation.navigate("SmsSettings"),
-    [navigation],
-  );
+  }, [isOwner, showToast, t]);
+  const openSmsSettings = useCallback(() => {
+    if (isOwner) navigation.navigate("SmsSettings");
+  }, [isOwner, navigation]);
   const renderRecipient = useCallback(
     ({ item }: { item: SmsRecipient }) => (
       <SmsRecipientRow
@@ -346,6 +380,7 @@ function ClientSmsContent({
           action={
             <View style={styles.headerActions}>
               <VideoLessonButton code="sms" />
+              {isOwner ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("smsSettings.title")}
@@ -358,6 +393,7 @@ function ClientSmsContent({
               >
                 <Ionicons name="settings-outline" size={21} color={theme.primary} />
               </Pressable>
+              ) : null}
               {capabilities.canViewHistory ? (
                 <Pressable
                   accessibilityRole="button"
@@ -372,6 +408,7 @@ function ClientSmsContent({
             </View>
           }
         />
+        <ReadOnlyBanner />
         <View style={styles.search}>
           <SearchBar
             value={search}

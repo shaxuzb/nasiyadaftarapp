@@ -21,6 +21,8 @@ interface ConfirmOptions {
   confirmText?: string;
   cancelText?: string;
   variant?: ConfirmVariant;
+  /** Only the confirm button: a notice to read, not a question. */
+  hideCancel?: boolean;
 }
 
 interface ConfirmState extends ConfirmOptions {
@@ -70,6 +72,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
         confirmText: options.confirmText ?? t("common.confirm"),
         cancelText: options.cancelText ?? t("common.cancel"),
         variant: options.variant ?? "default",
+        hideCancel: options.hideCancel === true,
       });
     });
     // The default button labels follow the language in use.
@@ -116,6 +119,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
             </Text>
 
             <View style={styles.actions}>
+              {dialog.hideCancel ? null : (
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => closeWith(false)}
@@ -131,6 +135,7 @@ export function ConfirmDialogProvider({ children }: { children: ReactNode }) {
                   {dialog.cancelText}
                 </Text>
               </TouchableOpacity>
+              )}
               <TouchableOpacity
                 activeOpacity={0.85}
                 onPress={() => closeWith(true)}

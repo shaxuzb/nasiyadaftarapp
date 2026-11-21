@@ -26,9 +26,11 @@ import { AppSetupProvider } from "./src/modules/setup/context/AppSetupContext";
 import { OfflineSyncController } from "./src/modules/offline/components/OfflineSyncController";
 import { ServerHealthMonitor } from "./src/modules/offline/components/ServerHealthMonitor";
 import { ConnectionNoticeModal } from "./src/modules/offline/components/ConnectionNoticeModal";
+import { QuickMenuDrawer } from "./src/components/QuickMenuDrawer";
 import { OrganizationCurrencySetupGate } from "./src/modules/currency/components/OrganizationCurrencySetupGate";
 import { LanguageProvider } from "./src/i18n";
 import { PushNotificationProvider } from "./src/modules/push/context/PushNotificationContext";
+import { LegalDocumentProvider } from "./src/modules/legal/LegalDocumentProvider";
 
 export default function App() {
   return (
@@ -58,6 +60,7 @@ function ThemedApp() {
                         <AccountSecurityProvider>
                           <AppProvider>
                             <AppSetupProvider>
+                              <LegalDocumentProvider>
                               <BottomSheetModalProvider>
                                 <ConfirmDialogProvider>
                                   <BottomSheetProvider>
@@ -77,10 +80,13 @@ function ThemedApp() {
                                       <AppNavigator />
                                       <OfferAcceptanceGate />
                                       <OrganizationCurrencySetupGate />
+                                      {/* Over the screens, under the sheets it opens. */}
+                                      <QuickMenuDrawer />
                                     </AppUpdateGate>
                                   </BottomSheetProvider>
                                 </ConfirmDialogProvider>
                               </BottomSheetModalProvider>
+                              </LegalDocumentProvider>
                             </AppSetupProvider>
                           </AppProvider>
                         </AccountSecurityProvider>

@@ -73,6 +73,7 @@ export function CustomerEditSheet({
   // while it is not open: see useDismissSheetOnAppLock.
   const sheetControls = useDismissSheetOnAppLock(sheet);
   const phoneRef = useRef<TextInput>(null);
+  const noteRef = useRef<TextInput>(null);
   const submitting = useRef(false);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState(customer.fullName);
@@ -82,6 +83,7 @@ export function CustomerEditSheet({
     phoneFromStored(customer.phone, accountCountry),
   );
   const [phoneError, setPhoneError] = useState<string>();
+  const [note, setNote] = useState(customer.note ?? "");
   const previousDataState = useRef(dataState);
   const pickContact = useContactPicker();
   // The phone is optional, as it is when a customer is added: empty is a
@@ -90,7 +92,8 @@ export function CustomerEditSheet({
   // so a number saved in an older form is not taken for a change.
   const changed =
     name.trim() !== customer.fullName ||
-    toE164(phone) !== toE164(phoneFromStored(customer.phone, accountCountry));
+    toE164(phone) !== toE164(phoneFromStored(customer.phone, accountCountry)) ||
+    note.trim() !== (customer.note ?? "").trim();
   const handlePhoneChange = useCallback((value: PhoneValue) => {
     setPhone(value);
     setPhoneError(undefined);
@@ -101,6 +104,7 @@ export function CustomerEditSheet({
       setName(customer.fullName);
       setPhone(phoneFromStored(customer.phone, accountCountry));
       setPhoneError(undefined);
+      setNote(customer.note ?? "");
     }
     previousDataState.current = dataState;
   }, [accountCountry, customer, dataState]);
@@ -152,9 +156,8 @@ export function CustomerEditSheet({
       await onSave({
         fullName: name.trim().replace(/\s+/g, " "),
         phoneNumber: toE164(phone),
-        // Not edited here any more, but sent as it is so saving never
-        // clears a note the customer already has.
-        note: customer.note ?? "",
+        // Empty clears the note; spaces alone count as empty.
+        note: note.trim(),
       });
       void KeyboardController.dismiss();
       hapticSuccess();
@@ -237,6 +240,8 @@ export function CustomerEditSheet({
           onChange={handlePhoneChange}
           editable={!saving}
           error={phoneError}
+          submitBehavior="submit"
+          onSubmitEditing={() => noteRef.current?.focus()}
           trailingAccessory={
             <Pressable
               accessibilityRole="button"
@@ -245,11 +250,30 @@ export function CustomerEditSheet({
               disabled={saving}
               hitSlop={4}
               onPress={() => void fillFromContact()}
-              style={({ pressed }) => [styles.contactPicker, pressed && styles.pressed]}
+              style={({ pressed }) => [
+                styles.contactPicker,
+                pressed && styles.pressed,
+              ]}
             >
               <Ionicons name="people-outline" size={23} color={theme.primary} />
             </Pressable>
           }
+        />
+        {/* One line, like the fields above: the note is short, and the sheet
+            stays small. */}
+        <AppInput
+          inputRef={noteRef}
+          variant="sheet"
+          compact
+          label={t("transactions.note")}
+          value={note}
+          onChangeText={setNote}
+          placeholder={t("organization.notePlaceholder")}
+          editable={!saving}
+          maxLength={500}
+          autoCapitalize="sentences"
+          returnKeyType="done"
+          onSubmitEditing={() => void save()}
         />
         {dataState === "loading" ? (
           <View style={styles.dataStatus}>
@@ -257,7 +281,9 @@ export function CustomerEditSheet({
             <Text style={styles.dataStatusText}>{t("common.loading")}</Text>
           </View>
         ) : dataState === "error" ? (
-          <Text style={styles.dataError}>{t("transactions.dataLoadError")}</Text>
+          <Text style={styles.dataError}>
+            {t("transactions.dataLoadError")}
+          </Text>
         ) : null}
         <PrimaryButton
           label={t("common.save")}

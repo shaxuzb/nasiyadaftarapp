@@ -51,7 +51,8 @@ assert.match(read("src/modules/reports/services/reportsService.ts"), /createExpo
 const apiErrors = read("src/i18n/apiErrors.ts");
 assert.match(apiErrors, /error\.name === ORGANIZATION_LIMIT_ERROR\) \{[\s\S]{0,200}?t\("organization\.limitTitle"\)[\s\S]{0,80}?t\("organization\.limitHint", \{ limit \}\)/);
 const auth = read("src/context/AuthContext.tsx");
-assert.match(auth, /throw createOrganizationLimitError\(user\.subscription\?\.maxOrganizations \?\? 0\);/);
+// The limit is the user's own plan's (staff shops never count).
+assert.match(auth, /throw createOrganizationLimitError\(ownPlan\?\.maxOrganizations \?\? 0\);/);
 assert.doesNotMatch(auth, /ta tashkilot yaratish mumkin/);
 for (const [name, file] of [["uz", "src/i18n/translations/uz.ts"], ["ru", "src/i18n/translations/ru.ts"]]) {
   assert.match(read(file), /\n    exportFileName: "[a-z-]+",/, `${name}: a file name in plain letters`);

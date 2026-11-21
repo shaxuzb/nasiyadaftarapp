@@ -29,6 +29,8 @@ export interface TransactionCreateData {
   amount: number;
   date?: string;
   note: string;
+  /** A debt only: "YYYY-MM-DD". */
+  dueDate?: string;
 }
 
 /** What the phone keeps beside an operation, for showing it; never sent. */
@@ -90,6 +92,7 @@ export interface SyncedTransaction {
   amount: number;
   date: string;
   note: string;
+  dueDate: string | null;
   createdAt: string | null;
   version: number;
 }

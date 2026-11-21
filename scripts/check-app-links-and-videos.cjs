@@ -173,8 +173,8 @@ async function main() {
   );
   assert.match(
     customers,
-    /<VideoLessonButton\s+code="customers"[\s\S]{0,200}?\/>\s*<TouchableOpacity[\s\S]{0,300}?navigation\.navigate\("Notifications"\)/,
-    "The lesson button sits in the header, just left of the notification bell",
+    /<VideoLessonButton\s+code="customers"[\s\S]{0,200}?\/>\s*\{\/\* "Tarix"[\s\S]{0,700}?navigation\.navigate\("History"\)[\s\S]{0,400}?<TouchableOpacity[\s\S]{0,300}?navigation\.navigate\("Notifications"\)/,
+    "The lesson button sits in the header, then History (owner), then the notification bell",
   );
   // One sign for "lessons" everywhere: the graduation cap, in the header
   // buttons and on the profile row alike.
@@ -256,9 +256,23 @@ async function main() {
     }
   })(path.join(root, "src"));
   assert.deepEqual(
-    users,
-    ["src/modules/video-lessons/components/YouTubePlayer.tsx"],
-    "The WebView is for the video player and nothing else",
+    users.sort(),
+    [
+      "src/modules/legal/LegalDocumentProvider.tsx",
+      "src/modules/video-lessons/components/YouTubePlayer.tsx",
+    ],
+    "The WebView is for the video player and the legal documents, nothing else",
+  );
+  // The documents are text: no script runs in them, and a link leaves for the browser.
+  const legalViewer = fs.readFileSync(
+    path.join(root, "src/modules/legal/LegalDocumentProvider.tsx"),
+    "utf8",
+  );
+  assert.match(legalViewer, /javaScriptEnabled=\{false\}/, "No script may run in a legal document");
+  assert.match(
+    legalViewer,
+    /onShouldStartLoadWithRequest=\{onNavigate\}/,
+    "A link in a legal document must not navigate the viewer",
   );
 
   /* 8. The lessons as the server sends them. */

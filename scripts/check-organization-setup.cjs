@@ -88,7 +88,7 @@ assert.match(consentSource, /accessibilityState=\{\{ checked, disabled \}\}/);
 assert.match(consentSource, /borderRadius: radius\.full/, "the checkbox is round");
 assert.match(
   consentSource,
-  /accessibilityRole="link"\s*onPress=\{\(\) =>\s*void open\(\{ key: "terms_of_service", url: TERMS_OF_SERVICE_URL \}\)/,
+  /accessibilityRole="link"\s*onPress=\{\(\) => openLegalDocument\("offer"\)\}/,
   "the document's name opens the offer without ticking the box",
 );
 assert.doesNotMatch(consentSource, /\burl\??: string/, "the link is not a prop: it is always the app's own");

@@ -5,6 +5,11 @@ export interface BlacklistedOrganization {
   blacklistedSince?: string;
   /** That organization's own limit: days overdue before it blacklists. */
   blacklistAfterDays?: number;
+  /**
+   * What the customer owes overdue there. Shown for the user's own shop only:
+   * the server sends 0 for every other shop.
+   */
+  overdueBalance?: number;
 }
 
 export interface Customer {

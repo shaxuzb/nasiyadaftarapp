@@ -1,6 +1,7 @@
 // The public offer and the privacy policy are one tap from the profile: a row
-// there opens a sheet with both, and each opens its page in the browser. The
-// two addresses are fixed in the app.
+// there opens a sheet with both, and each is read in the app from the text
+// the admin publishes (GET /api/legal/...). Until one is published the server
+// answers 404 and the fixed page on the site opens in the browser instead.
 
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
@@ -40,17 +41,29 @@ assert.match(
 const sheet = read("src/bottom-sheet/sheets/LegalSheet.tsx");
 assert.match(
   sheet,
-  /key: "terms_of_service",[\s\S]{0,200}url: TERMS_OF_SERVICE_URL,[\s\S]{0,80}key: "privacy_policy",[\s\S]{0,200}url: PRIVACY_POLICY_URL,/,
+  /key: "offer",[\s\S]{0,200}key: "privacy",/,
   "Both documents, the offer first",
 );
 assert.equal((sheet.match(/key: "/g) ?? []).length, 2, "Exactly the two documents");
 assert.doesNotMatch(sheet, /https?:\/\//, "The addresses live in config/legalLinks, not in the sheet");
-assert.doesNotMatch(sheet, /useAppLinks\(|useOffer|apiClient/, "Nothing about these documents comes from the server");
-assert.match(sheet, /accessibilityRole="link"/);
-assert.match(sheet, /onPress=\{\(\) => void open\(document\)\}/);
-assert.match(sheet, /disabled=\{busy\}/, "One page at a time");
+assert.match(sheet, /onPress=\{\(\) => openLegalDocument\(document\.key\)\}/);
 assert.match(sheet, /accessibilityLabel=\{t\("common\.close"\)\}\s*onPress=\{\(\) => closeSheet\(\)\}/);
 assert.match(sheet, /paddingBottom: Math\.max\(insets\.bottom, 12\)/, "Clear of the Android navigation bar");
+
+/* The viewer: the published text, the site until there is one. */
+
+const service = read("src/modules/legal/services/legalService.ts");
+assert.match(service, /kind === "offer" \? "\/legal\/offer" : "\/legal\/privacy"/);
+assert.match(service, /params: kind === "offer" \? \{ language \} : undefined/, "Only the offer has languages");
+assert.match(service, /getApiErrorStatus\(error\) === 404\) return null;/, "Unpublished is not an error");
+const viewer = read("src/modules/legal/LegalDocumentProvider.tsx");
+assert.match(viewer, /offer: TERMS_OF_SERVICE_URL,\s*privacy: PRIVACY_POLICY_URL,/, "The site is the fallback");
+assert.match(viewer, /if \(document === null\) openSite\(\);/, "Unpublished opens the site");
+assert.match(viewer, /=== null\) \{\s*void openExternalLink\(SITE_URL\[next\]\)/, "Known unpublished skips the empty viewer");
+// Every way to the offer goes through the viewer.
+assert.match(read("src/modules/offer/components/OfferAcceptanceGate.tsx"), /openLegalDocument\("offer"\)/);
+assert.match(read("src/modules/organization/components/OfferConsent.tsx"), /openLegalDocument\("offer"\)/);
+assert.match(read("App.tsx"), /<LegalDocumentProvider>\s*<BottomSheetModalProvider>/, "Sheets can open it too");
 
 /* Wording in both languages. */
 

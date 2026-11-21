@@ -2,12 +2,11 @@ import React, { memo, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-import { TERMS_OF_SERVICE_URL } from "../../../config/legalLinks";
 import { useTheme } from "../../../hooks/useTheme";
 import { useTranslation } from "../../../i18n";
 import { radius, spacing, typography } from "../../../theme";
 import type { AppTheme } from "../../../types";
-import { useLinkOpener } from "../../support/hooks/useAppLinks";
+import { useLegalDocument } from "../../legal/LegalDocumentProvider";
 
 interface Props {
   checked: boolean;
@@ -36,7 +35,7 @@ export const OfferConsent = memo(function OfferConsent({
   const theme = useTheme();
   const { t } = useTranslation();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { open } = useLinkOpener();
+  const { openLegalDocument } = useLegalDocument();
 
   // The sentence is one translation with a slot for the link, because where
   // the document's name falls in it differs between languages.
@@ -73,9 +72,7 @@ export const OfferConsent = memo(function OfferConsent({
           {before}
           <Text
             accessibilityRole="link"
-            onPress={() =>
-              void open({ key: "terms_of_service", url: TERMS_OF_SERVICE_URL })
-            }
+            onPress={() => openLegalDocument("offer")}
             suppressHighlighting
             style={styles.link}
           >

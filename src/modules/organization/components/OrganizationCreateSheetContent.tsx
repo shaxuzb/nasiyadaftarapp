@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { getOrganizationNameError } from "../utils/organizationNameError";
 import {
   Keyboard,
   ScrollViewProps,
@@ -78,9 +79,11 @@ export function OrganizationCreateSheetContent({
       });
       Keyboard.dismiss();
       closeSheet();
-    } catch {
+    } catch (error) {
       // The parent owns API error presentation because the sheet portal is
-      // rendered outside the AuthProvider and ToastProvider tree.
+      // rendered outside the AuthProvider and ToastProvider tree; a refused
+      // name is the one shown here, under the field.
+      setNameError(getOrganizationNameError(error) ?? undefined);
     } finally {
       setSaving(false);
     }

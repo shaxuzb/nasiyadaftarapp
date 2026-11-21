@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getOrganizationNameError } from "../../modules/organization/utils/organizationNameError";
 import {
   Keyboard,
   Platform,
@@ -76,8 +77,10 @@ export function OrganizationProfileSheet({
       // ignores closeSheet(). Unlock first, then close.
       setDismissLocked(false);
       closeSheet();
-    } catch {
-      // Parent callback owns API error presentation.
+    } catch (error) {
+      // Parent callback owns API error presentation, but for a refused
+      // name, shown here under the field.
+      setNameError(getOrganizationNameError(error) ?? undefined);
     } finally {
       setSaving(false);
     }

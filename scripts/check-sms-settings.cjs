@@ -32,13 +32,14 @@ assert.match(
 
 assert.match(
   sms,
-  /<VideoLessonButton code="sms" \/>\s*<Pressable\s+accessibilityRole="button"\s+accessibilityLabel=\{t\("smsSettings\.title"\)\}[\s\S]{0,120}onPress=\{\(\) => navigation\.navigate\("SmsSettings"\)\}/,
-  "A settings button in the SMS screen's header",
+  /<VideoLessonButton code="sms" \/>\s*\{isOwner \? \(\s*<Pressable\s+accessibilityRole="button"\s+accessibilityLabel=\{t\("smsSettings\.title"\)\}[\s\S]{0,120}onPress=\{\(\) => navigation\.navigate\("SmsSettings"\)\}/,
+  "A settings button in the SMS screen's header, for the owner",
 );
 assert.match(sms, /name="settings-outline"/);
 assert.match(
   profile,
-  /const canOpenSmsSettings =\s*regionalCapabilities\.clientSmsVisible &&\s*getClientSmsCapabilities\(user\?\.permissions\)\.canView;/,
+  // …and is the owner's: staff do not change the shop's SMS settings.
+  /const canOpenSmsSettings =\s*isOwner &&\s*regionalCapabilities\.clientSmsVisible &&\s*getClientSmsCapabilities\(user\?\.permissions\)\.canView;/,
   "The profile row follows the SMS screen's region rule and permission",
 );
 assert.match(

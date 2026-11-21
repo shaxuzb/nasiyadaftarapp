@@ -52,6 +52,16 @@ function daysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
+/**
+ * A server date as a day: "2026-12-01", or the day of "2026-12-01T00:00:00".
+ * Null for anything else, a missing value included.
+ */
+export function readDateOnly(value: unknown): DateOnly | null {
+  if (typeof value !== "string") return null;
+  const day = value.slice(0, 10);
+  return parseDateOnly(day) ? day : null;
+}
+
 export function addDays(value: DateOnly, days: number): DateOnly {
   const date = parseDateOnly(value);
   if (!date) return value;

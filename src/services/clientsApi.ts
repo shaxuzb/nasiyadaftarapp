@@ -11,6 +11,7 @@ import {
   ClientTransactionDto,
 } from "../modules/transactions/types";
 import { getClientResultCount } from "../modules/clients/utils/clientList";
+import { readDateOnly } from "../utils/dateOnly";
 
 export interface ClientListResult {
   customers: Customer[];
@@ -53,13 +54,15 @@ function mapBlacklistedOrganizations(input: unknown) {
     const id = Number(rawId);
     // The detail endpoint adds these; the list sends names only. A value that
     // is missing or makes no sense is left out rather than shown as zero. What
-    // the customer owes there also arrives, and is deliberately not read.
+    // the customer owes there is real for the user's own shop only (the
+    // server sends 0 for the others), so only a positive amount is kept.
     const since =
       typeof item.blacklistedSince === "string" &&
       /^\d{4}-\d{2}-\d{2}/.test(item.blacklistedSince)
         ? item.blacklistedSince.slice(0, 10)
         : undefined;
     const blacklistAfterDays = Number(item.blacklistAfterDays);
+    const overdueBalance = Number(item.overdueBalance);
     return [
       {
         ...(Number.isInteger(id) && id > 0 ? { id } : {}),
@@ -67,6 +70,9 @@ function mapBlacklistedOrganizations(input: unknown) {
         ...(since ? { blacklistedSince: since } : {}),
         ...(Number.isInteger(blacklistAfterDays) && blacklistAfterDays > 0
           ? { blacklistAfterDays }
+          : {}),
+        ...(item.overdueBalance !== null && Number.isFinite(overdueBalance) && overdueBalance > 0
+          ? { overdueBalance }
           : {}),
       },
     ];
@@ -108,8 +114,9 @@ function mapTransaction(
   fallbackClientId: number,
   fallbackId: number,
   fallbackType: TransactionType,
-  fallbackPayload: { amount: number; date: string; note: string },
+  fallbackPayload: { amount: number; date: string; note: string; dueDate?: string },
 ): Transaction {
+  const dueDate = readDateOnly(dto.dueDate) ?? fallbackPayload.dueDate;
   return {
     id: toNumber(dto.id, fallbackId),
     customerId: toNumber(dto.clientId, fallbackClientId),
@@ -117,6 +124,7 @@ function mapTransaction(
     amount: Number(dto.amount ?? fallbackPayload.amount),
     date: dto.date ?? fallbackPayload.date,
     note: dto.note ?? fallbackPayload.note,
+    ...(dueDate ? { dueDate } : {}),
     ...(typeof dto.uuid === "string" && dto.uuid ? { uuid: dto.uuid } : {}),
   };
 }
@@ -255,6 +263,7 @@ export async function createClientTransaction(
     amount: payload.amount,
     date: payload.date,
     note: payload.note,
+    dueDate: payload.dueDate,
   });
 }
 

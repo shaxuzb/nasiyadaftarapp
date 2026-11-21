@@ -19,5 +19,16 @@ export interface SmsDevice {
   battery: number | null;
   lastSeenAt: string | null;
   sims: SmsDeviceSim[];
+  /**
+   * The owner's shops this phone sends SMS for; null from a server that does
+   * not share phones between shops yet.
+   */
+  organizations?: SmsDeviceOrganization[] | null;
+}
+export interface SmsDeviceOrganization {
+  organizationId: number;
+  name: string;
+  /** The shop it was connected from; another takes over if it is dropped. */
+  isPrimary: boolean;
 }
 export interface ClaimSmsDevicePayload { code: string; name?: string }

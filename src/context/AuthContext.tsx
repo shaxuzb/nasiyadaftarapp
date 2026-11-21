@@ -34,7 +34,7 @@ import {
   GoogleLoginRequest,
   OrganizationSelectResponse,
 } from "../modules/auth/types";
-import { setUnauthorizedHandler } from "../services/axiosService";
+import { setForbiddenHandler, setUnauthorizedHandler } from "../services/axiosService";
 import {
   createOrganization,
   getCurrentOrganization,
@@ -58,6 +58,40 @@ import { queryKeys } from "../core/query/queryKeys";
 import { getOrganizationSelectionBackAction } from "./organizationSelection";
 import { unregisterPushDevice } from "../modules/push/services/pushService";
 import { createOrganizationLimitError } from "../i18n/apiErrors";
+import {
+  countOwnOrganizations,
+  getCurrentOrganizationRole,
+} from "../modules/organization/utils/organizationRole";
+import type { CurrentSubscription } from "../modules/subscription/types";
+
+/**
+ * GET /subscriptions/current is the user's own plan. In their own shop it is
+ * also the plan in force; in a shop they work in as staff the owner's plan is
+ * (it came with the select answer) and is left as it is.
+ */
+/**
+ * A refreshed list that does not say whether a shop is "faqat ko'rish" keeps
+ * what the previous list (or the sign-in answer) said: never shown as working
+ * because one answer left the field out.
+ */
+function keepKnownAccess(
+  next: OrganizationMembership[],
+  previous: OrganizationMembership[] | undefined,
+): OrganizationMembership[] {
+  if (!previous?.length) return next;
+  const known = new Map(previous.map((item) => [item.id, item.isReadOnly]));
+  return next.map((item) =>
+    item.isReadOnly === undefined && known.get(item.id) !== undefined
+      ? { ...item, isReadOnly: known.get(item.id) }
+      : item,
+  );
+}
+
+function withOwnSubscription(user: AuthUser, own: CurrentSubscription): AuthUser {
+  const current = user.organizations?.find((item) => item.id === user.organizationId) ?? null;
+  const staff = getCurrentOrganizationRole(user, current) === "staff";
+  return { ...user, ownSubscription: own, ...(staff ? {} : { subscription: own }) };
+}
 import { clearSavedData } from "../modules/offline/db/savedDataRepository";
 import { markCurrencySetupPending } from "../modules/currency/state/currencySetup";
 
@@ -81,12 +115,16 @@ interface AuthContextValue {
   applyOrganizationUpdate: (organization: OrganizationResponse) => Promise<void>;
   refreshSubscription: () => Promise<void>;
   selectOrganization: (organizationId: number) => Promise<void>;
-  openOrganizationSelector: () => Promise<void>;
+  /** `returnTab`: the tab to come back to if the choice is cancelled. */
+  openOrganizationSelector: (returnTab?: OrganizationSelectionReturnTab) => Promise<void>;
   cancelOrganizationSelection: () => Promise<void>;
-  organizationSelectionReturnTab: "Settings" | null;
+  organizationSelectionReturnTab: OrganizationSelectionReturnTab | null;
   updateUserProfile: (patch: Partial<AuthUser>) => Promise<void>;
   logout: (options?: LogoutOptions) => Promise<void>;
 }
+
+/** Where the organization choice was opened from: Settings, or the customers' quick menu. */
+export type OrganizationSelectionReturnTab = "Settings" | "Customers";
 
 export interface LogoutOptions {
   /**
@@ -121,8 +159,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
   const [isOrganizationLoading, setIsOrganizationLoading] = useState(false);
   const previousOrganizationRef = useRef<OrganizationMembership | null>(null);
+  const selectionOpenedFromRef = useRef<OrganizationSelectionReturnTab>("Settings");
   const [organizationSelectionReturnTab, setOrganizationSelectionReturnTab] =
-    useState<"Settings" | null>(null);
+    useState<OrganizationSelectionReturnTab | null>(null);
 
   const persistUser = useCallback(async (nextUser: AuthUser) => {
     // A refresh mostly brings back what is already there (the same plan, the
@@ -164,7 +203,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           queryKeys.subscriptionCurrent(baseUser.id),
           subscription,
         );
-        await persistUser({ ...baseUser, subscription });
+        await persistUser(withOwnSubscription(baseUser, subscription));
       } catch (error) {
         if (__DEV__) console.warn("Subscription refresh failed", error);
       }
@@ -271,7 +310,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         let availableOrganizations: OrganizationMembership[];
         try {
-          availableOrganizations = await getManualOrganizations();
+          availableOrganizations = keepKnownAccess(
+            await getManualOrganizations(),
+            baseUser.organizations,
+          );
         } catch (error) {
           if (baseUser.organizations?.length) {
             availableOrganizations = baseUser.organizations;
@@ -359,8 +401,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryKeys.subscriptionCurrent(user.id),
       subscription,
     );
-    await persistUser({ ...user, subscription });
-  }, [persistUser, user]);
+    const nextUser = withOwnSubscription(user, subscription);
+    await persistUser(nextUser);
+    // Premium bought or ended: which shops are "faqat ko'rish" changes with it,
+    // at once and without leaving the screen.
+    const previous = user.ownSubscription ?? user.subscription;
+    if (previous?.planCode !== subscription.planCode || previous?.endAt !== subscription.endAt) {
+      await resolveOrganizations(nextUser, { silent: true }).catch(() => undefined);
+    }
+  }, [persistUser, resolveOrganizations, user]);
 
   const selectOrganization = useCallback(
     async (organizationId: number) => {
@@ -385,10 +434,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyOrganizationSelection, organizations, user],
   );
 
-  const openOrganizationSelector = useCallback(async () => {
+  const openOrganizationSelector = useCallback(async (returnTab: OrganizationSelectionReturnTab = "Settings") => {
     if (!user) return;
     previousOrganizationRef.current = currentOrganization;
-    setOrganizationSelectionReturnTab(currentOrganization ? "Settings" : null);
+    selectionOpenedFromRef.current = returnTab;
+    setOrganizationSelectionReturnTab(currentOrganization ? returnTab : null);
     setCurrentOrganization(null);
     await updateUserProfile({ organizationId: null, organizationName: null });
   }, [currentOrganization, updateUserProfile, user]);
@@ -397,11 +447,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async (payload: OrganizationRequest) => {
       if (!user) throw new Error("Tashkilot yaratish uchun tizimga kiring");
 
+      // Only the user's own shops count against their own plan; shops they
+      // work in as staff never do.
       const existingOrganizations = await getManualOrganizations();
-      if (
-        !canCreateOrganization(user.subscription, existingOrganizations.length)
-      ) {
-        throw createOrganizationLimitError(user.subscription?.maxOrganizations ?? 0);
+      const ownPlan = user.ownSubscription ?? user.subscription;
+      if (!canCreateOrganization(ownPlan, countOwnOrganizations(existingOrganizations))) {
+        throw createOrganizationLimitError(ownPlan?.maxOrganizations ?? 0);
       }
 
       const created = await createOrganization(payload);
@@ -488,7 +539,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    setOrganizationSelectionReturnTab("Settings");
+    setOrganizationSelectionReturnTab(selectionOpenedFromRef.current);
     setCurrentOrganization(action.organization);
     await updateUserProfile({
       organizationId: action.organization.id,
@@ -647,6 +698,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUnauthorizedHandler(undefined);
     };
   }, [logout]);
+
+  // A 403 can mean the owner removed this user from the shop (or changed what
+  // they may do): the list is fetched again, and a shop no longer in it is
+  // left for the user's own one. At most once a minute; nothing else changes.
+  const lastForbiddenRefresh = useRef(0);
+  useEffect(() => {
+    setForbiddenHandler(() => {
+      const now = Date.now();
+      if (now - lastForbiddenRefresh.current < 60_000) return;
+      lastForbiddenRefresh.current = now;
+      void refreshOrganizations().catch(() => undefined);
+    });
+    return () => setForbiddenHandler(undefined);
+  }, [refreshOrganizations]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

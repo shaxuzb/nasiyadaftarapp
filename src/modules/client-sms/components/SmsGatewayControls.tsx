@@ -7,6 +7,7 @@ import { useToast } from "../../../context/ToastContext";
 import { useConfirmDialog } from "../../../context/ConfirmDialogContext";
 import { useSmsDevices, useClaimSmsDevice, useDeleteSmsDevice, useSmsProvider } from "../hooks/useSmsDevices";
 import { SmsGatewayQrScanner } from "./SmsGatewayQrScanner";
+import { SmsDeviceShops } from "./SmsDeviceShops";
 
 /** Embedded in "O'z telefonim"; intentionally NOT a separate device card. */
 export function SmsGatewayControls({ onConnected }: { onConnected?: () => Promise<void> | void }) {
@@ -117,6 +118,7 @@ export function SmsGatewayControls({ onConnected }: { onConnected?: () => Promis
                   </Text>
                 </View>
               ))}
+              <SmsDeviceShops device={device} />
               <Pressable accessibilityRole="button" disabled={busy} onPress={() => void disconnect(device.deviceCode)}
                 style={[styles.disconnect, { backgroundColor: theme.dangerColor, opacity: busy ? 0.5 : 1 }]}>
                 {remove.isPending ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.disconnectText}>{t("smsSettings.deviceRemove")}</Text>}

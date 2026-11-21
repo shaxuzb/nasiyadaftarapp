@@ -1,4 +1,6 @@
 import { VideoLessonButton } from "../modules/video-lessons/components/VideoLessonEntry";
+import { normalizeOrganizationRole } from "../modules/organization/utils/organizationRole";
+import { getOrganizationNameError } from "../modules/organization/utils/organizationNameError";
 import React, {
   useCallback,
   useEffect,
@@ -83,13 +85,19 @@ export function OrganizationSelectScreen() {
     enabled: isCreateSheetOpen,
   });
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-  const canCreate = canCreateOrganization(
-    user?.subscription,
-    organizations.length,
+  // Shops the user owns, and shops they work in as staff. Only their own
+  // count against their own plan's limit; the others are always open to them.
+  const ownOrganizations = organizations.filter(
+    (organization) => normalizeOrganizationRole(organization.role) !== "staff",
   );
+  const staffOrganizations = organizations.filter(
+    (organization) => normalizeOrganizationRole(organization.role) === "staff",
+  );
+  const ownPlan = user?.ownSubscription ?? user?.subscription;
+  const canCreate = canCreateOrganization(ownPlan, ownOrganizations.length);
   const organizationLimitLabel = getOrganizationLimitLabel(
-    user?.subscription,
-    organizations.length,
+    ownPlan,
+    ownOrganizations.length,
   );
 
   const handleCreateOrganization = useCallback(
@@ -99,10 +107,13 @@ export function OrganizationSelectScreen() {
         await createOrganizationForCurrentUser(payload);
         showToast(t("organization.createSuccess"), "success");
       } catch (error) {
-        showToast(
-          getLocalizedApiErrorMessage(error, "organization.createError", t),
-          "error",
-        );
+        // A refused name is shown under the name field instead.
+        if (!getOrganizationNameError(error)) {
+          showToast(
+            getLocalizedApiErrorMessage(error, "organization.createError", t),
+            "error",
+          );
+        }
         throw error;
       }
     },
@@ -217,50 +228,53 @@ export function OrganizationSelectScreen() {
           </Text>
         </View>
 
-        <View style={styles.listCard}>
-          {organizations.map((organization, index) => {
-            const isSelecting = selectingId === organization.id;
-            return (
-              <Pressable
+        {/* With no shop as staff the list reads as before: one card, no headings. */}
+        {staffOrganizations.length > 0 ? (
+          <Text style={styles.sectionTitle}>{t("staff.sectionOwn")}</Text>
+        ) : null}
+        {ownOrganizations.length > 0 ? (
+          <View style={styles.listCard}>
+            {ownOrganizations.map((organization, index) => (
+              <OrganizationRow
                 key={organization.id}
-                accessibilityRole="button"
-                accessibilityLabel={t("organization.selectOrganization", { name: organization.name })}
-                accessibilityState={{ disabled: selectingId !== null }}
+                name={organization.name}
+                readOnly={organization.isReadOnly === true}
+                ownerLine={null}
+                isLast={index === ownOrganizations.length - 1}
+                isSelecting={selectingId === organization.id}
                 disabled={selectingId !== null}
-                onPress={() => {
-                  void handleSelect(organization.id);
-                }}
-                style={({ pressed }) => [
-                  styles.organizationRow,
-                  index < organizations.length - 1 && styles.rowBorder,
-                  (pressed || isSelecting) && styles.rowPressed,
-                ]}
-              >
-                <View style={styles.organizationIcon}>
-                  <Ionicons
-                    name="storefront-outline"
-                    size={20}
-                    color={theme.primary}
-                  />
-                </View>
-                <View style={styles.organizationContent}>
-                  <Text style={styles.organizationName} numberOfLines={1}>
-                    {organization.name}
-                  </Text>
-                </View>
-                {isSelecting ? (
-                  <ActivityIndicator size="small" color={theme.primary} />
-                ) : (
-                  <Ionicons
-                    name="chevron-forward"
-                    size={20}
-                    color={theme.textMuted}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+                onPress={() => void handleSelect(organization.id)}
+                styles={styles}
+                theme={theme}
+              />
+            ))}
+          </View>
+        ) : null}
+        {staffOrganizations.length > 0 ? (
+          <>
+            <Text style={styles.sectionTitle}>{t("staff.sectionStaff")}</Text>
+            <View style={styles.listCard}>
+              {staffOrganizations.map((organization, index) => (
+                <OrganizationRow
+                  key={organization.id}
+                  name={organization.name}
+                  readOnly={organization.isReadOnly === true}
+                  ownerLine={
+                    organization.ownerName
+                      ? t("staff.ownerLine", { owner: organization.ownerName })
+                      : null
+                  }
+                  isLast={index === staffOrganizations.length - 1}
+                  isSelecting={selectingId === organization.id}
+                  disabled={selectingId !== null}
+                  onPress={() => void handleSelect(organization.id)}
+                  styles={styles}
+                  theme={theme}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
 
         {canCreate ? (
           <PrimaryButton
@@ -382,6 +396,75 @@ export function OrganizationSelectScreen() {
   );
 }
 
+function OrganizationRow({
+  name,
+  ownerLine,
+  readOnly,
+  isLast,
+  isSelecting,
+  disabled,
+  onPress,
+  styles,
+  theme,
+}: {
+  name: string;
+  /** "Egasi: Ali Valiyev" for a shop the user works in as staff. */
+  ownerLine: string | null;
+  /** Past the plan's limit: it opens, to look at only. */
+  readOnly: boolean;
+  isLast: boolean;
+  isSelecting: boolean;
+  disabled: boolean;
+  onPress: () => void;
+  styles: ReturnType<typeof createStyles>;
+  theme: AppTheme;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${t("organization.selectOrganization", { name })}${ownerLine ? `, ${ownerLine}` : ""}`}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.organizationRow,
+        !isLast && styles.rowBorder,
+        (pressed || isSelecting) && styles.rowPressed,
+      ]}
+    >
+      <View style={styles.organizationIcon}>
+        <Ionicons
+          name={ownerLine !== null ? "briefcase-outline" : "storefront-outline"}
+          size={20}
+          color={theme.primary}
+        />
+      </View>
+      <View style={styles.organizationContent}>
+        <Text style={styles.organizationName} numberOfLines={1}>
+          {name}
+        </Text>
+        {readOnly ? (
+          <View style={styles.readOnlyChip}>
+            <Ionicons name="lock-closed" size={11} color={theme.warningColor} />
+            <Text style={styles.readOnlyChipText}>{t("readOnly.chip")}</Text>
+          </View>
+        ) : null}
+        {ownerLine ? (
+          <Text style={styles.organizationOwner} numberOfLines={1}>
+            {ownerLine}
+          </Text>
+        ) : null}
+      </View>
+      {isSelecting ? (
+        <ActivityIndicator size="small" color={theme.primary} />
+      ) : (
+        <Ionicons name="chevron-forward" size={20} color={theme.textMuted} />
+      )}
+    </Pressable>
+  );
+}
+
 const createStyles = (theme: AppTheme) =>
   StyleSheet.create({
     safe: { flex: 1, backgroundColor: theme.background },
@@ -464,7 +547,27 @@ const createStyles = (theme: AppTheme) =>
       borderRadius: 13,
       backgroundColor: theme.primaryLight,
     },
-    organizationContent: { minWidth: 0, flex: 1 },
+    organizationContent: { minWidth: 0, flex: 1, gap: 1 },
+    organizationOwner: { color: theme.textSecondary, fontSize: 12, lineHeight: 16 },
+    readOnlyChip: {
+      alignSelf: "flex-start",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      marginTop: 2,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      borderRadius: 999,
+      backgroundColor: `${theme.warningColor}1F`,
+    },
+    readOnlyChipText: { color: theme.warningColor, fontSize: 11, fontWeight: "800" },
+    sectionTitle: {
+      marginBottom: -6,
+      paddingHorizontal: 4,
+      color: theme.textSecondary,
+      fontSize: 13,
+      fontWeight: "800",
+    },
     organizationName: {
       color: theme.text,
       fontSize: 15,

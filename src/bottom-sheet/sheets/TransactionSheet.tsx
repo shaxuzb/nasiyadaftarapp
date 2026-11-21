@@ -12,6 +12,7 @@ import React, {
 import {
   ActivityIndicator,
   Keyboard,
+  type LayoutChangeEvent,
   Pressable,
   StyleSheet,
   Text,
@@ -24,8 +25,9 @@ import {
   BottomSheetTextInput,
   type BottomSheetFooterProps,
   type BottomSheetModalProps,
+  type BottomSheetScrollViewMethods,
 } from "@gorhom/bottom-sheet";
-import { KeyboardController } from "react-native-keyboard-controller";
+import { KeyboardController, KeyboardEvents } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { SheetRenderProps } from "../types";
@@ -51,6 +53,8 @@ import { getOrganizationQueryScope } from "../../core/query/organizationScope";
 import { BlacklistBadge } from "../../modules/clients/components/BlacklistBadge";
 import { isCustomerBlacklisted } from "../../modules/clients/utils/blacklist";
 import { noteSuccessfulTransaction } from "../../modules/app-review/services/reviewPrompt";
+import { DueDateToggle } from "../../modules/transactions/components/DueDateField";
+import type { DateOnly } from "../../utils/dateOnly";
 import { useTheme } from "../../hooks/useTheme";
 import { AppTheme, TransactionType } from "../../types";
 import {
@@ -74,6 +78,106 @@ type TransactionAmountInputProps = Omit<
   allowFraction: boolean;
 };
 type TransactionInputRef = React.ComponentRef<typeof BottomSheetTextInput>;
+type FocusedField = "amount" | "note";
+
+/**
+ * Keeps the focused field above the fixed footer while the keyboard is up.
+ *
+ * With room on screen the sheet simply rises above the keyboard and nothing
+ * moves. When the sheet plus the keyboard no longer fit, the library clamps
+ * the content height and the fields at the bottom end up behind the footer;
+ * the scroll view then has to bring the focused one into view itself.
+ *
+ * Every measurement lives in a ref: layouts and keyboard events re-render
+ * nothing, and the scroll runs once per frame at most.
+ */
+function useKeepFocusedFieldVisible(focused: FocusedField | null) {
+  const scrollRef = useRef<BottomSheetScrollViewMethods>(null);
+  const layout = useRef({
+    viewport: 0,
+    content: 0,
+    amount: { y: 0, height: 0 },
+    note: { y: 0, height: 0 },
+  });
+  const focusedRef = useRef(focused);
+  focusedRef.current = focused;
+  const keyboardUp = useRef(false);
+  const frame = useRef<number | null>(null);
+
+  const reveal = React.useCallback(() => {
+    if (frame.current !== null) cancelAnimationFrame(frame.current);
+    frame.current = requestAnimationFrame(() => {
+      frame.current = null;
+      const field = focusedRef.current;
+      const { viewport, content, amount, note } = layout.current;
+      if (!field || !keyboardUp.current || viewport <= 0 || content <= viewport) {
+        return;
+      }
+      const box = field === "amount" ? amount : note;
+      // What sits under the last field (the footer's room and the inset) must
+      // sit under the focused one too.
+      const below = content - (note.y + note.height);
+      const maxScroll = content - viewport;
+      // Lowest scroll that shows the field above the footer, but never past
+      // the field's own top on a very short viewport.
+      const target = Math.min(box.y + box.height + below - viewport, box.y - 8);
+      scrollRef.current?.scrollTo({
+        y: Math.max(0, Math.min(target, maxScroll)),
+        animated: true,
+      });
+    });
+  }, []);
+
+  React.useEffect(() => {
+    const show = Keyboard.addListener("keyboardDidShow", () => {
+      keyboardUp.current = true;
+      reveal();
+    });
+    const hide = Keyboard.addListener("keyboardDidHide", () => {
+      keyboardUp.current = false;
+    });
+    return () => {
+      show.remove();
+      hide.remove();
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+    };
+  }, [reveal]);
+
+  // Moving from the amount to the note with the keyboard already up.
+  React.useEffect(() => {
+    if (focused) reveal();
+  }, [focused, reveal]);
+
+  const onViewportLayout = React.useCallback(
+    (event: LayoutChangeEvent) => {
+      const height = event.nativeEvent.layout.height;
+      if (height === layout.current.viewport) return;
+      layout.current.viewport = height;
+      // The sheet finished making room for the keyboard.
+      reveal();
+    },
+    [reveal],
+  );
+  const onContentSizeChange = React.useCallback(
+    (_width: number, height: number) => {
+      if (height === layout.current.content) return;
+      layout.current.content = height;
+      // A note growing a line, or the footer measured.
+      reveal();
+    },
+    [reveal],
+  );
+  const onAmountLayout = React.useCallback((event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout;
+    layout.current.amount = { y, height };
+  }, []);
+  const onNoteLayout = React.useCallback((event: LayoutChangeEvent) => {
+    const { y, height } = event.nativeEvent.layout;
+    layout.current.note = { y, height };
+  }, []);
+
+  return { scrollRef, onViewportLayout, onContentSizeChange, onAmountLayout, onNoteLayout };
+}
 
 const TransactionAmountInput = React.memo(
   function TransactionAmountInput({
@@ -135,6 +239,9 @@ function useTransactionController({
   const [previewType, setPreviewType] = useState<TransactionType>(
     props.type ?? "debt",
   );
+  // When the debt is to be paid back by; null when not set. Sent with a debt
+  // only: the server refuses it on a payment.
+  const [dueDate, setDueDate] = useState<DateOnly | null>(null);
   const submitting = useRef(false);
   // Whole for the sum, to the cent for the other currencies.
   const parsedAmount = parseAmountInput(amount) ?? 0;
@@ -185,6 +292,7 @@ function useTransactionController({
           (type === "debt"
             ? t("transactions.debtNote")
             : t("transactions.paymentNote")),
+        ...(type === "debt" && dueDate ? { dueDate } : {}),
       };
       // Made once and kept: the server never records the same write twice,
       // whether this request is repeated or the write goes to the queue.
@@ -257,6 +365,8 @@ function useTransactionController({
     setAmount,
     note,
     setNote,
+    dueDate,
+    setDueDate,
     saving,
     previewType,
     setPreviewType,
@@ -274,6 +384,15 @@ function useTransactionController({
 const TransactionContext = createContext<ReturnType<
   typeof useTransactionController
 > | null>(null);
+/**
+ * The fixed footer's measured height. The content keeps that much room under
+ * the note itself: the library's footer margin did not reach the sheet's
+ * dynamic size on device, so the note sat behind the footer with the screen
+ * half empty above.
+ */
+const FooterHeightContext = createContext(0);
+const SetFooterHeightContext = createContext<(height: number) => void>(() => undefined);
+
 function useTransaction() {
   const context = useContext(TransactionContext);
   if (!context) throw new Error("Transaction sheet must have its controller");
@@ -306,6 +425,12 @@ export function TransactionSheetProvider({
     };
   });
   useLayoutEffect(() => store.update(value), [store, value]);
+  const [footerHeight, setFooterHeight] = useState(0);
+  // Rounded so sub-pixel relayouts do not resize the sheet back and forth.
+  const reportFooterHeight = React.useCallback((height: number) => {
+    const next = Math.ceil(height);
+    setFooterHeight((current) => (current === next ? current : next));
+  }, []);
   // Keep the footer component identity stable so press-in state updates cannot
   // remount the button and cancel its ensuing press/submit event.
   const footer = useMemo(
@@ -318,20 +443,24 @@ export function TransactionSheetProvider({
         );
         return (
           <TransactionContext.Provider value={snapshot}>
-            <TransactionFooter {...footerProps} />
+            <SetFooterHeightContext.Provider value={reportFooterHeight}>
+              <TransactionFooter {...footerProps} />
+            </SetFooterHeightContext.Provider>
           </TransactionContext.Provider>
         );
       },
-    [store],
+    [store, reportFooterHeight],
   );
   // Modal content is portaled: put the controller inside BOTH rendered slots.
   return React.cloneElement(
     modal,
     { footerComponent: footer },
     <TransactionContext.Provider value={value}>
-      {typeof modal.props.children === "function"
-        ? React.createElement(modal.props.children)
-        : modal.props.children}
+      <FooterHeightContext.Provider value={footerHeight}>
+        {typeof modal.props.children === "function"
+          ? React.createElement(modal.props.children)
+          : modal.props.children}
+      </FooterHeightContext.Provider>
     </TransactionContext.Provider>,
   );
 }
@@ -341,10 +470,29 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { saving, validAmount, save, setPreviewType } = useTransaction();
+  const money = useMoney();
+  const { saving, validAmount, save, setPreviewType, previewType, nextBalance } = useTransaction();
+  const reportFooterHeight = useContext(SetFooterHeightContext);
   return (
     <BottomSheetFooter {...footerProps} bottomInset={insets.bottom}>
-      <View style={styles.footer}>
+      <View
+        style={styles.footer}
+        onLayout={(event) => reportFooterHeight(event.nativeEvent.layout.height)}
+      >
+        {/* The balance after this one, fixed with the buttons that make it. */}
+        <View style={styles.preview}>
+          <Text style={styles.previewLabel} numberOfLines={1}>
+            {t("transactions.nextBalance")} ({previewType === "payment" ? t("transactions.paymentPreview") : t("transactions.debtPreview")})
+          </Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.nextBalance, { color: nextBalance > 0 ? theme.debtColor : theme.paymentColor }]}
+          >
+            {money.formatBalance(nextBalance)}
+          </Text>
+        </View>
+        <View style={styles.actions}>
         {(["payment", "debt"] as const).map((type) => (
           <Pressable
             key={type}
@@ -373,7 +521,7 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
             ) : (
               <Ionicons
                 name={type === "debt" ? "add-circle-outline" : "wallet-outline"}
-                size={24}
+                size={20}
                 color="#FFFFFF"
               />
             )}
@@ -382,6 +530,7 @@ function TransactionFooter(footerProps: BottomSheetFooterProps) {
             </Text>
           </Pressable>
         ))}
+        </View>
       </View>
     </BottomSheetFooter>
   );
@@ -395,7 +544,21 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const insets = useSafeAreaInsets();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const tx = useTransaction();
-  const [focused, setFocused] = useState<"amount" | "note" | null>(null);
+  const footerHeight = useContext(FooterHeightContext);
+  // With the keyboard up the footer sits right on it, not above the system
+  // navigation bar, so that inset is no longer room the content needs.
+  // "Will" events: the padding changes with the keyboard, not after it.
+  const [keyboardShown, setKeyboardShown] = useState(() => KeyboardController.isVisible());
+  React.useEffect(() => {
+    const show = KeyboardEvents.addListener("keyboardWillShow", () => setKeyboardShown(true));
+    const hide = KeyboardEvents.addListener("keyboardWillHide", () => setKeyboardShown(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  const [focused, setFocused] = useState<FocusedField | null>(null);
+  const keepVisible = useKeepFocusedFieldVisible(focused);
   const amountRef = useRef<TransactionInputRef>(null);
   const noteRef = useRef<TransactionInputRef>(null);
   const dismissKeyboard = React.useCallback(() => {
@@ -407,10 +570,13 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
   const handleFieldBlur = React.useCallback(() => setFocused(null), []);
   return (
     <BottomSheetScrollView
-      enableFooterMarginAdjustment
+      ref={keepVisible.scrollRef}
+      onLayout={keepVisible.onViewportLayout}
+      onContentSizeChange={keepVisible.onContentSizeChange}
       contentContainerStyle={[
         styles.content,
-        { paddingBottom: insets.bottom + 12 },
+        // Room for the fixed footer, measured, plus the inset it sits above.
+        { paddingBottom: (keyboardShown ? 0 : insets.bottom) + 12 + footerHeight },
       ]}
       keyboardShouldPersistTaps="always"
       keyboardDismissMode="interactive"
@@ -476,6 +642,7 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
       </View>
       <Pressable
         onPress={() => amountRef.current?.focus()}
+        onLayout={keepVisible.onAmountLayout}
         style={[styles.amountField, focused === "amount" && styles.focused]}
       >
         <View style={styles.amountCopy}>
@@ -503,9 +670,14 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
       </Pressable>
       <Pressable
         onPress={() => noteRef.current?.focus()}
+        onLayout={keepVisible.onNoteLayout}
         style={[styles.noteField, focused === "note" && styles.focused]}
       >
-        <Text style={styles.label}>{t("transactions.note")}</Text>
+        {/* The due date's checkbox sits on the label's line: no row of its own. */}
+        <View style={styles.noteLabelRow}>
+          <Text style={styles.label}>{t("transactions.note")}</Text>
+          <DueDateToggle value={tx.dueDate} onChange={tx.setDueDate} disabled={!!tx.saving} />
+        </View>
         <BottomSheetTextInput
           ref={noteRef}
           value={tx.note}
@@ -525,24 +697,6 @@ export function TransactionSheet(_: SheetRenderProps<"transaction">) {
           accessibilityLabel={t("transactions.noteA11y")}
         />
       </Pressable>
-      <View style={styles.preview}>
-        <Text style={styles.previewLabel}>
-          {t("transactions.nextBalance")} {tx.previewType === "payment" ? `(${t("transactions.paymentPreview")})` : `(${t("transactions.debtPreview")})`}
-          :
-        </Text>
-        <Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          style={[
-            styles.nextBalance,
-            {
-              color: tx.nextBalance > 0 ? theme.debtColor : theme.paymentColor,
-            },
-          ]}
-        >
-          {money.formatBalance(tx.nextBalance)}
-        </Text>
-      </View>
     </BottomSheetScrollView>
   );
 }
@@ -634,6 +788,13 @@ const createStyles = (theme: AppTheme) =>
       paddingHorizontal: 12,
       paddingVertical: 7,
     },
+    noteLabelRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 8,
+      marginBottom: 2,
+    },
     noteInput: {
       minHeight: 34,
       maxHeight: 90,
@@ -647,9 +808,9 @@ const createStyles = (theme: AppTheme) =>
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
-      paddingVertical: 10,
+      paddingHorizontal: 2,
     },
-    previewLabel: { flex: 1, color: theme.text, fontSize: 12 },
+    previewLabel: { flex: 1, color: theme.textSecondary, fontSize: 12 },
     nextBalance: {
       maxWidth: "55%",
       fontSize: 15,
@@ -657,20 +818,22 @@ const createStyles = (theme: AppTheme) =>
       fontVariant: ["tabular-nums"],
     },
     footer: {
-      flexDirection: "row",
-      gap: 10,
-      padding: 12,
+      gap: 8,
+      paddingHorizontal: 12,
+      paddingTop: 8,
+      paddingBottom: 8,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: theme.border,
       backgroundColor: theme.surface,
     },
+    actions: { flexDirection: "row", gap: 10 },
     action: {
       flex: 1,
-      minHeight: 56,
+      minHeight: 46,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "center",
-      gap: 7,
+      gap: 6,
       borderRadius: 12,
       paddingHorizontal: 8,
     },

@@ -56,8 +56,20 @@ export function DatePickerSheet({
   // Read once: the sheet is short-lived, and a day rolling over mid-selection
   // is not worth a timer.
   const [today] = useState(todayDateOnly);
-  const maxDate = props.maxDate ?? today;
-  const maxMonth = useMemo(() => monthOf(maxDate), [maxDate]);
+  // A day ahead (a due date) has a first day and no last; a day past, the
+  // other way round.
+  const minDate = props.minDate ?? null;
+  const maxDate = props.maxDate ?? (minDate ? null : today);
+  const maxMonth = useMemo(() => (maxDate ? monthOf(maxDate) : null), [maxDate]);
+  const minMonth = useMemo(() => (minDate ? monthOf(minDate) : null), [minDate]);
+  const outOfRange = useCallback(
+    (date: DateOnly) => (maxDate !== null && date > maxDate) || (minDate !== null && date < minDate),
+    [maxDate, minDate],
+  );
+  const quickPicks = useMemo(
+    () => QUICK_PICKS.filter((pick) => !outOfRange(pick.resolve(today))),
+    [outOfRange, today],
+  );
 
   const [mode, setMode] = useState<Mode>("days");
   const [visibleMonth, setVisibleMonth] = useState<CalendarMonth>(() =>
@@ -66,9 +78,15 @@ export function DatePickerSheet({
 
   const weeks = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
   const canGoForward =
-    mode === "days"
+    maxMonth === null ||
+    (mode === "days"
       ? compareMonths(visibleMonth, maxMonth) < 0
-      : visibleMonth.year < maxMonth.year;
+      : visibleMonth.year < maxMonth.year);
+  const canGoBack =
+    minMonth === null ||
+    (mode === "days"
+      ? compareMonths(visibleMonth, minMonth) > 0
+      : visibleMonth.year > minMonth.year);
 
   const select = useCallback(
     (date: DateOnly) => {
@@ -123,8 +141,9 @@ export function DatePickerSheet({
         </Pressable>
       </View>
 
+      {quickPicks.length > 0 ? (
       <View style={styles.quickPicks}>
-        {QUICK_PICKS.map((pick) => {
+        {quickPicks.map((pick) => {
           const date = pick.resolve(today);
           const active = date === value;
           return (
@@ -149,12 +168,14 @@ export function DatePickerSheet({
           );
         })}
       </View>
+      ) : null}
 
       <View style={styles.navigator}>
         <NavButton
           icon="chevron-back"
           label={t(mode === "days" ? "calendar.previousMonth" : "calendar.previousYear")}
           onPress={() => step(-1)}
+          disabled={!canGoBack}
           styles={styles}
           color={theme.text}
         />
@@ -199,7 +220,7 @@ export function DatePickerSheet({
                   cell={cell}
                   selected={cell?.date === value}
                   isToday={cell?.date === today}
-                  disabled={cell !== null && cell.date > maxDate}
+                  disabled={cell !== null && outOfRange(cell.date)}
                   accessibilityLabel={cell ? formatDateOnly(cell.date, t) : ""}
                   onSelect={select}
                   styles={styles}
@@ -212,7 +233,8 @@ export function DatePickerSheet({
         <View style={styles.monthGrid}>
           {MONTH_SHORT_KEYS.map((key, month) => {
             const disabled =
-              compareMonths({ year: visibleMonth.year, month }, maxMonth) > 0;
+              (maxMonth !== null && compareMonths({ year: visibleMonth.year, month }, maxMonth) > 0) ||
+              (minMonth !== null && compareMonths({ year: visibleMonth.year, month }, minMonth) < 0);
             const active =
               monthOf(value).year === visibleMonth.year &&
               monthOf(value).month === month;

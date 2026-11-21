@@ -27,6 +27,12 @@ import { useClientDetail } from "../modules/clients/hooks/useClientDetail";
 import { getInitials } from "../utils";
 import { APP_NAME } from "../constants";
 import type { Transaction } from "../modules/transactions/types";
+import { formatDateOnly } from "../i18n/calendarLabels";
+import { todayDateOnly } from "../utils/dateOnly";
+import { findNextDue, unpaidDebts } from "../modules/transactions/utils/dueDate";
+import { useOrganizationRole } from "../modules/organization/hooks/useOrganizationRole";
+import { useOrganizationAccess } from "../modules/organization/hooks/useOrganizationAccess";
+import { ReadOnlyBanner } from "../modules/organization/components/ReadOnlyBanner";
 import { AppTheme, RootStackParamList } from "../types";
 import { useBottomSheet } from "../bottom-sheet";
 import { useTheme } from "../hooks/useTheme";
@@ -74,6 +80,9 @@ export function CustomerDetailScreen() {
   const { deleteCustomer } = useApp();
   const { detail, history, update, resolvedId } = useClientDetail(customerId);
   const customer = detail.data;
+  const { isOwner } = useOrganizationRole();
+  // "Faqat ko'rish": the customer and their history show; nothing is written.
+  const { readOnly } = useOrganizationAccess();
   // Added offline and not yet on the server: only debts and payments can be
   // written for it (they wait with it); changing or removing it waits too.
   const onlyOnPhone = resolvedId < 0;
@@ -81,6 +90,7 @@ export function CustomerDetailScreen() {
   // Editing needs the server: offline it says why (and opens once it is back).
   const openEditor = () => setEditing(true);
   const startEditing = () => {
+    if (readOnly) return;
     if (onlyOnPhone) showLockedNotice();
     else if (requireServer(openEditor)) openEditor();
   };
@@ -256,16 +266,24 @@ export function CustomerDetailScreen() {
       }),
     [openSheet],
   );
+  // Payments pay the oldest debts first: a debt paid off has no return date
+  // left to keep, and the nearest one still owed is shown under the balance.
+  const unpaid = useMemo(() => unpaidDebts(txs), [txs]);
+  const nextDue = useMemo(
+    () => ((balance ?? 0) > 0 ? findNextDue(txs, todayDateOnly()) : null),
+    [balance, txs],
+  );
   const renderTransaction = useCallback(
     ({ item }: { item: Transaction }) => (
       <TransactionRow
         tx={item}
+        unpaid={unpaid.has(item.id)}
         onOpen={openTransactionDetail}
         theme={theme}
         styles={styles}
       />
     ),
-    [openTransactionDetail, styles, theme],
+    [openTransactionDetail, unpaid, styles, theme],
   );
 
   if (!customer)
@@ -323,7 +341,7 @@ export function CustomerDetailScreen() {
   customerNameRef.current = displayName;
 
   function openTransactionSheet() {
-    if (!customer || deleting) return;
+    if (!customer || deleting || readOnly) return;
     openSheet("transaction", {
       customerId: resolvedId,
       customerName: displayName,
@@ -377,20 +395,29 @@ export function CustomerDetailScreen() {
       color: theme.primary,
       onPress: () => void share(),
     },
-    {
-      label: t("transactions.edit"),
-      icon: "create-outline",
-      color: onlyOnPhone ? theme.textMuted : theme.textSecondary,
-      muted: onlyOnPhone,
-      onPress: startEditing,
-    },
-    {
-      label: deleteLabel,
-      icon: "trash-outline",
-      color: onlyOnPhone ? theme.textMuted : theme.dangerColor,
-      muted: onlyOnPhone,
-      onPress: () => void remove(),
-    },
+    ...(readOnly
+      ? []
+      : [
+          {
+            label: t("transactions.edit"),
+            icon: "create-outline" as const,
+            color: onlyOnPhone ? theme.textMuted : theme.textSecondary,
+            muted: onlyOnPhone,
+            onPress: startEditing,
+          },
+        ]),
+    // Deleting a customer is the owner's; staff do not get the button.
+    ...(isOwner && !readOnly
+      ? [
+          {
+            label: deleteLabel,
+            icon: "trash-outline" as const,
+            color: onlyOnPhone ? theme.textMuted : theme.dangerColor,
+            muted: onlyOnPhone,
+            onPress: () => void remove(),
+          },
+        ]
+      : []),
   ];
   return (
     <SafeAreaView style={styles.safe} edges={["top", "bottom"]}>
@@ -412,6 +439,7 @@ export function CustomerDetailScreen() {
         ListHeaderComponent={
           <>
             <SavedDataNotice style={styles.savedNotice} />
+            <ReadOnlyBanner style={styles.readOnlyBanner} />
             <View style={styles.identity}>
               <View style={styles.avatar}>
                 <Text style={styles.initials}>{getInitials(customer)}</Text>
@@ -557,6 +585,7 @@ export function CustomerDetailScreen() {
                 </View>
               ))}
             </View>
+            {nextDue ? <NextDueCard due={nextDue} theme={theme} styles={styles} /> : null}
             {detail.isError && (
               <Pressable
                 accessibilityRole="button"
@@ -568,7 +597,7 @@ export function CustomerDetailScreen() {
                 </Text>
               </Pressable>
             )}
-            {showActions && (
+            {showActions && !readOnly && (
               <View style={styles.tools}>
                 <View style={styles.transactionActions}>
                   {(["debt", "payment"] as const).map((type) => (
@@ -749,6 +778,7 @@ export function CustomerDetailScreen() {
           </Pressable>
         ))}
       </View>
+      {readOnly ? null : (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t("transactions.addTransaction")}
@@ -771,6 +801,7 @@ export function CustomerDetailScreen() {
           color={theme.surface}
         />
       </Pressable>
+      )}
       {editing && (
         <CustomerEditSheet
           customer={customer}
@@ -782,13 +813,72 @@ export function CustomerDetailScreen() {
   );
 }
 
+/**
+ * Under the balance: the nearest return date still owed, how far off it is
+ * (or how long ago it passed), and what is to be paid back by then.
+ */
+function NextDueCard({
+  due,
+  theme,
+  styles,
+}: {
+  due: NonNullable<ReturnType<typeof findNextDue>>;
+  theme: AppTheme;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  const { t } = useTranslation();
+  const money = useMoney();
+  const late = due.days < 0;
+  const soon = due.days <= 1;
+  const tone = late ? theme.dangerColor : soon ? theme.warningColor : theme.primary;
+  const when =
+    due.days < 0
+      ? t("transactions.dueDaysLate", { count: -due.days })
+      : due.days === 0
+        ? t("transactions.dueToday")
+        : due.days === 1
+          ? t("transactions.dueTomorrow")
+          : t("transactions.dueDaysLeft", { count: due.days });
+  const day = formatDateOnly(due.dueDate, t);
+  const amount = t("transactions.dueAmount", { amount: money.format(due.amount) });
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={`${t("transactions.dueCardTitle")}: ${day}, ${when}. ${amount}`}
+      style={[styles.dueCard, { borderColor: late ? theme.dangerColor : theme.border }]}
+    >
+      <View style={[styles.dueIcon, { backgroundColor: `${tone}1F` }]}>
+        <Ionicons name={late ? "alert-circle-outline" : "calendar-outline"} size={20} color={tone} />
+      </View>
+      <View style={styles.dueCopy}>
+        <Text style={styles.dueTitle}>{t("transactions.dueCardTitle")}</Text>
+        <Text style={styles.dueDay} numberOfLines={1}>
+          {day}
+        </Text>
+        <Text style={styles.dueAmount} numberOfLines={1}>
+          {amount}
+        </Text>
+      </View>
+      <View style={[styles.dueChip, { backgroundColor: `${tone}1F` }]}>
+        <Text style={[styles.dueChipText, { color: tone }]} numberOfLines={1}>
+          {when}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 const TransactionRow = memo(function TransactionRow({
   tx,
+  unpaid,
   onOpen,
   theme,
   styles,
 }: {
   tx: Transaction;
+  /** A debt not yet paid off (payments pay the oldest first). */
+  unpaid: boolean;
   onOpen: (tx: Transaction) => void;
   theme: AppTheme;
   styles: ReturnType<typeof createStyles>;
@@ -798,17 +888,46 @@ const TransactionRow = memo(function TransactionRow({
   const date = formatLocalizedDateTime(tx.date, locale);
   const amount = money.format(tx.amount);
   const isDebt = tx.type === "debt";
+  const dueDate = isDebt && tx.dueDate ? tx.dueDate : null;
+  const overdue = dueDate !== null && unpaid && dueDate < todayDateOnly();
+  const dueDay = dueDate ? formatDateOnly(dueDate, t) : "";
+  const dueLabel = !dueDate
+    ? ""
+    : !unpaid
+      ? t("transactions.dueOnPaid", { date: dueDay })
+      : overdue
+        ? t("transactions.dueOnOverdue", { date: dueDay })
+        : t("transactions.dueOn", { date: dueDay });
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${date}, ${isDebt ? t("transactions.detailDebt") : t("transactions.detailPayment")}, ${amount}`}
+      accessibilityLabel={`${date}, ${isDebt ? t("transactions.detailDebt") : t("transactions.detailPayment")}, ${amount}${dueLabel ? `, ${dueLabel}` : ""}`}
       onPress={() => onOpen(tx)}
       style={({ pressed }) => [styles.txRow, pressed && styles.pressed]}
     >
       <View style={styles.txCopy}>
         <Text style={styles.txDate}>{date}</Text>
         <Text style={styles.txLabel}>{tx.note}</Text>
+        {dueDate ? (
+          <View style={styles.txDue}>
+            <Ionicons
+              name={!unpaid ? "checkmark-circle-outline" : overdue ? "alert-circle" : "calendar-outline"}
+              size={13}
+              color={overdue ? theme.dangerColor : unpaid ? theme.textSecondary : theme.textMuted}
+            />
+            <Text
+              numberOfLines={1}
+              style={[
+                styles.txDueText,
+                unpaid && { color: theme.textSecondary },
+                overdue && { color: theme.dangerColor, fontWeight: "700" },
+              ]}
+            >
+              {dueLabel}
+            </Text>
+          </View>
+        ) : null}
       </View>
       <Text
         numberOfLines={1}
@@ -999,6 +1118,26 @@ const createStyles = (theme: AppTheme) =>
     txCopy: { flex: 1, minWidth: 0, gap: 3 },
     txDate: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
     txLabel: { color: theme.textSecondary, fontSize: 13, lineHeight: 18 },
+    txDue: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 },
+    readOnlyBanner: { marginHorizontal: 0, marginTop: 4, marginBottom: 12 },
+    dueCard: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 16,
+      borderWidth: 1,
+      backgroundColor: theme.surface,
+    },
+    dueIcon: { width: 40, height: 40, borderRadius: 12, alignItems: "center", justifyContent: "center" },
+    dueCopy: { flex: 1, minWidth: 0, gap: 1 },
+    dueTitle: { color: theme.textSecondary, fontSize: 12, lineHeight: 16 },
+    dueDay: { color: theme.text, fontSize: 16, lineHeight: 21, fontWeight: "800" },
+    dueAmount: { color: theme.textSecondary, fontSize: 12, lineHeight: 16 },
+    dueChip: { flexShrink: 0, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999 },
+    dueChipText: { fontSize: 12, fontWeight: "800" },
+    txDueText: { flexShrink: 1, color: theme.textMuted, fontSize: 12, lineHeight: 16, fontWeight: "600" },
     txAmount: {
       maxWidth: "52%",
       fontSize: 16,

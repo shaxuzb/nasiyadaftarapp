@@ -38,12 +38,12 @@ assert.match(
 const sms = read("src/screens/ClientSmsScreen.tsx");
 assert.match(
   sms,
-  /const openSmsPackages = useCallback\(\(\) => \{\s*setUpgradeReason\("sms-packages"\);\s*setIsUpgradeModalOpen\(true\);/,
+  /const openSmsPackages = useCallback\(\(\) => \{\s*if \(!isOwner\) \{[\s\S]{0,120}?\}\s*setUpgradeReason\("sms-packages"\);\s*setIsUpgradeModalOpen\(true\);/,
   "The pill opens the package list",
 );
 assert.match(
   sms,
-  /const openUpgradeModal = useCallback\(\(\) => \{\s*setUpgradeReason\("sms-limit"\);\s*setIsUpgradeModalOpen\(true\);/,
+  /const openUpgradeModal = useCallback\(\(\) => \{\s*if \(!isOwner\) \{[\s\S]{0,120}?\}\s*setUpgradeReason\("sms-limit"\);\s*setIsUpgradeModalOpen\(true\);/,
   "A send that hits the limit still offers plans as well",
 );
 assert.match(sms, /reason=\{upgradeReason\}/);
