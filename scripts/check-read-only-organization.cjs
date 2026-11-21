@@ -18,6 +18,11 @@ assert.match(
 // and otherwise kept from what was known before.
 assert.match(organizationsApi, /apiClient\.get<unknown>\("\/organizations"\)/);
 assert.match(read("src/context/AuthContext.tsx"), /availableOrganizations = keepKnownAccess\(/);
+// Premium bought or ended: the shops' access is fetched again straight away.
+assert.match(
+  read("src/context/AuthContext.tsx"),
+  /previous\?\.planCode !== subscription\.planCode[\s\S]{0,120}resolveOrganizations\(nextUser, \{ silent: true \}\)/,
+);
 assert.match(
   read("src/modules/organization/hooks/useOrganizationAccess.ts"),
   /const readOnly = currentOrganization\?\.isReadOnly === true;/,

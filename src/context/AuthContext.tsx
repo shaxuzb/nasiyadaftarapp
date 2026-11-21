@@ -401,8 +401,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryKeys.subscriptionCurrent(user.id),
       subscription,
     );
-    await persistUser(withOwnSubscription(user, subscription));
-  }, [persistUser, user]);
+    const nextUser = withOwnSubscription(user, subscription);
+    await persistUser(nextUser);
+    // Premium bought or ended: which shops are "faqat ko'rish" changes with it,
+    // at once and without leaving the screen.
+    const previous = user.ownSubscription ?? user.subscription;
+    if (previous?.planCode !== subscription.planCode || previous?.endAt !== subscription.endAt) {
+      await resolveOrganizations(nextUser, { silent: true }).catch(() => undefined);
+    }
+  }, [persistUser, resolveOrganizations, user]);
 
   const selectOrganization = useCallback(
     async (organizationId: number) => {
