@@ -25,10 +25,10 @@
         "NSContactsUsageDescription": "Mijozni kontaktlardan tez qo'shish uchun kontaktlarga ruxsat bering.",
         "NSFaceIDUsageDescription": "Qarz Daftar hisobingizni himoyalash uchun Face ID’dan foydalanadi."
       },
-      "buildNumber": "22"
+      "buildNumber": "24"
     },
     "android": {
-      "versionCode": 22,
+      "versionCode": 23,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#092A59"

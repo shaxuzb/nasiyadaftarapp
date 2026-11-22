@@ -1,6 +1,6 @@
 import { isValidPublicApiBaseUrl, resolveApiBaseUrl } from "./apiBaseUrl";
 
-const configuredApiBaseUrl = "https://nasiya-test-api.crmuz.uz/api";
+const configuredApiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 // process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
 
 // Despite the host name, nasiya-test-api.crmuz.uz IS the production backend;
